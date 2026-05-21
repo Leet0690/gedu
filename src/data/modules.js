@@ -16,7 +16,7 @@ export const MODULES_DATA = {
         'Architecture et système d\'exploitation',
         'Bureautique',
         'Soft skills et Techniques de communication',
-        'Langue étrangère: Anglaise',
+        'Anglais : Techniques de communication',
         'Stage en Entreprise',
       ],
       '2ème année': [
@@ -50,7 +50,7 @@ export const MODULES_DATA = {
         'Entreprenariat',
         'Bureautique',
         'Soft skills et Techniques de communication',
-        'Langue étrangère: Anglaise',
+        'Anglais : Techniques de communication',
         'Stage en Entreprise',
       ],
       '2ème année': [
@@ -66,7 +66,7 @@ export const MODULES_DATA = {
         'Gestion de projet (MS Project)',
         'ERP',
         'Soft skills et Techniques de communication',
-        'Langue étrangère: Anglaise',
+        'Anglais : Techniques de communication',
         'Techniques de rédaction des travaux de fin d\'étude',
         'Stage en Entreprise',
       ],
@@ -85,7 +85,7 @@ export const MODULES_DATA = {
         'Architecture et Système d\'exploitation',
         'Bureautique',
         'Soft skills et Techniques de communication',
-        'Langue étrangère: Anglaise',
+        'Anglais : Techniques de communication',
         'Stage en Entreprise',
       ],
       '2ème année': [
@@ -100,7 +100,7 @@ export const MODULES_DATA = {
         'Gestion de projet (MS Project)',
         'ERP',
         'Soft skills et Techniques de communication',
-        'Langue étrangère: Anglaise',
+        'Anglais : Techniques de communication',
         'Techniques de rédaction des travaux de fin d\'étude',
         'Stage en Entreprise',
       ],
@@ -121,7 +121,7 @@ export const MODULES_DATA = {
         'Architecture et Système d\'exploitation',
         'Bureautique',
         'Soft skills et Techniques de communication',
-        'Anglais'
+        'Anglais : Techniques de communication'
       ],
       '2ème année': [
         'Diagnostic financier',
@@ -135,7 +135,7 @@ export const MODULES_DATA = {
         'Gestion de projet (MS Project)',
         'ERP',
         'Soft skills et Techniques de communication',
-        'Anglais'
+        'Anglais : Techniques de communication'
       ],
     },
   },
