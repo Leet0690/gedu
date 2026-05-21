@@ -488,7 +488,7 @@ const ScheduleManagement = () => {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 16 }}
               className="glass-premium"
-              style={{ width: '100%', maxWidth: '500px', padding: '32px', position: 'relative', zIndex: 101, borderRadius: 'var(--radius-3xl)' }}
+              style={{ width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto', padding: '32px', position: 'relative', zIndex: 101, borderRadius: 'var(--radius-3xl)' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                 <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: '900' }}>
