@@ -518,7 +518,7 @@ h1, h2, h3, h4, h5, h6 {
    ═══════════════════════════════════════════════════════════════ */
 
 .input-premium {
-  background: var(--white);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(252, 250, 255, 0.92));
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 12px 16px;
@@ -532,7 +532,7 @@ h1, h2, h3, h4, h5, h6 {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  cursor: pointer;
+  cursor: text;
 }
 
 .input-premium::placeholder {
@@ -549,6 +549,96 @@ h1, h2, h3, h4, h5, h6 {
 .input-premium:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(176, 104, 185, 0.08), 0 8px 24px rgba(17, 24, 39, 0.04), var(--shadow-inner);
+}
+
+select.input-premium {
+  padding-right: 36px !important;
+  cursor: pointer;
+  color: var(--text-secondary);
+  background-color: var(--white);
+  background-image:
+    linear-gradient(135deg, rgba(176, 104, 185, 0.14), rgba(254, 205, 8, 0.10)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23b068b9' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat, no-repeat !important;
+  background-position: right 7px center, right 12px center !important;
+  background-size: 26px 26px, 15px 15px !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 4px 14px rgba(90, 50, 100, 0.04), var(--shadow-inner);
+}
+
+select.input-premium:hover {
+  border-color: rgba(176, 104, 185, 0.32);
+  background-image:
+    linear-gradient(135deg, rgba(176, 104, 185, 0.20), rgba(254, 205, 8, 0.14)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23964ba2' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+}
+
+select.input-premium:focus {
+  border-color: var(--primary);
+  color: var(--text-primary);
+  box-shadow: 0 0 0 4px rgba(176, 104, 185, 0.12), 0 10px 26px rgba(90, 50, 100, 0.08), var(--shadow-inner);
+}
+
+select.input-premium:disabled {
+  cursor: not-allowed;
+  color: var(--text-faint);
+  background-color: var(--bg-subtle);
+  opacity: 0.72;
+  transform: none;
+}
+
+select.input-premium option {
+  color: var(--text-primary);
+  background: var(--white);
+  font-weight: 600;
+}
+
+input.input-premium[type="date"] {
+  padding-right: 42px !important;
+  cursor: pointer;
+  color-scheme: light;
+  color: var(--text-secondary);
+  background-color: var(--white);
+  background-image:
+    linear-gradient(135deg, rgba(37, 99, 235, 0.10), rgba(176, 104, 185, 0.12)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23b068b9' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 2v4'/%3E%3Cpath d='M16 2v4'/%3E%3Crect x='3' y='4' width='18' height='18' rx='4'/%3E%3Cpath d='M3 10h18'/%3E%3Cpath d='M8 14h.01'/%3E%3Cpath d='M12 14h.01'/%3E%3Cpath d='M16 14h.01'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat, no-repeat !important;
+  background-position: right 7px center, right 12px center !important;
+  background-size: 28px 28px, 16px 16px !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 4px 14px rgba(90, 50, 100, 0.04), var(--shadow-inner);
+}
+
+input.input-premium[type="date"]:hover {
+  border-color: rgba(176, 104, 185, 0.32);
+  background-image:
+    linear-gradient(135deg, rgba(37, 99, 235, 0.14), rgba(176, 104, 185, 0.18)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23964ba2' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 2v4'/%3E%3Cpath d='M16 2v4'/%3E%3Crect x='3' y='4' width='18' height='18' rx='4'/%3E%3Cpath d='M3 10h18'/%3E%3Cpath d='M8 14h.01'/%3E%3Cpath d='M12 14h.01'/%3E%3Cpath d='M16 14h.01'/%3E%3C/svg%3E") !important;
+}
+
+input.input-premium[type="date"]:focus {
+  border-color: var(--primary);
+  color: var(--text-primary);
+  box-shadow: 0 0 0 4px rgba(176, 104, 185, 0.12), 0 10px 26px rgba(90, 50, 100, 0.08), var(--shadow-inner);
+}
+
+input.input-premium[type="date"]:disabled {
+  cursor: not-allowed;
+  color: var(--text-faint);
+  background-color: var(--bg-subtle);
+  opacity: 0.72;
+  transform: none;
+}
+
+input.input-premium[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  height: 100%;
+  opacity: 0;
+  padding: 0;
+  width: 36px;
+}
+
+input.input-premium[type="date"]::-webkit-datetime-edit {
+  color: inherit;
+  font-weight: 600;
 }
 
 /* ═══════════════════════════════════════════════════════════════

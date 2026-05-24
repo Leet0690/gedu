@@ -6,7 +6,7 @@ import { FILIERES, getModulesForFiliere } from '../data/modules';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import {
-  UserCheck, FileSpreadsheet, Search, Calendar, CheckCircle2,
+  UserCheck, FileSpreadsheet, Search, CheckCircle2,
   XCircle, X, Clock, Users, Filter, Download, CalendarRange,
   ChevronLeft, ChevronRight, AlertTriangle, CheckCheck
 } from 'lucide-react';
@@ -34,7 +34,6 @@ const StatusCell = ({ status }) => {
 /* ─── Shared styles ─── */
 const labelStyle = { fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px', display: 'block' };
 const filterGroupStyle = { display: 'flex', flexDirection: 'column' };
-const filterIconStyle = { position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)' };
 const thStyle = { padding: '16px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' };
 const tdStyle = { padding: '16px' };
 
@@ -525,37 +524,34 @@ const StudentAttendance = () => {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'var(--space-4)' }}>
               <div style={filterGroupStyle}>
                 <label style={labelStyle}>Date de l'appel</label>
-                <div style={{ position: 'relative' }}>
-                  <Calendar size={14} style={filterIconStyle} />
-                  <input type="date" className="input-premium" style={{ width: '100%', paddingLeft: '34px' }} value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />
-                </div>
+                <input type="date" className="input-premium" style={{ width: '100%' }} value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />
               </div>
               <div style={filterGroupStyle}>
                 <label style={labelStyle}>Niveau</label>
-                <select className="input-premium" value={filterDiploma} onChange={(e) => { setFilterDiploma(e.target.value); setFilterMajor(''); setFilterModule(''); }}>
-                  <option value="" disabled>-- Choisir niveau --</option>
+                <select className="input-premium" style={{ width: '100%' }} value={filterDiploma} onChange={(e) => { setFilterDiploma(e.target.value); setFilterMajor(''); setFilterModule(''); }}>
+                  <option value="" disabled>Choisir niveau</option>
                   {Object.keys(FILIERES).map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
               </div>
               <div style={filterGroupStyle}>
                 <label style={labelStyle}>Filière</label>
-                <select className="input-premium" value={filterMajor} onChange={(e) => { setFilterMajor(e.target.value); setFilterModule(''); }}>
-                  <option value="" disabled>-- Choisir filière --</option>
+                <select className="input-premium" style={{ width: '100%' }} value={filterMajor} onChange={(e) => { setFilterMajor(e.target.value); setFilterModule(''); }}>
+                  <option value="" disabled>Choisir filière</option>
                   {availableMajors.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
               <div style={filterGroupStyle}>
                 <label style={labelStyle}>Année</label>
-                <select className="input-premium" value={filterYear} onChange={(e) => { setFilterYear(e.target.value); setFilterModule(''); }}>
-                  <option value="" disabled>-- Année --</option>
+                <select className="input-premium" style={{ width: '100%' }} value={filterYear} onChange={(e) => { setFilterYear(e.target.value); setFilterModule(''); }}>
+                  <option value="" disabled>Année</option>
                   <option value="1ère année">1ère année</option>
                   <option value="2ème année">2ème année</option>
                 </select>
               </div>
               <div style={filterGroupStyle}>
                 <label style={labelStyle}>Module</label>
-                <select className="input-premium" value={filterModule} onChange={(e) => setFilterModule(e.target.value)}>
-                  <option value="">(Module requis)</option>
+                <select className="input-premium" style={{ width: '100%' }} value={filterModule} onChange={(e) => setFilterModule(e.target.value)}>
+                  <option value="">Module requis</option>
                   {availableModules.map(m => <option key={m} value={m}>{m}</option>)}
                   {availableModules.length === 0 && <option value="global">Général</option>}
                 </select>

@@ -245,26 +245,38 @@ const ModuleManagement = () => {
       </header>
 
       {/* Filters */}
-      <div className="glass-card" style={{ padding: 'var(--space-4)', display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
-        <select className="input-premium" style={{ flex: 1 }} value={filterYear} onChange={e => { setFilterYear(e.target.value); setPage(1); }}>
-          <option value="" disabled>-- Choisir l'année --</option>
-          <option value="1ère année">1ère année</option>
-          <option value="2ème année">2ème année</option>
-        </select>
-        <select className="input-premium" style={{ flex: 1 }} value={filterDiploma} onChange={e => { setFilterDiploma(e.target.value); setFilterMajor(''); setPage(1); }}>
-          <option value="" disabled>-- Choisir le niveau --</option>
-          {diplomas.map(d => <option key={d} value={d}>{d}</option>)}
-        </select>
-        <select className="input-premium" style={{ flex: 1 }} value={filterMajor} onChange={e => { setFilterMajor(e.target.value); setPage(1); }}>
-          <option value="" disabled>-- Choisir la filière --</option>
-          {majors.map(m => <option key={m} value={m}>{m}</option>)}
-        </select>
-        <select className="input-premium" style={{ flex: 1, maxWidth: '160px' }} value={filterSemester} onChange={e => { setFilterSemester(e.target.value); setPage(1); }}>
-          <option value="" disabled>-- Semestre --</option>
-          <option value="S1">S1</option>
-          <option value="S2">S2</option>
-          <option value="Annuel">Annuel (S1 & S2)</option>
-        </select>
+      <div className="glass-card" style={{ padding: 'var(--space-4)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'var(--space-3)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <label style={labelStyle}>Année</label>
+          <select className="input-premium" style={{ width: '100%' }} value={filterYear} onChange={e => { setFilterYear(e.target.value); setPage(1); }}>
+            <option value="" disabled>Choisir l'année</option>
+            <option value="1ère année">1ère année</option>
+            <option value="2ème année">2ème année</option>
+          </select>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <label style={labelStyle}>Niveau</label>
+          <select className="input-premium" style={{ width: '100%' }} value={filterDiploma} onChange={e => { setFilterDiploma(e.target.value); setFilterMajor(''); setPage(1); }}>
+            <option value="" disabled>Choisir le niveau</option>
+            {diplomas.map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <label style={labelStyle}>Filière</label>
+          <select className="input-premium" style={{ width: '100%' }} value={filterMajor} onChange={e => { setFilterMajor(e.target.value); setPage(1); }}>
+            <option value="" disabled>Choisir la filière</option>
+            {majors.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <label style={labelStyle}>Semestre</label>
+          <select className="input-premium" style={{ width: '100%' }} value={filterSemester} onChange={e => { setFilterSemester(e.target.value); setPage(1); }}>
+            <option value="" disabled>Semestre</option>
+            <option value="S1">S1</option>
+            <option value="S2">S2</option>
+            <option value="Annuel">Annuel (S1 & S2)</option>
+          </select>
+        </div>
       </div>
 
       {/* Content */}

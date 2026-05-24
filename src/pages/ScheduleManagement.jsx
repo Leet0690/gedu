@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { FILIERES, MODULES_DATA, getModulesForFiliere } from '../data/modules';
 import {
-  CalendarDays, Plus, Trash2, Clock, User, MapPin, Filter,
+  CalendarDays, Plus, Trash2, Clock, User, MapPin,
   X, Layers, Users, Calendar, Edit
 } from 'lucide-react';
 
@@ -179,26 +179,29 @@ const ScheduleManagement = () => {
       </div>
 
       {/* Filter + Stats Bar */}
-      <div className="glass-card" style={{ padding: '16px 20px', marginBottom: 'var(--space-5)', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)' }}>
-          <Filter size={15} />
+      <div className="glass-card" style={{ padding: '16px 20px', marginBottom: 'var(--space-5)', display: 'flex', alignItems: 'end', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 260px' }}>
+          <label style={labelStyle}>Filière</label>
+          <select
+            className="input-premium"
+            style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }}
+            value={filiere}
+            onChange={e => setFiliere(e.target.value)}
+          >
+            {allFilieres.map(f => <option key={f} value={f}>{f}</option>)}
+          </select>
         </div>
-        <select
-          className="input-premium"
-          style={{ flex: 1, minWidth: '200px', maxWidth: '280px', fontSize: '13px', padding: '7px 12px' }}
-          value={filiere}
-          onChange={e => setFiliere(e.target.value)}
-        >
-          {allFilieres.map(f => <option key={f} value={f}>{f}</option>)}
-        </select>
-        <select
-          className="input-premium"
-          style={{ width: '150px', fontSize: '13px', padding: '7px 12px' }}
-          value={annee}
-          onChange={e => setAnnee(e.target.value)}
-        >
-          {allAnnees.map(a => <option key={a} value={a}>{a}</option>)}
-        </select>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '0 1 180px' }}>
+          <label style={labelStyle}>Année</label>
+          <select
+            className="input-premium"
+            style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }}
+            value={annee}
+            onChange={e => setAnnee(e.target.value)}
+          >
+            {allAnnees.map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
+        </div>
         <div style={{
           display: 'inline-flex',
           padding: '4px',

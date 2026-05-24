@@ -54,7 +54,7 @@ import {
 } from 'lucide-react';
 
 const labelStyle = { fontSize: 'var(--text-xs)', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', paddingLeft: '2px' };
-const selectStyle = { cursor: 'pointer', appearance: 'none', backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%2394a3b8\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '16px', paddingRight: '36px' };
+const selectStyle = { cursor: 'pointer', paddingRight: '36px' };
 
 const getGroupAbbreviation = (filiere, annee) => {
   let diplomaAbbr = "";
@@ -1129,28 +1129,40 @@ const AdminDashboard = () => {
 
       {!isDashboard && (
         <>
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', padding: 'var(--space-2)', marginBottom: 'var(--space-6)', background: 'white', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-xs)' }}>
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Search size={14} style={{ color: 'var(--text-faint)', marginLeft: '8px' }} />
-              <input className="input-premium" style={{ border: 'none', boxShadow: 'none', padding: '7px 0', fontSize: '13px', width: '200px' }} placeholder="Rechercher…" value={globalFilter} onChange={(e) => setGlobalFilter(e.target.value)} />
+          <div className="glass-card" style={{ display: 'flex', alignItems: 'end', gap: 'var(--space-3)', flexWrap: 'wrap', padding: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 240px' }}>
+              <label style={labelStyle}>Recherche</label>
+              <div style={{ position: 'relative' }}>
+                <Search size={14} style={{ color: 'var(--text-faint)', position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                <input className="input-premium" style={{ width: '100%', paddingLeft: '36px', fontSize: '13px' }} placeholder="Rechercher…" value={globalFilter} onChange={(e) => setGlobalFilter(e.target.value)} />
+              </div>
             </div>
-            
-            <select className="input-premium" style={{ fontSize: '11px', padding: '6px 10px', minWidth: '120px' }} value={diplomaFilter} onChange={(e) => { setDiplomaFilter(e.target.value); setCategoryFilter(''); }}>
-              <option value="">Tous Niveaux</option>
-              {allDiplomas.map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
-            
-            <select className="input-premium" style={{ fontSize: '11px', padding: '6px 10px', minWidth: '100px' }} value={yearFilter} onChange={(e) => setYearFilter(e.target.value)}>
-              <option value="">Toutes Années</option>
-              {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
-            
-            <select className="input-premium" style={{ fontSize: '11px', padding: '6px 10px', minWidth: '120px' }} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-              <option value="">Toutes Filières</option>
-              {availableMajors.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
 
-            <button onClick={exportCSV} className="btn-modern" style={{ padding: '7px 14px' }}><Download size={14} style={{ marginRight: '6px' }} /> Export</button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 150px' }}>
+              <label style={labelStyle}>Niveau</label>
+              <select className="input-premium" style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }} value={diplomaFilter} onChange={(e) => { setDiplomaFilter(e.target.value); setCategoryFilter(''); }}>
+                <option value="">Tous niveaux</option>
+                {allDiplomas.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 140px' }}>
+              <label style={labelStyle}>Année</label>
+              <select className="input-premium" style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }} value={yearFilter} onChange={(e) => setYearFilter(e.target.value)}>
+                <option value="">Toutes années</option>
+                {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 160px' }}>
+              <label style={labelStyle}>Filière</label>
+              <select className="input-premium" style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+                <option value="">Toutes filières</option>
+                {availableMajors.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+
+            <button onClick={exportCSV} className="btn-modern" style={{ padding: '11px 14px' }}><Download size={14} style={{ marginRight: '6px' }} /> Export</button>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', marginBottom: 'var(--space-6)' }}>
