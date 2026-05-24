@@ -188,6 +188,7 @@ const FinanceDashboard = () => {
   const [paymentsPage, setPaymentsPage] = useState(1);
   const [salariesPage, setSalariesPage] = useState(1);
   const [teachersPage, setTeachersPage] = useState(1);
+  const paymentsPerPage = 6;
   const itemsPerPage = 10;
   const teachersPerPage = 5;
   
@@ -406,6 +407,16 @@ const FinanceDashboard = () => {
     });
   }, [payments, students, searchTerm]);
 
+  const paginatedPayments = useMemo(() => {
+    return filteredPayments.slice((paymentsPage - 1) * paymentsPerPage, paymentsPage * paymentsPerPage);
+  }, [filteredPayments, paymentsPage, paymentsPerPage]);
+
+  const totalPaymentsPages = Math.ceil(filteredPayments.length / paymentsPerPage);
+
+  React.useEffect(() => {
+    setPaymentsPage(prev => Math.min(prev, Math.max(1, totalPaymentsPages)));
+  }, [totalPaymentsPages]);
+
   const modalDiplomas = useMemo(() => [...new Set(students.map(s => s.diploma).filter(Boolean))].sort(), [students]);
   const modalMajors = useMemo(() => {
     const base = paymentModalFilter.diploma ? students.filter(s => s.diploma === paymentModalFilter.diploma) : students;
@@ -564,7 +575,17 @@ const FinanceDashboard = () => {
           <div className="glass-card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
             <div style={{ position: 'relative', width: '320px' }}>
               <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)' }} />
-              <input type="text" className="input-premium" style={{ width: '100%', paddingLeft: '38px' }} placeholder="Rechercher un stagiaire ou mois..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              <input
+                type="text"
+                className="input-premium"
+                style={{ width: '100%', paddingLeft: '38px' }}
+                placeholder="Rechercher un stagiaire ou mois..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setPaymentsPage(1);
+                }}
+              />
             </div>
             <button onClick={() => setShowPaymentModal(true)} className="btn-modern primary">
               <Plus size={16} style={{ marginRight: '8px' }} /> Enregistrer Paiement
@@ -587,7 +608,7 @@ const FinanceDashboard = () => {
                 <tbody>
                   {filteredPayments.length === 0 ? (
                     <tr><td colSpan="6"><EmptyState title="Aucun paiement" message="Aucune transaction trouvée pour cette recherche." icon="search" /></td></tr>
-                  ) : filteredPayments.map(p => {
+                  ) : paginatedPayments.map(p => {
                     const student = students.find(s => s.id === p.studentId);
                     return (
                       <tr key={p.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
@@ -679,6 +700,20 @@ const FinanceDashboard = () => {
               </table>
             )}
           </div>
+
+          {totalPaymentsPages > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', marginTop: '16px' }}>
+              <button className="action-btn" onClick={() => setPaymentsPage(p => Math.max(1, p - 1))} disabled={paymentsPage === 1}>
+                <ChevronLeft size={16} />
+              </button>
+              <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)' }}>
+                Page {paymentsPage} / {totalPaymentsPages}
+              </span>
+              <button className="action-btn" onClick={() => setPaymentsPage(p => Math.min(totalPaymentsPages, p + 1))} disabled={paymentsPage === totalPaymentsPages}>
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
         </motion.div>
       )}
 
