@@ -33,6 +33,26 @@ import {
 const APP_VERSION = '2.5.0';
 const VERSION_KEY = 'ipfp_app_version';
 
+const readStoredAppVersion = () => {
+  try {
+    return localStorage.getItem(VERSION_KEY);
+  } catch {
+    return APP_VERSION;
+  }
+};
+
+const rememberCurrentAppVersion = () => {
+  try {
+    localStorage.setItem(VERSION_KEY, APP_VERSION);
+  } catch {
+    // Storage can be unavailable in restrictive browser modes.
+  }
+};
+
+const isModuleVisibleForScope = (moduleSemester, activeSemester, includeAllSemesters) => {
+  return includeAllSemesters || [activeSemester, 'Annuel'].includes(moduleSemester || 'S1');
+};
+
 /* ── Components ── */
 const GradeInput = ({ value, onChange, placeholder = '—' }) => {
   const num = parseFloat(value);
@@ -96,7 +116,12 @@ const TeacherPortal = () => {
   const [showUnmarkedWarning, setShowUnmarkedWarning] = useState(false);
   const [completedSessionIds, setCompletedSessionIds] = useState(new Set());
   const [showVersionBanner, setShowVersionBanner] = useState(() => {
-    try { return localStorage.getItem(VERSION_KEY) !== APP_VERSION; } catch { return false; }
+    const storedVersion = readStoredAppVersion();
+    if (!storedVersion) {
+      rememberCurrentAppVersion();
+      return false;
+    }
+    return storedVersion !== APP_VERSION;
   });
   const firstUnmarkedRef = useRef(null);
 
@@ -148,6 +173,7 @@ const TeacherPortal = () => {
     if (selectedSessionId) return todaysSessions.find(s => s.id === selectedSessionId);
     return null;
   }, [todaysSessions, selectedSessionId]);
+  const includeAllSemestersForGrades = activeTab === 'grades' || accessMode === 'grades';
 
   const sessionDuration = useMemo(() => {
     if (!currentSession || !currentSession.time) return 4;
@@ -199,10 +225,13 @@ const TeacherPortal = () => {
     if (!teacher) return [];
     const teacherSubjects = teacher.subjects || [teacher.subject] || [];
     return Array.from(new Set((allModules || [])
-      .filter(m => teacherSubjects.includes(m.name) && [activeSemester, 'Annuel'].includes(m.semester || 'S1'))
+      .filter(m =>
+        teacherSubjects.includes(m.name) &&
+        isModuleVisibleForScope(m.semester, activeSemester, includeAllSemestersForGrades)
+      )
       .map(m => m.diploma)
       .filter(Boolean)));
-  }, [teacher, allModules, activeSemester]);
+  }, [teacher, allModules, activeSemester, includeAllSemestersForGrades]);
 
   const availableYears = useMemo(() => {
     if (!teacher || !selectedDiploma) return [];
@@ -212,11 +241,11 @@ const TeacherPortal = () => {
       (allModules || []).some(m =>
         m.diploma === selectedDiploma &&
         m.year === y &&
-        [activeSemester, 'Annuel'].includes(m.semester || 'S1') &&
+        isModuleVisibleForScope(m.semester, activeSemester, includeAllSemestersForGrades) &&
         teacherSubjects.includes(m.name)
       )
     );
-  }, [teacher, selectedDiploma, allModules, activeSemester]);
+  }, [teacher, selectedDiploma, allModules, activeSemester, includeAllSemestersForGrades]);
 
   const filteredGroups = useMemo(() => {
     if (!teacher || !selectedDiploma || !filterYear) return [];
@@ -227,25 +256,25 @@ const TeacherPortal = () => {
         m.diploma === selectedDiploma &&
         m.major === g &&
         m.year === filterYear &&
-        [activeSemester, 'Annuel'].includes(m.semester || 'S1') &&
+        isModuleVisibleForScope(m.semester, activeSemester, includeAllSemestersForGrades) &&
         teacherSubjects.includes(m.name)
       )
     );
-  }, [teacher, selectedDiploma, filterYear, allModules, activeSemester]);
+  }, [teacher, selectedDiploma, filterYear, allModules, activeSemester, includeAllSemestersForGrades]);
 
   const filteredSubjects = useMemo(() => {
     if (!teacher || !selectedDiploma || !selectedGroup || !filterYear) return [];
     const teacherSubjects = teacher.subjects || [teacher.subject] || [];
-    return (allModules || [])
+    return Array.from(new Set((allModules || [])
       .filter(m =>
         m.diploma === selectedDiploma &&
         m.major === selectedGroup &&
         m.year === filterYear &&
-        [activeSemester, 'Annuel'].includes(m.semester || 'S1') &&
+        isModuleVisibleForScope(m.semester, activeSemester, includeAllSemestersForGrades) &&
         teacherSubjects.includes(m.name)
       )
-      .map(m => m.name);
-  }, [teacher, selectedDiploma, selectedGroup, filterYear, allModules, activeSemester]);
+      .map(m => m.name)));
+  }, [teacher, selectedDiploma, selectedGroup, filterYear, allModules, activeSemester, includeAllSemestersForGrades]);
 
   React.useEffect(() => {
     if (availableDiplomas.length > 0 && (!selectedDiploma || !availableDiplomas.includes(selectedDiploma))) setSelectedDiploma(availableDiplomas[0]);
@@ -432,6 +461,7 @@ const TeacherPortal = () => {
   };
 
   const handleForceRefresh = async () => {
+    rememberCurrentAppVersion();
     try {
       if ('caches' in window) {
         const names = await caches.keys();
@@ -441,9 +471,9 @@ const TeacherPortal = () => {
         const registrations = await navigator.serviceWorker.getRegistrations();
         await Promise.all(registrations.map(r => r.unregister()));
       }
-      localStorage.setItem(VERSION_KEY, APP_VERSION);
       window.location.reload(true);
     } catch (e) {
+      rememberCurrentAppVersion();
       window.location.reload(true);
     }
   };
@@ -571,7 +601,7 @@ const TeacherPortal = () => {
             <button onClick={handleForceRefresh} style={{ padding: '8px 16px', borderRadius: 'var(--radius-pill)', background: '#6366f1', color: 'white', border: 'none', fontSize: '12px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <RefreshCw size={13} /> Rafraîchir
             </button>
-            <button onClick={() => { setShowVersionBanner(false); localStorage.setItem(VERSION_KEY, APP_VERSION); }} className="close-button close-button-sm" aria-label="Fermer le message" title="Fermer">
+            <button onClick={() => { setShowVersionBanner(false); rememberCurrentAppVersion(); }} className="close-button close-button-sm" aria-label="Fermer le message" title="Fermer">
               <X size={14} />
             </button>
           </div>
