@@ -45,32 +45,70 @@ const calcDuration = (timeStr) => {
   } catch { return 0; }
 };
 
-const getTeacherMonthlyHours = (attendance, teacherId, month, year) => {
-  const recordsByDate = {};
-  (attendance || []).forEach(a => {
-    if (a.teacherId !== teacherId || a.status !== 'present') return;
-    const parts = (a.date || '').split('-');
-    if (parts.length !== 3) return;
-    const y = parseInt(parts[0], 10);
-    const m = parseInt(parts[1], 10) - 1;
-    if (m !== month || y !== year) return;
-    if (!recordsByDate[a.date]) recordsByDate[a.date] = [];
-    recordsByDate[a.date].push(a);
-  });
+const DAY_NAMES = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+const normalizeTimeSlot = (value = '') => (value || '').replace(/[^0-9]/g, '') || 'x';
+const safeModuleKey = (value = '') => (value || 'global').replace(/[^a-zA-Z0-9]/g, '_');
+const makeAttendanceDocId = (teacherId, moduleId, timeSlot, date) =>
+  `${teacherId}_${safeModuleKey(moduleId)}_${normalizeTimeSlot(timeSlot)}_${date}`;
 
-  let totalHours = 0;
-  Object.values(recordsByDate).forEach(dayRecords => {
-    const groups = {};
-    dayRecords.forEach(r => {
-      const h = Number(r.hours);
-      const calculated = h > 0 ? h : (calcDuration(r.timeSlot) || 4);
-      const slotKey = (r.timeSlot || '').replace(/[^0-9]/g, '') || ('global_' + Math.random());
-      groups[slotKey] = Math.max(groups[slotKey] || 0, calculated);
+const getRecordTimestamp = (record) => {
+  if (!record?.timestamp) return 0;
+  if (typeof record.timestamp.toMillis === 'function') return record.timestamp.toMillis();
+  if (typeof record.timestamp.seconds === 'number') return record.timestamp.seconds * 1000;
+  return 0;
+};
+
+const getDayNameFromDate = (dateStr) => {
+  const [year, month, day] = (dateStr || '').split('-').map(Number);
+  const date = year && month && day ? new Date(year, month - 1, day) : new Date(dateStr);
+  return DAY_NAMES[date.getDay()];
+};
+
+const getMonthDates = (month, year) => {
+  const pad = (n) => String(n).padStart(2, '0');
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  return Array.from({ length: daysInMonth }, (_, i) => `${year}-${pad(month + 1)}-${pad(i + 1)}`);
+};
+
+const getScheduledRowsForDate = ({ schedules = [], teacherId, date, getScheduleModule = (session) => session.module || '' }) => {
+  const dayName = getDayNameFromDate(date);
+  const slotsMap = new Map();
+
+  schedules
+    .filter(session => session.teacherId === teacherId && session.day === dayName)
+    .forEach(session => {
+      const slotKey = `${teacherId}_${normalizeTimeSlot(session.time)}`;
+      const module = getScheduleModule(session);
+      if (slotsMap.has(slotKey)) return;
+      slotsMap.set(slotKey, {
+        date,
+        duration: calcDuration(session.time),
+        docId: makeAttendanceDocId(teacherId, module, session.time, date),
+        module,
+        timeSlot: session.time
+      });
     });
-    totalHours += Object.values(groups).reduce((sum, val) => sum + val, 0);
-  });
 
-  return totalHours;
+  return Array.from(slotsMap.values()).sort((a, b) =>
+    (a.date || '').localeCompare(b.date || '') ||
+    (a.timeSlot || '').localeCompare(b.timeSlot || '')
+  );
+};
+
+const getRecordForScheduledRow = (records = [], teacherId, row) => {
+  const rowSlot = normalizeTimeSlot(row.timeSlot);
+  const candidates = records.filter(record =>
+    record.teacherId === teacherId &&
+    record.date === row.date &&
+    normalizeTimeSlot(record.timeSlot) === rowSlot
+  );
+
+  if (!candidates.length) return null;
+  const exact = candidates.find(record => record.id === row.docId);
+  if (exact) return exact;
+  return candidates.reduce((latest, record) =>
+    getRecordTimestamp(record) >= getRecordTimestamp(latest) ? record : latest
+  , candidates[0]);
 };
 
 const formatMoney = (value) => (parseFloat(value) || 0).toLocaleString();
@@ -102,34 +140,29 @@ const getPaymentBaseAmount = (payment) => {
   return Math.max(0, getPaymentTotal(payment) - feesTotal);
 };
 
-const getTeacherMonthlySessionRows = (attendance, teacherId, month, year) => {
-  const rowsByKey = {};
-  (attendance || []).forEach(record => {
-    if (record.teacherId !== teacherId || record.status !== 'present') return;
-    const parts = (record.date || '').split('-');
-    if (parts.length !== 3) return;
-    const recordYear = parseInt(parts[0], 10);
-    const recordMonth = parseInt(parts[1], 10) - 1;
-    if (recordMonth !== month || recordYear !== year) return;
+const getTeacherMonthlySessionRows = (attendance, teacherId, month, year, schedules = [], getScheduleModule) => {
+  const rows = [];
+  getMonthDates(month, year).forEach(date => {
+    getScheduledRowsForDate({ schedules, teacherId, date, getScheduleModule }).forEach(row => {
+      const record = getRecordForScheduledRow(attendance, teacherId, row);
+      if (record?.status !== 'present') return;
 
-    const hours = Number(record.hours) > 0 ? Number(record.hours) : (calcDuration(record.timeSlot) || 4);
-    const key = `${record.date}_${record.timeSlot || ''}_${record.moduleId || ''}`;
-    if (!rowsByKey[key]) {
-      rowsByKey[key] = {
-        date: record.date,
-        module: record.moduleId || 'Seance',
-        timeSlot: record.timeSlot || '-',
-        hours
-      };
-    } else {
-      rowsByKey[key].hours = Math.max(rowsByKey[key].hours, hours);
-    }
+      const h = Number(record.hours);
+      rows.push({
+        date: row.date,
+        module: row.module || record.moduleId || 'Seance',
+        timeSlot: row.timeSlot || record.timeSlot || '-',
+        hours: h > 0 ? h : (calcDuration(row.timeSlot || record.timeSlot) || 4)
+      });
+    });
   });
 
-  return Object.values(rowsByKey).sort((a, b) =>
-    (a.date || '').localeCompare(b.date || '') ||
-    (a.timeSlot || '').localeCompare(b.timeSlot || '')
-  );
+  return rows;
+};
+
+const getTeacherMonthlyHours = (attendance, teacherId, month, year, schedules = [], getScheduleModule) => {
+  return getTeacherMonthlySessionRows(attendance, teacherId, month, year, schedules, getScheduleModule)
+    .reduce((sum, row) => sum + (Number(row.hours) || 0), 0);
 };
 
 const EXPENSE_CATEGORIES = ['Loyer', 'Matériel', 'Fournitures', 'Services', 'Entretien', 'Communication', 'Transport', 'Autre'];
@@ -140,6 +173,7 @@ const FinanceDashboard = () => {
     addPayment, deletePayment, addSalary, deleteSalary, updateTeacher,
     addExpense, deleteExpense,
     teacherAttendance, loadFinancialData, loadTeacherAttendanceForMonth,
+    schedules, getActiveScheduleModule,
     isDirectorAuth, loginDirector, logoutDirector, logout, confirmAction
   } = useApp();
   const { showToast } = useToast();
@@ -293,7 +327,7 @@ const FinanceDashboard = () => {
     const monthIndex = months.indexOf(salary.month);
     const sessionRows = (Array.isArray(salary.sessions) && salary.sessions.length > 0)
       ? salary.sessions
-      : getTeacherMonthlySessionRows(teacherAttendance, salary.teacherId, monthIndex, salary.year);
+      : getTeacherMonthlySessionRows(teacherAttendance, salary.teacherId, monthIndex, salary.year, schedules, getActiveScheduleModule);
     const totalHours = Math.round((sessionRows.reduce((sum, row) => sum + (parseFloat(row.hours) || 0), 0) || parseFloat(salary.hours) || 0) * 100) / 100;
     const hourlyRate = parseFloat(salary.hourlyRate) || parseFloat(teacher?.hourlyRate) || (totalHours > 0 ? (parseFloat(salary.amount) || 0) / totalHours : 0);
 
@@ -394,14 +428,14 @@ const FinanceDashboard = () => {
 
   const calculatedSalaries = useMemo(() => {
     return teachers.map(t => {
-      const hours = getTeacherMonthlyHours(teacherAttendance, t.id, salaryFilter.month, salaryFilter.year);
+      const hours = getTeacherMonthlyHours(teacherAttendance, t.id, salaryFilter.month, salaryFilter.year, schedules, getActiveScheduleModule);
       const hourlyRate = parseFloat(t.hourlyRate) || 0;
       const total = hours * hourlyRate;
       const monthName = months[salaryFilter.month];
       const isPaid = salaries.some(s => s.teacherId === t.id && s.month === monthName && s.year === salaryFilter.year);
       return { ...t, hours, hourlyRate, total, isPaid };
     });
-  }, [teachers, teacherAttendance, salaryFilter, salaries]);
+  }, [teachers, teacherAttendance, salaryFilter, salaries, schedules, getActiveScheduleModule]);
 
   const filteredTeachers = useMemo(() => {
     const q = teacherSearchTerm.trim().toLowerCase();
@@ -726,7 +760,7 @@ const FinanceDashboard = () => {
                                 amount: s.total,
                                 hours: s.hours,
                                 hourlyRate: s.hourlyRate,
-                                sessions: getTeacherMonthlySessionRows(teacherAttendance, s.id, salaryFilter.month, salaryFilter.year),
+                                sessions: getTeacherMonthlySessionRows(teacherAttendance, s.id, salaryFilter.month, salaryFilter.year, schedules, getActiveScheduleModule),
                                 month: months[salaryFilter.month],
                                 year: salaryFilter.year,
                                 date: new Date().toISOString().split('T')[0]
