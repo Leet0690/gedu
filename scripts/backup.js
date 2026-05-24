@@ -25,7 +25,11 @@ const collections = [
   'attendance_formateurs',
   'payments',
   'salaries',
-  'modules'
+  'expenses',
+  'modules',
+  'settings',
+  'access_logs',
+  'tokens'
 ];
 
 async function backup() {

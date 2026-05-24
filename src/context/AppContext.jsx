@@ -12,13 +12,15 @@ import {
   getDocs,
   getDoc,
   where,
-  limit
+  limit,
+  writeBatch
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import ConfirmModal from '../components/ConfirmModal';
 import { useToast } from './ToastContext';
 
 const AppContext = createContext();
+const ACCESS_LOG_LIMIT = 5;
 
 export const useApp = () => useContext(AppContext);
 
@@ -516,7 +518,11 @@ export const AppProvider = ({ children }) => {
     try {
       const newLog = await buildAccessLogPayload(context);
       const docRef = await addDoc(collection(db, 'access_logs'), newLog);
-      setAccessLogs(prev => [{ id: docRef.id, ...newLog }, ...prev].slice(0, 500));
+      const snapshot = await getDocs(query(collection(db, 'access_logs'), orderBy('loggedAt', 'desc'), limit(100)));
+      const batch = writeBatch(db);
+      snapshot.docs.slice(ACCESS_LOG_LIMIT).forEach(d => batch.delete(d.ref));
+      if (snapshot.docs.length > ACCESS_LOG_LIMIT) await batch.commit();
+      setAccessLogs(prev => [{ id: docRef.id, ...newLog }, ...prev].slice(0, ACCESS_LOG_LIMIT));
     } catch (error) {
       console.error('Error logging app access:', error);
     }
@@ -524,7 +530,7 @@ export const AppProvider = ({ children }) => {
 
   const loadAccessLogs = useCallback(async () => {
     try {
-      const snapshot = await getDocs(query(collection(db, 'access_logs'), orderBy('loggedAt', 'desc'), limit(500)));
+      const snapshot = await getDocs(query(collection(db, 'access_logs'), orderBy('loggedAt', 'desc'), limit(ACCESS_LOG_LIMIT)));
       const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       setAccessLogs(data);
       return data;
