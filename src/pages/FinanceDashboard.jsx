@@ -521,7 +521,16 @@ const FinanceDashboard = () => {
           <p style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Tableau de bord des flux et de la trésorerie</p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={logoutDirector} className="btn-modern" style={{ background: 'var(--bg-subtle)' }} title="Verrouiller l'espace direction">
+          <button
+            onClick={logoutDirector}
+            className="btn-modern"
+            style={{
+              background: 'rgba(234, 179, 8, 0.14)',
+              color: '#a16207',
+              border: '1px solid rgba(234, 179, 8, 0.35)'
+            }}
+            title="Verrouiller l'espace direction"
+          >
             <Lock size={16} style={{ marginRight: '8px' }} /> Verrouiller
           </button>
           <button onClick={logout} className="btn-modern" style={{ background: 'var(--danger-ultra-light)', color: 'var(--danger)', border: '1px solid var(--danger-bg)' }}>
