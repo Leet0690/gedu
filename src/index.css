@@ -222,6 +222,73 @@ h1, h2, h3, h4, h5, h6 {
   justify-content: center;
 }
 
+.app-loader-shell {
+  min-height: 100vh;
+  width: 100%;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(ellipse 56% 42% at 50% 45%, rgba(176, 104, 185, 0.08), transparent 72%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(250, 248, 252, 0.96));
+}
+
+.app-loader {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  display: grid;
+  place-items: center;
+  color: var(--primary);
+  isolation: isolate;
+}
+
+.app-loader::before {
+  content: '';
+  position: absolute;
+  inset: 14px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(176, 104, 185, 0.12);
+  box-shadow: var(--shadow-lg), var(--shadow-glow);
+}
+
+.app-loader-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  filter: drop-shadow(0 8px 16px rgba(176, 104, 185, 0.12));
+}
+
+.app-loader-ring-primary {
+  width: 88px;
+  height: 88px;
+  border-top-color: var(--primary);
+  border-right-color: rgba(176, 104, 185, 0.22);
+  animation: spin 900ms linear infinite;
+}
+
+.app-loader-ring-secondary {
+  width: 62px;
+  height: 62px;
+  border-bottom-color: var(--secondary);
+  border-left-color: rgba(254, 205, 8, 0.28);
+  animation: spin-reverse 1300ms linear infinite;
+}
+
+.app-loader-core {
+  position: relative;
+  z-index: 1;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffffff, rgba(249, 240, 251, 0.95));
+  border: 1px solid rgba(176, 104, 185, 0.14);
+  box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  animation: loader-core-pulse 1600ms ease-in-out infinite;
+}
+
 .page-shell {
   width: 100%;
   max-width: 1000px;
@@ -949,7 +1016,30 @@ input.input-premium[type="date"]::-webkit-datetime-edit {
   to   { transform: rotate(360deg); }
 }
 
+@keyframes spin-reverse {
+  from { transform: rotate(360deg); }
+  to   { transform: rotate(0deg); }
+}
+
+@keyframes loader-core-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(0.94); }
+}
+
+.spinner {
+  animation: spin 800ms linear infinite;
+  transform-origin: center;
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50%       { opacity: 0.4; transform: scale(0.75); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-loader-ring,
+  .app-loader-core,
+  .spinner {
+    animation: none;
+  }
 }

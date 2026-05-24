@@ -3,7 +3,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
 import { AdminAuthProvider } from './context/AdminAuthContext';
 import DashboardLayout from './layouts/DashboardLayout';
-import { School, Link as LinkIcon, Loader2 } from 'lucide-react';
+import { School, Link as LinkIcon } from 'lucide-react';
 
 const Login                    = lazy(() => import('./pages/Login'));
 const AdminDashboard           = lazy(() => import('./pages/AdminDashboard'));
@@ -23,8 +23,14 @@ const MonthlyAttendanceTeachers = lazy(() => import('./pages/MonthlyAttendanceTe
 const AccessLogs               = lazy(() => import('./pages/AccessLogs'));
 
 const PageLoader = () => (
-  <div className="flex-center" style={{ height: '100vh' }}>
-    <Loader2 className="spinner" size={32} style={{ color: 'var(--primary)' }} />
+  <div className="app-loader-shell">
+    <div className="app-loader" role="status" aria-label="Chargement">
+      <span className="app-loader-ring app-loader-ring-primary" />
+      <span className="app-loader-ring app-loader-ring-secondary" />
+      <span className="app-loader-core">
+        <School size={22} />
+      </span>
+    </div>
   </div>
 );
 
