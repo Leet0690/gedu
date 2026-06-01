@@ -134,6 +134,33 @@ const getPaymentFeeItems = (payment) => {
 
 const getPaymentTotal = (payment) => parseFloat(payment?.amount) || 0;
 
+const normalizeStatus = (value = '') =>
+  String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+const getPaymentStatusKey = (status) => {
+  const normalized = normalizeStatus(status || 'payé');
+  if (
+    normalized.includes('impaye') ||
+    normalized.includes('unpaid') ||
+    normalized.includes('non paye') ||
+    normalized.includes('a payer') ||
+    normalized.includes('a regler')
+  ) {
+    return 'unpaid';
+  }
+  return 'paid';
+};
+
+const getPaymentStatusLabel = (status) =>
+  getPaymentStatusKey(status) === 'unpaid' ? 'Impayé' : 'Payé';
+
+const formatDisplayDate = (date) => {
+  if (!date) return 'Sans date';
+  const parsed = new Date(`${date}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return parsed.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
 const getPaymentBaseAmount = (payment) => {
   if (payment?.tuitionAmount !== undefined) return parseFloat(payment.tuitionAmount) || 0;
   const feesTotal = getPaymentFeeItems(payment).reduce((sum, fee) => sum + fee.amount, 0);
@@ -182,7 +209,9 @@ const FinanceDashboard = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [activeTab, setActiveTab] = useState('payments');
   const [searchTerm, setSearchTerm] = useState('');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState('');
   const [teacherSearchTerm, setTeacherSearchTerm] = useState('');
+  const [salaryStatusFilter, setSalaryStatusFilter] = useState('');
   const [editingTeacherId, setEditingTeacherId] = useState(null);
   
   const [paymentsPage, setPaymentsPage] = useState(1);
@@ -402,10 +431,11 @@ const FinanceDashboard = () => {
     return payments.filter(p => {
       const student = students.find(s => s.id === p.studentId);
       if (!student) return false;
+      if (paymentStatusFilter && getPaymentStatusKey(p.status) !== paymentStatusFilter) return false;
       const searchStr = `${student.firstName} ${student.lastName} ${p.month}`.toLowerCase();
       return searchStr.includes(searchTerm.toLowerCase());
     });
-  }, [payments, students, searchTerm]);
+  }, [payments, students, searchTerm, paymentStatusFilter]);
 
   const paginatedPayments = useMemo(() => {
     return filteredPayments.slice((paymentsPage - 1) * paymentsPerPage, paymentsPage * paymentsPerPage);
@@ -450,15 +480,22 @@ const FinanceDashboard = () => {
 
   const filteredTeachers = useMemo(() => {
     const q = teacherSearchTerm.trim().toLowerCase();
-    if (!q) return calculatedSalaries;
-    return calculatedSalaries.filter(t => `${t.name}`.toLowerCase().includes(q));
-  }, [calculatedSalaries, teacherSearchTerm]);
+    return calculatedSalaries.filter(t => {
+      if (salaryStatusFilter && (t.isPaid ? 'paid' : 'unpaid') !== salaryStatusFilter) return false;
+      if (!q) return true;
+      return `${t.name}`.toLowerCase().includes(q);
+    });
+  }, [calculatedSalaries, teacherSearchTerm, salaryStatusFilter]);
 
   const paginatedTeachers = useMemo(() => {
     return filteredTeachers.slice((teachersPage - 1) * teachersPerPage, teachersPage * teachersPerPage);
   }, [filteredTeachers, teachersPage, teachersPerPage]);
 
   const totalTeachersPages = Math.ceil(filteredTeachers.length / teachersPerPage);
+
+  React.useEffect(() => {
+    setTeachersPage(prev => Math.min(prev, Math.max(1, totalTeachersPages)));
+  }, [totalTeachersPages]);
 
   const paginatedSalaries = useMemo(() => {
     return salaries.slice((salariesPage - 1) * itemsPerPage, salariesPage * itemsPerPage);
@@ -494,6 +531,33 @@ const FinanceDashboard = () => {
       pendingSalaries: calculatedSalaries.filter(s => !s.isPaid).reduce((acc, s) => acc + s.total, 0)
     };
   }, [payments, salaries, expenses, calculatedSalaries]);
+
+  const dailyExpenseStats = useMemo(() => {
+    const days = new Map();
+    const addDailyAmount = (date, key, amount) => {
+      const day = date || 'Sans date';
+      const current = days.get(day) || { date: day, salaries: 0, otherExpenses: 0, total: 0 };
+      current[key] += amount;
+      current.total += amount;
+      days.set(day, current);
+    };
+
+    salaries.forEach(s => addDailyAmount(s.date, 'salaries', parseFloat(s.amount) || 0));
+    (expenses || []).forEach(e => addDailyAmount(e.date, 'otherExpenses', parseFloat(e.amount) || 0));
+
+    return Array.from(days.values())
+      .sort((a, b) => {
+        if (a.date === 'Sans date') return 1;
+        if (b.date === 'Sans date') return -1;
+        return b.date.localeCompare(a.date);
+      })
+      .slice(0, 14);
+  }, [salaries, expenses]);
+
+  const maxDailyExpense = useMemo(() =>
+    Math.max(...dailyExpenseStats.map(day => day.total), 0),
+    [dailyExpenseStats]
+  );
 
   if (!isDirectorAuth) {
     return (
@@ -573,19 +637,34 @@ const FinanceDashboard = () => {
       {activeTab === 'payments' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <div className="glass-card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-            <div style={{ position: 'relative', width: '320px' }}>
-              <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)' }} />
-              <input
-                type="text"
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{ position: 'relative', width: '320px', maxWidth: '100%' }}>
+                <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)' }} />
+                <input
+                  type="text"
+                  className="input-premium"
+                  style={{ width: '100%', paddingLeft: '38px' }}
+                  placeholder="Rechercher un stagiaire ou mois..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setPaymentsPage(1);
+                  }}
+                />
+              </div>
+              <select
                 className="input-premium"
-                style={{ width: '100%', paddingLeft: '38px' }}
-                placeholder="Rechercher un stagiaire ou mois..."
-                value={searchTerm}
+                style={{ minWidth: '150px' }}
+                value={paymentStatusFilter}
                 onChange={(e) => {
-                  setSearchTerm(e.target.value);
+                  setPaymentStatusFilter(e.target.value);
                   setPaymentsPage(1);
                 }}
-              />
+              >
+                <option value="">Tous les statuts</option>
+                <option value="paid">Payé</option>
+                <option value="unpaid">Impayé</option>
+              </select>
             </div>
             <button onClick={() => setShowPaymentModal(true)} className="btn-modern primary">
               <Plus size={16} style={{ marginRight: '8px' }} /> Enregistrer Paiement
@@ -610,6 +689,7 @@ const FinanceDashboard = () => {
                     <tr><td colSpan="6"><EmptyState title="Aucun paiement" message="Aucune transaction trouvée pour cette recherche." icon="search" /></td></tr>
                   ) : paginatedPayments.map(p => {
                     const student = students.find(s => s.id === p.studentId);
+                    const paymentStatus = getPaymentStatusKey(p.status);
                     return (
                       <tr key={p.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
                         <td style={tdStyle}>
@@ -626,7 +706,11 @@ const FinanceDashboard = () => {
                           )}
                         </td>
                         <td style={tdStyle}><span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{p.date}</span></td>
-                        <td style={tdStyle}><span className="badge-status success">{p.status}</span></td>
+                        <td style={tdStyle}>
+                          <span className={`badge-status ${paymentStatus === 'paid' ? 'success' : 'pending'}`}>
+                            {getPaymentStatusLabel(p.status)}
+                          </span>
+                        </td>
                         <td style={{ ...tdStyle, textAlign: 'right' }}>
                           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                             <motion.button
@@ -719,16 +803,35 @@ const FinanceDashboard = () => {
 
       {activeTab === 'salaries' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <div className="glass-card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-5)', display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <div className="glass-card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-5)', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <CalendarDays size={16} style={{ color: 'var(--text-muted)' }} />
-              <select className="input-premium" value={salaryFilter.month} onChange={(e) => setSalaryFilter({...salaryFilter, month: parseInt(e.target.value)})}>
+              <select className="input-premium" value={salaryFilter.month} onChange={(e) => {
+                setSalaryFilter({...salaryFilter, month: parseInt(e.target.value)});
+                setTeachersPage(1);
+              }}>
                 {months.map((m, i) => <option key={m} value={i}>{m}</option>)}
               </select>
             </div>
-            <select className="input-premium" value={salaryFilter.year} onChange={(e) => setSalaryFilter({...salaryFilter, year: parseInt(e.target.value)})}>
+            <select className="input-premium" value={salaryFilter.year} onChange={(e) => {
+              setSalaryFilter({...salaryFilter, year: parseInt(e.target.value)});
+              setTeachersPage(1);
+            }}>
               <option value={2026}>2026</option>
               <option value={2025}>2025</option>
+            </select>
+            <select
+              className="input-premium"
+              style={{ minWidth: '150px' }}
+              value={salaryStatusFilter}
+              onChange={(e) => {
+                setSalaryStatusFilter(e.target.value);
+                setTeachersPage(1);
+              }}
+            >
+              <option value="">Tous les statuts</option>
+              <option value="paid">Réglé</option>
+              <option value="unpaid">Non réglé</option>
             </select>
           </div>
 
@@ -1110,6 +1213,48 @@ const FinanceDashboard = () => {
             <div style={{ padding: '16px 32px', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-xl)', border: '2px dashed var(--accent)' }}>
               <span style={{ fontSize: 'var(--text-xl)', fontWeight: '900', color: 'var(--accent)' }}>{stats.pendingSalaries.toLocaleString()} DH</span>
             </div>
+          </div>
+          <div className="glass-card" style={{ padding: 'var(--space-6)', gridColumn: '1 / -1', overflowX: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: 'var(--space-5)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <CalendarDays size={22} style={{ color: 'var(--danger)' }} />
+                <div>
+                  <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: '900' }}>Statistiques quotidiennes</h3>
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '700' }}>Dépenses et charges par date</p>
+                </div>
+              </div>
+              <span className="badge-status pending">
+                {dailyExpenseStats.length} jour{dailyExpenseStats.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+
+            {dailyExpenseStats.length === 0 ? (
+              <EmptyState title="Aucune dépense" message="Aucune charge ou salaire versé à analyser." icon="file" />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 1.2fr) repeat(3, minmax(110px, 1fr))', gap: '12px', paddingBottom: '10px', borderBottom: '1px solid var(--border-light)', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <span>Date</span>
+                  <span>Salaires</span>
+                  <span>Autres charges</span>
+                  <span>Total</span>
+                </div>
+                {dailyExpenseStats.map(day => (
+                  <div key={day.date} style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 1.2fr) repeat(3, minmax(110px, 1fr))', gap: '12px', alignItems: 'center', padding: '14px 0', borderBottom: '1px solid var(--border-light)' }}>
+                    <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>{formatDisplayDate(day.date)}</span>
+                    <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--danger)' }}>{day.salaries.toLocaleString()} DH</span>
+                    <span style={{ fontSize: '13px', fontWeight: '800', color: '#ea580c' }}>{day.otherExpenses.toLocaleString()} DH</span>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginBottom: '6px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: '900', color: 'var(--text-primary)' }}>{day.total.toLocaleString()} DH</span>
+                      </div>
+                      <div style={{ width: '100%', height: '8px', background: 'var(--bg-subtle)', borderRadius: '999px', overflow: 'hidden' }}>
+                        <div style={{ width: `${maxDailyExpense ? (day.total / maxDailyExpense) * 100 : 0}%`, height: '100%', background: 'var(--danger)' }} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </motion.div>
       )}
