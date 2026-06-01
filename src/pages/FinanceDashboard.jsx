@@ -703,6 +703,12 @@ const FinanceDashboard = () => {
       let overdue = 0;
       for (let i = 0; i < 6; i++) {
         const mIdx = (currentMonthIdx - i + 12) % 12;
+        
+        // L'application a commencé en Mai (index 4). On ignore les mois précédents.
+        if (mIdx < 4) {
+          break;
+        }
+
         if (!paidMonthKeys.has(months[mIdx].toLowerCase())) {
           overdue++;
         } else {
