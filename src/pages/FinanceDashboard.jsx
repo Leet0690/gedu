@@ -33,7 +33,9 @@ import {
   Receipt,
   Tag,
   Eye,
-  EyeOff
+  EyeOff,
+  AlertTriangle,
+  Table2
 } from 'lucide-react';
 
 const calcDuration = (timeStr) => {
@@ -247,6 +249,7 @@ const FinanceDashboard = () => {
     year: new Date().getFullYear()
   });
 
+  const [annualYear, setAnnualYear] = useState(new Date().getFullYear());
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
   const [paymentData, setPaymentData] = useState({
@@ -687,6 +690,48 @@ const FinanceDashboard = () => {
     }).filter(d => d.Revenus > 0 || d.Charges > 0);
   }, [payments, salaries, expenses, months]);
 
+  const overdueMap = useMemo(() => {
+    const currentMonthIdx = new Date().getMonth();
+    const result = {};
+    students.forEach(student => {
+      const paidMonthKeys = new Set(
+        payments
+          .filter(p => p.studentId === student.id && getPaymentStatusKey(p.status) === 'paid')
+          .map(p => (p.month || '').toLowerCase())
+      );
+      let overdue = 0;
+      for (let i = 0; i < 6; i++) {
+        const mIdx = (currentMonthIdx - i + 12) % 12;
+        if (!paidMonthKeys.has(months[mIdx].toLowerCase())) {
+          overdue++;
+        } else {
+          break;
+        }
+      }
+      if (overdue >= 2) result[student.id] = overdue;
+    });
+    return result;
+  }, [students, payments, months]);
+
+  const annualSummary = useMemo(() => {
+    const getYear = (item) => {
+      if (item.date && String(item.date).length >= 4) return parseInt(String(item.date).substring(0, 4));
+      if (item.year) return parseInt(item.year);
+      return new Date().getFullYear();
+    };
+    let cumBalance = 0;
+    return months.map((month) => {
+      const isM = (m) => (m || '').toLowerCase() === month.toLowerCase();
+      const revenue = payments.filter(p => isM(p.month) && getYear(p) === annualYear).reduce((acc, p) => acc + getPaymentTotal(p), 0);
+      const salaryAmt = salaries.filter(s => isM(s.month) && parseInt(s.year) === annualYear).reduce((acc, s) => acc + (parseFloat(s.amount) || 0), 0);
+      const expenseAmt = (expenses || []).filter(e => isM(e.month) && parseInt(e.year) === annualYear).reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0);
+      const charges = salaryAmt + expenseAmt;
+      const balance = revenue - charges;
+      cumBalance += balance;
+      return { month, revenue, salaryAmt, expenseAmt, charges, balance, cumBalance };
+    });
+  }, [payments, salaries, expenses, months, annualYear]);
+
   const allDailyExpenseStats = useMemo(() => {
     const days = new Map();
     const addDailyAmount = (date, key, amount) => {
@@ -805,7 +850,14 @@ const FinanceDashboard = () => {
       </div>
 
       <div className="modern-tabs-container" style={{ marginBottom: 'var(--space-6)' }}>
-        <button onClick={() => setActiveTab('payments')} className={`modern-tab ${activeTab === 'payments' ? 'active' : ''}`}>Paiements</button>
+        <button onClick={() => setActiveTab('payments')} className={`modern-tab ${activeTab === 'payments' ? 'active' : ''}`}>
+          Paiements
+          {Object.keys(overdueMap).length > 0 && (
+            <span style={{ marginLeft: '6px', fontSize: '10px', fontWeight: '900', background: 'rgba(220,38,38,0.12)', color: '#dc2626', borderRadius: '999px', padding: '1px 7px' }}>
+              {Object.keys(overdueMap).length}
+            </span>
+          )}
+        </button>
         <button onClick={() => setActiveTab('salaries')} className={`modern-tab ${activeTab === 'salaries' ? 'active' : ''}`}>Salaires</button>
         <button onClick={() => setActiveTab('expenses')} className={`modern-tab ${activeTab === 'expenses' ? 'active' : ''}`}>
           Autres Charges
@@ -816,6 +868,9 @@ const FinanceDashboard = () => {
           )}
         </button>
         <button onClick={() => setActiveTab('stats')} className={`modern-tab ${activeTab === 'stats' ? 'active' : ''}`}>Analyses</button>
+        <button onClick={() => setActiveTab('annual')} className={`modern-tab ${activeTab === 'annual' ? 'active' : ''}`}>
+          <Table2 size={14} style={{ marginRight: '5px' }} />Récap. Annuel
+        </button>
       </div>
 
       {activeTab === 'payments' && (
@@ -943,6 +998,16 @@ const FinanceDashboard = () => {
                         <td style={tdStyle}>
                           <p style={{ fontWeight: '700', fontSize: 'var(--text-sm)' }}>{student?.firstName} {student?.lastName}</p>
                           <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{student?.major}</p>
+                          {overdueMap[student?.id] && (
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '4px',
+                              fontSize: '10px', fontWeight: '800', color: '#dc2626',
+                              background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)',
+                              borderRadius: '999px', padding: '2px 8px'
+                            }}>
+                              <AlertTriangle size={10} /> En retard · {overdueMap[student.id]} mois
+                            </span>
+                          )}
                         </td>
                         <td style={tdStyle}><span style={{ fontWeight: '700' }}>{p.month}</span></td>
                         <td style={tdStyle}>
@@ -1610,6 +1675,163 @@ const FinanceDashboard = () => {
               </div>
             )}
           </div>
+        </motion.div>
+      )}
+
+      {activeTab === 'annual' && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <div className="glass-card" style={{ padding: 'var(--space-6)', marginBottom: 'var(--space-6)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', marginBottom: 'var(--space-6)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '44px', height: '44px', borderRadius: 'var(--radius-xl)', background: 'var(--primary-ultra-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Table2 size={22} style={{ color: 'var(--primary)' }} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: 'var(--text-xl)', fontWeight: '900' }}>Récapitulatif annuel</h3>
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '700' }}>Revenus, charges et solde mois par mois</p>
+                </div>
+              </div>
+              <select
+                className="input-premium"
+                style={{ minWidth: '140px' }}
+                value={annualYear}
+                onChange={e => setAnnualYear(parseInt(e.target.value))}
+              >
+                {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', minWidth: '700px' }}>
+                <thead>
+                  <tr style={{ background: 'var(--bg-subtle)' }}>
+                    {['Mois', 'Revenus', 'Salaires', 'Autres charges', 'Total charges', 'Solde mensuel', 'Solde cumulé'].map(h => (
+                      <th key={h} style={{ ...thStyle, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {annualSummary.map((row, idx) => {
+                    const hasData = row.revenue > 0 || row.charges > 0;
+                    return (
+                      <tr key={row.month} style={{
+                        borderBottom: '1px solid var(--border-light)',
+                        background: !hasData ? 'transparent' : undefined,
+                        opacity: !hasData ? 0.55 : 1
+                      }}>
+                        <td style={{ ...tdStyle, fontWeight: '800', fontSize: '13px' }}>{row.month}</td>
+                        <td style={{ ...tdStyle, fontWeight: '800', color: row.revenue > 0 ? 'var(--success)' : 'var(--text-faint)' }}>
+                          {row.revenue > 0 ? `+${row.revenue.toLocaleString()} DH` : '—'}
+                        </td>
+                        <td style={{ ...tdStyle, color: row.salaryAmt > 0 ? 'var(--danger)' : 'var(--text-faint)' }}>
+                          {row.salaryAmt > 0 ? `${row.salaryAmt.toLocaleString()} DH` : '—'}
+                        </td>
+                        <td style={{ ...tdStyle, color: row.expenseAmt > 0 ? '#ea580c' : 'var(--text-faint)' }}>
+                          {row.expenseAmt > 0 ? `${row.expenseAmt.toLocaleString()} DH` : '—'}
+                        </td>
+                        <td style={{ ...tdStyle, fontWeight: '800', color: row.charges > 0 ? 'var(--text-primary)' : 'var(--text-faint)' }}>
+                          {row.charges > 0 ? `${row.charges.toLocaleString()} DH` : '—'}
+                        </td>
+                        <td style={tdStyle}>
+                          {hasData ? (
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '4px',
+                              fontWeight: '900', fontSize: '13px',
+                              color: row.balance >= 0 ? 'var(--success)' : 'var(--danger)'
+                            }}>
+                              {row.balance >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                              {row.balance >= 0 ? '+' : ''}{row.balance.toLocaleString()} DH
+                            </span>
+                          ) : <span style={{ color: 'var(--text-faint)' }}>—</span>}
+                        </td>
+                        <td style={tdStyle}>
+                          {hasData ? (
+                            <span style={{
+                              fontWeight: '900', fontSize: '13px',
+                              color: row.cumBalance >= 0 ? '#2563eb' : 'var(--danger)'
+                            }}>
+                              {row.cumBalance >= 0 ? '+' : ''}{row.cumBalance.toLocaleString()} DH
+                            </span>
+                          ) : <span style={{ color: 'var(--text-faint)' }}>—</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  {(() => {
+                    const totalRevenue = annualSummary.reduce((a, r) => a + r.revenue, 0);
+                    const totalSalaries = annualSummary.reduce((a, r) => a + r.salaryAmt, 0);
+                    const totalExpenses = annualSummary.reduce((a, r) => a + r.expenseAmt, 0);
+                    const totalCharges = annualSummary.reduce((a, r) => a + r.charges, 0);
+                    const totalBalance = totalRevenue - totalCharges;
+                    return (
+                      <tr style={{ background: 'var(--bg-subtle)', borderTop: '2px solid var(--border)' }}>
+                        <td style={{ ...tdStyle, fontWeight: '900', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total {annualYear}</td>
+                        <td style={{ ...tdStyle, fontWeight: '900', color: 'var(--success)' }}>{totalRevenue > 0 ? `+${totalRevenue.toLocaleString()} DH` : '—'}</td>
+                        <td style={{ ...tdStyle, fontWeight: '900', color: 'var(--danger)' }}>{totalSalaries > 0 ? `${totalSalaries.toLocaleString()} DH` : '—'}</td>
+                        <td style={{ ...tdStyle, fontWeight: '900', color: '#ea580c' }}>{totalExpenses > 0 ? `${totalExpenses.toLocaleString()} DH` : '—'}</td>
+                        <td style={{ ...tdStyle, fontWeight: '900' }}>{totalCharges > 0 ? `${totalCharges.toLocaleString()} DH` : '—'}</td>
+                        <td style={{ ...tdStyle }}>
+                          <span style={{ fontWeight: '900', fontSize: '14px', color: totalBalance >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                            {totalBalance >= 0 ? '+' : ''}{totalBalance.toLocaleString()} DH
+                          </span>
+                        </td>
+                        <td />
+                      </tr>
+                    );
+                  })()}
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+          {Object.keys(overdueMap).length > 0 && (
+            <div className="glass-card" style={{ padding: 'var(--space-6)', border: '1px solid rgba(220,38,38,0.2)', borderLeft: '4px solid #dc2626' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: 'var(--space-5)' }}>
+                <AlertTriangle size={20} style={{ color: '#dc2626' }} />
+                <div>
+                  <h3 style={{ fontSize: 'var(--text-base)', fontWeight: '900', color: '#dc2626' }}>
+                    Alertes — {Object.keys(overdueMap).length} stagiaire{Object.keys(overdueMap).length > 1 ? 's' : ''} en retard de paiement
+                  </h3>
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '700' }}>Stagiaires sans paiement enregistré depuis au moins 2 mois consécutifs</p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {students
+                  .filter(s => overdueMap[s.id])
+                  .sort((a, b) => overdueMap[b.id] - overdueMap[a.id])
+                  .map(student => (
+                    <div key={student.id} style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '12px 16px', background: 'rgba(220,38,38,0.04)',
+                      borderRadius: 'var(--radius-xl)', border: '1px solid rgba(220,38,38,0.12)',
+                      flexWrap: 'wrap', gap: '10px'
+                    }}>
+                      <div>
+                        <p style={{ fontWeight: '800', fontSize: '13px' }}>{student.firstName} {student.lastName}</p>
+                        <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>{student.major}</p>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '800',
+                          color: '#dc2626', background: 'rgba(220,38,38,0.1)', borderRadius: '999px', padding: '4px 12px'
+                        }}>
+                          <AlertTriangle size={11} /> En retard · {overdueMap[student.id]} mois
+                        </span>
+                        <button
+                          className="btn-modern"
+                          style={{ fontSize: '11px', padding: '6px 12px', background: 'rgba(220,38,38,0.08)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.2)' }}
+                          onClick={() => { setActiveTab('payments'); openPaymentModal(student.id); }}
+                        >
+                          <CreditCard size={12} style={{ marginRight: '5px' }} /> Encaisser
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
         </motion.div>
       )}
 
