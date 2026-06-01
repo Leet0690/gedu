@@ -27,6 +27,7 @@ import {
   X,
   CreditCard,
   History,
+  Calendar,
   CalendarDays,
   Receipt,
   Tag,
@@ -1326,13 +1327,17 @@ const FinanceDashboard = () => {
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <input
-                  type="date"
-                  className="input-premium"
-                  value={dailyStatsDate}
-                  onChange={(e) => setDailyStatsDate(e.target.value)}
-                  style={{ minWidth: '160px' }}
-                />
+                <div style={{ position: 'relative' }}>
+                  <Calendar size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)', pointerEvents: 'none' }} />
+                  <input
+                    type="date"
+                    className="input-premium"
+                    value={dailyStatsDate}
+                    onChange={(e) => setDailyStatsDate(e.target.value)}
+                    onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }}
+                    style={{ minWidth: '160px', paddingLeft: '34px' }}
+                  />
+                </div>
                 {dailyStatsDate && (
                   <button
                     className="action-btn"
