@@ -6,6 +6,7 @@ import { jsPDF } from 'jspdf';
 import { logoBase64 } from '../utils/logoBase64';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
+import Pagination from '../components/Pagination';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { 
   Lock, 
@@ -1107,19 +1108,13 @@ const FinanceDashboard = () => {
             )}
           </div>
 
-          {totalPaymentsPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', marginTop: '16px' }}>
-              <button className="action-btn" onClick={() => setPaymentsPage(p => Math.max(1, p - 1))} disabled={paymentsPage === 1}>
-                <ChevronLeft size={16} />
-              </button>
-              <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)' }}>
-                Page {paymentsPage} / {totalPaymentsPages}
-              </span>
-              <button className="action-btn" onClick={() => setPaymentsPage(p => Math.min(totalPaymentsPages, p + 1))} disabled={paymentsPage === totalPaymentsPages}>
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          )}
+          <Pagination
+            currentPage={paymentsPage}
+            totalPages={totalPaymentsPages}
+            totalItems={filteredPayments.length}
+            itemsPerPage={paymentsPerPage}
+            onPageChange={setPaymentsPage}
+          />
         </motion.div>
       )}
 
@@ -1301,19 +1296,13 @@ const FinanceDashboard = () => {
             </table>
           </div>
 
-          {totalTeachersPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', marginTop: '16px' }}>
-              <button className="action-btn" onClick={() => setTeachersPage(p => Math.max(1, p - 1))} disabled={teachersPage === 1}>
-                <ChevronLeft size={16} />
-              </button>
-              <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)' }}>
-                Page {teachersPage} / {totalTeachersPages}
-              </span>
-              <button className="action-btn" onClick={() => setTeachersPage(p => Math.min(totalTeachersPages, p + 1))} disabled={teachersPage === totalTeachersPages}>
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          )}
+          <Pagination
+            currentPage={teachersPage}
+            totalPages={totalTeachersPages}
+            totalItems={filteredTeachers.length}
+            itemsPerPage={teachersPerPage}
+            onPageChange={setTeachersPage}
+          />
 
           <div style={{ marginTop: 'var(--space-10)' }}>
             <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: '900', marginBottom: 'var(--space-4)', display: 'flex', alignItems: 'center', gap: '8px' }}>

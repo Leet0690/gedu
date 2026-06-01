@@ -5,6 +5,7 @@ import { useToast } from '../context/ToastContext';
 import { MODULES_DATA } from '../data/modules';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
+import Pagination from '../components/Pagination';
 import {
   Plus,
   Edit3,
@@ -349,19 +350,13 @@ const ModuleManagement = () => {
             </tbody>
           </table>
 
-          {totalPages > 1 && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '16px 0', borderTop: '1px solid var(--border-light)' }}>
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="btn-modern" style={{ opacity: page === 1 ? 0.5 : 1 }}>
-                <ChevronLeft size={16} />
-              </button>
-              <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)' }}>
-                Page <span style={{ color: 'var(--text-primary)' }}>{page}</span> / {totalPages}
-              </span>
-              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="btn-modern" style={{ opacity: page === totalPages ? 0.5 : 1 }}>
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          )}
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            totalItems={groupedModules.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setPage}
+          />
         </div>
       )}
 

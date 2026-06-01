@@ -12,6 +12,7 @@ import { generateBulletinGlobal } from '../utils/pdfGenerator';
 import { FILIERES, MODULES_DATA, getModulesForStudent, getModulesForFiliere } from '../data/modules';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
+import Pagination from '../components/Pagination';
 import { 
   Plus, 
   Search, 
@@ -1186,67 +1187,16 @@ const AdminDashboard = () => {
             )}
           </div>
 
-          {table.getPageCount() > 1 && (() => {
-            const currentPage = table.getState().pagination.pageIndex;
-            const totalPages = table.getPageCount();
-            const pageSize = table.getState().pagination.pageSize;
-            const totalRows = table.getFilteredRowModel().rows.length;
-            const firstRow = currentPage * pageSize + 1;
-            const lastRow = Math.min((currentPage + 1) * pageSize, totalRows);
-
-            const getPageNumbers = () => {
-              if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i);
-              const pages = [];
-              if (currentPage <= 3) {
-                pages.push(0, 1, 2, 3, 4, '…', totalPages - 1);
-              } else if (currentPage >= totalPages - 4) {
-                pages.push(0, '…', totalPages - 5, totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1);
-              } else {
-                pages.push(0, '…', currentPage - 1, currentPage, currentPage + 1, '…', totalPages - 1);
-              }
-              return pages;
-            };
-
-            return (
-              <div className="pagination-bar">
-                <span className="pagination-info">
-                  Affichage <strong>{firstRow}–{lastRow}</strong> sur <strong>{totalRows}</strong> résultats
-                </span>
-
-                <div className="pagination-pages">
-                  <button className="pagination-btn nav" onClick={() => table.setPageIndex(0)} disabled={!table.getCanPreviousPage()}>
-                    <ChevronsLeft size={13} />
-                  </button>
-                  <button className="pagination-btn nav" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
-                    <ChevronLeft size={13} /> Préc.
-                  </button>
-
-                  {getPageNumbers().map((p, i) =>
-                    p === '…'
-                      ? <span key={`ellipsis-${i}`} className="pagination-ellipsis">…</span>
-                      : <button key={p} className={`pagination-btn${p === currentPage ? ' active' : ''}`} onClick={() => table.setPageIndex(p)}>
-                          {p + 1}
-                        </button>
-                  )}
-
-                  <button className="pagination-btn nav" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
-                    Suiv. <ChevronRight size={13} />
-                  </button>
-                  <button className="pagination-btn nav" onClick={() => table.setPageIndex(totalPages - 1)} disabled={!table.getCanNextPage()}>
-                    <ChevronsRight size={13} />
-                  </button>
-                </div>
-
-                <select
-                  className="pagination-size-select"
-                  value={pageSize}
-                  onChange={e => table.setPageSize(Number(e.target.value))}
-                >
-                  {[10, 20, 50].map(s => <option key={s} value={s}>{s} / page</option>)}
-                </select>
-              </div>
-            );
-          })()}
+          {table.getPageCount() > 1 && (
+            <Pagination
+              currentPage={table.getState().pagination.pageIndex + 1}
+              totalPages={table.getPageCount()}
+              totalItems={table.getFilteredRowModel().rows.length}
+              itemsPerPage={table.getState().pagination.pageSize}
+              onPageChange={(p) => table.setPageIndex(p - 1)}
+              onItemsPerPageChange={(s) => table.setPageSize(s)}
+            />
+          )}
         </>
       )}
 
