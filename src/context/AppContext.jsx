@@ -30,7 +30,7 @@ export const useApp = () => useContext(AppContext);
 const CORE_CACHE_KEY = 'ipfp_v2_core_cache';
 const FINANCE_CACHE_KEY = 'ipfp_v2_finance_cache';
 const CORE_CACHE_TTL = 6 * 60 * 60 * 1000;
-const FINANCE_CACHE_TTL = 15 * 60 * 1000;
+const FINANCE_CACHE_TTL = 60 * 60 * 1000;
 const ACTIVE_SEMESTER_KEY = 'ipfp_active_semester';
 const pendingLoads = new Map();
 const normalizeSemester = (semester) => semester === 'S2' ? 'S2' : 'S1';
@@ -518,10 +518,6 @@ export const AppProvider = ({ children }) => {
     try {
       const newLog = await buildAccessLogPayload(context);
       const docRef = await addDoc(collection(db, 'access_logs'), newLog);
-      const snapshot = await getDocs(query(collection(db, 'access_logs'), orderBy('loggedAt', 'desc'), limit(100)));
-      const batch = writeBatch(db);
-      snapshot.docs.slice(ACCESS_LOG_LIMIT).forEach(d => batch.delete(d.ref));
-      if (snapshot.docs.length > ACCESS_LOG_LIMIT) await batch.commit();
       setAccessLogs(prev => [{ id: docRef.id, ...newLog }, ...prev].slice(0, ACCESS_LOG_LIMIT));
     } catch (error) {
       console.error('Error logging app access:', error);
@@ -768,16 +764,6 @@ export const AppProvider = ({ children }) => {
     const docId = `${teacherId}_${safeModule}_${safeTime}_${date}`;
     const data = { teacherId, date, status, hours: status === 'present' ? hours : 0, comment: comment || '', moduleId: moduleId || '', timeSlot: timeSlot || '', timestamp: serverTimestamp() };
     
-    const duplicateSnapshot = await getDocs(query(
-      collection(db, 'attendance_formateurs'),
-      where('teacherId', '==', teacherId),
-      where('date', '==', date)
-    ));
-    const duplicateDeletes = duplicateSnapshot.docs
-      .filter(d => d.id !== docId && ((d.data().timeSlot || '').replace(/[^0-9]/g, '') || 'x') === safeTime)
-      .map(d => deleteDoc(d.ref));
-    if (duplicateDeletes.length > 0) await Promise.all(duplicateDeletes);
-
     await setDoc(doc(db, 'attendance_formateurs', docId), data, { merge: true });
     
     setTeacherAttendance(prev => {

@@ -6,6 +6,7 @@ import { jsPDF } from 'jspdf';
 import { logoBase64 } from '../utils/logoBase64';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { 
   Lock, 
   ArrowRight, 
@@ -203,7 +204,7 @@ const EXPENSE_CATEGORIES = ['Loyer', 'Matériel', 'Fournitures', 'Services', 'En
 const FinanceDashboard = () => {
   const { 
     students, teachers, payments, salaries, expenses, loading,
-    addPayment, deletePayment, addSalary, deleteSalary, updateTeacher,
+    addPayment, updatePayment, deletePayment, addSalary, deleteSalary, updateTeacher,
     addExpense, deleteExpense,
     teacherAttendance, loadFinancialData, loadTeacherAttendanceForMonth,
     schedules, getActiveScheduleModule,
@@ -247,6 +248,7 @@ const FinanceDashboard = () => {
   });
 
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [editingPayment, setEditingPayment] = useState(null);
   const [paymentData, setPaymentData] = useState({
     studentId: '',
     amount: '',
@@ -274,6 +276,54 @@ const FinanceDashboard = () => {
     "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
   ];
   const currentMonthName = getCurrentMonthName();
+
+  const availableYears = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    return Array.from({ length: 4 }, (_, i) => currentYear + 1 - i);
+  }, []);
+
+  const openEditPaymentModal = (payment) => {
+    const feeItems = getPaymentFeeItems(payment);
+    const findFee = (label) => feeItems.find(f => f.label === label)?.amount || '';
+    setEditingPayment(payment);
+    setPaymentModalFilter({ diploma: '', major: '', year: '' });
+    setPaymentData({
+      studentId: payment.studentId || '',
+      amount: String(getPaymentBaseAmount(payment) || ''),
+      examFee: String(findFee("Frais d'examen") || parseFloat(payment.examFee) || ''),
+      registrationFee: String(findFee("Frais d'inscription") || parseFloat(payment.registrationFee) || ''),
+      supportFee: String(findFee('Support') || parseFloat(payment.supportFee) || ''),
+      month: payment.month || currentMonthName,
+      date: payment.date || new Date().toISOString().split('T')[0],
+      status: payment.status || 'payé'
+    });
+    setShowPaymentModal(true);
+  };
+
+  const exportPaymentsCSV = () => {
+    const selectedMonth = paymentMonthFilter || currentMonthName;
+    const rows = [['Nom', 'Prénom', 'Filière', 'Mois', 'Montant (DH)', 'Date', 'Statut']];
+    filteredPayments.forEach(p => {
+      if (p.isVirtualUnpaid) return;
+      const student = students.find(s => s.id === p.studentId);
+      rows.push([
+        student?.lastName || '',
+        student?.firstName || '',
+        student?.major || '',
+        p.month,
+        getPaymentTotal(p),
+        p.date || '',
+        getPaymentStatusLabel(p.status)
+      ]);
+    });
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = `paiements_${selectedMonth}.csv`; a.click();
+    URL.revokeObjectURL(url);
+    showToast('Export CSV généré', 'success');
+  };
 
   React.useEffect(() => {
     if (isDirectorAuth) {
@@ -303,13 +353,18 @@ const FinanceDashboard = () => {
   };
 
   const openPaymentModal = (studentId = '') => {
+    setEditingPayment(null);
     setPaymentModalFilter({ diploma: '', major: '', year: '' });
-    setPaymentData(data => ({
-      ...data,
+    setPaymentData({
       studentId,
+      amount: '',
+      examFee: '',
+      registrationFee: '',
+      supportFee: '',
       month: paymentMonthFilter || currentMonthName,
+      date: new Date().toISOString().split('T')[0],
       status: 'payé'
-    }));
+    });
     setShowPaymentModal(true);
   };
 
@@ -593,9 +648,8 @@ const FinanceDashboard = () => {
   const stats = useMemo(() => {
     const selectedMonth = summaryMonthFilter || currentMonthName;
     const isSelectedMonth = (month) => (month || '').toLowerCase() === selectedMonth.toLowerCase();
-    const totalRevenue = payments
-      .filter(p => isSelectedMonth(p.month))
-      .reduce((acc, p) => acc + getPaymentTotal(p), 0);
+    const monthPayments = payments.filter(p => isSelectedMonth(p.month));
+    const totalRevenue = monthPayments.reduce((acc, p) => acc + getPaymentTotal(p), 0);
     const totalSalaries = salaries
       .filter(s => isSelectedMonth(s.month))
       .reduce((acc, s) => acc + (parseFloat(s.amount) || 0), 0);
@@ -603,15 +657,35 @@ const FinanceDashboard = () => {
       .filter(e => isSelectedMonth(e.month))
       .reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0);
     const totalExpenses = totalSalaries + totalOtherExpenses;
+    const paidStudentIds = new Set(monthPayments.map(p => p.studentId).filter(Boolean));
+    const totalStudents = students.length;
+    const tauxRecouvrement = totalStudents > 0 ? Math.round((paidStudentIds.size / totalStudents) * 100) : 0;
     return {
       revenue: totalRevenue,
       expenses: totalExpenses,
       salariesTotal: totalSalaries,
       otherExpenses: totalOtherExpenses,
       balance: totalRevenue - totalExpenses,
-      pendingSalaries: calculatedSalaries.filter(s => !s.isPaid).reduce((acc, s) => acc + s.total, 0)
+      pendingSalaries: calculatedSalaries.filter(s => !s.isPaid).reduce((acc, s) => acc + s.total, 0),
+      tauxRecouvrement,
+      paidStudents: paidStudentIds.size,
+      totalStudents
     };
-  }, [payments, salaries, expenses, calculatedSalaries, summaryMonthFilter, currentMonthName]);
+  }, [payments, salaries, expenses, calculatedSalaries, summaryMonthFilter, currentMonthName, students]);
+
+  const monthlyTrendData = useMemo(() => {
+    return months.map(month => {
+      const isM = (m) => (m || '').toLowerCase() === month.toLowerCase();
+      const revenue = payments.filter(p => isM(p.month)).reduce((acc, p) => acc + getPaymentTotal(p), 0);
+      const salariesAmt = salaries.filter(s => isM(s.month)).reduce((acc, s) => acc + (parseFloat(s.amount) || 0), 0);
+      const otherExp = (expenses || []).filter(e => isM(e.month)).reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0);
+      return {
+        name: month.substring(0, 3),
+        Revenus: revenue,
+        Charges: salariesAmt + otherExp
+      };
+    }).filter(d => d.Revenus > 0 || d.Charges > 0);
+  }, [payments, salaries, expenses, months]);
 
   const allDailyExpenseStats = useMemo(() => {
     const days = new Map();
@@ -717,10 +791,17 @@ const FinanceDashboard = () => {
         </select>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-8)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-8)' }}>
         <StatCard title="Revenus Totaux" value={stats.revenue} icon={TrendingUp} color="var(--success)" />
-        <StatCard title="Charges Salariales" value={stats.expenses} icon={TrendingDown} color="var(--danger)" />
+        <StatCard title="Total Charges" value={stats.expenses} icon={TrendingDown} color="var(--danger)" />
         <StatCard title="Bénéfice Net" value={stats.balance} icon={Wallet} color="var(--primary)" />
+        <div className="glass-card" style={{ padding: '24px', borderLeft: '4px solid #2563eb' }}>
+          <p style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <TrendingUp size={14} style={{ color: '#2563eb' }} /> Taux de recouvrement
+          </p>
+          <p style={{ fontSize: 'var(--text-3xl)', fontWeight: '900', color: '#2563eb' }}>{stats.tauxRecouvrement}<span style={{ fontSize: '16px' }}>%</span></p>
+          <p style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', marginTop: '4px' }}>{stats.paidStudents} / {stats.totalStudents} stagiaires · {summaryMonthFilter}</p>
+        </div>
       </div>
 
       <div className="modern-tabs-container" style={{ marginBottom: 'var(--space-6)' }}>
@@ -809,9 +890,14 @@ const FinanceDashboard = () => {
                 </button>
               )}
             </div>
-            <button onClick={() => openPaymentModal()} className="btn-modern primary">
-              <Plus size={16} style={{ marginRight: '8px' }} /> Enregistrer Paiement
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={exportPaymentsCSV} className="btn-modern" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border)' }} title="Exporter CSV">
+                <FileDown size={16} style={{ marginRight: '6px' }} /> CSV
+              </button>
+              <button onClick={() => openPaymentModal()} className="btn-modern primary">
+                <Plus size={16} style={{ marginRight: '8px' }} /> Enregistrer Paiement
+              </button>
+            </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-5)' }}>
@@ -895,28 +981,31 @@ const FinanceDashboard = () => {
                                 <motion.button
                                   whileHover={{ scale: 1.08, translateY: -1 }}
                                   whileTap={{ scale: 0.95 }}
+                                  onClick={() => openEditPaymentModal(p)}
+                                  style={{
+                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                    width: '36px', height: '36px', borderRadius: '10px',
+                                    background: 'rgba(37,99,235,0.08)', border: '1px solid rgba(37,99,235,0.15)',
+                                    color: '#2563eb', cursor: 'pointer', transition: 'all 0.2s'
+                                  }}
+                                  onMouseEnter={e => { e.currentTarget.style.background = '#2563eb'; e.currentTarget.style.color = '#fff'; }}
+                                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,99,235,0.08)'; e.currentTarget.style.color = '#2563eb'; }}
+                                  title="Modifier"
+                                >
+                                  <Edit3 size={15} />
+                                </motion.button>
+                                <motion.button
+                                  whileHover={{ scale: 1.08, translateY: -1 }}
+                                  whileTap={{ scale: 0.95 }}
                                   onClick={() => generateReceipt(p, student)}
                                   style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    width: '36px',
-                                    height: '36px',
-                                    borderRadius: '10px',
-                                    background: 'rgba(176, 104, 185, 0.08)',
-                                    border: '1px solid rgba(176, 104, 185, 0.15)',
-                                    color: 'var(--primary)',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s'
+                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                    width: '36px', height: '36px', borderRadius: '10px',
+                                    background: 'rgba(176, 104, 185, 0.08)', border: '1px solid rgba(176, 104, 185, 0.15)',
+                                    color: 'var(--primary)', cursor: 'pointer', transition: 'all 0.2s'
                                   }}
-                                  onMouseEnter={e => {
-                                    e.currentTarget.style.background = 'var(--primary)';
-                                    e.currentTarget.style.color = '#ffffff';
-                                  }}
-                                  onMouseLeave={e => {
-                                    e.currentTarget.style.background = 'rgba(176, 104, 185, 0.08)';
-                                    e.currentTarget.style.color = 'var(--primary)';
-                                  }}
+                                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.color = '#ffffff'; }}
+                                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(176, 104, 185, 0.08)'; e.currentTarget.style.color = 'var(--primary)'; }}
                                   title="Reçu PDF"
                                 >
                                   <FileDown size={16} />
@@ -930,26 +1019,13 @@ const FinanceDashboard = () => {
                                     }
                                   }}
                                   style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    width: '36px',
-                                    height: '36px',
-                                    borderRadius: '10px',
-                                    background: 'rgba(239, 68, 68, 0.08)',
-                                    border: '1px solid rgba(239, 68, 68, 0.15)',
-                                    color: '#ef4444',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s'
+                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                    width: '36px', height: '36px', borderRadius: '10px',
+                                    background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.15)',
+                                    color: '#ef4444', cursor: 'pointer', transition: 'all 0.2s'
                                   }}
-                                  onMouseEnter={e => {
-                                    e.currentTarget.style.background = '#ef4444';
-                                    e.currentTarget.style.color = '#ffffff';
-                                  }}
-                                  onMouseLeave={e => {
-                                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)';
-                                    e.currentTarget.style.color = '#ef4444';
-                                  }}
+                                  onMouseEnter={e => { e.currentTarget.style.background = '#ef4444'; e.currentTarget.style.color = '#ffffff'; }}
+                                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)'; e.currentTarget.style.color = '#ef4444'; }}
                                   title="Supprimer"
                                 >
                                   <Trash2 size={16} />
@@ -998,8 +1074,7 @@ const FinanceDashboard = () => {
               setSalaryFilter({...salaryFilter, year: parseInt(e.target.value)});
               setTeachersPage(1);
             }}>
-              <option value={2026}>2026</option>
-              <option value={2025}>2025</option>
+              {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
             <select
               className="input-premium"
@@ -1048,6 +1123,33 @@ const FinanceDashboard = () => {
               color="#a16207"
               bg="rgba(234,179,8,0.12)"
             />
+            {salaryStatusCounts.unpaid > 0 && (
+              <div className="glass-card" style={{ padding: '20px', borderLeft: '4px solid var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                <div>
+                  <p style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>Action rapide</p>
+                  <p style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>Valider tous les salaires calculés</p>
+                </div>
+                <button
+                  className="btn-modern primary"
+                  style={{ whiteSpace: 'nowrap', fontSize: '12px', padding: '8px 14px' }}
+                  onClick={async () => {
+                    const unpaid = filteredTeachers.filter(t => !t.isPaid && t.total > 0);
+                    if (unpaid.length === 0) return showToast('Aucun salaire à régler', 'warning');
+                    if (!await confirmAction({ title: `Régler ${unpaid.length} formateur(s) ?`, message: `Valider ${unpaid.reduce((a, t) => a + t.total, 0).toLocaleString()} DH de salaires pour ${months[salaryFilter.month]} ${salaryFilter.year} ?`, type: 'warning' })) return;
+                    for (const t of unpaid) {
+                      await addSalary({
+                        teacherId: t.id, teacherName: t.name, amount: t.total, hours: t.hours, hourlyRate: t.hourlyRate,
+                        sessions: getTeacherMonthlySessionRows(teacherAttendance, t.id, salaryFilter.month, salaryFilter.year, schedules, getActiveScheduleModule),
+                        month: months[salaryFilter.month], year: salaryFilter.year, date: new Date().toISOString().split('T')[0]
+                      });
+                    }
+                    showToast(`${unpaid.length} salaires validés`, 'success');
+                  }}
+                >
+                  <Check size={14} style={{ marginRight: '6px' }} /> Régler tous
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="glass-card" style={{ overflow: 'hidden' }}>
@@ -1373,45 +1475,68 @@ const FinanceDashboard = () => {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-6)' }}>
           <div className="glass-card" style={{ padding: 'var(--space-6)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: 'var(--space-6)' }}>
-              <PieChart size={24} style={{ color: 'var(--accent)' }} />
-              <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: '900' }}>Structure Budgétaire</h3>
+              <BarChart3 size={22} style={{ color: 'var(--primary)' }} />
+              <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: '900' }}>Tendance Annuelle</h3>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px', fontWeight: '700' }}>
-                  <span>Revenus (Encaissements)</span>
-                  <span style={{ color: 'var(--success)' }}>+{stats.revenue.toLocaleString()} DH</span>
-                </div>
-                <div style={{ width: '100%', height: '10px', background: 'var(--bg-subtle)', borderRadius: '5px', overflow: 'hidden' }}>
-                  <div style={{ width: '100%', height: '100%', background: 'var(--success)' }}></div>
-                </div>
-              </div>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px', fontWeight: '700' }}>
-                  <span>Charges Salariales</span>
-                  <span style={{ color: 'var(--danger)' }}>-{stats.salariesTotal.toLocaleString()} DH</span>
-                </div>
-                <div style={{ width: '100%', height: '10px', background: 'var(--bg-subtle)', borderRadius: '5px', overflow: 'hidden' }}>
-                  <div style={{ width: `${(stats.salariesTotal / (stats.revenue || 1)) * 100}%`, height: '100%', background: 'var(--danger)' }}></div>
-                </div>
-              </div>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px', fontWeight: '700' }}>
-                  <span>Autres Charges</span>
-                  <span style={{ color: '#ea580c' }}>-{stats.otherExpenses.toLocaleString()} DH</span>
-                </div>
-                <div style={{ width: '100%', height: '10px', background: 'var(--bg-subtle)', borderRadius: '5px', overflow: 'hidden' }}>
-                  <div style={{ width: `${(stats.otherExpenses / (stats.revenue || 1)) * 100}%`, height: '100%', background: '#ea580c' }}></div>
-                </div>
-              </div>
-            </div>
+            {monthlyTrendData.length === 0 ? (
+              <EmptyState title="Pas encore de données" message="Les graphiques apparaîtront dès les premiers paiements enregistrés." icon="chart" />
+            ) : (
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={monthlyTrendData} barCategoryGap="30%">
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 700, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
+                  <Tooltip formatter={(value) => [`${value.toLocaleString()} DH`]} contentStyle={{ borderRadius: 12, border: '1px solid var(--border)', fontSize: 12, fontWeight: 700 }} />
+                  <Legend wrapperStyle={{ fontSize: 12, fontWeight: 700 }} />
+                  <Bar dataKey="Revenus" fill="#16a34a" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="Charges" fill="#dc2626" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
-          <div className="glass-card" style={{ padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
-            <BarChart3 size={40} style={{ color: 'var(--accent)', marginBottom: 'var(--space-4)' }} />
-            <h3 style={{ fontSize: 'var(--text-md)', fontWeight: '800', marginBottom: 'var(--space-2)' }}>Passif Circulant</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: 'var(--space-4)' }}>Salaires calculés non encore validés.</p>
-            <div style={{ padding: '16px 32px', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-xl)', border: '2px dashed var(--accent)' }}>
-              <span style={{ fontSize: 'var(--text-xl)', fontWeight: '900', color: 'var(--accent)' }}>{stats.pendingSalaries.toLocaleString()} DH</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+            <div className="glass-card" style={{ padding: 'var(--space-6)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: 'var(--space-5)' }}>
+                <PieChart size={18} style={{ color: 'var(--accent)' }} />
+                <h3 style={{ fontSize: 'var(--text-base)', fontWeight: '900' }}>Structure — {summaryMonthFilter}</h3>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '12px', fontWeight: '700' }}>
+                    <span>Revenus</span>
+                    <span style={{ color: 'var(--success)' }}>+{stats.revenue.toLocaleString()} DH</span>
+                  </div>
+                  <div style={{ width: '100%', height: '8px', background: 'var(--bg-subtle)', borderRadius: '5px', overflow: 'hidden' }}>
+                    <div style={{ width: '100%', height: '100%', background: 'var(--success)', borderRadius: '5px' }} />
+                  </div>
+                </div>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '12px', fontWeight: '700' }}>
+                    <span>Charges salariales</span>
+                    <span style={{ color: 'var(--danger)' }}>-{stats.salariesTotal.toLocaleString()} DH</span>
+                  </div>
+                  <div style={{ width: '100%', height: '8px', background: 'var(--bg-subtle)', borderRadius: '5px', overflow: 'hidden' }}>
+                    <div style={{ width: `${Math.min((stats.salariesTotal / (stats.revenue || 1)) * 100, 100)}%`, height: '100%', background: 'var(--danger)', borderRadius: '5px' }} />
+                  </div>
+                </div>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '12px', fontWeight: '700' }}>
+                    <span>Autres charges</span>
+                    <span style={{ color: '#ea580c' }}>-{stats.otherExpenses.toLocaleString()} DH</span>
+                  </div>
+                  <div style={{ width: '100%', height: '8px', background: 'var(--bg-subtle)', borderRadius: '5px', overflow: 'hidden' }}>
+                    <div style={{ width: `${Math.min((stats.otherExpenses / (stats.revenue || 1)) * 100, 100)}%`, height: '100%', background: '#ea580c', borderRadius: '5px' }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="glass-card" style={{ padding: 'var(--space-5)', textAlign: 'center' }}>
+              <BarChart3 size={28} style={{ color: 'var(--accent)', marginBottom: '8px' }} />
+              <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Passif Circulant</p>
+              <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '12px' }}>Salaires calculés non validés</p>
+              <div style={{ padding: '12px 20px', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-xl)', border: '2px dashed var(--accent)' }}>
+                <span style={{ fontSize: 'var(--text-xl)', fontWeight: '900', color: 'var(--accent)' }}>{stats.pendingSalaries.toLocaleString()} DH</span>
+              </div>
             </div>
           </div>
           <div className="glass-card" style={{ padding: 'var(--space-6)', gridColumn: '1 / -1', overflowX: 'auto' }}>
@@ -1529,9 +1654,7 @@ const FinanceDashboard = () => {
                   <div>
                     <label style={lbl}>Année</label>
                     <select className="input-premium" style={{ width: '100%', marginTop: '6px' }} value={expenseData.year} onChange={(e) => setExpenseData({...expenseData, year: parseInt(e.target.value)})}>
-                      <option value={2026}>2026</option>
-                      <option value={2025}>2025</option>
-                      <option value={2024}>2024</option>
+                      {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
                     </select>
                   </div>
                   <div>
@@ -1560,11 +1683,11 @@ const FinanceDashboard = () => {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(6px)' }} onClick={() => setShowPaymentModal(false)} />
             <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="glass-premium" style={{ position: 'relative', width: '100%', maxWidth: '560px', maxHeight: '92vh', overflowY: 'auto', padding: '32px', borderRadius: 'var(--radius-3xl)', boxShadow: 'var(--shadow-xl)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900' }}>Enregistrer un Paiement</h2>
-                <button onClick={() => setShowPaymentModal(false)} className="close-button" aria-label="Fermer la fenêtre" title="Fermer"><X size={20} /></button>
+                <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900' }}>{editingPayment ? 'Modifier le paiement' : 'Enregistrer un Paiement'}</h2>
+                <button onClick={() => { setShowPaymentModal(false); setEditingPayment(null); }} className="close-button" aria-label="Fermer la fenêtre" title="Fermer"><X size={20} /></button>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                <div style={{ background: 'var(--bg-subtle)', borderRadius: 'var(--radius-xl)', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {!editingPayment && <div style={{ background: 'var(--bg-subtle)', borderRadius: 'var(--radius-xl)', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <p style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>Filtrer la liste des stagiaires</p>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
                     <div>
@@ -1595,19 +1718,25 @@ const FinanceDashboard = () => {
                       </select>
                     </div>
                   </div>
-                </div>
+                </div>}
 
                 <div>
                   <label style={lbl}>
                     Stagiaire Bénéficiaire
-                    <span style={{ marginLeft: '6px', fontWeight: '600', color: 'var(--primary)', textTransform: 'none', fontSize: '10px' }}>
+                    {!editingPayment && <span style={{ marginLeft: '6px', fontWeight: '600', color: 'var(--primary)', textTransform: 'none', fontSize: '10px' }}>
                       {modalStudents.length} stagiaire{modalStudents.length !== 1 ? 's' : ''}
-                    </span>
+                    </span>}
                   </label>
-                  <select className="input-premium" style={{ width: '100%', marginTop: '6px' }} value={paymentData.studentId} onChange={(e) => setPaymentData({...paymentData, studentId: e.target.value})}>
-                    <option value="">Sélectionner un stagiaire...</option>
-                    {modalStudents.map(s => <option key={s.id} value={s.id}>{s.lastName} {s.firstName}</option>)}
-                  </select>
+                  {editingPayment ? (
+                    <p style={{ marginTop: '6px', fontWeight: '700', fontSize: '14px', padding: '10px', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)' }}>
+                      {students.find(s => s.id === paymentData.studentId)?.lastName} {students.find(s => s.id === paymentData.studentId)?.firstName}
+                    </p>
+                  ) : (
+                    <select className="input-premium" style={{ width: '100%', marginTop: '6px' }} value={paymentData.studentId} onChange={(e) => setPaymentData({...paymentData, studentId: e.target.value})}>
+                      <option value="">Sélectionner un stagiaire...</option>
+                      {modalStudents.map(s => <option key={s.id} value={s.id}>{s.lastName} {s.firstName}</option>)}
+                    </select>
+                  )}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div>
@@ -1650,16 +1779,26 @@ const FinanceDashboard = () => {
                     const fees = PAYMENT_FEE_FIELDS
                       .map(({ key, label }) => ({ key, label, amount: parseFloat(paymentData[key]) || 0 }))
                       .filter(fee => fee.amount > 0);
-                    await addPayment({
-                      ...paymentData,
-                      tuitionAmount: paymentBaseAmount,
-                      amount: paymentGrandTotal,
-                      fees
-                    });
+                    if (editingPayment) {
+                      await updatePayment(editingPayment.id, {
+                        ...paymentData,
+                        tuitionAmount: paymentBaseAmount,
+                        amount: paymentGrandTotal,
+                        fees
+                      });
+                      setEditingPayment(null);
+                    } else {
+                      await addPayment({
+                        ...paymentData,
+                        tuitionAmount: paymentBaseAmount,
+                        amount: paymentGrandTotal,
+                        fees
+                      });
+                    }
                     setShowPaymentModal(false);
-                    setPaymentData({ ...paymentData, studentId: '', amount: '', examFee: '', registrationFee: '', supportFee: '' });
+                    setPaymentData({ studentId: '', amount: '', examFee: '', registrationFee: '', supportFee: '', month: currentMonthName, date: new Date().toISOString().split('T')[0], status: 'payé' });
                     setPaymentModalFilter({ diploma: '', major: '', year: '' });
-                  }}><CreditCard size={18} style={{ marginRight: '8px' }} /> Valider l'encaissement</button>
+                  }}><CreditCard size={18} style={{ marginRight: '8px' }} /> {editingPayment ? 'Enregistrer les modifications' : "Valider l'encaissement"}</button>
               </div>
             </motion.div>
           </div>
