@@ -448,7 +448,7 @@ const FinanceDashboard = () => {
     showToast('Reçu formateur généré', 'success');
   };
 
-  const filteredPayments = useMemo(() => {
+  const monthlyPaymentRows = useMemo(() => {
     const selectedMonth = paymentMonthFilter || currentMonthName;
     const paymentsForMonth = payments.filter(p =>
       (p.month || '').toLowerCase() === selectedMonth.toLowerCase()
@@ -469,14 +469,35 @@ const FinanceDashboard = () => {
         }))
     ];
 
-    return monthlyRows.filter(p => {
+    return monthlyRows;
+  }, [payments, students, paymentMonthFilter, currentMonthName]);
+
+  const paymentStatusCounts = useMemo(() => {
+    const paidStudentIds = new Set();
+    let unpaid = 0;
+    monthlyPaymentRows.forEach(row => {
+      if (row.isVirtualUnpaid) {
+        unpaid += 1;
+        return;
+      }
+      if (row.studentId) paidStudentIds.add(row.studentId);
+    });
+
+    return {
+      paid: paidStudentIds.size,
+      unpaid
+    };
+  }, [monthlyPaymentRows]);
+
+  const filteredPayments = useMemo(() => {
+    return monthlyPaymentRows.filter(p => {
       const student = students.find(s => s.id === p.studentId);
       if (!student) return false;
       if (paymentStatusFilter && getPaymentStatusKey(p.status) !== paymentStatusFilter) return false;
       const searchStr = `${student.firstName} ${student.lastName} ${p.month}`.toLowerCase();
       return searchStr.includes(searchTerm.toLowerCase());
     });
-  }, [payments, students, searchTerm, paymentStatusFilter, paymentMonthFilter, currentMonthName]);
+  }, [monthlyPaymentRows, students, searchTerm, paymentStatusFilter]);
 
   const paginatedPayments = useMemo(() => {
     return filteredPayments.slice((paymentsPage - 1) * paymentsPerPage, paymentsPage * paymentsPerPage);
@@ -527,6 +548,17 @@ const FinanceDashboard = () => {
       return `${t.name}`.toLowerCase().includes(q);
     });
   }, [calculatedSalaries, teacherSearchTerm, salaryStatusFilter]);
+
+  const salaryStatusCounts = useMemo(() => {
+    return calculatedSalaries.reduce((acc, teacher) => {
+      if (teacher.isPaid) {
+        acc.paid += 1;
+      } else {
+        acc.unpaid += 1;
+      }
+      return acc;
+    }, { paid: 0, unpaid: 0 });
+  }, [calculatedSalaries]);
 
   const paginatedTeachers = useMemo(() => {
     return filteredTeachers.slice((teachersPage - 1) * teachersPerPage, teachersPage * teachersPerPage);
@@ -782,6 +814,25 @@ const FinanceDashboard = () => {
             </button>
           </div>
 
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-5)' }}>
+            <StatusCountCard
+              title="Stagiaires payés"
+              value={paymentStatusCounts.paid}
+              subtitle={paymentMonthFilter}
+              icon={Check}
+              color="var(--success)"
+              bg="var(--success-bg)"
+            />
+            <StatusCountCard
+              title="Stagiaires impayés"
+              value={paymentStatusCounts.unpaid}
+              subtitle={paymentMonthFilter}
+              icon={RotateCcw}
+              color="#a16207"
+              bg="rgba(234,179,8,0.12)"
+            />
+          </div>
+
           <div className="glass-card" style={{ overflow: 'hidden' }}>
             {loading ? <TableSkeleton rows={8} /> : (
               <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
@@ -977,6 +1028,25 @@ const FinanceDashboard = () => {
                 setTeacherSearchTerm(e.target.value);
                 setTeachersPage(1);
               }}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-5)' }}>
+            <StatusCountCard
+              title="Formateurs réglés"
+              value={salaryStatusCounts.paid}
+              subtitle={`${months[salaryFilter.month]} ${salaryFilter.year}`}
+              icon={Check}
+              color="var(--success)"
+              bg="var(--success-bg)"
+            />
+            <StatusCountCard
+              title="Formateurs non réglés"
+              value={salaryStatusCounts.unpaid}
+              subtitle={`${months[salaryFilter.month]} ${salaryFilter.year}`}
+              icon={RotateCcw}
+              color="#a16207"
+              bg="rgba(234,179,8,0.12)"
             />
           </div>
 
@@ -1605,6 +1675,21 @@ const StatCard = ({ title, value, icon: Icon, color }) => (
       <Icon size={14} style={{ color }} /> {title}
     </p>
     <p style={{ fontSize: 'var(--text-3xl)', fontWeight: '900', color }}>{value.toLocaleString()} <span style={{ fontSize: '16px' }}>DH</span></p>
+  </div>
+);
+
+const StatusCountCard = ({ title, value, subtitle, icon: Icon, color, bg }) => (
+  <div className="glass-card" style={{ padding: '20px', borderLeft: `4px solid ${color}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px' }}>
+    <div>
+      <p style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <Icon size={14} style={{ color }} /> {title}
+      </p>
+      <p style={{ fontSize: 'var(--text-3xl)', fontWeight: '900', color }}>{value.toLocaleString()}</p>
+      <p style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', marginTop: '4px' }}>{subtitle}</p>
+    </div>
+    <div style={{ width: '44px', height: '44px', borderRadius: 'var(--radius-xl)', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color }}>
+      <Icon size={22} />
+    </div>
   </div>
 );
 
