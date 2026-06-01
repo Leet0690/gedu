@@ -113,6 +113,11 @@ const getRecordForScheduledRow = (records = [], teacherId, row) => {
 
 const formatMoney = (value) => (parseFloat(value) || 0).toLocaleString();
 
+const getCurrentMonthName = () => {
+  const month = new Date().toLocaleString('fr-FR', { month: 'long' });
+  return month.charAt(0).toUpperCase() + month.slice(1);
+};
+
 const PAYMENT_FEE_FIELDS = [
   { key: 'examFee', label: "Frais d'examen" },
   { key: 'registrationFee', label: "Frais d'inscription" },
@@ -210,9 +215,10 @@ const FinanceDashboard = () => {
   const [activeTab, setActiveTab] = useState('payments');
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('');
-  const [paymentMonthFilter, setPaymentMonthFilter] = useState('');
+  const [paymentMonthFilter, setPaymentMonthFilter] = useState(getCurrentMonthName);
   const [teacherSearchTerm, setTeacherSearchTerm] = useState('');
   const [salaryStatusFilter, setSalaryStatusFilter] = useState('');
+  const [dailyStatsDate, setDailyStatsDate] = useState('');
   const [editingTeacherId, setEditingTeacherId] = useState(null);
   
   const [paymentsPage, setPaymentsPage] = useState(1);
@@ -234,10 +240,7 @@ const FinanceDashboard = () => {
     amount: '',
     category: 'Autre',
     date: new Date().toISOString().split('T')[0],
-    month: (() => {
-      const m = new Date().toLocaleString('fr-FR', { month: 'long' });
-      return m.charAt(0).toUpperCase() + m.slice(1);
-    })(),
+    month: getCurrentMonthName(),
     year: new Date().getFullYear()
   });
 
@@ -248,10 +251,7 @@ const FinanceDashboard = () => {
     examFee: '',
     registrationFee: '',
     supportFee: '',
-    month: (() => {
-      const m = new Date().toLocaleString('fr-FR', { month: 'long' });
-      return m.charAt(0).toUpperCase() + m.slice(1);
-    })(),
+    month: getCurrentMonthName(),
     date: new Date().toISOString().split('T')[0],
     status: 'payé'
   });
@@ -271,6 +271,7 @@ const FinanceDashboard = () => {
     "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
     "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
   ];
+  const currentMonthName = getCurrentMonthName();
 
   React.useEffect(() => {
     if (isDirectorAuth) {
@@ -297,6 +298,17 @@ const FinanceDashboard = () => {
       showToast('Tarif mis à jour', 'success');
       setEditingTeacherId(null);
     }
+  };
+
+  const openPaymentModal = (studentId = '') => {
+    setPaymentModalFilter({ diploma: '', major: '', year: '' });
+    setPaymentData(data => ({
+      ...data,
+      studentId,
+      month: paymentMonthFilter || currentMonthName,
+      status: 'payé'
+    }));
+    setShowPaymentModal(true);
   };
 
   const generateReceipt = (payment, student) => {
@@ -435,15 +447,34 @@ const FinanceDashboard = () => {
   };
 
   const filteredPayments = useMemo(() => {
-    return payments.filter(p => {
+    const selectedMonth = paymentMonthFilter || currentMonthName;
+    const paymentsForMonth = payments.filter(p =>
+      (p.month || '').toLowerCase() === selectedMonth.toLowerCase()
+    );
+    const paidStudentIds = new Set(paymentsForMonth.map(p => p.studentId).filter(Boolean));
+    const monthlyRows = [
+      ...paymentsForMonth,
+      ...students
+        .filter(student => !paidStudentIds.has(student.id))
+        .map(student => ({
+          id: `unpaid-${student.id}-${selectedMonth}`,
+          studentId: student.id,
+          month: selectedMonth,
+          amount: 0,
+          date: '-',
+          status: 'impayé',
+          isVirtualUnpaid: true
+        }))
+    ];
+
+    return monthlyRows.filter(p => {
       const student = students.find(s => s.id === p.studentId);
       if (!student) return false;
       if (paymentStatusFilter && getPaymentStatusKey(p.status) !== paymentStatusFilter) return false;
-      if (paymentMonthFilter && (p.month || '').toLowerCase() !== paymentMonthFilter.toLowerCase()) return false;
       const searchStr = `${student.firstName} ${student.lastName} ${p.month}`.toLowerCase();
       return searchStr.includes(searchTerm.toLowerCase());
     });
-  }, [payments, students, searchTerm, paymentStatusFilter, paymentMonthFilter]);
+  }, [payments, students, searchTerm, paymentStatusFilter, paymentMonthFilter, currentMonthName]);
 
   const paginatedPayments = useMemo(() => {
     return filteredPayments.slice((paymentsPage - 1) * paymentsPerPage, paymentsPage * paymentsPerPage);
@@ -540,7 +571,7 @@ const FinanceDashboard = () => {
     };
   }, [payments, salaries, expenses, calculatedSalaries]);
 
-  const dailyExpenseStats = useMemo(() => {
+  const allDailyExpenseStats = useMemo(() => {
     const days = new Map();
     const addDailyAmount = (date, key, amount) => {
       const day = date || 'Sans date';
@@ -558,9 +589,13 @@ const FinanceDashboard = () => {
         if (a.date === 'Sans date') return 1;
         if (b.date === 'Sans date') return -1;
         return b.date.localeCompare(a.date);
-      })
-      .slice(0, 14);
+      });
   }, [salaries, expenses]);
+
+  const dailyExpenseStats = useMemo(() => {
+    if (!dailyStatsDate) return allDailyExpenseStats.slice(0, 14);
+    return allDailyExpenseStats.filter(day => day.date === dailyStatsDate);
+  }, [allDailyExpenseStats, dailyStatsDate]);
 
   const maxDailyExpense = useMemo(() =>
     Math.max(...dailyExpenseStats.map(day => day.total), 0),
@@ -682,19 +717,18 @@ const FinanceDashboard = () => {
                   setPaymentsPage(1);
                 }}
               >
-                <option value="">Tous les mois</option>
                 {months.map(m => (
                   <option key={m} value={m}>{m}</option>
                 ))}
               </select>
-              {(searchTerm || paymentStatusFilter || paymentMonthFilter) && (
+              {(searchTerm || paymentStatusFilter || paymentMonthFilter !== currentMonthName) && (
                 <button
                   className="action-btn"
                   title="Réinitialiser les filtres"
                   onClick={() => {
                     setSearchTerm('');
                     setPaymentStatusFilter('');
-                    setPaymentMonthFilter('');
+                    setPaymentMonthFilter(currentMonthName);
                     setPaymentsPage(1);
                   }}
                   style={{
@@ -715,7 +749,7 @@ const FinanceDashboard = () => {
                 </button>
               )}
             </div>
-            <button onClick={() => setShowPaymentModal(true)} className="btn-modern primary">
+            <button onClick={() => openPaymentModal()} className="btn-modern primary">
               <Plus size={16} style={{ marginRight: '8px' }} /> Enregistrer Paiement
             </button>
           </div>
@@ -747,8 +781,8 @@ const FinanceDashboard = () => {
                         </td>
                         <td style={tdStyle}><span style={{ fontWeight: '700' }}>{p.month}</span></td>
                         <td style={tdStyle}>
-                          <span style={{ fontWeight: '900', color: 'var(--success)' }}>{formatMoney(getPaymentTotal(p))} DH</span>
-                          {getPaymentFeeItems(p).length > 0 && (
+                          <span style={{ fontWeight: '900', color: p.isVirtualUnpaid ? '#a16207' : 'var(--success)' }}>{formatMoney(getPaymentTotal(p))} DH</span>
+                          {!p.isVirtualUnpaid && getPaymentFeeItems(p).length > 0 && (
                             <p style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-faint)', marginTop: '3px' }}>
                               Frais inclus
                             </p>
@@ -762,68 +796,87 @@ const FinanceDashboard = () => {
                         </td>
                         <td style={{ ...tdStyle, textAlign: 'right' }}>
                           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                            <motion.button
-                              whileHover={{ scale: 1.08, translateY: -1 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={() => generateReceipt(p, student)}
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                width: '36px',
-                                height: '36px',
-                                borderRadius: '10px',
-                                background: 'rgba(176, 104, 185, 0.08)',
-                                border: '1px solid rgba(176, 104, 185, 0.15)',
-                                color: 'var(--primary)',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s'
-                              }}
-                              onMouseEnter={e => {
-                                e.currentTarget.style.background = 'var(--primary)';
-                                e.currentTarget.style.color = '#ffffff';
-                              }}
-                              onMouseLeave={e => {
-                                e.currentTarget.style.background = 'rgba(176, 104, 185, 0.08)';
-                                e.currentTarget.style.color = 'var(--primary)';
-                              }}
-                              title="Reçu PDF"
-                            >
-                              <FileDown size={16} />
-                            </motion.button>
-                            <motion.button
-                              whileHover={{ scale: 1.08, translateY: -1 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={async () => {
-                                if (await confirmAction({ title: "Supprimer paiement ?", message: "Voulez-vous supprimer ce reçu de paiement ?", type: "danger" })) {
-                                  deletePayment(p.id);
-                                }
-                              }}
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                width: '36px',
-                                height: '36px',
-                                borderRadius: '10px',
-                                background: 'rgba(239, 68, 68, 0.08)',
-                                border: '1px solid rgba(239, 68, 68, 0.15)',
-                                color: '#ef4444',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s'
-                              }}
-                              onMouseEnter={e => {
-                                e.currentTarget.style.background = '#ef4444';
-                                e.currentTarget.style.color = '#ffffff';
-                              }}
-                              onMouseLeave={e => {
-                                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)';
-                                e.currentTarget.style.color = '#ef4444';
-                              }}
-                              title="Supprimer"
-                            >
-                              <Trash2 size={16} />
-                            </motion.button>
+                            {p.isVirtualUnpaid ? (
+                              <button
+                                onClick={() => openPaymentModal(p.studentId)}
+                                className="btn-modern"
+                                style={{
+                                  padding: '8px 12px',
+                                  fontSize: '11px',
+                                  fontWeight: '800',
+                                  background: 'rgba(234,179,8,0.10)',
+                                  border: '1px solid rgba(234,179,8,0.25)',
+                                  color: '#a16207'
+                                }}
+                              >
+                                <CreditCard size={14} style={{ marginRight: '6px' }} /> Encaisser
+                              </button>
+                            ) : (
+                              <>
+                                <motion.button
+                                  whileHover={{ scale: 1.08, translateY: -1 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  onClick={() => generateReceipt(p, student)}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    width: '36px',
+                                    height: '36px',
+                                    borderRadius: '10px',
+                                    background: 'rgba(176, 104, 185, 0.08)',
+                                    border: '1px solid rgba(176, 104, 185, 0.15)',
+                                    color: 'var(--primary)',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s'
+                                  }}
+                                  onMouseEnter={e => {
+                                    e.currentTarget.style.background = 'var(--primary)';
+                                    e.currentTarget.style.color = '#ffffff';
+                                  }}
+                                  onMouseLeave={e => {
+                                    e.currentTarget.style.background = 'rgba(176, 104, 185, 0.08)';
+                                    e.currentTarget.style.color = 'var(--primary)';
+                                  }}
+                                  title="Reçu PDF"
+                                >
+                                  <FileDown size={16} />
+                                </motion.button>
+                                <motion.button
+                                  whileHover={{ scale: 1.08, translateY: -1 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  onClick={async () => {
+                                    if (await confirmAction({ title: "Supprimer paiement ?", message: "Voulez-vous supprimer ce reçu de paiement ?", type: "danger" })) {
+                                      deletePayment(p.id);
+                                    }
+                                  }}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    width: '36px',
+                                    height: '36px',
+                                    borderRadius: '10px',
+                                    background: 'rgba(239, 68, 68, 0.08)',
+                                    border: '1px solid rgba(239, 68, 68, 0.15)',
+                                    color: '#ef4444',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s'
+                                  }}
+                                  onMouseEnter={e => {
+                                    e.currentTarget.style.background = '#ef4444';
+                                    e.currentTarget.style.color = '#ffffff';
+                                  }}
+                                  onMouseLeave={e => {
+                                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)';
+                                    e.currentTarget.style.color = '#ef4444';
+                                  }}
+                                  title="Supprimer"
+                                >
+                                  <Trash2 size={16} />
+                                </motion.button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1272,13 +1325,38 @@ const FinanceDashboard = () => {
                   <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '700' }}>Dépenses et charges par date</p>
                 </div>
               </div>
-              <span className="badge-status pending">
-                {dailyExpenseStats.length} jour{dailyExpenseStats.length !== 1 ? 's' : ''}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <input
+                  type="date"
+                  className="input-premium"
+                  value={dailyStatsDate}
+                  onChange={(e) => setDailyStatsDate(e.target.value)}
+                  style={{ minWidth: '160px' }}
+                />
+                {dailyStatsDate && (
+                  <button
+                    className="action-btn"
+                    title="Afficher les derniers jours"
+                    onClick={() => setDailyStatsDate('')}
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+                <span className="badge-status pending">
+                  {dailyExpenseStats.length} jour{dailyExpenseStats.length !== 1 ? 's' : ''}
+                </span>
+              </div>
             </div>
 
             {dailyExpenseStats.length === 0 ? (
-              <EmptyState title="Aucune dépense" message="Aucune charge ou salaire versé à analyser." icon="file" />
+              <EmptyState title="Aucune dépense" message={dailyStatsDate ? "Aucune charge ou salaire versé pour ce jour." : "Aucune charge ou salaire versé à analyser."} icon="file" />
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 1.2fr) repeat(3, minmax(110px, 1fr))', gap: '12px', paddingBottom: '10px', borderBottom: '1px solid var(--border-light)', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
