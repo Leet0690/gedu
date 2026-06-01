@@ -1162,7 +1162,7 @@ const FinanceDashboard = () => {
                   </div>
                   <div>
                     <label style={lbl}>Date</label>
-                    <input type="date" className="input-premium" style={{ width: '100%', marginTop: '6px' }} value={expenseData.date} onChange={(e) => setExpenseData({...expenseData, date: e.target.value})} />
+                    <input type="date" className="input-premium" style={{ width: '100%', marginTop: '6px' }} value={expenseData.date} onChange={(e) => setExpenseData({...expenseData, date: e.target.value})} onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }} />
                   </div>
                 </div>
                 <button className="btn-modern primary" style={{ width: '100%', padding: '14px', justifyContent: 'center', marginTop: '4px', background: '#dc2626' }}

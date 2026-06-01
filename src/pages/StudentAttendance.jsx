@@ -8,7 +8,7 @@ import EmptyState from '../components/EmptyState';
 import {
   UserCheck, FileSpreadsheet, Search, CheckCircle2,
   XCircle, X, Clock, Users, Filter, Download, CalendarRange,
-  ChevronLeft, ChevronRight, AlertTriangle, CheckCheck
+  ChevronLeft, ChevronRight, AlertTriangle, CheckCheck, Calendar
 } from 'lucide-react';
 
 /* ─── Monthly-view helpers ─── */
@@ -524,7 +524,10 @@ const StudentAttendance = () => {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'var(--space-4)' }}>
               <div style={filterGroupStyle}>
                 <label style={labelStyle}>Date de l'appel</label>
-                <input type="date" className="input-premium" style={{ width: '100%' }} value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />
+                <div style={{ position: 'relative' }}>
+                  <Calendar size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)', pointerEvents: 'none' }} />
+                  <input type="date" className="input-premium" style={{ width: '100%', paddingLeft: '34px' }} value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }} />
+                </div>
               </div>
               <div style={filterGroupStyle}>
                 <label style={labelStyle}>Niveau</label>

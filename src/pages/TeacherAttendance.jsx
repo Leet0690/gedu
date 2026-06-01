@@ -170,7 +170,7 @@ const getRecordForScheduledRow = (records = [], row) => {
 
 const labelStyle = { fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px', display: 'block' };
 const fGroup = { display: 'flex', flexDirection: 'column' };
-const fIcon = { position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)' };
+const fIcon = { position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)', pointerEvents: 'none' };
 const thStyle = { padding: '16px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' };
 const tdStyle = { padding: '16px' };
 const mThStyle = { padding: '12px 4px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center', whiteSpace: 'nowrap', borderBottom: '1px solid var(--border-light)' };
@@ -340,7 +340,7 @@ const TeacherAttendance = () => {
                 <label style={labelStyle}>Date d'appel</label>
                 <div style={{ position: 'relative' }}>
                   <Calendar size={14} style={fIcon} />
-                  <input type="date" className="input-premium" style={{ width: '100%', paddingLeft: '34px' }} value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />
+                  <input type="date" className="input-premium" style={{ width: '100%', paddingLeft: '34px' }} value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }} />
                 </div>
               </div>
               <div style={fGroup}>
