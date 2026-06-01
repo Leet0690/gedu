@@ -210,6 +210,7 @@ const FinanceDashboard = () => {
   const [activeTab, setActiveTab] = useState('payments');
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('');
+  const [paymentMonthFilter, setPaymentMonthFilter] = useState('');
   const [teacherSearchTerm, setTeacherSearchTerm] = useState('');
   const [salaryStatusFilter, setSalaryStatusFilter] = useState('');
   const [editingTeacherId, setEditingTeacherId] = useState(null);
@@ -233,7 +234,10 @@ const FinanceDashboard = () => {
     amount: '',
     category: 'Autre',
     date: new Date().toISOString().split('T')[0],
-    month: new Date().toLocaleString('fr-FR', { month: 'long' }),
+    month: (() => {
+      const m = new Date().toLocaleString('fr-FR', { month: 'long' });
+      return m.charAt(0).toUpperCase() + m.slice(1);
+    })(),
     year: new Date().getFullYear()
   });
 
@@ -244,7 +248,10 @@ const FinanceDashboard = () => {
     examFee: '',
     registrationFee: '',
     supportFee: '',
-    month: new Date().toLocaleString('fr-FR', { month: 'long' }),
+    month: (() => {
+      const m = new Date().toLocaleString('fr-FR', { month: 'long' });
+      return m.charAt(0).toUpperCase() + m.slice(1);
+    })(),
     date: new Date().toISOString().split('T')[0],
     status: 'payé'
   });
@@ -432,10 +439,11 @@ const FinanceDashboard = () => {
       const student = students.find(s => s.id === p.studentId);
       if (!student) return false;
       if (paymentStatusFilter && getPaymentStatusKey(p.status) !== paymentStatusFilter) return false;
+      if (paymentMonthFilter && (p.month || '').toLowerCase() !== paymentMonthFilter.toLowerCase()) return false;
       const searchStr = `${student.firstName} ${student.lastName} ${p.month}`.toLowerCase();
       return searchStr.includes(searchTerm.toLowerCase());
     });
-  }, [payments, students, searchTerm, paymentStatusFilter]);
+  }, [payments, students, searchTerm, paymentStatusFilter, paymentMonthFilter]);
 
   const paginatedPayments = useMemo(() => {
     return filteredPayments.slice((paymentsPage - 1) * paymentsPerPage, paymentsPage * paymentsPerPage);
@@ -665,6 +673,47 @@ const FinanceDashboard = () => {
                 <option value="paid">Payé</option>
                 <option value="unpaid">Impayé</option>
               </select>
+              <select
+                className="input-premium"
+                style={{ minWidth: '150px' }}
+                value={paymentMonthFilter}
+                onChange={(e) => {
+                  setPaymentMonthFilter(e.target.value);
+                  setPaymentsPage(1);
+                }}
+              >
+                <option value="">Tous les mois</option>
+                {months.map(m => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+              {(searchTerm || paymentStatusFilter || paymentMonthFilter) && (
+                <button
+                  className="action-btn"
+                  title="Réinitialiser les filtres"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setPaymentStatusFilter('');
+                    setPaymentMonthFilter('');
+                    setPaymentsPage(1);
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg-subtle)',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
             <button onClick={() => setShowPaymentModal(true)} className="btn-modern primary">
               <Plus size={16} style={{ marginRight: '8px' }} /> Enregistrer Paiement
