@@ -158,13 +158,13 @@ const TeacherPortal = () => {
   // Check if attendance was already submitted today
   const alreadyDoneToday = useMemo(() => {
     if (!teacher || todaysSessions.length === 0 || accessMode !== 'attendance') return false;
-    // Check if ALL sessions have a 'present' teacher attendance record for today
+    // Check if ALL sessions have a 'present' or 'absent' teacher attendance record for today
     return todaysSessions.every(session => {
       const safeModule = (getActiveScheduleModule(session) || 'global').replace(/[^a-zA-Z0-9]/g, '_');
       const safeTime = (session.time || '').replace(/[^0-9]/g, '') || 'x';
       const docId = `${teacher.id}_${safeModule}_${safeTime}_${selectedDate}`;
       const record = teacherAttendance.find(a => a.id === docId);
-      return record && record.status === 'present';
+      return record && (record.status === 'present' || record.status === 'absent');
     });
   }, [teacher, todaysSessions, teacherAttendance, selectedDate, accessMode, getActiveScheduleModule]);
 
@@ -377,20 +377,29 @@ const TeacherPortal = () => {
 
   // Show "already done" screen if attendance was already taken today
   if (alreadyDoneToday && activeTab === 'attendance' && !isFinished && !attendanceSuccess) {
-    // Deduplicate time slots for display
-    const uniqueTimeSlots = new Map();
+    // Compute present/absent breakdown
+    let donePresent = 0, doneAbsent = 0, totalH = 0;
+    const countedSlots = new Set();
     todaysSessions.forEach(s => {
-      const timeKey = (s.time || '').replace(/[^0-9]/g, '');
-      if (!uniqueTimeSlots.has(timeKey)) {
-        try {
-          const [start, end] = s.time.split('-');
-          const [h1, m1] = start.split(':').map(Number);
-          const [h2, m2] = end.split(':').map(Number);
-          uniqueTimeSlots.set(timeKey, Math.max(0, ((h2 * 60 + m2) - (h1 * 60 + m1)) / 60));
-        } catch { uniqueTimeSlots.set(timeKey, 0); }
+      const safeModule = (getActiveScheduleModule(s) || 'global').replace(/[^a-zA-Z0-9]/g, '_');
+      const safeTime = (s.time || '').replace(/[^0-9]/g, '') || 'x';
+      const docId = `${teacher.id}_${safeModule}_${safeTime}_${selectedDate}`;
+      const record = teacherAttendance.find(a => a.id === docId);
+      if (record?.status === 'present') {
+        donePresent++;
+        if (!countedSlots.has(safeTime)) {
+          countedSlots.add(safeTime);
+          try {
+            const [start, end] = s.time.split('-');
+            const [h1, m1] = start.split(':').map(Number);
+            const [h2, m2] = end.split(':').map(Number);
+            totalH += Math.max(0, ((h2 * 60 + m2) - (h1 * 60 + m1)) / 60);
+          } catch {}
+        }
+      } else if (record?.status === 'absent') {
+        doneAbsent++;
       }
     });
-    const totalH = Array.from(uniqueTimeSlots.values()).reduce((s, h) => s + h, 0);
     return (
       <div className="flex-center" style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #f0f4ff 0%, #f8f0fa 100%)', padding: '24px' }}>
         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 220, damping: 22 }} style={{ padding: '48px 32px', textAlign: 'center', maxWidth: '420px', width: '100%', background: 'white', borderRadius: '28px', boxShadow: '0 16px 48px rgba(0,0,0,0.06)' }}>
@@ -403,9 +412,21 @@ const TeacherPortal = () => {
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
             <div style={{ padding: '12px 16px', background: 'var(--bg-subtle)', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>📚 Séances validées</span>
+              <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>📚 Séances totales</span>
               <span style={{ fontSize: '15px', fontWeight: '900', color: 'var(--primary)' }}>{todaysSessions.length}</span>
             </div>
+            {donePresent > 0 && (
+              <div style={{ padding: '12px 16px', background: 'rgba(22,163,74,0.06)', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '13px', fontWeight: '700', color: '#15803d' }}>✅ Séances présent</span>
+                <span style={{ fontSize: '15px', fontWeight: '900', color: '#16a34a' }}>{donePresent}</span>
+              </div>
+            )}
+            {doneAbsent > 0 && (
+              <div style={{ padding: '12px 16px', background: 'rgba(220,38,38,0.06)', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '13px', fontWeight: '700', color: '#dc2626' }}>❌ Séances absent</span>
+                <span style={{ fontSize: '15px', fontWeight: '900', color: '#dc2626' }}>{doneAbsent}</span>
+              </div>
+            )}
             <div style={{ padding: '12px 16px', background: 'var(--bg-subtle)', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>⏰ Heures de vacation</span>
               <span style={{ fontSize: '15px', fontWeight: '900', color: '#16a34a' }}>{formatHours(totalH)}</span>
@@ -443,6 +464,33 @@ const TeacherPortal = () => {
       await updateTeacherAttendance(teacher.id, selectedDate, 'present', `Appel validé: ${selectedSubject}`, sessionDuration, selectedSubject, currentSession?.time || '');
     }
     showToast(`Séance "${selectedSubject}" validée.`, 'success');
+
+    // Move to next uncompleted session
+    const nextSession = todaysSessions.find(s => s.id !== currentSession.id && !completedSessionIds.has(s.id));
+    if (nextSession) {
+      setSelectedSessionId(nextSession.id);
+    }
+  };
+
+  const handleDeclareAbsent = async () => {
+    if (!currentSession) return;
+    const sessionLabel = `${currentSession.time} — ${getGroupAbbreviation(currentSession.filiere, currentSession.annee)}`;
+    const confirmed = await confirmAction({
+      title: "Déclarer votre absence ?",
+      message: `Vous confirmez être absent pour la séance de ${sessionLabel}. Aucun pointage stagiaire ne sera effectué pour cette séance.`,
+      type: "warning"
+    });
+    if (!confirmed) return;
+
+    const sessionModule = selectedSubject || getActiveScheduleModule(currentSession);
+    await updateTeacherAttendance(
+      teacher.id, selectedDate, 'absent',
+      'Formateur absent (auto-déclaration)',
+      0, sessionModule, currentSession.time
+    );
+
+    setCompletedSessionIds(prev => new Set([...prev, currentSession.id]));
+    showToast(`Absence déclarée pour "${sessionModule}".`, 'info');
 
     // Move to next uncompleted session
     const nextSession = todaysSessions.find(s => s.id !== currentSession.id && !completedSessionIds.has(s.id));
@@ -548,20 +596,33 @@ const TeacherPortal = () => {
   };
 
   if (isFinished) {
-    // Deduplicate time slots: sessions at the same time count as one
-    const uniqueTimeSlots = new Map();
+    // Compute present/absent breakdown for finished screen
+    let finishedPresent = 0, finishedAbsent = 0;
+    const countedFinishedSlots = new Set();
+    let totalDuration = 0;
     todaysSessions.forEach(s => {
-      const timeKey = (s.time || '').replace(/[^0-9]/g, '');
-      if (!uniqueTimeSlots.has(timeKey)) {
-        try {
-          const [start, end] = s.time.split('-');
-          const [h1, m1] = start.split(':').map(Number);
-          const [h2, m2] = end.split(':').map(Number);
-          uniqueTimeSlots.set(timeKey, Math.max(0, ((h2 * 60 + m2) - (h1 * 60 + m1)) / 60));
-        } catch { uniqueTimeSlots.set(timeKey, 0); }
+      const safeModule = (getActiveScheduleModule(s) || 'global').replace(/[^a-zA-Z0-9]/g, '_');
+      const safeTime = (s.time || '').replace(/[^0-9]/g, '') || 'x';
+      const docId = `${teacher.id}_${safeModule}_${safeTime}_${selectedDate}`;
+      const record = teacherAttendance.find(a => a.id === docId);
+      if (record?.status === 'absent') {
+        finishedAbsent++;
+      } else {
+        finishedPresent++;
+        if (!countedFinishedSlots.has(safeTime)) {
+          countedFinishedSlots.add(safeTime);
+          try {
+            const [start, end] = s.time.split('-');
+            const [h1, m1] = start.split(':').map(Number);
+            const [h2, m2] = end.split(':').map(Number);
+            totalDuration += Math.max(0, ((h2 * 60 + m2) - (h1 * 60 + m1)) / 60);
+          } catch {}
+        }
       }
     });
-    const totalDuration = Array.from(uniqueTimeSlots.values()).reduce((sum, h) => sum + h, 0);
+    const summaryParts = [];
+    if (finishedPresent > 0) summaryParts.push(`${finishedPresent} présente(s)`);
+    if (finishedAbsent > 0) summaryParts.push(`${finishedAbsent} absente(s)`);
     return (
       <div className="flex-center" style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #f8f0fa 0%, #e8f5e9 100%)' }}>
         <motion.div initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 20 }} style={{ padding: '48px 36px', textAlign: 'center', maxWidth: '420px', width: '100%', background: 'white', borderRadius: '28px', boxShadow: '0 20px 60px rgba(0,0,0,0.08)' }}>
@@ -571,9 +632,14 @@ const TeacherPortal = () => {
           <motion.h1 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.35 }} style={{ fontSize: '26px', fontWeight: '900', marginBottom: '12px', color: 'var(--text-primary)' }}>Merci, {teacher.name.split(' ')[0]} !</motion.h1>
           <motion.p initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.45 }} style={{ color: 'var(--text-muted)', fontSize: '15px', lineHeight: '1.7', marginBottom: '28px' }}>
             Votre journée a été enregistrée avec succès.<br/>
-            <strong>{todaysSessions.length} séance(s)</strong> validée(s) — <strong>{formatHours(totalDuration)}</strong> de vacation transmise(s) à l'administration.
+            <strong>{todaysSessions.length} séance(s)</strong> ({summaryParts.join(', ')}) — <strong>{formatHours(totalDuration)}</strong> de vacation transmise(s).
           </motion.p>
           <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.55 }} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {finishedAbsent > 0 && (
+              <div style={{ padding: '12px 16px', background: 'rgba(220,38,38,0.06)', borderRadius: '14px', fontSize: '13px', color: '#dc2626', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                <CalendarX size={16} /> {finishedAbsent} séance(s) déclarée(s) absente(s)
+              </div>
+            )}
             <div style={{ padding: '14px 20px', background: 'var(--bg-subtle)', borderRadius: '14px', fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '600' }}>
               📅 {new Date(selectedDate).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             </div>
@@ -670,11 +736,21 @@ const TeacherPortal = () => {
           ) : (
             todaysSessions.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
-                {currentSession && (
-                  <button onClick={handleValidateSession} disabled={!allAttended} className={`btn-modern ${allAttended ? 'primary' : 'secondary'}`} style={{ padding: '10px 20px', opacity: allAttended ? 1 : 0.5, cursor: allAttended ? 'pointer' : 'not-allowed' }}>
-                    <CheckCircle2 size={16} style={{ marginRight: '6px' }} />
-                    {completedSessionIds.has(currentSession.id) ? '✓ Séance validée' : `Valider cette séance (${completedSessionIds.size}/${todaysSessions.length})`}
-                  </button>
+                {currentSession && !completedSessionIds.has(currentSession.id) && (
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <button onClick={handleDeclareAbsent} className="btn-modern" style={{ padding: '10px 18px', background: 'rgba(220,38,38,0.08)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 'var(--radius-xl)', fontSize: '12px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <CalendarX size={15} /> Absent pour cette séance
+                    </button>
+                    <button onClick={handleValidateSession} disabled={!allAttended} className={`btn-modern ${allAttended ? 'primary' : 'secondary'}`} style={{ padding: '10px 20px', opacity: allAttended ? 1 : 0.5, cursor: allAttended ? 'pointer' : 'not-allowed' }}>
+                      <CheckCircle2 size={16} style={{ marginRight: '6px' }} />
+                      Valider cette séance ({completedSessionIds.size}/{todaysSessions.length})
+                    </button>
+                  </div>
+                )}
+                {currentSession && completedSessionIds.has(currentSession.id) && (
+                  <span style={{ padding: '10px 20px', fontSize: '12px', fontWeight: '800', color: '#15803d', background: 'rgba(22,163,74,0.08)', borderRadius: 'var(--radius-xl)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <CheckCircle2 size={15} /> Séance traitée
+                  </span>
                 )}
                 {allSessionsCompleted && (
                   <motion.button initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} onClick={handleFinalValidation} className="btn-modern primary" style={{ padding: '12px 24px', background: 'linear-gradient(135deg, #16a34a, #22c55e)', border: 'none' }}>
