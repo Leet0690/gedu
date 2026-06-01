@@ -55,13 +55,14 @@ const MiniStat = ({ label, value, icon: Icon }) => (
 );
 
 const GradeManagement = () => {
-  const { students = [], teachers = [], grades = {}, updateGrades, loading = false, modules: allModules = [], confirmAction } = useApp() || {};
+  const { students = [], teachers = [], grades = {}, batchUpdateGrades, loading = false, modules: allModules = [], confirmAction } = useApp() || {};
   const { showToast } = useToast();
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [filterDiploma, setFilterDiploma] = useState('');
   const [filterMajor, setFilterMajor] = useState('');
   const [filterYear, setFilterYear] = useState('');
   const [saved, setSaved] = useState(false);
+  const [localGrades, setLocalGrades] = useState({});
 
   // ── PDF States ──
   const [showDocPanel, setShowDocPanel] = useState(false);
@@ -90,7 +91,10 @@ const GradeManagement = () => {
   }, [selectedStudent, allModules]);
   
   const modules = studentModules.map(m => m.name);
-  const studentGrades = selectedStudent ? (grades[selectedStudent.id] || {}) : {};
+  
+  React.useEffect(() => {
+    setLocalGrades(selectedStudent ? (grades[selectedStudent.id] || {}) : {});
+  }, [selectedStudent, grades]);
 
   // Modules for PDF (based on filters, not selected student)
   const pdfModulesList = useMemo(() => {
@@ -117,13 +121,16 @@ const GradeManagement = () => {
   }, [students, filterDiploma, filterMajor, filterYear]);
 
   const handleGradeChange = (module, field, value) => {
-    const current = studentGrades[module.replace(/\./g, '_')] || { c1: '', c2: '', c3: '', efcfp: '', efcft: '' };
-    updateGrades(selectedStudentId, module, { ...current, [field]: value });
+    const safeModule = module.replace(/\./g, '_');
+    setLocalGrades(prev => {
+      const current = prev[safeModule] || { c1: '', c2: '', c3: '', efcfp: '', efcft: '' };
+      return { ...prev, [safeModule]: { ...current, [field]: value } };
+    });
   };
 
   const handleSave = async () => {
     let hasInvalid = false;
-    Object.values(studentGrades).forEach(g => {
+    Object.values(localGrades).forEach(g => {
       ['c1', 'c2', 'c3', 'efcfp', 'efcft'].forEach(field => {
         if (g[field] !== '' && g[field] !== undefined) {
           const num = parseFloat(g[field]);
@@ -137,7 +144,18 @@ const GradeManagement = () => {
       return;
     }
     
-    showToast('Notes enregistrées avec succès', 'success');
+    if (!selectedStudentId) return;
+
+    const updates = Object.keys(localGrades).map(moduleKey => ({
+      studentId: selectedStudentId,
+      subject: moduleKey,
+      gradeData: localGrades[moduleKey]
+    }));
+
+    if (updates.length > 0) {
+      await batchUpdateGrades(updates);
+    }
+    
     setSaved(true); 
     setTimeout(() => setSaved(false), 2500); 
   };
@@ -191,9 +209,9 @@ const GradeManagement = () => {
   const generalAvg = () => {
     let sumCC = 0, sumFT = 0, sumFP = 0, cnt = 0;
     studentModules.forEach(mod => {
-      const g = studentGrades[mod.name.replace(/\./g, '_')];
+      const g = localGrades[mod.name.replace(/\./g, '_')];
       const cc = calcMoyenneCC(g);
-      if (cc !== null && g.efcft !== '' && g.efcfp !== '') {
+      if (cc !== null && g?.efcft !== '' && g?.efcft !== undefined && g?.efcfp !== '' && g?.efcfp !== undefined) {
         sumCC += cc;
         sumFT += parseFloat(g.efcft);
         sumFP += parseFloat(g.efcfp);
@@ -207,7 +225,7 @@ const GradeManagement = () => {
     return (((mCC * 3) + (mFT * 2) + (mFP * 3)) / 8).toFixed(2);
   };
 
-  const completedModules = modules.filter(mod => isComplete(studentGrades[mod.replace(/\./g, '_')])).length;
+  const completedModules = modules.filter(mod => isComplete(localGrades[mod.replace(/\./g, '_')])).length;
 
   // ── PDF Handlers ──
   const findFormateur = (moduleName) => {
@@ -449,20 +467,20 @@ const GradeManagement = () => {
                 <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={lbl}>Moy CC (1ère)</label>
-                    <GradeInput value={(studentGrades.firstYear || {}).moyCC || ''} onChange={(v) => handleGradeChange('firstYear', 'moyCC', v)} />
+                    <GradeInput value={(localGrades.firstYear || {}).moyCC || ''} onChange={(v) => handleGradeChange('firstYear', 'moyCC', v)} />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={lbl}>EFCFT (1ère)</label>
-                    <GradeInput value={(studentGrades.firstYear || {}).moyEFCFT || ''} onChange={(v) => handleGradeChange('firstYear', 'moyEFCFT', v)} />
+                    <GradeInput value={(localGrades.firstYear || {}).moyEFCFT || ''} onChange={(v) => handleGradeChange('firstYear', 'moyEFCFT', v)} />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={lbl}>EFCFP (1ère)</label>
-                    <GradeInput value={(studentGrades.firstYear || {}).moyEFCFP || ''} onChange={(v) => handleGradeChange('firstYear', 'moyEFCFP', v)} />
+                    <GradeInput value={(localGrades.firstYear || {}).moyEFCFP || ''} onChange={(v) => handleGradeChange('firstYear', 'moyEFCFP', v)} />
                   </div>
                   <div style={{ width: '1px', background: 'var(--border-light)' }}></div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={{ ...lbl, color: 'var(--accent)' }}>Note NSTI</label>
-                    <GradeInput value={(studentGrades.firstYear || {}).nsti || ''} onChange={(v) => handleGradeChange('firstYear', 'nsti', v)} />
+                    <GradeInput value={(localGrades.firstYear || {}).nsti || ''} onChange={(v) => handleGradeChange('firstYear', 'nsti', v)} />
                   </div>
                 </div>
               </div>
@@ -491,7 +509,7 @@ const GradeManagement = () => {
                     </thead>
                     <tbody>
                       {modules.map((mod, idx) => {
-                        const g = studentGrades[mod.replace(/\./g, '_')] || { c1: '', c2: '', c3: '', efcfp: '', efcft: '' };
+                        const g = localGrades[mod.replace(/\./g, '_')] || { c1: '', c2: '', c3: '', efcfp: '', efcft: '' };
                         const moyCC = calcMoyenneCC(g);
                         const avg = calcAvg(g);
                         const complete = isComplete(g);

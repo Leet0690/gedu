@@ -649,6 +649,24 @@ export const AppProvider = ({ children }) => {
     showToast('Notes enregistrées', 'success');
   };
 
+  const batchUpdateGrades = async (updates) => {
+    const batch = writeBatch(db);
+    const newGrades = { ...grades };
+    
+    updates.forEach(({studentId, subject, gradeData}) => {
+      const safeSubject = subject.replace(/\./g, '_');
+      const gradeRef = doc(db, 'grades', studentId);
+      batch.set(gradeRef, { [safeSubject]: gradeData }, { merge: true });
+      
+      if (!newGrades[studentId]) newGrades[studentId] = {};
+      newGrades[studentId][safeSubject] = gradeData;
+    });
+    
+    await batch.commit();
+    setGrades(newGrades);
+    showToast('Notes enregistrées avec succès', 'success');
+  };
+
   // --- PRESENCES ---
   const updateStudentAttendance = async (studentId, moduleId, date, status, comment, formateurId = 'admin') => {
     const safeModule = moduleId.replace(/[^a-zA-Z0-9]/g, '_');
@@ -902,7 +920,7 @@ export const AppProvider = ({ children }) => {
     <AppContext.Provider value={{
       students, teachers, grades, isAuthenticated, isDirectorAuth, loading,
       login, logout, loginDirector, logoutDirector,
-      addStudent, addTeacher, updateStudent, updateTeacher, deleteStudent, deleteTeacher, updateGrades,
+      addStudent, addTeacher, updateStudent, updateTeacher, deleteStudent, deleteTeacher, updateGrades, batchUpdateGrades,
       studentAttendance, teacherAttendance, updateStudentAttendance, updateTeacherAttendance,
       loadAttendanceForSession, loadStudentAttendanceForMonth, loadTeacherAttendanceForDate, loadTeacherAttendanceForMonth,
       schedules, addSchedule, updateSchedule, deleteSchedule, clearAllSchedules, migrateTeacherTokens,

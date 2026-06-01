@@ -90,7 +90,7 @@ const getGroupAbbreviation = (filiere, annee) => {
 const TeacherPortal = () => {
   const { teacherId } = useParams();
   const navigate = useNavigate();
-  const { teachers, students, updateGrades, grades, loading, studentAttendance, updateStudentAttendance, schedules, updateTeacherAttendance, loadAttendanceForSession, teacherAttendance, loadTeacherAttendanceForDate, confirmAction, modules: allModules = [], activeSemester, getActiveScheduleModule } = useApp();
+  const { teachers, students, updateGrades, batchUpdateGrades, grades, loading, studentAttendance, updateStudentAttendance, schedules, updateTeacherAttendance, loadAttendanceForSession, teacherAttendance, loadTeacherAttendanceForDate, confirmAction, modules: allModules = [], activeSemester, getActiveScheduleModule } = useApp();
   const { showToast } = useToast();
   
   const teacher = useMemo(() => {
@@ -110,6 +110,7 @@ const TeacherPortal = () => {
   const [filterYear, setFilterYear] = useState('1ère année');
   const [success, setSuccess] = useState(false);
   const [activeTab, setActiveTab] = useState('attendance');
+  const [localGrades, setLocalGrades] = useState({});
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [attendanceSuccess, setAttendanceSuccess] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
@@ -308,6 +309,14 @@ const TeacherPortal = () => {
     });
     return uniqueStudents;
   }, [students, selectedGroup, filterYear, selectedDiploma, activeTab, currentSession]);
+
+  useEffect(() => {
+    const lg = {};
+    relevantStudents.forEach(s => {
+      lg[s.id] = grades[s.id]?.[selectedSubject?.replace(/\./g, '_')] || { c1: '', c2: '', c3: '', efcfp: '', efcft: '' };
+    });
+    setLocalGrades(lg);
+  }, [relevantStudents, selectedSubject, grades]);
 
   const allAttended = useMemo(() => {
     if (!currentSession || !relevantStudents || relevantStudents.length === 0 || !selectedSubject) return false;
@@ -528,14 +537,19 @@ const TeacherPortal = () => {
 
   const handleGradeChange = (studentId, field, value) => {
     if (!selectedSubject) return;
-    const current = grades[studentId]?.[selectedSubject.replace(/\./g, '_')] || { c1: '', c2: '', c3: '', efcfp: '', efcft: '' };
-    updateGrades(studentId, selectedSubject, { ...current, [field]: value });
+    setLocalGrades(prev => ({
+      ...prev,
+      [studentId]: {
+        ...(prev[studentId] || { c1: '', c2: '', c3: '', efcfp: '', efcft: '' }),
+        [field]: value
+      }
+    }));
   };
 
   const handleSaveGrades = async () => {
     let hasInvalid = false;
     relevantStudents.forEach(student => {
-      const g = grades[student.id]?.[selectedSubject.replace(/\./g, '_')] || {};
+      const g = localGrades[student.id] || {};
       ['c1', 'c2', 'c3', 'efcfp', 'efcft'].forEach(field => {
         if (g[field] !== '' && g[field] !== undefined) {
           const num = parseFloat(g[field]);
@@ -544,8 +558,19 @@ const TeacherPortal = () => {
       });
     });
     if (hasInvalid) return showToast("Certaines notes sont invalides.", 'error');
+    if (!selectedSubject) return;
+
+    const updates = relevantStudents.map(student => ({
+      studentId: student.id,
+      subject: selectedSubject,
+      gradeData: localGrades[student.id] || { c1: '', c2: '', c3: '', efcfp: '', efcft: '' }
+    }));
+
+    if (updates.length > 0) {
+      await batchUpdateGrades(updates);
+    }
+
     setSuccess(true);
-    showToast(`Notes synchronisées pour ${selectedSubject}.`, 'success');
     setTimeout(() => setSuccess(false), 2500);
   };
 
@@ -829,7 +854,7 @@ const TeacherPortal = () => {
               </thead>
               <tbody>
                 {relevantStudents.map((s, idx) => {
-                  const g = grades[s.id]?.[selectedSubject.replace(/\./g, '_')] || {};
+                  const g = localGrades[s.id] || { c1: '', c2: '', c3: '', efcfp: '', efcft: '' };
                   const moyCC = calcMoyenneCC(g);
                   return (
                     <tr key={s.id} style={{ borderBottom: '1px solid var(--border-light)', background: idx % 2 === 0 ? 'white' : 'var(--bg-subtle)' }}>
