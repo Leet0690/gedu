@@ -217,6 +217,7 @@ const FinanceDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('');
   const [paymentMonthFilter, setPaymentMonthFilter] = useState(getCurrentMonthName);
+  const [summaryMonthFilter, setSummaryMonthFilter] = useState(getCurrentMonthName);
   const [teacherSearchTerm, setTeacherSearchTerm] = useState('');
   const [salaryStatusFilter, setSalaryStatusFilter] = useState('');
   const [dailyStatsDate, setDailyStatsDate] = useState('');
@@ -558,9 +559,17 @@ const FinanceDashboard = () => {
   );
 
   const stats = useMemo(() => {
-    const totalRevenue = payments.reduce((acc, p) => acc + getPaymentTotal(p), 0);
-    const totalSalaries = salaries.reduce((acc, s) => acc + (parseFloat(s.amount) || 0), 0);
-    const totalOtherExpenses = (expenses || []).reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0);
+    const selectedMonth = summaryMonthFilter || currentMonthName;
+    const isSelectedMonth = (month) => (month || '').toLowerCase() === selectedMonth.toLowerCase();
+    const totalRevenue = payments
+      .filter(p => isSelectedMonth(p.month))
+      .reduce((acc, p) => acc + getPaymentTotal(p), 0);
+    const totalSalaries = salaries
+      .filter(s => isSelectedMonth(s.month))
+      .reduce((acc, s) => acc + (parseFloat(s.amount) || 0), 0);
+    const totalOtherExpenses = (expenses || [])
+      .filter(e => isSelectedMonth(e.month))
+      .reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0);
     const totalExpenses = totalSalaries + totalOtherExpenses;
     return {
       revenue: totalRevenue,
@@ -570,7 +579,7 @@ const FinanceDashboard = () => {
       balance: totalRevenue - totalExpenses,
       pendingSalaries: calculatedSalaries.filter(s => !s.isPaid).reduce((acc, s) => acc + s.total, 0)
     };
-  }, [payments, salaries, expenses, calculatedSalaries]);
+  }, [payments, salaries, expenses, calculatedSalaries, summaryMonthFilter, currentMonthName]);
 
   const allDailyExpenseStats = useMemo(() => {
     const days = new Map();
@@ -656,6 +665,24 @@ const FinanceDashboard = () => {
             <RotateCcw size={16} style={{ marginRight: '8px' }} /> Déconnexion
           </button>
         </div>
+      </div>
+
+      <div className="glass-card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <CalendarDays size={18} style={{ color: 'var(--primary)' }} />
+          <div>
+            <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Indicateurs du mois</p>
+            <p style={{ fontSize: '14px', fontWeight: '900', color: 'var(--text-primary)' }}>{summaryMonthFilter}</p>
+          </div>
+        </div>
+        <select
+          className="input-premium"
+          style={{ minWidth: '160px' }}
+          value={summaryMonthFilter}
+          onChange={(e) => setSummaryMonthFilter(e.target.value)}
+        >
+          {months.map(m => <option key={m} value={m}>{m}</option>)}
+        </select>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-8)' }}>
