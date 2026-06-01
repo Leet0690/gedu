@@ -1036,6 +1036,118 @@ input.input-premium[type="date"]::-webkit-datetime-edit {
   50%       { opacity: 0.4; transform: scale(0.75); }
 }
 
+/* ── Pagination ── */
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-sm);
+  flex-wrap: wrap;
+}
+
+.pagination-info {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.pagination-info strong {
+  color: var(--text-primary);
+}
+
+.pagination-pages {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pagination-btn {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-lg);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-smooth);
+  flex-shrink: 0;
+}
+
+.pagination-btn:hover:not(:disabled):not(.active) {
+  background: var(--primary-ultra-light);
+  color: var(--primary);
+  border-color: rgba(176, 104, 185, 0.18);
+}
+
+.pagination-btn.active {
+  background: linear-gradient(135deg, #b068b9 0%, #c77dd0 100%);
+  color: var(--white);
+  border-color: transparent;
+  box-shadow: 0 2px 10px rgba(176, 104, 185, 0.35);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.pagination-btn.nav {
+  width: auto;
+  padding: 0 10px;
+  gap: 4px;
+  border: 1px solid var(--border);
+  background: var(--white);
+  font-size: 12px;
+}
+
+.pagination-btn.nav:hover:not(:disabled) {
+  background: var(--primary-ultra-light);
+  border-color: rgba(176, 104, 185, 0.25);
+  color: var(--primary);
+}
+
+.pagination-ellipsis {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.pagination-size-select {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 6px 10px;
+  background: var(--white);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: border-color var(--duration-normal);
+}
+
+.pagination-size-select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .app-loader-ring,
   .app-loader-core,
