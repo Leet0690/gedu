@@ -77,76 +77,126 @@ const PWAUpdatePrompt = () => {
   return (
     <AnimatePresence>
       {showUpdateNotice && (
-        <motion.div
-          initial={{ opacity: 0, y: 80, scale: 0.96 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 80, scale: 0.96 }}
-          transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-          role="status"
-          aria-live="polite"
-          style={{
-            position: 'fixed',
-            bottom: '24px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '14px',
-            padding: '14px 18px',
-            borderRadius: 'var(--radius-xl)',
-            background: 'var(--bg-card)',
-            border: '1px solid rgba(176,104,185,0.25)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.14)',
-            maxWidth: 'calc(100vw - 32px)',
-            width: 'max-content',
-          }}
-        >
-          <div style={{
-            width: '36px',
-            height: '36px',
-            flexShrink: 0,
-            borderRadius: '50%',
-            background: 'var(--primary-ultra-light)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}>
-            <Sparkles size={17} style={{ color: 'var(--primary)' }} />
-          </div>
-
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)', margin: 0, whiteSpace: 'nowrap' }}>
-              Nouvelle version disponible
-            </p>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '2px 0 0', whiteSpace: 'nowrap' }}>
-              La page va se rafraichir automatiquement dans {secondsLeft}s.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={reloadApp}
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.6)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 99999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '24px',
+        }}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 26 }}
+            role="status"
+            aria-live="polite"
             style={{
-              flexShrink: 0,
-              display: 'inline-flex',
+              background: 'var(--bg-card)',
+              border: '1px solid rgba(176,104,185,0.3)',
+              borderRadius: '24px',
+              boxShadow: '0 25px 60px rgba(0,0,0,0.35)',
+              padding: '40px 32px',
+              maxWidth: '420px',
+              width: '100%',
+              textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
-              gap: '6px',
-              padding: '7px 14px',
-              borderRadius: 'var(--radius-pill)',
-              background: 'var(--primary)',
-              color: '#fff',
-              border: 'none',
-              fontSize: '12px',
-              fontWeight: '800',
-              cursor: 'pointer',
-              letterSpacing: '0.02em',
+              gap: '28px',
             }}
           >
-            <RefreshCw size={13} />
-            Maintenant
-          </button>
-        </motion.div>
+            <div style={{
+              position: 'relative',
+              width: '110px',
+              height: '110px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              {/* Outer pulsing ring */}
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                borderRadius: '50%',
+                border: '2px solid var(--primary-light)',
+                opacity: 0.6,
+                animation: 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite',
+              }} />
+              {/* Center counter circle */}
+              <div style={{
+                width: '90px',
+                height: '90px',
+                borderRadius: '50%',
+                background: 'var(--primary-ultra-light)',
+                border: '3px solid var(--primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '36px',
+                fontWeight: '900',
+                color: 'var(--primary)',
+                boxShadow: '0 10px 25px rgba(176, 104, 185, 0.15)',
+                zIndex: 2,
+              }}>
+                {secondsLeft}
+              </div>
+            </div>
+
+            <div>
+              <h2 style={{
+                fontSize: '22px',
+                fontWeight: '800',
+                color: 'var(--text-primary)',
+                margin: '0 0 10px 0',
+                letterSpacing: '-0.01em',
+              }}>
+                Nouvelle version disponible !
+              </h2>
+              <p style={{
+                fontSize: '14px',
+                color: 'var(--text-secondary)',
+                lineHeight: '1.5',
+                margin: 0,
+              }}>
+                Une mise à jour de l'application a été déployée. Pour éviter tout dysfonctionnement, la page s'actualisera automatiquement.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={reloadApp}
+              className="btn-modern primary"
+              style={{
+                width: '100%',
+                padding: '14px 28px',
+                borderRadius: '16px',
+                fontSize: '15px',
+                fontWeight: '800',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                boxShadow: '0 8px 20px rgba(176, 104, 185, 0.25)',
+                transition: 'transform 0.2s, box-shadow 0.2s',
+              }}
+            >
+              <RefreshCw size={16} />
+              Actualiser maintenant
+            </button>
+          </motion.div>
+        </div>
       )}
     </AnimatePresence>
   );
