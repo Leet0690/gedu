@@ -1,95 +1,57 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { RefreshCw, X, Sparkles } from 'lucide-react';
+
+const UPDATE_CHECK_INTERVAL = 5 * 60 * 1000;
 
 const PWAUpdatePrompt = () => {
+  const reloadingRef = React.useRef(false);
+
+  const reloadApp = React.useCallback(async (updateServiceWorker) => {
+    if (reloadingRef.current) return;
+    reloadingRef.current = true;
+
+    await updateServiceWorker(true);
+    setTimeout(() => window.location.reload(), 500);
+  }, []);
+
   const {
-    needRefresh: [needRefresh, setNeedRefresh],
+    needRefresh: [needRefresh],
     updateServiceWorker,
-  } = useRegisterSW();
+  } = useRegisterSW({
+    onNeedReload() {
+      if (!reloadingRef.current) {
+        reloadingRef.current = true;
+        window.location.reload();
+      }
+    },
+    onRegisteredSW(swUrl, registration) {
+      if (!registration) return;
 
-  const dismiss = () => setNeedRefresh(false);
+      const checkForUpdate = async () => {
+        if (!navigator.onLine || reloadingRef.current) return;
 
-  return (
-    <AnimatePresence>
-      {needRefresh && (
-        <motion.div
-          initial={{ opacity: 0, y: 80, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 80, scale: 0.95 }}
-          transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-          style={{
-            position: 'fixed',
-            bottom: '24px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '14px',
-            padding: '14px 18px',
-            borderRadius: 'var(--radius-xl)',
-            background: 'var(--bg-card)',
-            border: '1px solid rgba(176,104,185,0.25)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.14)',
-            maxWidth: 'calc(100vw - 32px)',
-            width: 'max-content',
-          }}
-        >
-          <div style={{
-            width: '36px', height: '36px', flexShrink: 0,
-            borderRadius: '50%',
-            background: 'var(--primary-ultra-light)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Sparkles size={17} style={{ color: 'var(--primary)' }} />
-          </div>
+        try {
+          const response = await fetch(swUrl, { cache: 'no-store' });
+          if (response.status === 200) {
+            await registration.update();
+          }
+        } catch {
+          // Ignore transient network errors; the next interval will retry.
+        }
+      };
 
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)', margin: 0, whiteSpace: 'nowrap' }}>
-              Nouvelle version disponible
-            </p>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '2px 0 0', whiteSpace: 'nowrap' }}>
-              Rechargez pour appliquer la mise à jour.
-            </p>
-          </div>
+      checkForUpdate();
+      setInterval(checkForUpdate, UPDATE_CHECK_INTERVAL);
+    },
+  });
 
-          <button
-            onClick={() => {
-              updateServiceWorker(true);
-              // Fallback reload for certain browsers/states
-              setTimeout(() => window.location.reload(), 500);
-            }}
-            style={{
-              flexShrink: 0,
-              display: 'inline-flex', alignItems: 'center', gap: '6px',
-              padding: '7px 14px',
-              borderRadius: 'var(--radius-pill)',
-              background: 'var(--primary)',
-              color: '#fff',
-              border: 'none',
-              fontSize: '12px', fontWeight: '800',
-              cursor: 'pointer',
-              letterSpacing: '0.02em',
-            }}
-          >
-            <RefreshCw size={13} />
-            Rafraîchir
-          </button>
+  React.useEffect(() => {
+    if (needRefresh) {
+      reloadApp(updateServiceWorker);
+    }
+  }, [needRefresh, reloadApp, updateServiceWorker]);
 
-          <button
-            onClick={dismiss}
-            className="close-button close-button-sm"
-            aria-label="Fermer la mise à jour"
-            title="Fermer"
-          >
-            <X size={14} />
-          </button>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
+  return null;
 };
 
 export default PWAUpdatePrompt;
