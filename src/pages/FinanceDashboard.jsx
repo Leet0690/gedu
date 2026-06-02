@@ -953,9 +953,6 @@ const FinanceDashboard = () => {
               )}
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={exportPaymentsCSV} className="btn-modern" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border)' }} title="Exporter CSV">
-                <FileDown size={16} style={{ marginRight: '6px' }} /> CSV
-              </button>
               <button onClick={() => openPaymentModal()} className="btn-modern primary">
                 <Plus size={16} style={{ marginRight: '8px' }} /> Enregistrer Paiement
               </button>
