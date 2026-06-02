@@ -760,14 +760,13 @@ const AdminDashboard = () => {
   const location = useLocation();
   const isDashboard = location.pathname === '/';
 
-  // Load attendance data for the current month on dashboard mount
+  // Load attendance data for the current month on mount
   useEffect(() => {
-    if (isDashboard) {
-      const now = new Date();
-      loadStudentAttendanceForMonth(now.getMonth(), now.getFullYear());
-      loadTeacherAttendanceForMonth(now.getMonth(), now.getFullYear());
-    }
-  }, [isDashboard, loadStudentAttendanceForMonth, loadTeacherAttendanceForMonth]);
+    const now = new Date();
+    loadStudentAttendanceForMonth(now.getMonth(), now.getFullYear());
+    loadTeacherAttendanceForMonth(now.getMonth(), now.getFullYear());
+  }, [loadStudentAttendanceForMonth, loadTeacherAttendanceForMonth]);
+  
   const [localActiveTab, setLocalActiveTab] = useState('students');
   const activeTab = location.pathname.includes('teacher') ? 'teachers' 
                  : location.pathname.includes('student') ? 'students' 
