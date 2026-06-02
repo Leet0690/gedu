@@ -116,7 +116,10 @@ const getRecordForScheduledRow = (records = [], teacherId, row) => {
   , candidates[0]);
 };
 
-const formatMoney = (value) => (parseFloat(value) || 0).toLocaleString();
+const formatMoney = (value) =>
+  new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 })
+    .format(parseFloat(value) || 0)
+    .replace(/[\u00A0\u202F]/g, ' ');
 
 const getCurrentMonthName = () => {
   const month = new Date().toLocaleString('fr-FR', { month: 'long' });
@@ -230,9 +233,15 @@ const FinanceDashboard = () => {
   const [paymentsPage, setPaymentsPage] = useState(1);
   const [salariesPage, setSalariesPage] = useState(1);
   const [teachersPage, setTeachersPage] = useState(1);
+  const [expensesPage, setExpensesPage] = useState(1);
+  const [dailyStatsPage, setDailyStatsPage] = useState(1);
+  const [overduePage, setOverduePage] = useState(1);
   const paymentsPerPage = 6;
   const itemsPerPage = 10;
   const teachersPerPage = 5;
+  const expensesPerPage = 10;
+  const dailyStatsPerPage = 7;
+  const overduePerPage = 8;
   
   const [expenseFilter, setExpenseFilter] = useState({
     month: '',
@@ -635,6 +644,10 @@ const FinanceDashboard = () => {
   
   const totalSalariesPages = Math.ceil(salaries.length / itemsPerPage);
 
+  React.useEffect(() => {
+    setSalariesPage(prev => Math.min(prev, Math.max(1, totalSalariesPages)));
+  }, [totalSalariesPages]);
+
   const filteredExpenses = useMemo(() => {
     return (expenses || []).filter(e => {
       if (expenseFilter.month && e.month !== expenseFilter.month) return false;
@@ -648,6 +661,16 @@ const FinanceDashboard = () => {
     filteredExpenses.reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0),
     [filteredExpenses]
   );
+
+  const paginatedExpenses = useMemo(() => {
+    return filteredExpenses.slice((expensesPage - 1) * expensesPerPage, expensesPage * expensesPerPage);
+  }, [filteredExpenses, expensesPage, expensesPerPage]);
+
+  const totalExpensesPages = Math.ceil(filteredExpenses.length / expensesPerPage);
+
+  React.useEffect(() => {
+    setExpensesPage(prev => Math.min(prev, Math.max(1, totalExpensesPages)));
+  }, [totalExpensesPages]);
 
   const stats = useMemo(() => {
     const selectedMonth = summaryMonthFilter || currentMonthName;
@@ -720,6 +743,25 @@ const FinanceDashboard = () => {
     return result;
   }, [students, payments, months]);
 
+  const overdueStudents = useMemo(() => {
+    return students
+      .filter(s => overdueMap[s.id])
+      .sort((a, b) =>
+        overdueMap[b.id] - overdueMap[a.id] ||
+        `${a.lastName || ''} ${a.firstName || ''}`.localeCompare(`${b.lastName || ''} ${b.firstName || ''}`)
+      );
+  }, [students, overdueMap]);
+
+  const paginatedOverdueStudents = useMemo(() => {
+    return overdueStudents.slice((overduePage - 1) * overduePerPage, overduePage * overduePerPage);
+  }, [overdueStudents, overduePage, overduePerPage]);
+
+  const totalOverduePages = Math.ceil(overdueStudents.length / overduePerPage);
+
+  React.useEffect(() => {
+    setOverduePage(prev => Math.min(prev, Math.max(1, totalOverduePages)));
+  }, [totalOverduePages]);
+
   const annualSummary = useMemo(() => {
     const getYear = (item) => {
       if (item.date && String(item.date).length >= 4) return parseInt(String(item.date).substring(0, 4));
@@ -761,9 +803,19 @@ const FinanceDashboard = () => {
   }, [salaries, expenses]);
 
   const dailyExpenseStats = useMemo(() => {
-    if (!dailyStatsDate) return allDailyExpenseStats.slice(0, 14);
+    if (!dailyStatsDate) return allDailyExpenseStats;
     return allDailyExpenseStats.filter(day => day.date === dailyStatsDate);
   }, [allDailyExpenseStats, dailyStatsDate]);
+
+  const paginatedDailyExpenseStats = useMemo(() => {
+    return dailyExpenseStats.slice((dailyStatsPage - 1) * dailyStatsPerPage, dailyStatsPage * dailyStatsPerPage);
+  }, [dailyExpenseStats, dailyStatsPage, dailyStatsPerPage]);
+
+  const totalDailyStatsPages = Math.ceil(dailyExpenseStats.length / dailyStatsPerPage);
+
+  React.useEffect(() => {
+    setDailyStatsPage(prev => Math.min(prev, Math.max(1, totalDailyStatsPages)));
+  }, [totalDailyStatsPages]);
 
   const maxDailyExpense = useMemo(() =>
     Math.max(...dailyExpenseStats.map(day => day.total), 0),
@@ -859,9 +911,9 @@ const FinanceDashboard = () => {
       <div className="modern-tabs-container" style={{ marginBottom: 'var(--space-6)' }}>
         <button onClick={() => setActiveTab('payments')} className={`modern-tab ${activeTab === 'payments' ? 'active' : ''}`}>
           Paiements
-          {Object.keys(overdueMap).length > 0 && (
+          {overdueStudents.length > 0 && (
             <span style={{ marginLeft: '6px', fontSize: '10px', fontWeight: '900', background: 'rgba(220,38,38,0.12)', color: '#dc2626', borderRadius: '999px', padding: '1px 7px' }}>
-              {Object.keys(overdueMap).length}
+              {overdueStudents.length}
             </span>
           )}
         </button>
@@ -1401,6 +1453,13 @@ const FinanceDashboard = () => {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              currentPage={salariesPage}
+              totalPages={totalSalariesPages}
+              totalItems={salaries.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setSalariesPage}
+            />
           </div>
         </motion.div>
       )}
@@ -1411,26 +1470,38 @@ const FinanceDashboard = () => {
             <CalendarDays size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
             <select className="input-premium" style={{ minWidth: '130px' }}
               value={expenseFilter.month}
-              onChange={e => setExpenseFilter(f => ({ ...f, month: e.target.value }))}>
+              onChange={e => {
+                setExpenseFilter(f => ({ ...f, month: e.target.value }));
+                setExpensesPage(1);
+              }}>
               <option value="">Tous les mois</option>
               {months.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
             <select className="input-premium" style={{ minWidth: '90px' }}
               value={expenseFilter.year}
-              onChange={e => setExpenseFilter(f => ({ ...f, year: parseInt(e.target.value) }))}>
+              onChange={e => {
+                setExpenseFilter(f => ({ ...f, year: parseInt(e.target.value) }));
+                setExpensesPage(1);
+              }}>
               <option value={2026}>2026</option>
               <option value={2025}>2025</option>
               <option value={2024}>2024</option>
             </select>
             <select className="input-premium" style={{ minWidth: '140px' }}
               value={expenseFilter.category}
-              onChange={e => setExpenseFilter(f => ({ ...f, category: e.target.value }))}>
+              onChange={e => {
+                setExpenseFilter(f => ({ ...f, category: e.target.value }));
+                setExpensesPage(1);
+              }}>
               <option value="">Toutes catégories</option>
               {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
             {(expenseFilter.month || expenseFilter.category) && (
               <button className="action-btn" title="Réinitialiser les filtres"
-                onClick={() => setExpenseFilter({ month: '', year: new Date().getFullYear(), category: '' })}>
+                onClick={() => {
+                  setExpenseFilter({ month: '', year: new Date().getFullYear(), category: '' });
+                  setExpensesPage(1);
+                }}>
                 <X size={14} />
               </button>
             )}
@@ -1466,7 +1537,7 @@ const FinanceDashboard = () => {
                 <tbody>
                   {filteredExpenses.length === 0 ? (
                     <tr><td colSpan="6"><EmptyState title="Aucune charge" message={expenseFilter.month || expenseFilter.category ? "Aucune charge pour ces filtres." : "Aucune autre charge enregistrée."} icon="file" /></td></tr>
-                  ) : filteredExpenses.map(e => (
+                  ) : paginatedExpenses.map(e => (
                     <tr key={e.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
                       <td style={tdStyle}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1525,6 +1596,13 @@ const FinanceDashboard = () => {
               </table>
             )}
           </div>
+          <Pagination
+            currentPage={expensesPage}
+            totalPages={totalExpensesPages}
+            totalItems={filteredExpenses.length}
+            itemsPerPage={expensesPerPage}
+            onPageChange={setExpensesPage}
+          />
         </motion.div>
       )}
 
@@ -1612,7 +1690,10 @@ const FinanceDashboard = () => {
                     type="date"
                     className="input-premium"
                     value={dailyStatsDate}
-                    onChange={(e) => setDailyStatsDate(e.target.value)}
+                    onChange={(e) => {
+                      setDailyStatsDate(e.target.value);
+                      setDailyStatsPage(1);
+                    }}
                     onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }}
                     style={{ minWidth: '160px', paddingLeft: '34px' }}
                   />
@@ -1621,7 +1702,10 @@ const FinanceDashboard = () => {
                   <button
                     className="action-btn"
                     title="Afficher les derniers jours"
-                    onClick={() => setDailyStatsDate('')}
+                    onClick={() => {
+                      setDailyStatsDate('');
+                      setDailyStatsPage(1);
+                    }}
                     style={{
                       width: '36px',
                       height: '36px',
@@ -1649,7 +1733,7 @@ const FinanceDashboard = () => {
                   <span>Autres charges</span>
                   <span>Total</span>
                 </div>
-                {dailyExpenseStats.map(day => (
+                {paginatedDailyExpenseStats.map(day => (
                   <div key={day.date} style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 1.2fr) repeat(3, minmax(110px, 1fr))', gap: '12px', alignItems: 'center', padding: '14px 0', borderBottom: '1px solid var(--border-light)' }}>
                     <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>{formatDisplayDate(day.date)}</span>
                     <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--danger)' }}>{day.salaries.toLocaleString()} DH</span>
@@ -1666,6 +1750,13 @@ const FinanceDashboard = () => {
                 ))}
               </div>
             )}
+            <Pagination
+              currentPage={dailyStatsPage}
+              totalPages={totalDailyStatsPages}
+              totalItems={dailyExpenseStats.length}
+              itemsPerPage={dailyStatsPerPage}
+              onPageChange={setDailyStatsPage}
+            />
           </div>
         </motion.div>
       )}
@@ -1778,22 +1869,19 @@ const FinanceDashboard = () => {
             </div>
           </div>
 
-          {Object.keys(overdueMap).length > 0 && (
+          {overdueStudents.length > 0 && (
             <div className="glass-card" style={{ padding: 'var(--space-6)', border: '1px solid rgba(220,38,38,0.2)', borderLeft: '4px solid #dc2626' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: 'var(--space-5)' }}>
                 <AlertTriangle size={20} style={{ color: '#dc2626' }} />
                 <div>
                   <h3 style={{ fontSize: 'var(--text-base)', fontWeight: '900', color: '#dc2626' }}>
-                    Alertes — {Object.keys(overdueMap).length} stagiaire{Object.keys(overdueMap).length > 1 ? 's' : ''} en retard de paiement
+                    Alertes — {overdueStudents.length} stagiaire{overdueStudents.length > 1 ? 's' : ''} en retard de paiement
                   </h3>
                   <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '700' }}>Stagiaires sans paiement enregistré depuis au moins 2 mois consécutifs</p>
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {students
-                  .filter(s => overdueMap[s.id])
-                  .sort((a, b) => overdueMap[b.id] - overdueMap[a.id])
-                  .map(student => (
+                {paginatedOverdueStudents.map(student => (
                     <div key={student.id} style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                       padding: '12px 16px', background: 'rgba(220,38,38,0.04)',
@@ -1820,8 +1908,15 @@ const FinanceDashboard = () => {
                         </button>
                       </div>
                     </div>
-                  ))}
+                ))}
               </div>
+              <Pagination
+                currentPage={overduePage}
+                totalPages={totalOverduePages}
+                totalItems={overdueStudents.length}
+                itemsPerPage={overduePerPage}
+                onPageChange={setOverduePage}
+              />
             </div>
           )}
         </motion.div>

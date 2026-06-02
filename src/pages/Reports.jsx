@@ -11,7 +11,7 @@ import { logoBase64 } from '../utils/logoBase64.js';
 import {
   ChartLine, Users, TrendingUp, TrendingDown, Download,
   Award, AlertTriangle, ChevronUp, ChevronDown, Minus,
-  CheckCircle, XCircle
+  CheckCircle, XCircle, FileText, BookOpen, Files, Layers
 } from 'lucide-react';
 
 const labelStyle = {
@@ -54,6 +54,171 @@ const CustomDonutLabel = ({ cx, cy, value, label }) => (
     <tspan x={cx} dy="-6" fontSize="22" fontWeight="900" fill="var(--text-primary)">{value}</tspan>
     <tspan x={cx} dy="18" fontSize="10" fontWeight="700" fill="var(--text-muted)">{label}</tspan>
   </text>
+);
+
+const getStudentName = (student) =>
+  student?.lastName ? `${student.lastName} ${student.firstName || ''}`.trim() : (student?.name || '');
+
+const gradeModuleKey = (moduleName = '') => moduleName.replace(/\./g, '_');
+
+const parseScore = (value) => {
+  const score = parseFloat(value);
+  return Number.isNaN(score) ? null : score;
+};
+
+const formatScore = (value, suffix = '') =>
+  value === null || value === undefined || Number.isNaN(value) ? '-' : `${Number(value).toFixed(2)}${suffix}`;
+
+const safeFilePart = (value = 'rapport') =>
+  String(value)
+    .trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .toLowerCase() || 'rapport';
+
+const clampText = (value, max = 32) => {
+  const text = String(value || '-');
+  return text.length > max ? `${text.slice(0, max - 1)}...` : text;
+};
+
+const addReportHeader = (doc, title, subtitle = '') => {
+  const w = doc.internal.pageSize.getWidth();
+  const margin = 15;
+  let y = 10;
+
+  doc.setFillColor(255, 255, 255);
+  doc.rect(0, 0, w, doc.internal.pageSize.getHeight(), 'F');
+
+  try { doc.addImage(logoBase64, 'PNG', margin, y, 40, 18); } catch {}
+
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(7);
+  doc.setTextColor(100, 100, 100);
+  doc.text("Institut de formation professionnelle prive", w - margin, y + 4, { align: 'right' });
+  doc.text("agree par le ministere de l'Inclusion economique, de la Petite entreprise,", w - margin, y + 8, { align: 'right' });
+  doc.text("de l'Emploi et des Competences, sous le numero 4/01/6/2022", w - margin, y + 12, { align: 'right' });
+
+  y = 34;
+  doc.setDrawColor(180, 104, 185);
+  doc.setLineWidth(0.6);
+  doc.line(margin, y, w - margin, y);
+  y += 8;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(15);
+  doc.setTextColor(30, 30, 30);
+  doc.text(title, w / 2, y, { align: 'center' });
+  y += 6;
+
+  if (subtitle) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    doc.text(subtitle, w / 2, y, { align: 'center' });
+    y += 5;
+  }
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(130, 130, 130);
+  doc.text(`Genere le ${new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}`, w / 2, y, { align: 'center' });
+  y += 8;
+
+  doc.setDrawColor(220, 220, 220);
+  doc.setLineWidth(0.3);
+  doc.line(margin, y, w - margin, y);
+  return y + 8;
+};
+
+const drawPdfTable = (doc, { title, headers, rows, widths, startY, margin = 15 }) => {
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const rowH = 7;
+  let y = startY;
+
+  const drawHeader = () => {
+    doc.setFillColor(245, 245, 250);
+    doc.rect(margin, y, widths.reduce((sum, width) => sum + width, 0), rowH, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(120, 120, 120);
+    let x = margin;
+    headers.forEach((header, i) => {
+      doc.text(String(header), x + 1.5, y + 4.5);
+      x += widths[i];
+    });
+    y += rowH;
+  };
+
+  if (title) {
+    if (y > pageHeight - 25) {
+      doc.addPage();
+      y = addReportHeader(doc, 'Suite du rapport');
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(30, 30, 30);
+    doc.text(title, margin, y);
+    y += 6;
+  }
+
+  drawHeader();
+
+  rows.forEach((row, index) => {
+    if (y > pageHeight - 18) {
+      doc.addPage();
+      y = addReportHeader(doc, 'Suite du rapport');
+      drawHeader();
+    }
+
+    if (index % 2 === 0) {
+      doc.setFillColor(252, 252, 254);
+      doc.rect(margin, y, widths.reduce((sum, width) => sum + width, 0), rowH, 'F');
+    }
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(35, 35, 35);
+    let x = margin;
+    row.forEach((cell, i) => {
+      doc.text(clampText(cell, Math.max(8, Math.floor(widths[i] * 1.9))), x + 1.5, y + 4.5);
+      x += widths[i];
+    });
+    doc.setDrawColor(235, 235, 240);
+    doc.setLineWidth(0.2);
+    doc.line(margin, y + rowH, margin + widths.reduce((sum, width) => sum + width, 0), y + rowH);
+    y += rowH;
+  });
+
+  return y + 7;
+};
+
+const ReportAction = ({ icon: Icon, title, description, onClick, disabled }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={disabled}
+    style={{
+      border: '1px solid var(--border-light)',
+      background: 'var(--surface)',
+      borderRadius: 'var(--radius-lg)',
+      padding: '14px',
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: '12px',
+      textAlign: 'left',
+      cursor: disabled ? 'not-allowed' : 'pointer',
+      opacity: disabled ? 0.55 : 1,
+      boxShadow: 'var(--shadow-sm)'
+    }}
+  >
+    <span style={{ width: '34px', height: '34px', borderRadius: '10px', background: 'var(--primary-ultra-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      <Icon size={17} />
+    </span>
+    <span style={{ minWidth: 0 }}>
+      <span style={{ display: 'block', fontSize: '13px', fontWeight: 900, color: 'var(--text-primary)' }}>{title}</span>
+      <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', lineHeight: 1.35, marginTop: '3px' }}>{description}</span>
+    </span>
+  </button>
 );
 
 const Reports = () => {
@@ -226,6 +391,142 @@ const Reports = () => {
   };
 
   const hasAttendanceData = studentAttendance.length > 0;
+
+  const allReportGroups = useMemo(() => {
+    const groups = new Map();
+    const addGroup = ({ diploma, major, year }) => {
+      if (!diploma || !major || !year) return;
+      const key = `${diploma}__${major}__${year}`;
+      if (!groups.has(key)) groups.set(key, { diploma, major, year });
+    };
+
+    students.forEach(addGroup);
+    allModules.forEach(addGroup);
+
+    return Array.from(groups.values())
+      .map(group => ({
+        ...group,
+        studentsCount: students.filter(s => s.diploma === group.diploma && s.major === group.major && s.year === group.year).length,
+        modulesCount: allModules.filter(m => m.diploma === group.diploma && m.major === group.major && m.year === group.year).length,
+      }))
+      .sort((a, b) => `${a.diploma} ${a.major} ${a.year}`.localeCompare(`${b.diploma} ${b.major} ${b.year}`));
+  }, [students, allModules]);
+
+  const getReportModuleDetails = useCallback((studentId, moduleName) => {
+    const g = grades[studentId]?.[gradeModuleKey(moduleName)];
+    const c1 = parseScore(g?.c1);
+    const c2 = parseScore(g?.c2);
+    const c3 = parseScore(g?.c3);
+    const efcfp = parseScore(g?.efcfp);
+    const efcft = parseScore(g?.efcft);
+    let score = null;
+
+    if (efcfp !== null && efcft !== null) {
+      score = (efcfp + efcft) / 2;
+    } else {
+      const vals = [c1, c2, c3].filter(v => v !== null);
+      score = vals.length > 0 ? vals.reduce((sum, val) => sum + val, 0) / vals.length : null;
+    }
+
+    return { c1, c2, c3, efcfp, efcft, score };
+  }, [grades]);
+
+  const getGroupModules = useCallback((group) => {
+    const modulesMap = new Map();
+    allModules
+      .filter(m => m.diploma === group.diploma && m.major === group.major && m.year === group.year)
+      .forEach(module => {
+        if (!modulesMap.has(module.name)) modulesMap.set(module.name, module);
+      });
+    return Array.from(modulesMap.values());
+  }, [allModules]);
+
+  const getGroupStudents = useCallback((group) =>
+    students.filter(s => s.diploma === group.diploma && s.major === group.major && s.year === group.year),
+  [students]);
+
+  const buildGroupStats = useCallback((group) => {
+    const groupStudents = getGroupStudents(group);
+    const groupModules = getGroupModules(group);
+
+    const rankings = groupStudents.map(student => {
+      let totalWeight = 0;
+      let totalScore = 0;
+
+      groupModules.forEach(module => {
+        const { score } = getReportModuleDetails(student.id, module.name);
+        if (score !== null) {
+          const coefficient = parseFloat(module.coefficient);
+          const weight = Number.isNaN(coefficient) ? 1 : coefficient;
+          totalScore += score * weight;
+          totalWeight += weight;
+        }
+      });
+
+      const studentMonthAttendance = studentAttendance.filter(a => a.studentId === student.id);
+      const absences = studentMonthAttendance.filter(a => a.status === 'absent').length;
+
+      return {
+        student,
+        avg: totalWeight > 0 ? totalScore / totalWeight : null,
+        absenceRate: studentMonthAttendance.length > 0 ? Math.round((absences / studentMonthAttendance.length) * 100) : null,
+      };
+    }).sort((a, b) => (b.avg ?? -1) - (a.avg ?? -1));
+
+    const rankedWithAvg = rankings.filter(item => item.avg !== null);
+    const classAvg = rankedWithAvg.length > 0
+      ? rankedWithAvg.reduce((sum, item) => sum + item.avg, 0) / rankedWithAvg.length
+      : null;
+
+    const moduleStats = groupModules.map(module => {
+      const scores = groupStudents
+        .map(student => getReportModuleDetails(student.id, module.name).score)
+        .filter(score => score !== null);
+      const avg = scores.length > 0 ? scores.reduce((sum, score) => sum + score, 0) / scores.length : null;
+
+      return {
+        name: module.name,
+        coefficient: module.coefficient || 1,
+        enteredCount: scores.length,
+        avg,
+        passCount: scores.filter(score => score >= 10).length,
+        failCount: scores.filter(score => score < 10).length,
+      };
+    }).sort((a, b) => (b.avg ?? -1) - (a.avg ?? -1));
+
+    return {
+      group,
+      students: groupStudents,
+      modules: groupModules,
+      rankings,
+      moduleStats,
+      classAvg,
+      passCount: rankedWithAvg.filter(item => item.avg >= 10).length,
+      failCount: rankedWithAvg.filter(item => item.avg < 10).length,
+    };
+  }, [getGroupModules, getGroupStudents, getReportModuleDetails, studentAttendance]);
+
+  const buildModuleStats = useCallback((group, moduleName) => {
+    const groupStudents = getGroupStudents(group);
+    const moduleRows = groupStudents.map(student => {
+      const details = getReportModuleDetails(student.id, moduleName);
+      return { student, ...details };
+    });
+    const scoredRows = moduleRows.filter(row => row.score !== null);
+    const avg = scoredRows.length > 0
+      ? scoredRows.reduce((sum, row) => sum + row.score, 0) / scoredRows.length
+      : null;
+
+    return {
+      group,
+      moduleName,
+      rows: moduleRows,
+      avg,
+      enteredCount: scoredRows.length,
+      passCount: scoredRows.filter(row => row.score >= 10).length,
+      failCount: scoredRows.filter(row => row.score < 10).length,
+    };
+  }, [getGroupStudents, getReportModuleDetails]);
 
   const handleExportPDF = useCallback(() => {
     setIsExporting(true);
@@ -412,6 +713,296 @@ const Reports = () => {
     }, 100);
   }, [analytics, sortedRankings, selectedDiploma, selectedMajor, selectedYear, hasAttendanceData]);
 
+  const drawGroupStatsPdf = useCallback((doc, stats, startY) => {
+    const margin = 15;
+    let y = startY;
+
+    if (y > 245) {
+      doc.addPage();
+      y = addReportHeader(doc, 'Suite du rapport');
+    }
+
+    const groupLabel = `${stats.group.diploma} - ${stats.group.major} - ${stats.group.year}`;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(30, 30, 30);
+    doc.text(groupLabel, margin, y);
+    y += 7;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(135, 135, 135);
+    doc.text('STAGIAIRES', margin, y);
+    doc.text('MODULES', margin + 38, y);
+    doc.text('MOYENNE', margin + 75, y);
+    doc.text('ADMIS', margin + 113, y);
+    doc.text('NON ADMIS', margin + 142, y);
+    y += 5;
+
+    doc.setFontSize(13);
+    doc.setTextColor(30, 30, 30);
+    doc.text(String(stats.students.length), margin, y);
+    doc.text(String(stats.modules.length), margin + 38, y);
+    doc.setTextColor(stats.classAvg !== null && stats.classAvg >= 10 ? 22 : 220, stats.classAvg !== null && stats.classAvg >= 10 ? 163 : 38, stats.classAvg !== null && stats.classAvg >= 10 ? 74 : 38);
+    doc.text(formatScore(stats.classAvg, '/20'), margin + 75, y);
+    doc.setTextColor(22, 163, 74);
+    doc.text(String(stats.passCount), margin + 113, y);
+    doc.setTextColor(220, 38, 38);
+    doc.text(String(stats.failCount), margin + 142, y);
+    y += 10;
+
+    const rankingHeaders = hasAttendanceData
+      ? ['RG', 'NOM & PRENOM', 'MOY.', 'RESULTAT', 'ABS.']
+      : ['RG', 'NOM & PRENOM', 'MOY.', 'RESULTAT'];
+    const rankingWidths = hasAttendanceData ? [12, 72, 25, 34, 24] : [12, 82, 28, 38];
+    const rankingRows = stats.rankings.map((item, index) => {
+      const baseRow = [
+        index + 1,
+        getStudentName(item.student),
+        formatScore(item.avg),
+        item.avg === null ? '-' : item.avg >= 10 ? 'Admis' : 'Non admis',
+      ];
+      return hasAttendanceData
+        ? [...baseRow, item.absenceRate !== null ? `${item.absenceRate}%` : '-']
+        : baseRow;
+    });
+
+    y = drawPdfTable(doc, {
+      title: 'Classement des stagiaires',
+      headers: rankingHeaders,
+      rows: rankingRows,
+      widths: rankingWidths,
+      startY: y,
+    });
+
+    const moduleRows = stats.moduleStats.map(module => [
+      module.name,
+      module.coefficient,
+      module.enteredCount,
+      formatScore(module.avg),
+      module.passCount,
+      module.failCount,
+    ]);
+
+    return drawPdfTable(doc, {
+      title: 'Moyennes par module',
+      headers: ['MODULE', 'COEF.', 'NOTES', 'MOY.', 'ADMIS', 'NON'],
+      rows: moduleRows,
+      widths: [72, 16, 20, 22, 18, 18],
+      startY: y,
+    });
+  }, [hasAttendanceData]);
+
+  const drawModuleStatsPdf = useCallback((doc, stats, startY) => {
+    const margin = 15;
+    let y = startY;
+
+    if (y > 245) {
+      doc.addPage();
+      y = addReportHeader(doc, 'Suite du rapport');
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(30, 30, 30);
+    doc.text(stats.moduleName, margin, y);
+    y += 6;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`${stats.group.diploma} - ${stats.group.major} - ${stats.group.year}`, margin, y);
+    y += 8;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(135, 135, 135);
+    doc.text('STAGIAIRES', margin, y);
+    doc.text('NOTES SAISIES', margin + 38, y);
+    doc.text('MOYENNE MODULE', margin + 78, y);
+    doc.text('ADMIS', margin + 128, y);
+    doc.text('NON ADMIS', margin + 154, y);
+    y += 5;
+
+    doc.setFontSize(13);
+    doc.setTextColor(30, 30, 30);
+    doc.text(String(stats.rows.length), margin, y);
+    doc.text(String(stats.enteredCount), margin + 38, y);
+    doc.setTextColor(stats.avg !== null && stats.avg >= 10 ? 22 : 220, stats.avg !== null && stats.avg >= 10 ? 163 : 38, stats.avg !== null && stats.avg >= 10 ? 74 : 38);
+    doc.text(formatScore(stats.avg, '/20'), margin + 78, y);
+    doc.setTextColor(22, 163, 74);
+    doc.text(String(stats.passCount), margin + 128, y);
+    doc.setTextColor(220, 38, 38);
+    doc.text(String(stats.failCount), margin + 154, y);
+    y += 10;
+
+    return drawPdfTable(doc, {
+      title: 'Details des notes',
+      headers: ['RG', 'NOM & PRENOM', 'C1', 'C2', 'C3', 'EFC P', 'EFC T', 'FINAL', 'RESULTAT'],
+      rows: stats.rows.map((row, index) => [
+        index + 1,
+        getStudentName(row.student),
+        formatScore(row.c1),
+        formatScore(row.c2),
+        formatScore(row.c3),
+        formatScore(row.efcfp),
+        formatScore(row.efcft),
+        formatScore(row.score),
+        row.score === null ? '-' : row.score >= 10 ? 'Admis' : 'Non admis',
+      ]),
+      widths: [8, 47, 16, 16, 16, 18, 18, 20, 28],
+      startY: y,
+      margin: 10,
+    });
+  }, []);
+
+  const handleExportModulePDF = useCallback(() => {
+    if (!selectedModule) return;
+    setIsExporting(true);
+    setTimeout(() => {
+      try {
+        const group = { diploma: selectedDiploma, major: selectedMajor, year: selectedYear };
+        const stats = buildModuleStats(group, selectedModule);
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const y = addReportHeader(doc, 'Rapport par module', `${selectedDiploma} - ${selectedMajor} - ${selectedYear}`);
+
+        drawModuleStatsPdf(doc, stats, y);
+        doc.save(`rapport-module-${safeFilePart(selectedMajor)}-${safeFilePart(selectedYear)}-${safeFilePart(selectedModule)}.pdf`);
+      } catch (e) {
+        console.error('Module PDF export error', e);
+      } finally {
+        setIsExporting(false);
+      }
+    }, 100);
+  }, [buildModuleStats, drawModuleStatsPdf, selectedDiploma, selectedMajor, selectedYear, selectedModule]);
+
+  const handleExportAllGroupsPDF = useCallback(() => {
+    if (allReportGroups.length === 0) return;
+    setIsExporting(true);
+    setTimeout(() => {
+      try {
+        const doc = new jsPDF('p', 'mm', 'a4');
+        let y = addReportHeader(doc, 'Rapports par groupe', 'Tous les groupes');
+
+        allReportGroups.forEach((group, index) => {
+          if (index > 0) {
+            doc.addPage();
+            y = addReportHeader(doc, 'Rapport par groupe', `${group.diploma} - ${group.major} - ${group.year}`);
+          }
+          y = drawGroupStatsPdf(doc, buildGroupStats(group), y);
+        });
+
+        doc.save('rapports-par-groupe.pdf');
+      } catch (e) {
+        console.error('All groups PDF export error', e);
+      } finally {
+        setIsExporting(false);
+      }
+    }, 100);
+  }, [allReportGroups, buildGroupStats, drawGroupStatsPdf]);
+
+  const handleExportAllModulesPDF = useCallback(() => {
+    const group = { diploma: selectedDiploma, major: selectedMajor, year: selectedYear };
+    const modules = getGroupModules(group);
+    if (modules.length === 0) return;
+
+    setIsExporting(true);
+    setTimeout(() => {
+      try {
+        const doc = new jsPDF('p', 'mm', 'a4');
+        let y = addReportHeader(doc, 'Rapports par module', `${selectedDiploma} - ${selectedMajor} - ${selectedYear}`);
+
+        modules.forEach((module, index) => {
+          if (index > 0) {
+            doc.addPage();
+            y = addReportHeader(doc, 'Rapport par module', `${selectedDiploma} - ${selectedMajor} - ${selectedYear}`);
+          }
+          y = drawModuleStatsPdf(doc, buildModuleStats(group, module.name), y);
+        });
+
+        doc.save(`rapports-modules-${safeFilePart(selectedMajor)}-${safeFilePart(selectedYear)}.pdf`);
+      } catch (e) {
+        console.error('All modules PDF export error', e);
+      } finally {
+        setIsExporting(false);
+      }
+    }, 100);
+  }, [buildModuleStats, drawModuleStatsPdf, getGroupModules, selectedDiploma, selectedMajor, selectedYear]);
+
+  const handleExportGlobalPDF = useCallback(() => {
+    if (allReportGroups.length === 0) return;
+    setIsExporting(true);
+    setTimeout(() => {
+      try {
+        const groupStats = allReportGroups.map(group => buildGroupStats(group));
+        const allRankings = groupStats.flatMap(stats => stats.rankings.filter(item => item.avg !== null));
+        const globalAvg = allRankings.length > 0
+          ? allRankings.reduce((sum, item) => sum + item.avg, 0) / allRankings.length
+          : null;
+        const doc = new jsPDF('p', 'mm', 'a4');
+        let y = addReportHeader(doc, 'Rapport global', 'Synthese de tous les groupes et modules');
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(135, 135, 135);
+        doc.text('GROUPES', 15, y);
+        doc.text('STAGIAIRES', 50, y);
+        doc.text('MODULES', 90, y);
+        doc.text('MOYENNE GLOBALE', 125, y);
+        y += 5;
+
+        doc.setFontSize(14);
+        doc.setTextColor(30, 30, 30);
+        doc.text(String(groupStats.length), 15, y);
+        doc.text(String(groupStats.reduce((sum, stats) => sum + stats.students.length, 0)), 50, y);
+        doc.text(String(groupStats.reduce((sum, stats) => sum + stats.modules.length, 0)), 90, y);
+        doc.setTextColor(globalAvg !== null && globalAvg >= 10 ? 22 : 220, globalAvg !== null && globalAvg >= 10 ? 163 : 38, globalAvg !== null && globalAvg >= 10 ? 74 : 38);
+        doc.text(formatScore(globalAvg, '/20'), 125, y);
+        y += 11;
+
+        y = drawPdfTable(doc, {
+          title: 'Synthese par groupe',
+          headers: ['GROUPE', 'STAG.', 'MOD.', 'MOY.', 'ADMIS', 'NON'],
+          rows: groupStats.map(stats => [
+            `${stats.group.diploma} - ${stats.group.major} - ${stats.group.year}`,
+            stats.students.length,
+            stats.modules.length,
+            formatScore(stats.classAvg),
+            stats.passCount,
+            stats.failCount,
+          ]),
+          widths: [78, 18, 18, 22, 18, 18],
+          startY: y,
+        });
+
+        const moduleRows = groupStats.flatMap(stats =>
+          stats.moduleStats.map(module => [
+            `${stats.group.major} - ${stats.group.year}`,
+            module.name,
+            module.enteredCount,
+            formatScore(module.avg),
+            module.passCount,
+            module.failCount,
+          ])
+        );
+
+        drawPdfTable(doc, {
+          title: 'Synthese par module',
+          headers: ['GROUPE', 'MODULE', 'NOTES', 'MOY.', 'ADMIS', 'NON'],
+          rows: moduleRows,
+          widths: [40, 64, 18, 20, 18, 18],
+          startY: y,
+        });
+
+        doc.save('rapport-global.pdf');
+      } catch (e) {
+        console.error('Global PDF export error', e);
+      } finally {
+        setIsExporting(false);
+      }
+    }, 100);
+  }, [allReportGroups, buildGroupStats]);
+
   const avgColor = analytics.classAvg === null ? 'var(--text-muted)'
     : analytics.classAvg >= 14 ? '#16a34a'
     : analytics.classAvg >= 10 ? '#d97706'
@@ -469,6 +1060,57 @@ const Reports = () => {
           </select>
         </div>
       </div>
+
+      {/* Report generation */}
+      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div>
+            <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: '900', color: 'var(--text-primary)' }}>Generation de rapports</h2>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '3px' }}>
+              Export PDF par groupe, par module, puis synthese globale.
+            </p>
+          </div>
+          {isExporting && <span className="badge-status primary" style={{ fontSize: '11px' }}>Generation en cours...</span>}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
+          <ReportAction
+            icon={FileText}
+            title="Rapport du groupe"
+            description="Classement, moyenne et modules du groupe selectionne."
+            onClick={handleExportPDF}
+            disabled={isExporting || analytics.filteredStudentsCount === 0}
+          />
+          <ReportAction
+            icon={BookOpen}
+            title="Rapport du module"
+            description="Notes C1, C2, C3, EFC et resultat du module selectionne."
+            onClick={handleExportModulePDF}
+            disabled={isExporting || !selectedModule}
+          />
+          <ReportAction
+            icon={Files}
+            title="Tous les groupes"
+            description="Un PDF combine avec un rapport pour chaque groupe."
+            onClick={handleExportAllGroupsPDF}
+            disabled={isExporting || allReportGroups.length === 0}
+          />
+          <ReportAction
+            icon={Layers}
+            title="Tous les modules"
+            description="Un PDF combine avec tous les modules du groupe selectionne."
+            onClick={handleExportAllModulesPDF}
+            disabled={isExporting || availableModulesList.length === 0}
+          />
+          <ReportAction
+            icon={ChartLine}
+            title="Rapport global"
+            description="Synthese generale de tous les groupes et modules."
+            onClick={handleExportGlobalPDF}
+            disabled={isExporting || allReportGroups.length === 0}
+          />
+        </div>
+      </motion.section>
 
       {/* KPI strip */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '12px' }}>
