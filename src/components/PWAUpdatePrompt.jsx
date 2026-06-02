@@ -1,17 +1,20 @@
 import React from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useRegisterSW } from 'virtual:pwa-register/react';
+import { RefreshCw, Sparkles } from 'lucide-react';
 
 const UPDATE_CHECK_INTERVAL = 5 * 60 * 1000;
+const REFRESH_DELAY_SECONDS = 8;
 
 const PWAUpdatePrompt = () => {
   const reloadingRef = React.useRef(false);
+  const [showUpdateNotice, setShowUpdateNotice] = React.useState(false);
+  const [secondsLeft, setSecondsLeft] = React.useState(REFRESH_DELAY_SECONDS);
 
-  const reloadApp = React.useCallback(async (updateServiceWorker) => {
+  const showReloadNotice = React.useCallback(() => {
     if (reloadingRef.current) return;
-    reloadingRef.current = true;
-
-    await updateServiceWorker(true);
-    setTimeout(() => window.location.reload(), 500);
+    setSecondsLeft(REFRESH_DELAY_SECONDS);
+    setShowUpdateNotice(true);
   }, []);
 
   const {
@@ -19,10 +22,7 @@ const PWAUpdatePrompt = () => {
     updateServiceWorker,
   } = useRegisterSW({
     onNeedReload() {
-      if (!reloadingRef.current) {
-        reloadingRef.current = true;
-        window.location.reload();
-      }
+      showReloadNotice();
     },
     onRegisteredSW(swUrl, registration) {
       if (!registration) return;
@@ -45,13 +45,111 @@ const PWAUpdatePrompt = () => {
     },
   });
 
+  const reloadApp = React.useCallback(async () => {
+    if (reloadingRef.current) return;
+    reloadingRef.current = true;
+
+    await updateServiceWorker(true);
+    setTimeout(() => window.location.reload(), 350);
+  }, [updateServiceWorker]);
+
   React.useEffect(() => {
     if (needRefresh) {
-      reloadApp(updateServiceWorker);
+      showReloadNotice();
     }
-  }, [needRefresh, reloadApp, updateServiceWorker]);
+  }, [needRefresh, showReloadNotice]);
 
-  return null;
+  React.useEffect(() => {
+    if (!showUpdateNotice) return undefined;
+
+    if (secondsLeft <= 0) {
+      reloadApp();
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      setSecondsLeft(current => Math.max(0, current - 1));
+    }, 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [reloadApp, secondsLeft, showUpdateNotice]);
+
+  return (
+    <AnimatePresence>
+      {showUpdateNotice && (
+        <motion.div
+          initial={{ opacity: 0, y: 80, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 80, scale: 0.96 }}
+          transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '14px',
+            padding: '14px 18px',
+            borderRadius: 'var(--radius-xl)',
+            background: 'var(--bg-card)',
+            border: '1px solid rgba(176,104,185,0.25)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.14)',
+            maxWidth: 'calc(100vw - 32px)',
+            width: 'max-content',
+          }}
+        >
+          <div style={{
+            width: '36px',
+            height: '36px',
+            flexShrink: 0,
+            borderRadius: '50%',
+            background: 'var(--primary-ultra-light)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <Sparkles size={17} style={{ color: 'var(--primary)' }} />
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)', margin: 0, whiteSpace: 'nowrap' }}>
+              Nouvelle version disponible
+            </p>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '2px 0 0', whiteSpace: 'nowrap' }}>
+              La page va se rafraichir automatiquement dans {secondsLeft}s.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={reloadApp}
+            style={{
+              flexShrink: 0,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '7px 14px',
+              borderRadius: 'var(--radius-pill)',
+              background: 'var(--primary)',
+              color: '#fff',
+              border: 'none',
+              fontSize: '12px',
+              fontWeight: '800',
+              cursor: 'pointer',
+              letterSpacing: '0.02em',
+            }}
+          >
+            <RefreshCw size={13} />
+            Maintenant
+          </button>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 };
 
 export default PWAUpdatePrompt;
