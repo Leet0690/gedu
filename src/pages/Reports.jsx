@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { MODULES_DATA } from '../data/modules';
+import EmptyState from '../components/EmptyState';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, Cell, PieChart, Pie, Legend
@@ -11,7 +12,7 @@ import { logoBase64 } from '../utils/logoBase64.js';
 import {
   ChartLine, Users, TrendingUp, TrendingDown, Download,
   Award, AlertTriangle, ChevronUp, ChevronDown, Minus,
-  CheckCircle, XCircle, FileText, BookOpen, Files, Layers
+  CheckCircle, XCircle
 } from 'lucide-react';
 
 const labelStyle = {
@@ -56,170 +57,12 @@ const CustomDonutLabel = ({ cx, cy, value, label }) => (
   </text>
 );
 
-const getStudentName = (student) =>
-  student?.lastName ? `${student.lastName} ${student.firstName || ''}`.trim() : (student?.name || '');
-
 const gradeModuleKey = (moduleName = '') => moduleName.replace(/\./g, '_');
 
 const parseScore = (value) => {
   const score = parseFloat(value);
   return Number.isNaN(score) ? null : score;
 };
-
-const formatScore = (value, suffix = '') =>
-  value === null || value === undefined || Number.isNaN(value) ? '-' : `${Number(value).toFixed(2)}${suffix}`;
-
-const safeFilePart = (value = 'rapport') =>
-  String(value)
-    .trim()
-    .replace(/[^\w\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .toLowerCase() || 'rapport';
-
-const clampText = (value, max = 32) => {
-  const text = String(value || '-');
-  return text.length > max ? `${text.slice(0, max - 1)}...` : text;
-};
-
-const addReportHeader = (doc, title, subtitle = '') => {
-  const w = doc.internal.pageSize.getWidth();
-  const margin = 15;
-  let y = 10;
-
-  doc.setFillColor(255, 255, 255);
-  doc.rect(0, 0, w, doc.internal.pageSize.getHeight(), 'F');
-
-  try { doc.addImage(logoBase64, 'PNG', margin, y, 40, 18); } catch {}
-
-  doc.setFont('helvetica', 'italic');
-  doc.setFontSize(7);
-  doc.setTextColor(100, 100, 100);
-  doc.text("Institut de formation professionnelle prive", w - margin, y + 4, { align: 'right' });
-  doc.text("agree par le ministere de l'Inclusion economique, de la Petite entreprise,", w - margin, y + 8, { align: 'right' });
-  doc.text("de l'Emploi et des Competences, sous le numero 4/01/6/2022", w - margin, y + 12, { align: 'right' });
-
-  y = 34;
-  doc.setDrawColor(180, 104, 185);
-  doc.setLineWidth(0.6);
-  doc.line(margin, y, w - margin, y);
-  y += 8;
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(15);
-  doc.setTextColor(30, 30, 30);
-  doc.text(title, w / 2, y, { align: 'center' });
-  y += 6;
-
-  if (subtitle) {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(100, 100, 100);
-    doc.text(subtitle, w / 2, y, { align: 'center' });
-    y += 5;
-  }
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(130, 130, 130);
-  doc.text(`Genere le ${new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}`, w / 2, y, { align: 'center' });
-  y += 8;
-
-  doc.setDrawColor(220, 220, 220);
-  doc.setLineWidth(0.3);
-  doc.line(margin, y, w - margin, y);
-  return y + 8;
-};
-
-const drawPdfTable = (doc, { title, headers, rows, widths, startY, margin = 15 }) => {
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const rowH = 7;
-  let y = startY;
-
-  const drawHeader = () => {
-    doc.setFillColor(245, 245, 250);
-    doc.rect(margin, y, widths.reduce((sum, width) => sum + width, 0), rowH, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.5);
-    doc.setTextColor(120, 120, 120);
-    let x = margin;
-    headers.forEach((header, i) => {
-      doc.text(String(header), x + 1.5, y + 4.5);
-      x += widths[i];
-    });
-    y += rowH;
-  };
-
-  if (title) {
-    if (y > pageHeight - 25) {
-      doc.addPage();
-      y = addReportHeader(doc, 'Suite du rapport');
-    }
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.setTextColor(30, 30, 30);
-    doc.text(title, margin, y);
-    y += 6;
-  }
-
-  drawHeader();
-
-  rows.forEach((row, index) => {
-    if (y > pageHeight - 18) {
-      doc.addPage();
-      y = addReportHeader(doc, 'Suite du rapport');
-      drawHeader();
-    }
-
-    if (index % 2 === 0) {
-      doc.setFillColor(252, 252, 254);
-      doc.rect(margin, y, widths.reduce((sum, width) => sum + width, 0), rowH, 'F');
-    }
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(35, 35, 35);
-    let x = margin;
-    row.forEach((cell, i) => {
-      doc.text(clampText(cell, Math.max(8, Math.floor(widths[i] * 1.9))), x + 1.5, y + 4.5);
-      x += widths[i];
-    });
-    doc.setDrawColor(235, 235, 240);
-    doc.setLineWidth(0.2);
-    doc.line(margin, y + rowH, margin + widths.reduce((sum, width) => sum + width, 0), y + rowH);
-    y += rowH;
-  });
-
-  return y + 7;
-};
-
-const ReportAction = ({ icon: Icon, title, description, onClick, disabled }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    disabled={disabled}
-    style={{
-      border: '1px solid var(--border-light)',
-      background: 'var(--surface)',
-      borderRadius: 'var(--radius-lg)',
-      padding: '14px',
-      display: 'flex',
-      alignItems: 'flex-start',
-      gap: '12px',
-      textAlign: 'left',
-      cursor: disabled ? 'not-allowed' : 'pointer',
-      opacity: disabled ? 0.55 : 1,
-      boxShadow: 'var(--shadow-sm)'
-    }}
-  >
-    <span style={{ width: '34px', height: '34px', borderRadius: '10px', background: 'var(--primary-ultra-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-      <Icon size={17} />
-    </span>
-    <span style={{ minWidth: 0 }}>
-      <span style={{ display: 'block', fontSize: '13px', fontWeight: 900, color: 'var(--text-primary)' }}>{title}</span>
-      <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', lineHeight: 1.35, marginTop: '3px' }}>{description}</span>
-    </span>
-  </button>
-);
 
 const Reports = () => {
   const {
@@ -713,295 +556,77 @@ const Reports = () => {
     }, 100);
   }, [analytics, sortedRankings, selectedDiploma, selectedMajor, selectedYear, hasAttendanceData]);
 
-  const drawGroupStatsPdf = useCallback((doc, stats, startY) => {
-    const margin = 15;
-    let y = startY;
+  const reportGroupStats = useMemo(() =>
+    allReportGroups.map(group => buildGroupStats(group)),
+  [allReportGroups, buildGroupStats]);
 
-    if (y > 245) {
-      doc.addPage();
-      y = addReportHeader(doc, 'Suite du rapport');
-    }
+  const groupChartData = useMemo(() =>
+    reportGroupStats.map(stats => ({
+      name: `${stats.group.major} ${stats.group.year}`.replace('annÃ©e', '').trim(),
+      fullName: `${stats.group.diploma} Â· ${stats.group.major} Â· ${stats.group.year}`,
+      moyenne: stats.classAvg !== null ? parseFloat(stats.classAvg.toFixed(2)) : 0,
+      stagiaires: stats.students.length,
+      modules: stats.modules.length,
+      admis: stats.passCount,
+      nonAdmis: stats.failCount,
+      hasAverage: stats.classAvg !== null,
+    })).sort((a, b) => b.moyenne - a.moyenne),
+  [reportGroupStats]);
 
-    const groupLabel = `${stats.group.diploma} - ${stats.group.major} - ${stats.group.year}`;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.setTextColor(30, 30, 30);
-    doc.text(groupLabel, margin, y);
-    y += 7;
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(135, 135, 135);
-    doc.text('STAGIAIRES', margin, y);
-    doc.text('MODULES', margin + 38, y);
-    doc.text('MOYENNE', margin + 75, y);
-    doc.text('ADMIS', margin + 113, y);
-    doc.text('NON ADMIS', margin + 142, y);
-    y += 5;
-
-    doc.setFontSize(13);
-    doc.setTextColor(30, 30, 30);
-    doc.text(String(stats.students.length), margin, y);
-    doc.text(String(stats.modules.length), margin + 38, y);
-    doc.setTextColor(stats.classAvg !== null && stats.classAvg >= 10 ? 22 : 220, stats.classAvg !== null && stats.classAvg >= 10 ? 163 : 38, stats.classAvg !== null && stats.classAvg >= 10 ? 74 : 38);
-    doc.text(formatScore(stats.classAvg, '/20'), margin + 75, y);
-    doc.setTextColor(22, 163, 74);
-    doc.text(String(stats.passCount), margin + 113, y);
-    doc.setTextColor(220, 38, 38);
-    doc.text(String(stats.failCount), margin + 142, y);
-    y += 10;
-
-    const rankingHeaders = hasAttendanceData
-      ? ['RG', 'NOM & PRENOM', 'MOY.', 'RESULTAT', 'ABS.']
-      : ['RG', 'NOM & PRENOM', 'MOY.', 'RESULTAT'];
-    const rankingWidths = hasAttendanceData ? [12, 72, 25, 34, 24] : [12, 82, 28, 38];
-    const rankingRows = stats.rankings.map((item, index) => {
-      const baseRow = [
-        index + 1,
-        getStudentName(item.student),
-        formatScore(item.avg),
-        item.avg === null ? '-' : item.avg >= 10 ? 'Admis' : 'Non admis',
-      ];
-      return hasAttendanceData
-        ? [...baseRow, item.absenceRate !== null ? `${item.absenceRate}%` : '-']
-        : baseRow;
-    });
-
-    y = drawPdfTable(doc, {
-      title: 'Classement des stagiaires',
-      headers: rankingHeaders,
-      rows: rankingRows,
-      widths: rankingWidths,
-      startY: y,
-    });
-
-    const moduleRows = stats.moduleStats.map(module => [
-      module.name,
-      module.coefficient,
-      module.enteredCount,
-      formatScore(module.avg),
-      module.passCount,
-      module.failCount,
-    ]);
-
-    return drawPdfTable(doc, {
-      title: 'Moyennes par module',
-      headers: ['MODULE', 'COEF.', 'NOTES', 'MOY.', 'ADMIS', 'NON'],
-      rows: moduleRows,
-      widths: [72, 16, 20, 22, 18, 18],
-      startY: y,
-    });
-  }, [hasAttendanceData]);
-
-  const drawModuleStatsPdf = useCallback((doc, stats, startY) => {
-    const margin = 15;
-    let y = startY;
-
-    if (y > 245) {
-      doc.addPage();
-      y = addReportHeader(doc, 'Suite du rapport');
-    }
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.setTextColor(30, 30, 30);
-    doc.text(stats.moduleName, margin, y);
-    y += 6;
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(100, 100, 100);
-    doc.text(`${stats.group.diploma} - ${stats.group.major} - ${stats.group.year}`, margin, y);
-    y += 8;
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(135, 135, 135);
-    doc.text('STAGIAIRES', margin, y);
-    doc.text('NOTES SAISIES', margin + 38, y);
-    doc.text('MOYENNE MODULE', margin + 78, y);
-    doc.text('ADMIS', margin + 128, y);
-    doc.text('NON ADMIS', margin + 154, y);
-    y += 5;
-
-    doc.setFontSize(13);
-    doc.setTextColor(30, 30, 30);
-    doc.text(String(stats.rows.length), margin, y);
-    doc.text(String(stats.enteredCount), margin + 38, y);
-    doc.setTextColor(stats.avg !== null && stats.avg >= 10 ? 22 : 220, stats.avg !== null && stats.avg >= 10 ? 163 : 38, stats.avg !== null && stats.avg >= 10 ? 74 : 38);
-    doc.text(formatScore(stats.avg, '/20'), margin + 78, y);
-    doc.setTextColor(22, 163, 74);
-    doc.text(String(stats.passCount), margin + 128, y);
-    doc.setTextColor(220, 38, 38);
-    doc.text(String(stats.failCount), margin + 154, y);
-    y += 10;
-
-    return drawPdfTable(doc, {
-      title: 'Details des notes',
-      headers: ['RG', 'NOM & PRENOM', 'C1', 'C2', 'C3', 'EFC P', 'EFC T', 'FINAL', 'RESULTAT'],
-      rows: stats.rows.map((row, index) => [
-        index + 1,
-        getStudentName(row.student),
-        formatScore(row.c1),
-        formatScore(row.c2),
-        formatScore(row.c3),
-        formatScore(row.efcfp),
-        formatScore(row.efcft),
-        formatScore(row.score),
-        row.score === null ? '-' : row.score >= 10 ? 'Admis' : 'Non admis',
-      ]),
-      widths: [8, 47, 16, 16, 16, 18, 18, 20, 28],
-      startY: y,
-      margin: 10,
-    });
-  }, []);
-
-  const handleExportModulePDF = useCallback(() => {
-    if (!selectedModule) return;
-    setIsExporting(true);
-    setTimeout(() => {
-      try {
-        const group = { diploma: selectedDiploma, major: selectedMajor, year: selectedYear };
-        const stats = buildModuleStats(group, selectedModule);
-        const doc = new jsPDF('p', 'mm', 'a4');
-        const y = addReportHeader(doc, 'Rapport par module', `${selectedDiploma} - ${selectedMajor} - ${selectedYear}`);
-
-        drawModuleStatsPdf(doc, stats, y);
-        doc.save(`rapport-module-${safeFilePart(selectedMajor)}-${safeFilePart(selectedYear)}-${safeFilePart(selectedModule)}.pdf`);
-      } catch (e) {
-        console.error('Module PDF export error', e);
-      } finally {
-        setIsExporting(false);
-      }
-    }, 100);
-  }, [buildModuleStats, drawModuleStatsPdf, selectedDiploma, selectedMajor, selectedYear, selectedModule]);
-
-  const handleExportAllGroupsPDF = useCallback(() => {
-    if (allReportGroups.length === 0) return;
-    setIsExporting(true);
-    setTimeout(() => {
-      try {
-        const doc = new jsPDF('p', 'mm', 'a4');
-        let y = addReportHeader(doc, 'Rapports par groupe', 'Tous les groupes');
-
-        allReportGroups.forEach((group, index) => {
-          if (index > 0) {
-            doc.addPage();
-            y = addReportHeader(doc, 'Rapport par groupe', `${group.diploma} - ${group.major} - ${group.year}`);
-          }
-          y = drawGroupStatsPdf(doc, buildGroupStats(group), y);
-        });
-
-        doc.save('rapports-par-groupe.pdf');
-      } catch (e) {
-        console.error('All groups PDF export error', e);
-      } finally {
-        setIsExporting(false);
-      }
-    }, 100);
-  }, [allReportGroups, buildGroupStats, drawGroupStatsPdf]);
-
-  const handleExportAllModulesPDF = useCallback(() => {
+  const moduleChartData = useMemo(() => {
     const group = { diploma: selectedDiploma, major: selectedMajor, year: selectedYear };
-    const modules = getGroupModules(group);
-    if (modules.length === 0) return;
+    return getGroupModules(group).map(module => {
+      const stats = buildModuleStats(group, module.name);
+      return {
+        name: module.name.length > 18 ? `${module.name.substring(0, 18)}...` : module.name,
+        fullName: module.name,
+        moyenne: stats.avg !== null ? parseFloat(stats.avg.toFixed(2)) : 0,
+        notes: stats.enteredCount,
+        admis: stats.passCount,
+        nonAdmis: stats.failCount,
+        hasAverage: stats.avg !== null,
+      };
+    }).sort((a, b) => b.moyenne - a.moyenne);
+  }, [buildModuleStats, getGroupModules, selectedDiploma, selectedMajor, selectedYear]);
 
-    setIsExporting(true);
-    setTimeout(() => {
-      try {
-        const doc = new jsPDF('p', 'mm', 'a4');
-        let y = addReportHeader(doc, 'Rapports par module', `${selectedDiploma} - ${selectedMajor} - ${selectedYear}`);
+  const globalChartStats = useMemo(() => {
+    const rankedStudents = reportGroupStats.flatMap(stats => stats.rankings);
+    const studentsWithAvg = rankedStudents.filter(item => item.avg !== null);
+    const globalAvg = studentsWithAvg.length > 0
+      ? studentsWithAvg.reduce((sum, item) => sum + item.avg, 0) / studentsWithAvg.length
+      : null;
+    const passCount = studentsWithAvg.filter(item => item.avg >= 10).length;
+    const failCount = studentsWithAvg.filter(item => item.avg < 10).length;
+    const moduleCount = reportGroupStats.reduce((sum, stats) => sum + stats.modules.length, 0);
 
-        modules.forEach((module, index) => {
-          if (index > 0) {
-            doc.addPage();
-            y = addReportHeader(doc, 'Rapport par module', `${selectedDiploma} - ${selectedMajor} - ${selectedYear}`);
-          }
-          y = drawModuleStatsPdf(doc, buildModuleStats(group, module.name), y);
-        });
+    return {
+      globalAvg,
+      groupCount: reportGroupStats.length,
+      studentCount: reportGroupStats.reduce((sum, stats) => sum + stats.students.length, 0),
+      moduleCount,
+      passCount,
+      failCount,
+      withoutGrades: Math.max(0, rankedStudents.length - studentsWithAvg.length),
+    };
+  }, [reportGroupStats]);
 
-        doc.save(`rapports-modules-${safeFilePart(selectedMajor)}-${safeFilePart(selectedYear)}.pdf`);
-      } catch (e) {
-        console.error('All modules PDF export error', e);
-      } finally {
-        setIsExporting(false);
-      }
-    }, 100);
-  }, [buildModuleStats, drawModuleStatsPdf, getGroupModules, selectedDiploma, selectedMajor, selectedYear]);
+  const globalDonutData = useMemo(() => [
+    { name: 'Admis', value: globalChartStats.passCount, color: '#16a34a' },
+    { name: 'Non admis', value: globalChartStats.failCount, color: '#dc2626' },
+    ...(globalChartStats.withoutGrades > 0 ? [{ name: 'Sans notes', value: globalChartStats.withoutGrades, color: '#94a3b8' }] : []),
+  ].filter(item => item.value > 0), [globalChartStats]);
 
-  const handleExportGlobalPDF = useCallback(() => {
-    if (allReportGroups.length === 0) return;
-    setIsExporting(true);
-    setTimeout(() => {
-      try {
-        const groupStats = allReportGroups.map(group => buildGroupStats(group));
-        const allRankings = groupStats.flatMap(stats => stats.rankings.filter(item => item.avg !== null));
-        const globalAvg = allRankings.length > 0
-          ? allRankings.reduce((sum, item) => sum + item.avg, 0) / allRankings.length
-          : null;
-        const doc = new jsPDF('p', 'mm', 'a4');
-        let y = addReportHeader(doc, 'Rapport global', 'Synthese de tous les groupes et modules');
-
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8);
-        doc.setTextColor(135, 135, 135);
-        doc.text('GROUPES', 15, y);
-        doc.text('STAGIAIRES', 50, y);
-        doc.text('MODULES', 90, y);
-        doc.text('MOYENNE GLOBALE', 125, y);
-        y += 5;
-
-        doc.setFontSize(14);
-        doc.setTextColor(30, 30, 30);
-        doc.text(String(groupStats.length), 15, y);
-        doc.text(String(groupStats.reduce((sum, stats) => sum + stats.students.length, 0)), 50, y);
-        doc.text(String(groupStats.reduce((sum, stats) => sum + stats.modules.length, 0)), 90, y);
-        doc.setTextColor(globalAvg !== null && globalAvg >= 10 ? 22 : 220, globalAvg !== null && globalAvg >= 10 ? 163 : 38, globalAvg !== null && globalAvg >= 10 ? 74 : 38);
-        doc.text(formatScore(globalAvg, '/20'), 125, y);
-        y += 11;
-
-        y = drawPdfTable(doc, {
-          title: 'Synthese par groupe',
-          headers: ['GROUPE', 'STAG.', 'MOD.', 'MOY.', 'ADMIS', 'NON'],
-          rows: groupStats.map(stats => [
-            `${stats.group.diploma} - ${stats.group.major} - ${stats.group.year}`,
-            stats.students.length,
-            stats.modules.length,
-            formatScore(stats.classAvg),
-            stats.passCount,
-            stats.failCount,
-          ]),
-          widths: [78, 18, 18, 22, 18, 18],
-          startY: y,
-        });
-
-        const moduleRows = groupStats.flatMap(stats =>
-          stats.moduleStats.map(module => [
-            `${stats.group.major} - ${stats.group.year}`,
-            module.name,
-            module.enteredCount,
-            formatScore(module.avg),
-            module.passCount,
-            module.failCount,
-          ])
-        );
-
-        drawPdfTable(doc, {
-          title: 'Synthese par module',
-          headers: ['GROUPE', 'MODULE', 'NOTES', 'MOY.', 'ADMIS', 'NON'],
-          rows: moduleRows,
-          widths: [40, 64, 18, 20, 18, 18],
-          startY: y,
-        });
-
-        doc.save('rapport-global.pdf');
-      } catch (e) {
-        console.error('Global PDF export error', e);
-      } finally {
-        setIsExporting(false);
-      }
-    }, 100);
-  }, [allReportGroups, buildGroupStats]);
+  const globalModuleChartData = useMemo(() =>
+    reportGroupStats.flatMap(stats =>
+      stats.moduleStats.map(module => ({
+        name: module.name.length > 16 ? `${module.name.substring(0, 16)}...` : module.name,
+        fullName: module.name,
+        group: `${stats.group.major} ${stats.group.year}`,
+        moyenne: module.avg !== null ? parseFloat(module.avg.toFixed(2)) : 0,
+        notes: module.enteredCount,
+      }))
+    ).filter(module => module.notes > 0).sort((a, b) => b.moyenne - a.moyenne).slice(0, 10),
+  [reportGroupStats]);
 
   const avgColor = analytics.classAvg === null ? 'var(--text-muted)'
     : analytics.classAvg >= 14 ? '#16a34a'
@@ -1061,54 +686,152 @@ const Reports = () => {
         </div>
       </div>
 
-      {/* Report generation */}
+      {/* Graph report section */}
       <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div>
-            <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: '900', color: 'var(--text-primary)' }}>Generation de rapports</h2>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '3px' }}>
-              Export PDF par groupe, par module, puis synthese globale.
-            </p>
-          </div>
-          {isExporting && <span className="badge-status primary" style={{ fontSize: '11px' }}>Generation en cours...</span>}
+        <div>
+          <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: '900', color: 'var(--text-primary)' }}>Rapports graphiques</h2>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '3px' }}>
+            Visualisation par groupe, par module et synthese globale.
+          </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
-          <ReportAction
-            icon={FileText}
-            title="Rapport du groupe"
-            description="Classement, moyenne et modules du groupe selectionne."
-            onClick={handleExportPDF}
-            disabled={isExporting || analytics.filteredStudentsCount === 0}
-          />
-          <ReportAction
-            icon={BookOpen}
-            title="Rapport du module"
-            description="Notes C1, C2, C3, EFC et resultat du module selectionne."
-            onClick={handleExportModulePDF}
-            disabled={isExporting || !selectedModule}
-          />
-          <ReportAction
-            icon={Files}
-            title="Tous les groupes"
-            description="Un PDF combine avec un rapport pour chaque groupe."
-            onClick={handleExportAllGroupsPDF}
-            disabled={isExporting || allReportGroups.length === 0}
-          />
-          <ReportAction
-            icon={Layers}
-            title="Tous les modules"
-            description="Un PDF combine avec tous les modules du groupe selectionne."
-            onClick={handleExportAllModulesPDF}
-            disabled={isExporting || availableModulesList.length === 0}
-          />
-          <ReportAction
-            icon={ChartLine}
-            title="Rapport global"
-            description="Synthese generale de tous les groupes et modules."
-            onClick={handleExportGlobalPDF}
-            disabled={isExporting || allReportGroups.length === 0}
-          />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 'var(--space-5)' }}>
+          <div className="glass-card" style={{ padding: 'var(--space-6)', minHeight: '360px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginBottom: 'var(--space-5)', alignItems: 'flex-start' }}>
+              <div>
+                <h3 style={{ fontSize: 'var(--text-base)', fontWeight: '900' }}>Moyenne par groupe</h3>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{groupChartData.length} groupe{groupChartData.length !== 1 ? 's' : ''} analyse{groupChartData.length !== 1 ? 's' : ''}</p>
+              </div>
+              <span className="badge-status primary" style={{ fontSize: '11px' }}>{globalChartStats.groupCount} groupes</span>
+            </div>
+            {groupChartData.length === 0 ? (
+              <EmptyState title="Aucun groupe" message="Aucune donnees disponible pour generer le graphe." icon="chart" />
+            ) : (
+              <div style={{ height: '270px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={groupChartData.slice(0, 10)} layout="vertical" margin={{ left: 8, right: 18 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(0,0,0,0.05)" />
+                    <XAxis type="number" domain={[0, 20]} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                    <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 9, fontWeight: 700, fill: 'var(--text-primary)' }} axisLine={false} tickLine={false} />
+                    <Tooltip
+                      formatter={(value, name) => [`${value}/20`, name === 'moyenne' ? 'Moyenne' : name]}
+                      labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName || ''}
+                      contentStyle={{ border: 'none', borderRadius: '12px', boxShadow: 'var(--shadow-md)' }}
+                    />
+                    <Bar dataKey="moyenne" radius={[0, 8, 8, 0]} barSize={15}>
+                      {groupChartData.slice(0, 10).map((entry, index) => (
+                        <Cell key={index} fill={entry.hasAverage && entry.moyenne >= 10 ? 'var(--primary)' : '#dc2626'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+
+          <div className="glass-card" style={{ padding: 'var(--space-6)', minHeight: '360px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginBottom: 'var(--space-5)', alignItems: 'flex-start' }}>
+              <div>
+                <h3 style={{ fontSize: 'var(--text-base)', fontWeight: '900' }}>Moyenne par module</h3>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{selectedMajor} Â· {selectedYear}</p>
+              </div>
+              <span className="badge-status primary" style={{ fontSize: '11px' }}>{moduleChartData.length} modules</span>
+            </div>
+            {moduleChartData.length === 0 ? (
+              <EmptyState title="Aucun module" message="Aucun module trouve pour ce groupe." icon="chart" />
+            ) : (
+              <div style={{ height: '270px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={moduleChartData.slice(0, 10)} layout="vertical" margin={{ left: 8, right: 18 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(0,0,0,0.05)" />
+                    <XAxis type="number" domain={[0, 20]} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                    <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 9, fontWeight: 700, fill: 'var(--text-primary)' }} axisLine={false} tickLine={false} />
+                    <Tooltip
+                      formatter={(value, name) => [name === 'moyenne' ? `${value}/20` : value, name === 'moyenne' ? 'Moyenne' : name]}
+                      labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName || ''}
+                      contentStyle={{ border: 'none', borderRadius: '12px', boxShadow: 'var(--shadow-md)' }}
+                    />
+                    <Bar dataKey="moyenne" radius={[0, 8, 8, 0]} barSize={15}>
+                      {moduleChartData.slice(0, 10).map((entry, index) => (
+                        <Cell key={index} fill={entry.hasAverage && entry.moyenne >= 10 ? '#16a34a' : '#dc2626'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+
+          <div className="glass-card" style={{ padding: 'var(--space-6)', minHeight: '360px' }}>
+            <div style={{ marginBottom: 'var(--space-5)' }}>
+              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: '900' }}>Synthese globale</h3>
+              <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Tous les groupes et tous les modules</p>
+            </div>
+            {globalDonutData.length === 0 ? (
+              <EmptyState title="Aucune note" message="Aucune moyenne globale a afficher." icon="chart" />
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(160px, 1fr) minmax(140px, 0.8fr)', gap: '12px', alignItems: 'center' }}>
+                <div style={{ height: '235px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={globalDonutData} cx="50%" cy="50%" innerRadius={58} outerRadius={86} paddingAngle={3} dataKey="value">
+                        {globalDonutData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                      </Pie>
+                      <Tooltip formatter={(v, name) => [v, name]} contentStyle={{ border: 'none', borderRadius: '12px', boxShadow: 'var(--shadow-md)' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ padding: '10px 12px', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-lg)' }}>
+                    <p style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Moyenne globale</p>
+                    <p style={{ fontSize: '22px', fontWeight: 900, color: globalChartStats.globalAvg !== null && globalChartStats.globalAvg >= 10 ? '#16a34a' : '#dc2626' }}>{globalChartStats.globalAvg !== null ? globalChartStats.globalAvg.toFixed(2) : 'â€”'}/20</p>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <div style={{ padding: '10px', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-lg)' }}>
+                      <p style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-muted)' }}>Stagiaires</p>
+                      <p style={{ fontSize: '16px', fontWeight: 900 }}>{globalChartStats.studentCount}</p>
+                    </div>
+                    <div style={{ padding: '10px', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-lg)' }}>
+                      <p style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-muted)' }}>Modules</p>
+                      <p style={{ fontSize: '16px', fontWeight: 900 }}>{globalChartStats.moduleCount}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="glass-card" style={{ padding: 'var(--space-6)', minHeight: '360px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginBottom: 'var(--space-5)', alignItems: 'flex-start' }}>
+              <div>
+                <h3 style={{ fontSize: 'var(--text-base)', fontWeight: '900' }}>Top modules global</h3>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Meilleures moyennes tous groupes confondus</p>
+              </div>
+              <span className="badge-status success" style={{ fontSize: '11px' }}>Top 10</span>
+            </div>
+            {globalModuleChartData.length === 0 ? (
+              <EmptyState title="Aucun module note" message="Aucune note saisie dans les modules." icon="chart" />
+            ) : (
+              <div style={{ height: '270px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={globalModuleChartData} layout="vertical" margin={{ left: 8, right: 18 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(0,0,0,0.05)" />
+                    <XAxis type="number" domain={[0, 20]} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                    <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 9, fontWeight: 700, fill: 'var(--text-primary)' }} axisLine={false} tickLine={false} />
+                    <Tooltip
+                      formatter={(value, name) => [name === 'moyenne' ? `${value}/20` : value, name === 'moyenne' ? 'Moyenne' : name]}
+                      labelFormatter={(_, payload) => {
+                        const row = payload?.[0]?.payload;
+                        return row ? `${row.fullName} Â· ${row.group}` : '';
+                      }}
+                      contentStyle={{ border: 'none', borderRadius: '12px', boxShadow: 'var(--shadow-md)' }}
+                    />
+                    <Bar dataKey="moyenne" fill="var(--primary)" radius={[0, 8, 8, 0]} barSize={15} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
         </div>
       </motion.section>
 
