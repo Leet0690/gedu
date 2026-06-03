@@ -270,7 +270,8 @@ const FinanceDashboard = () => {
     supportFee: '',
     month: getCurrentMonthName(),
     date: new Date().toISOString().split('T')[0],
-    status: 'payé'
+    status: 'payé',
+    paymentMethod: 'Espèces'
   });
   const [paymentModalFilter, setPaymentModalFilter] = useState({ diploma: '', major: '', year: '' });
 
@@ -308,7 +309,8 @@ const FinanceDashboard = () => {
       supportFee: String(findFee('Support') || parseFloat(payment.supportFee) || ''),
       month: payment.month || currentMonthName,
       date: payment.date || new Date().toISOString().split('T')[0],
-      status: payment.status || 'payé'
+      status: payment.status || 'payé',
+      paymentMethod: payment.paymentMethod || 'Espèces'
     });
     setShowPaymentModal(true);
   };
@@ -376,7 +378,8 @@ const FinanceDashboard = () => {
       supportFee: '',
       month: paymentMonthFilter || currentMonthName,
       date: new Date().toISOString().split('T')[0],
-      status: 'payé'
+      status: 'payé',
+      paymentMethod: 'Espèces'
     });
     setShowPaymentModal(true);
   };
@@ -412,7 +415,7 @@ const FinanceDashboard = () => {
     doc.text(`${student.firstName || ''} ${student.lastName || ''}`.trim(), margin + 5, 65);
     doc.text(`Filiere: ${student.major || '-'}`, margin + 5, 72);
     doc.text(`Mois: ${payment.month}`, 86, 65);
-    doc.text('Mode: Cash', 86, 72);
+    doc.text(`Mode: ${payment.paymentMethod || 'Espèces'}`, 86, 72);
 
     let y = 94;
     doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
@@ -1074,7 +1077,14 @@ const FinanceDashboard = () => {
                             </p>
                           )}
                         </td>
-                        <td style={tdStyle}><span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{p.date}</span></td>
+                        <td style={tdStyle}>
+                          <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{p.date}</p>
+                          {!p.isVirtualUnpaid && (
+                            <p style={{ fontSize: '10px', fontWeight: '600', color: 'var(--text-muted)', marginTop: '3px' }}>
+                              {p.paymentMethod || 'Espèces'}
+                            </p>
+                          )}
+                        </td>
                         <td style={tdStyle}>
                           <span className={`badge-status ${paymentStatus === 'paid' ? 'success' : 'pending'}`}>
                             {getPaymentStatusLabel(p.status)}
@@ -2047,7 +2057,7 @@ const FinanceDashboard = () => {
                     </select>
                   )}
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
                   <div>
                     <label style={lbl}>Montant (DH)</label>
                     <input type="number" className="input-premium" style={{ width: '100%', marginTop: '6px' }} value={paymentData.amount} onChange={(e) => setPaymentData({...paymentData, amount: e.target.value})} />
@@ -2056,6 +2066,13 @@ const FinanceDashboard = () => {
                     <label style={lbl}>Mois Concerné</label>
                     <select className="input-premium" style={{ width: '100%', marginTop: '6px' }} value={paymentData.month} onChange={(e) => setPaymentData({...paymentData, month: e.target.value})}>
                       {months.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={lbl}>Mode de paiement</label>
+                    <select className="input-premium" style={{ width: '100%', marginTop: '6px' }} value={paymentData.paymentMethod} onChange={(e) => setPaymentData({...paymentData, paymentMethod: e.target.value})}>
+                      <option value="Espèces">Espèces</option>
+                      <option value="Virement">Virement</option>
                     </select>
                   </div>
                 </div>
