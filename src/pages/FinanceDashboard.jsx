@@ -1665,7 +1665,7 @@ const FinanceDashboard = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <CalendarDays size={22} style={{ color: 'var(--danger)' }} />
                 <div>
-                  <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: '900' }}>Statistique par période</h3>
+                  <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: '900' }}>Statistiques périodiques</h3>
                   <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '700' }}>Dépenses et charges par date</p>
                 </div>
               </div>
@@ -1728,7 +1728,7 @@ const FinanceDashboard = () => {
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
                   >
-                    <X size={14} /> Réinitialiser
+                    <X size={14} />
                   </button>
                 )}
                 <span className="badge-status pending">
