@@ -1163,8 +1163,6 @@ const AdminDashboard = () => {
                 {availableMajors.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
             </div>
-
-            <button onClick={exportCSV} className="btn-modern" style={{ padding: '11px 14px' }}><Download size={14} style={{ marginRight: '6px' }} /> Export</button>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', marginBottom: 'var(--space-6)' }}>

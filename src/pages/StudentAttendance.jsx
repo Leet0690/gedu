@@ -487,9 +487,6 @@ const StudentAttendance = () => {
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)' }}>Feuilles d'appel et suivi de l'assiduité.</p>
         </div>
-        <button onClick={view === 'daily' ? exportDailyCSV : exportMonthlyCSV} className="btn-modern secondary">
-          <Download size={16} style={{ marginRight: '8px' }} /> Exporter (CSV)
-        </button>
       </div>
 
       {/* Tab switcher */}
@@ -691,11 +688,9 @@ const StudentAttendance = () => {
               <div>
                 <label style={labelStyle}>Mois</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <button onClick={prevMonth} className="btn-modern" style={{ flexShrink: 0, padding: '8px', width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-subtle)', border: '1px solid var(--border-light)', color: 'var(--text-secondary)' }} title="Mois précédent"><ChevronLeft size={18} /></button>
-                  <select className="input-premium" style={{ flex: 1, textAlign: 'center', fontWeight: '700' }} value={mMonth} onChange={e => setMMonth(Number(e.target.value))}>
+                  <select className="input-premium" style={{ width: '100%', textAlign: 'center', fontWeight: '700' }} value={mMonth} onChange={e => setMMonth(Number(e.target.value))}>
                     {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
                   </select>
-                  <button onClick={nextMonth} className="btn-modern" style={{ flexShrink: 0, padding: '8px', width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-subtle)', border: '1px solid var(--border-light)', color: 'var(--text-secondary)' }} title="Mois suivant"><ChevronRight size={18} /></button>
                 </div>
               </div>
               <div>

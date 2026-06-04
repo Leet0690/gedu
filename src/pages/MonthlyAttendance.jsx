@@ -142,9 +142,6 @@ const MonthlyAttendance = () => {
             Suivi mensuel de l'assiduité des stagiaires.
           </p>
         </div>
-        <button onClick={exportCSV} className="btn-modern">
-          <Download size={15} style={{ marginRight: '7px' }} /> Exporter CSV
-        </button>
       </div>
 
       {/* Filters */}
