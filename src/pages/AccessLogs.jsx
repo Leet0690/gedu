@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
+import { FilterSelect } from '../components/ui/FilterSelect';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import {
@@ -184,11 +185,7 @@ const AccessLogs = () => {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <CalendarDays size={16} style={{ color: 'var(--text-muted)' }} />
-          <select className="input-premium" value={period} onChange={(event) => setPeriod(event.target.value)}>
-            <option value="all">Tous les accès</option>
-            <option value="today">Aujourd'hui</option>
-            <option value="week">7 derniers jours</option>
-          </select>
+          <FilterSelect className="input-premium" value={period} onChange={val => setPeriod(val)} options={[{ value: 'all', label: 'Tous les accès' }, { value: 'today', label: "Aujourd'hui" }, { value: 'week', label: '7 derniers jours' }]} />
         </div>
       </div>
 

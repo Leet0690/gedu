@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { MODULES_DATA } from '../data/modules';
 import EmptyState from '../components/EmptyState';
+import { FilterSelect } from '../components/ui/FilterSelect';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, Cell, PieChart, Pie, Legend
@@ -661,305 +662,17 @@ const Reports = () => {
       <div className="glass-card" style={{ padding: 'var(--space-5)', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)', alignItems: 'flex-end' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <label style={labelStyle}>Niveau</label>
-          <select className="input-premium" style={{ minWidth: '180px' }} value={selectedDiploma} onChange={e => setSelectedDiploma(e.target.value)}>
-            {Object.keys(MODULES_DATA).map(d => <option key={d} value={d}>{d}</option>)}
-          </select>
+          <FilterSelect value={selectedDiploma} onChange={val => setSelectedDiploma(val)} options={Object.keys(MODULES_DATA).map(d => ({ label: d, value: d }))} style={{ minWidth: '180px' }} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <label style={labelStyle}>Filière</label>
-          <select className="input-premium" style={{ minWidth: '200px' }} value={selectedMajor} onChange={e => setSelectedMajor(e.target.value)}>
-            {availableMajors.map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
+          <FilterSelect value={selectedMajor} onChange={val => setSelectedMajor(val)} options={availableMajors.map(m => ({ label: m, value: m }))} style={{ minWidth: '200px' }} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <label style={labelStyle}>Année</label>
-          <select className="input-premium" value={selectedYear} onChange={e => setSelectedYear(e.target.value)}>
-            <option value="1ère année">1ère année</option>
-            <option value="2ème année">2ème année</option>
-          </select>
+          <FilterSelect value={selectedYear} onChange={val => setSelectedYear(val)} options={[{ label: "1ère année", value: "1ère année" }, { label: "2ème année", value: "2ème année" }]} />
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, minWidth: '220px' }}>
-          <label style={labelStyle}>Module d'analyse</label>
-          <select className="input-premium" value={selectedModule} onChange={e => setSelectedModule(e.target.value)}>
-            {availableModules.map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {/* Graph report section */}
-      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <div>
-          <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: '900', color: 'var(--text-primary)' }}>Rapports graphiques</h2>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '3px' }}>
-            Visualisation par groupe, par module et synthese globale.
-          </p>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 'var(--space-5)' }}>
-          <div className="glass-card" style={{ padding: 'var(--space-6)', minHeight: '360px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginBottom: 'var(--space-5)', alignItems: 'flex-start' }}>
-              <div>
-                <h3 style={{ fontSize: 'var(--text-base)', fontWeight: '900' }}>Moyenne par groupe</h3>
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{groupChartData.length} groupe{groupChartData.length !== 1 ? 's' : ''} analyse{groupChartData.length !== 1 ? 's' : ''}</p>
-              </div>
-              <span className="badge-status primary" style={{ fontSize: '11px' }}>{globalChartStats.groupCount} groupes</span>
-            </div>
-            {groupChartData.length === 0 ? (
-              <EmptyState title="Aucun groupe" message="Aucune donnees disponible pour generer le graphe." icon="chart" />
-            ) : (
-              <div style={{ height: '270px' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={groupChartData.slice(0, 10)} layout="vertical" margin={{ left: 8, right: 18 }}>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(0,0,0,0.05)" />
-                    <XAxis type="number" domain={[0, 20]} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-                    <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 9, fontWeight: 700, fill: 'var(--text-primary)' }} axisLine={false} tickLine={false} />
-                    <Tooltip
-                      formatter={(value, name) => [`${value}/20`, name === 'moyenne' ? 'Moyenne' : name]}
-                      labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName || ''}
-                      contentStyle={{ border: 'none', borderRadius: '12px', boxShadow: 'var(--shadow-md)' }}
-                    />
-                    <Bar dataKey="moyenne" radius={[0, 8, 8, 0]} barSize={15}>
-                      {groupChartData.slice(0, 10).map((entry, index) => (
-                        <Cell key={index} fill={entry.hasAverage && entry.moyenne >= 10 ? 'var(--primary)' : '#dc2626'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
-
-          <div className="glass-card" style={{ padding: 'var(--space-6)', minHeight: '360px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginBottom: 'var(--space-5)', alignItems: 'flex-start' }}>
-              <div>
-                <h3 style={{ fontSize: 'var(--text-base)', fontWeight: '900' }}>Moyenne par module</h3>
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{selectedMajor} Â· {selectedYear}</p>
-              </div>
-              <span className="badge-status primary" style={{ fontSize: '11px' }}>{moduleChartData.length} modules</span>
-            </div>
-            {moduleChartData.length === 0 ? (
-              <EmptyState title="Aucun module" message="Aucun module trouve pour ce groupe." icon="chart" />
-            ) : (
-              <div style={{ height: '270px' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={moduleChartData.slice(0, 10)} layout="vertical" margin={{ left: 8, right: 18 }}>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(0,0,0,0.05)" />
-                    <XAxis type="number" domain={[0, 20]} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-                    <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 9, fontWeight: 700, fill: 'var(--text-primary)' }} axisLine={false} tickLine={false} />
-                    <Tooltip
-                      formatter={(value, name) => [name === 'moyenne' ? `${value}/20` : value, name === 'moyenne' ? 'Moyenne' : name]}
-                      labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName || ''}
-                      contentStyle={{ border: 'none', borderRadius: '12px', boxShadow: 'var(--shadow-md)' }}
-                    />
-                    <Bar dataKey="moyenne" radius={[0, 8, 8, 0]} barSize={15}>
-                      {moduleChartData.slice(0, 10).map((entry, index) => (
-                        <Cell key={index} fill={entry.hasAverage && entry.moyenne >= 10 ? '#16a34a' : '#dc2626'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
-
-          <div className="glass-card" style={{ padding: 'var(--space-6)', minHeight: '360px' }}>
-            <div style={{ marginBottom: 'var(--space-5)' }}>
-              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: '900' }}>Synthese globale</h3>
-              <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Tous les groupes et tous les modules</p>
-            </div>
-            {globalDonutData.length === 0 ? (
-              <EmptyState title="Aucune note" message="Aucune moyenne globale a afficher." icon="chart" />
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(160px, 1fr) minmax(140px, 0.8fr)', gap: '12px', alignItems: 'center' }}>
-                <div style={{ height: '235px' }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={globalDonutData} cx="50%" cy="50%" innerRadius={58} outerRadius={86} paddingAngle={3} dataKey="value">
-                        {globalDonutData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                      </Pie>
-                      <Tooltip formatter={(v, name) => [v, name]} contentStyle={{ border: 'none', borderRadius: '12px', boxShadow: 'var(--shadow-md)' }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ padding: '10px 12px', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-lg)' }}>
-                    <p style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Moyenne globale</p>
-                    <p style={{ fontSize: '22px', fontWeight: 900, color: globalChartStats.globalAvg !== null && globalChartStats.globalAvg >= 10 ? '#16a34a' : '#dc2626' }}>{globalChartStats.globalAvg !== null ? globalChartStats.globalAvg.toFixed(2) : 'â€”'}/20</p>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                    <div style={{ padding: '10px', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-lg)' }}>
-                      <p style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-muted)' }}>Stagiaires</p>
-                      <p style={{ fontSize: '16px', fontWeight: 900 }}>{globalChartStats.studentCount}</p>
-                    </div>
-                    <div style={{ padding: '10px', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-lg)' }}>
-                      <p style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-muted)' }}>Modules</p>
-                      <p style={{ fontSize: '16px', fontWeight: 900 }}>{globalChartStats.moduleCount}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="glass-card" style={{ padding: 'var(--space-6)', minHeight: '360px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginBottom: 'var(--space-5)', alignItems: 'flex-start' }}>
-              <div>
-                <h3 style={{ fontSize: 'var(--text-base)', fontWeight: '900' }}>Top modules global</h3>
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Meilleures moyennes tous groupes confondus</p>
-              </div>
-              <span className="badge-status success" style={{ fontSize: '11px' }}>Top 10</span>
-            </div>
-            {globalModuleChartData.length === 0 ? (
-              <EmptyState title="Aucun module note" message="Aucune note saisie dans les modules." icon="chart" />
-            ) : (
-              <div style={{ height: '270px' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={globalModuleChartData} layout="vertical" margin={{ left: 8, right: 18 }}>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(0,0,0,0.05)" />
-                    <XAxis type="number" domain={[0, 20]} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-                    <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 9, fontWeight: 700, fill: 'var(--text-primary)' }} axisLine={false} tickLine={false} />
-                    <Tooltip
-                      formatter={(value, name) => [name === 'moyenne' ? `${value}/20` : value, name === 'moyenne' ? 'Moyenne' : name]}
-                      labelFormatter={(_, payload) => {
-                        const row = payload?.[0]?.payload;
-                        return row ? `${row.fullName} Â· ${row.group}` : '';
-                      }}
-                      contentStyle={{ border: 'none', borderRadius: '12px', boxShadow: 'var(--shadow-md)' }}
-                    />
-                    <Bar dataKey="moyenne" fill="var(--primary)" radius={[0, 8, 8, 0]} barSize={15} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
-        </div>
-      </motion.section>
-
-      {/* KPI strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '12px' }}>
-        <KPICard
-          delay={0} label="Stagiaires" icon={Users}
-          iconBg="rgba(99,102,241,0.08)" color="#6366f1"
-          value={analytics.filteredStudentsCount}
-          sub={`${selectedMajor} · ${selectedYear}`}
-        />
-        <KPICard
-          delay={0.05} label="Moy. pondérée" icon={ChartLine}
-          iconBg={analytics.classAvg === null ? 'var(--bg-subtle)' : analytics.classAvg >= 10 ? 'rgba(22,163,74,0.08)' : 'rgba(220,38,38,0.07)'}
-          color={avgColor}
-          value={analytics.classAvg !== null ? analytics.classAvg.toFixed(2) + '/20' : '—'}
-          sub={analytics.classAvg !== null ? (analytics.classAvg >= 10 ? 'Classe admissible' : 'Classe en difficulté') : 'Aucune note saisie'}
-        />
-        <KPICard
-          delay={0.1} label="Meilleur module" icon={TrendingUp}
-          iconBg="rgba(22,163,74,0.08)" color="#16a34a"
-          value={analytics.bestModule ? analytics.bestModule.moyenne + '/20' : '—'}
-          sub={analytics.bestModule?.fullName || ''}
-        />
-        <KPICard
-          delay={0.15} label="Module à risque" icon={TrendingDown}
-          iconBg="rgba(220,38,38,0.07)" color="#dc2626"
-          value={analytics.worstModule ? analytics.worstModule.moyenne + '/20' : '—'}
-          sub={analytics.worstModule?.fullName || ''}
-        />
-      </div>
-
-      {/* Charts row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 'var(--space-5)' }}>
-
-        {/* Line: Module progression */}
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card" style={{ padding: 'var(--space-6)', minHeight: '360px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-5)' }}>
-            <div>
-              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: '800' }}>Progression du Module</h3>
-              <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{selectedModule || '—'} · C1 → EFC</p>
-            </div>
-            <div className="badge-status primary" style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px' }}>
-              <Users size={11} /> {analytics.filteredStudentsCount}
-            </div>
-          </div>
-          <div style={{ height: '270px' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={analytics.progressionData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: 'var(--text-faint)' }} dy={10} />
-                <YAxis domain={[0, 20]} axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 600, fill: 'var(--text-faint)' }} />
-                <Tooltip contentStyle={{ background: 'white', border: 'none', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-lg)' }} itemStyle={{ fontWeight: 800, color: 'var(--primary)' }} formatter={(v) => [v + '/20', 'Moyenne']} />
-                <Line type="monotone" dataKey="val" stroke="var(--primary)" strokeWidth={3} dot={{ r: 5, fill: 'var(--primary)', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 8 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </motion.div>
-
-        {/* Donut: Pass/fail */}
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="glass-card" style={{ padding: 'var(--space-6)', minHeight: '360px', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ marginBottom: 'var(--space-5)' }}>
-            <h3 style={{ fontSize: 'var(--text-base)', fontWeight: '800' }}>Admis / Non admis</h3>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Basé sur la moyenne pondérée</p>
-          </div>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            {analytics.filteredStudentsCount === 0 || (analytics.passCount + analytics.failCount) === 0 ? (
-              <div style={{ color: 'var(--text-faint)', fontSize: '12px', textAlign: 'center' }}>
-                <Award size={32} style={{ opacity: 0.2, marginBottom: '8px' }} />
-                <p>Aucune donnée disponible</p>
-              </div>
-            ) : (
-              <>
-                <div style={{ height: '220px', width: '100%' }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={analytics.donutData}
-                        cx="50%" cy="50%"
-                        innerRadius={62} outerRadius={88}
-                        paddingAngle={3}
-                        dataKey="value"
-                        startAngle={90} endAngle={-270}
-                      >
-                        {analytics.donutData.map((entry, i) => (
-                          <Cell key={i} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(v, name) => [v + ' stagiaire' + (v > 1 ? 's' : ''), name]} contentStyle={{ border: 'none', borderRadius: '12px', boxShadow: 'var(--shadow-md)' }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div style={{ display: 'flex', gap: '20px', marginTop: '4px' }}>
-                  {analytics.donutData.map((d, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <div style={{ width: '10px', height: '10px', borderRadius: '3px', background: d.color, flexShrink: 0 }} />
-                      <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)' }}>
-                        {d.name} — <span style={{ color: d.color }}>{d.value}</span>
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        </motion.div>
-
-        {/* Bar: Inter-module comparison */}
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass-card" style={{ padding: 'var(--space-6)', minHeight: '360px' }}>
-          <div style={{ marginBottom: 'var(--space-5)' }}>
-            <h3 style={{ fontSize: 'var(--text-base)', fontWeight: '800' }}>Comparatif Inter-Modules</h3>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Classement par moyenne finale (pondérée)</p>
-          </div>
-          <div style={{ height: '270px' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={analytics.globalModuleData.slice(0, 8)} layout="vertical" margin={{ left: 10 }}>
-                <XAxis type="number" domain={[0, 20]} hide />
-                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={110} tick={{ fontSize: 9.5, fontWeight: 700, fill: 'var(--text-primary)' }} />
-                <Tooltip cursor={{ fill: 'rgba(0,0,0,0.02)' }} contentStyle={{ border: 'none', borderRadius: '12px', boxShadow: 'var(--shadow-md)' }} formatter={(v, _, p) => [v + '/20', p.payload.fullName || '']} />
-                <Bar dataKey="moyenne" radius={[0, 8, 8, 0]} barSize={16}>
-                  {analytics.globalModuleData.slice(0, 8).map((entry, i) => (
-                    <Cell key={i} fill={parseFloat(entry.moyenne) >= 10 ? 'var(--primary)' : 'var(--danger)'} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </motion.div>
+        
       </div>
 
       {/* Student ranking table */}
@@ -1075,6 +788,115 @@ const Reports = () => {
           </table>
         )}
       </motion.div>
+
+      
+
+      {/* KPI strip */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '12px' }}>
+        <KPICard
+          delay={0} label="Stagiaires" icon={Users}
+          iconBg="rgba(99,102,241,0.08)" color="#6366f1"
+          value={analytics.filteredStudentsCount}
+          sub={`${selectedMajor} · ${selectedYear}`}
+        />
+        <KPICard
+          delay={0.05} label="Moy. pondérée" icon={ChartLine}
+          iconBg={analytics.classAvg === null ? 'var(--bg-subtle)' : analytics.classAvg >= 10 ? 'rgba(22,163,74,0.08)' : 'rgba(220,38,38,0.07)'}
+          color={avgColor}
+          value={analytics.classAvg !== null ? analytics.classAvg.toFixed(2) + '/20' : '—'}
+          sub={analytics.classAvg !== null ? (analytics.classAvg >= 10 ? 'Classe admissible' : 'Classe en difficulté') : 'Aucune note saisie'}
+        />
+        <KPICard
+          delay={0.1} label="Meilleur module" icon={TrendingUp}
+          iconBg="rgba(22,163,74,0.08)" color="#16a34a"
+          value={analytics.bestModule ? analytics.bestModule.moyenne + '/20' : '—'}
+          sub={analytics.bestModule?.fullName || ''}
+        />
+        <KPICard
+          delay={0.15} label="Module à risque" icon={TrendingDown}
+          iconBg="rgba(220,38,38,0.07)" color="#dc2626"
+          value={analytics.worstModule ? analytics.worstModule.moyenne + '/20' : '—'}
+          sub={analytics.worstModule?.fullName || ''}
+        />
+      </div>
+
+      {/* Charts row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 'var(--space-5)' }}>
+
+        
+
+        {/* Donut: Pass/fail */}
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="glass-card" style={{ padding: 'var(--space-6)', minHeight: '360px', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ marginBottom: 'var(--space-5)' }}>
+            <h3 style={{ fontSize: 'var(--text-base)', fontWeight: '800' }}>Admis / Non admis</h3>
+            <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Basé sur la moyenne pondérée</p>
+          </div>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            {analytics.filteredStudentsCount === 0 || (analytics.passCount + analytics.failCount) === 0 ? (
+              <div style={{ color: 'var(--text-faint)', fontSize: '12px', textAlign: 'center' }}>
+                <Award size={32} style={{ opacity: 0.2, marginBottom: '8px' }} />
+                <p>Aucune donnée disponible</p>
+              </div>
+            ) : (
+              <>
+                <div style={{ height: '220px', width: '100%' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={analytics.donutData}
+                        cx="50%" cy="50%"
+                        innerRadius={62} outerRadius={88}
+                        paddingAngle={3}
+                        dataKey="value"
+                        startAngle={90} endAngle={-270}
+                      >
+                        {analytics.donutData.map((entry, i) => (
+                          <Cell key={i} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v, name) => [v + ' stagiaire' + (v > 1 ? 's' : ''), name]} contentStyle={{ border: 'none', borderRadius: '12px', boxShadow: 'var(--shadow-md)' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div style={{ display: 'flex', gap: '20px', marginTop: '4px' }}>
+                  {analytics.donutData.map((d, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ width: '10px', height: '10px', borderRadius: '3px', background: d.color, flexShrink: 0 }} />
+                      <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                        {d.name} — <span style={{ color: d.color }}>{d.value}</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </motion.div>
+
+        {/* Bar: Inter-module comparison */}
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass-card" style={{ padding: 'var(--space-6)', minHeight: '360px' }}>
+          <div style={{ marginBottom: 'var(--space-5)' }}>
+            <h3 style={{ fontSize: 'var(--text-base)', fontWeight: '800' }}>Comparatif Inter-Modules</h3>
+            <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Classement par moyenne finale (pondérée)</p>
+          </div>
+          <div style={{ height: '270px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={analytics.globalModuleData.slice(0, 8)} layout="vertical" margin={{ left: 10 }}>
+                <XAxis type="number" domain={[0, 20]} hide />
+                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={110} tick={{ fontSize: 9.5, fontWeight: 700, fill: 'var(--text-primary)' }} />
+                <Tooltip cursor={{ fill: 'rgba(0,0,0,0.02)' }} contentStyle={{ border: 'none', borderRadius: '12px', boxShadow: 'var(--shadow-md)' }} formatter={(v, _, p) => [v + '/20', p.payload.fullName || '']} />
+                <Bar dataKey="moyenne" radius={[0, 8, 8, 0]} barSize={16}>
+                  {analytics.globalModuleData.slice(0, 8).map((entry, i) => (
+                    <Cell key={i} fill={parseFloat(entry.moyenne) >= 10 ? 'var(--primary)' : 'var(--danger)'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </motion.div>
+      </div>
+
+      
     </div>
   );
 };

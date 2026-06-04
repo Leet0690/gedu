@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { FILIERES } from '../data/modules';
+import { FilterSelect } from '../components/ui/FilterSelect';
 import {
   CalendarRange, Download, Search, Filter,
   CheckCircle2, XCircle, Clock, Users, ChevronLeft, ChevronRight
@@ -152,34 +153,50 @@ const MonthlyAttendance = () => {
             <label style={labelStyle}>Mois</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <button onClick={prevMonth} className="action-btn" style={{ flexShrink: 0 }}><ChevronLeft size={16} /></button>
-              <select className="input-premium" style={{ flex: 1, textAlign: 'center' }} value={month} onChange={e => setMonth(Number(e.target.value))}>
-                {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
-              </select>
+              <FilterSelect
+                value={month}
+                onChange={(val) => setMonth(Number(val))}
+                options={MONTHS.map((m, i) => ({ label: m, value: i }))}
+                style={{ flex: 1, textAlign: 'center' }}
+              />
               <button onClick={nextMonth} className="action-btn" style={{ flexShrink: 0 }}><ChevronRight size={16} /></button>
             </div>
           </div>
 
           <div>
             <label style={labelStyle}>Année</label>
-            <select className="input-premium" style={{ width: '100%' }} value={year} onChange={e => setYear(Number(e.target.value))}>
-              {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
+            <FilterSelect
+              value={year}
+              onChange={(val) => setYear(Number(val))}
+              options={availableYears.map(y => ({ label: String(y), value: y }))}
+              style={{ width: '100%' }}
+            />
           </div>
 
           <div>
             <label style={labelStyle}>Filière</label>
-            <select className="input-premium" style={{ width: '100%' }} value={filterFiliere} onChange={e => setFilterFiliere(e.target.value)}>
-              <option value="">Toutes les filières</option>
-              {allFilieres.map(f => <option key={f} value={f}>{f}</option>)}
-            </select>
+            <FilterSelect
+              value={filterFiliere}
+              onChange={(val) => setFilterFiliere(val)}
+              options={[
+                { label: "Toutes les filières", value: "" },
+                ...allFilieres.map(f => ({ label: f, value: f }))
+              ]}
+              style={{ width: '100%' }}
+            />
           </div>
 
           <div>
             <label style={labelStyle}>Année d'étude</label>
-            <select className="input-premium" style={{ width: '100%' }} value={filterAnnee} onChange={e => setFilterAnnee(e.target.value)}>
-              <option value="">Toutes années</option>
-              {allAnnees.map(a => <option key={a} value={a}>{a}</option>)}
-            </select>
+            <FilterSelect
+              value={filterAnnee}
+              onChange={(val) => setFilterAnnee(val)}
+              options={[
+                { label: "Toutes années", value: "" },
+                ...allAnnees.map(a => ({ label: a, value: a }))
+              ]}
+              style={{ width: '100%' }}
+            />
           </div>
 
           <div>

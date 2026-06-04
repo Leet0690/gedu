@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { FilterSelect } from '../components/ui/FilterSelect';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { FILIERES, MODULES_DATA, getModulesForFiliere } from '../data/modules';
@@ -182,25 +183,19 @@ const ScheduleManagement = () => {
       <div className="glass-card" style={{ padding: '16px 20px', marginBottom: 'var(--space-5)', display: 'flex', alignItems: 'end', gap: '12px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 260px' }}>
           <label style={labelStyle}>Filière</label>
-          <select
-            className="input-premium"
-            style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }}
+          <FilterSelect
             value={filiere}
-            onChange={e => setFiliere(e.target.value)}
-          >
-            {allFilieres.map(f => <option key={f} value={f}>{f}</option>)}
-          </select>
+            onChange={val => setFiliere(val)}
+            options={allFilieres.map(f => ({ label: f, value: f }))}
+          />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '0 1 180px' }}>
           <label style={labelStyle}>Année</label>
-          <select
-            className="input-premium"
-            style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }}
+          <FilterSelect
             value={annee}
-            onChange={e => setAnnee(e.target.value)}
-          >
-            {allAnnees.map(a => <option key={a} value={a}>{a}</option>)}
-          </select>
+            onChange={val => setAnnee(val)}
+            options={allAnnees.map(a => ({ label: a, value: a }))}
+          />
         </div>
         <div style={{
           display: 'inline-flex',
@@ -508,9 +503,13 @@ const ScheduleManagement = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                   <div>
                     <label style={labelStyle}>Jour</label>
-                    <select className="input-premium" style={{ width: '100%', marginTop: '6px' }} value={formData.day} onChange={e => setFormData({ ...formData, day: e.target.value })}>
-                      {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
-                    </select>
+                    <div style={{ marginTop: '6px' }}>
+                      <FilterSelect
+                        value={formData.day}
+                        onChange={val => setFormData({ ...formData, day: val })}
+                        options={DAYS.map(d => ({ label: d, value: d }))}
+                      />
+                    </div>
                   </div>
                   <div>
                     <label style={labelStyle}>Horaire</label>
@@ -547,64 +546,79 @@ const ScheduleManagement = () => {
 
                 <div>
                   <label style={labelStyle}>Intervenant</label>
-                  <select
-                    className="input-premium" style={{ width: '100%', marginTop: '6px' }} required
-                    value={formData.teacherId}
-                    onChange={e => {
-                      const teacher = teachers.find(t => t.id === e.target.value);
-                      const teacherSubjects = (teacher?.subjects || [teacher?.subject]).filter(Boolean);
-                      const nextModuleS1 = teacherSubjects.find(subject => modulesBySemester.S1.includes(subject)) || '';
-                      const nextModuleS2 = teacherSubjects.find(subject => modulesBySemester.S2.includes(subject)) || '';
-                      setFormData({ ...formData, teacherId: e.target.value, module: nextModuleS1, moduleS1: nextModuleS1, moduleS2: nextModuleS2 });
-                    }}
-                  >
-                    <option value="">Sélectionner un formateur...</option>
+                  <div style={{ marginTop: '6px' }}>
                     {(() => {
                       const filtered = teachers.filter(t =>
                         (t.groups || []).includes(filiere) && (t.years || []).includes(annee)
                       );
-                      if (filtered.length === 0) return <option disabled>Aucun formateur assigné à cette filière/année</option>;
-                      return filtered.map(t => <option key={t.id} value={t.id}>{t.name}</option>);
+                      const options = [
+                        { label: "Sélectionner un formateur...", value: "" },
+                        ...filtered.map(t => ({ label: t.name, value: t.id }))
+                      ];
+                      
+                      return (
+                        <FilterSelect
+                          value={formData.teacherId}
+                          onChange={val => {
+                            const teacher = teachers.find(t => t.id === val);
+                            const teacherSubjects = (teacher?.subjects || [teacher?.subject]).filter(Boolean);
+                            const nextModuleS1 = teacherSubjects.find(subject => modulesBySemester.S1.includes(subject)) || '';
+                            const nextModuleS2 = teacherSubjects.find(subject => modulesBySemester.S2.includes(subject)) || '';
+                            setFormData({ ...formData, teacherId: val, module: nextModuleS1, moduleS1: nextModuleS1, moduleS2: nextModuleS2 });
+                          }}
+                          options={filtered.length > 0 ? options : [{ label: "Aucun formateur assigné à cette filière/année", value: "" }]}
+                        />
+                      );
                     })()}
-                  </select>
+                  </div>
                 </div>
 
                 <div>
                   <label style={labelStyle}>Module S1 / Même horaire</label>
-                  <select
-                    className="input-premium" style={{ width: '100%', marginTop: '6px' }} required
-                    value={formData.moduleS1}
-                    onChange={e => setFormData({ ...formData, module: e.target.value, moduleS1: e.target.value })}
-                  >
-                    <option value="">Sélectionner un module...</option>
+                  <div style={{ marginTop: '6px' }}>
                     {(() => {
                       const teacher = teachers.find(t => t.id === formData.teacherId);
-                      if (!teacher) return <option disabled>Veuillez sélectionner un formateur d'abord</option>;
+                      if (!teacher) return <FilterSelect value="" onChange={()=>{}} options={[{label: "Veuillez sélectionner un formateur d'abord", value: ""}]} />;
                       const teacherModules = teacher.subjects || (teacher.subject ? [teacher.subject] : []);
                       const filtered = (modulesBySemester.S1 || []).filter(m => teacherModules.includes(m));
-                      if (filtered.length === 0) return <option disabled>Aucun module commun disponible pour S1</option>;
-                      return filtered.map(m => <option key={m} value={m}>{m}</option>);
+                      if (filtered.length === 0) return <FilterSelect value="" onChange={()=>{}} options={[{label: "Aucun module commun disponible pour S1", value: ""}]} />;
+                      
+                      return (
+                        <FilterSelect
+                          value={formData.moduleS1}
+                          onChange={val => setFormData({ ...formData, module: val, moduleS1: val })}
+                          options={[
+                            { label: "Sélectionner un module...", value: "" },
+                            ...filtered.map(m => ({ label: m, value: m }))
+                          ]}
+                        />
+                      );
                     })()}
-                  </select>
+                  </div>
                 </div>
 
                 <div>
                   <label style={labelStyle}>Module S2 / Même horaire</label>
-                  <select
-                    className="input-premium" style={{ width: '100%', marginTop: '6px' }}
-                    value={formData.moduleS2}
-                    onChange={e => setFormData({ ...formData, moduleS2: e.target.value })}
-                  >
-                    <option value="">Aucun module S2</option>
+                  <div style={{ marginTop: '6px' }}>
                     {(() => {
                       const teacher = teachers.find(t => t.id === formData.teacherId);
-                      if (!teacher) return <option disabled>Veuillez sélectionner un formateur d'abord</option>;
+                      if (!teacher) return <FilterSelect value="" onChange={()=>{}} options={[{label: "Veuillez sélectionner un formateur d'abord", value: ""}]} />;
                       const teacherModules = teacher.subjects || (teacher.subject ? [teacher.subject] : []);
                       const filtered = (modulesBySemester.S2 || []).filter(m => teacherModules.includes(m));
-                      if (filtered.length === 0) return <option disabled>Aucun module commun disponible pour S2</option>;
-                      return filtered.map(m => <option key={m} value={m}>{m}</option>);
+                      if (filtered.length === 0) return <FilterSelect value="" onChange={()=>{}} options={[{label: "Aucun module commun disponible pour S2", value: ""}]} />;
+                      
+                      return (
+                        <FilterSelect
+                          value={formData.moduleS2}
+                          onChange={val => setFormData({ ...formData, moduleS2: val })}
+                          options={[
+                            { label: "Aucun module S2", value: "" },
+                            ...filtered.map(m => ({ label: m, value: m }))
+                          ]}
+                        />
+                      );
                     })()}
-                  </select>
+                  </div>
                 </div>
 
                 <div>

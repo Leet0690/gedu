@@ -29,6 +29,7 @@ import {
   RefreshCw,
   Heart
 } from 'lucide-react';
+import { FilterSelect } from '../components/ui/FilterSelect';
 
 const APP_VERSION = '2.5.0';
 const VERSION_KEY = 'ipfp_app_version';
@@ -721,10 +722,18 @@ const TeacherPortal = () => {
           )}
 
           <div style={{ minWidth: '240px' }}>
-            <select className="input-premium" style={{ width: '100%', background: 'white' }} value={selectedSessionId} onChange={(e) => setSelectedSessionId(e.target.value)}>
-              <option value="">-- Choisir la séance --</option>
-              {todaysSessions.map(s => <option key={s.id} value={s.id}>{s.time} - {getGroupAbbreviation(s.filiere, s.annee)} - {s.displayModule || s.module}</option>)}
-            </select>
+            <FilterSelect
+              value={selectedSessionId}
+              onChange={setSelectedSessionId}
+              options={[
+                { label: "-- Choisir la séance --", value: "" },
+                ...todaysSessions.map(s => ({
+                  label: `${s.time} - ${getGroupAbbreviation(s.filiere, s.annee)} - ${s.displayModule || s.module}`,
+                  value: s.id
+                }))
+              ]}
+              style={{ width: '100%', background: 'white' }}
+            />
           </div>
         </motion.div>
       )}
@@ -793,10 +802,10 @@ const TeacherPortal = () => {
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
           className="glass-card" style={{ padding: 'var(--space-5)', marginBottom: 'var(--space-6)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-4)' }}>
-            <div style={fGroup}><label style={lbl}>Niveau</label><select className="input-premium" value={selectedDiploma} onChange={(e) => setSelectedDiploma(e.target.value)}>{availableDiplomas.map(d => <option key={d} value={d}>{d}</option>)}</select></div>
-            <div style={fGroup}><label style={lbl}>Année</label><select className="input-premium" value={filterYear} onChange={(e) => setFilterYear(e.target.value)}>{availableYears.map(y => <option key={y} value={y}>{y}</option>)}</select></div>
-            <div style={fGroup}><label style={lbl}>Filière</label><select className="input-premium" value={selectedGroup} onChange={(e) => setSelectedGroup(e.target.value)}>{filteredGroups.map(g => <option key={g} value={g}>{g}</option>)}</select></div>
-            <div style={fGroup}><label style={lbl}>Module</label><select className="input-premium" value={selectedSubject} onChange={(e) => setSelectedSubject(e.target.value)}>{filteredSubjects.map(sub => <option key={sub} value={sub}>{sub}</option>)}</select></div>
+            <div style={fGroup}><label style={lbl}>Niveau</label><FilterSelect value={selectedDiploma} onChange={setSelectedDiploma} options={availableDiplomas.map(d => ({ label: d, value: d }))} /></div>
+            <div style={fGroup}><label style={lbl}>Année</label><FilterSelect value={filterYear} onChange={setFilterYear} options={availableYears.map(y => ({ label: y, value: y }))} /></div>
+            <div style={fGroup}><label style={lbl}>Filière</label><FilterSelect value={selectedGroup} onChange={setSelectedGroup} options={filteredGroups.map(g => ({ label: g, value: g }))} /></div>
+            <div style={fGroup}><label style={lbl}>Module</label><FilterSelect value={selectedSubject} onChange={setSelectedSubject} options={filteredSubjects.map(sub => ({ label: sub, value: sub }))} /></div>
           </div>
         </motion.div>
       )}

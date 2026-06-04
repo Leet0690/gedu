@@ -10,6 +10,7 @@ import {
   CheckCircle2, XCircle, FileSpreadsheet, GraduationCap,
   CalendarRange, ChevronLeft, ChevronRight
 } from 'lucide-react';
+import { FilterSelect } from '../components/ui/FilterSelect';
 
 /* ─── Helpers & Monthly-view helpers ─── */
 const calcDuration = (timeStr) => {
@@ -459,16 +460,22 @@ const TeacherAttendance = () => {
               <div>
                 <label style={labelStyle}>Mois</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <select className="input-premium" style={{ width: '100%', textAlign: 'center', fontWeight: '700' }} value={mMonth} onChange={e => setMMonth(Number(e.target.value))}>
-                    {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
-                  </select>
+                  <FilterSelect
+                    value={mMonth}
+                    onChange={(val) => setMMonth(Number(val))}
+                    options={MONTHS.map((m, i) => ({ label: m, value: i }))}
+                    style={{ width: '100%', textAlign: 'center', fontWeight: '700' }}
+                  />
                 </div>
               </div>
               <div>
                 <label style={labelStyle}>Année</label>
-                <select className="input-premium" style={{ width: '100%' }} value={mYear} onChange={e => setMYear(Number(e.target.value))}>
-                  {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
+                <FilterSelect
+                  value={mYear}
+                  onChange={(val) => setMYear(Number(val))}
+                  options={availableYears.map(y => ({ label: String(y), value: y }))}
+                  style={{ width: '100%' }}
+                />
               </div>
               <div>
                 <label style={labelStyle}>Rechercher</label>

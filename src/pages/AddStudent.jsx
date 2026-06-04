@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { FilterSelect } from '../components/ui/FilterSelect';
 import { FILIERES } from '../data/modules';
 import { 
   ArrowLeft, 
@@ -89,18 +90,11 @@ const AddStudent = () => {
             <div className="form-grid">
               <div className="field-group">
                 <label className="field-label">Niveau de formation</label>
-                <select required className="input-premium" value={formData.diploma} onChange={(e) => setFormData({...formData, diploma: e.target.value, major: ''})}>
-                  <option value="">Sélectionner...</option>
-                  {allDiplomas.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
+                <FilterSelect className="input-premium" value={formData.diploma} onChange={val => setFormData({...formData, diploma: val, major: ''})} placeholder="Sélectionner..." options={[{ value: '', label: 'Sélectionner...' }, ...allDiplomas.map(d => ({ value: d, label: d }))]} />
               </div>
               <div className="field-group">
                 <label className="field-label">Année d'étude</label>
-                <select required className="input-premium" value={formData.year} onChange={(e) => setFormData({...formData, year: e.target.value})}>
-                  <option value="">Sélectionner...</option>
-                  <option value="1ère année">1ère année</option>
-                  <option value="2ème année">2ème année</option>
-                </select>
+                <FilterSelect className="input-premium" value={formData.year} onChange={val => setFormData({...formData, year: val})} placeholder="Sélectionner..." options={[{ value: '', label: 'Sélectionner...' }, { value: '1ère année', label: '1ère année' }, { value: '2ème année', label: '2ème année' }]} />
               </div>
             </div>
 
@@ -108,10 +102,7 @@ const AddStudent = () => {
               <label className="field-label">Filière spécifique</label>
               <div className="input-with-icon">
                 <Layers size={14} className="field-icon" />
-                <select required className="input-premium" style={{ width: '100%', paddingLeft: '34px' }} value={formData.major} onChange={(e) => setFormData({...formData, major: e.target.value})} disabled={!formData.diploma}>
-                  <option value="">{formData.diploma ? 'Choisir la filière' : 'Veuillez choisir un niveau'}</option>
-                  {availableFilieres.map(f => <option key={f} value={f}>{f}</option>)}
-                </select>
+                <FilterSelect className="input-premium" style={{ width: '100%', paddingLeft: '34px' }} value={formData.major} onChange={val => setFormData({...formData, major: val})} disabled={!formData.diploma} placeholder={formData.diploma ? 'Choisir la filière' : 'Veuillez choisir un niveau'} options={[{ value: '', label: formData.diploma ? 'Choisir la filière' : 'Veuillez choisir un niveau' }, ...availableFilieres.map(f => ({ value: f, label: f }))]} />
               </div>
             </div>
 

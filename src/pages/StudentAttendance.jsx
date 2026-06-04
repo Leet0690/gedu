@@ -5,6 +5,7 @@ import { useToast } from '../context/ToastContext';
 import { FILIERES, getModulesForFiliere } from '../data/modules';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
+import { FilterSelect } from '../components/ui/FilterSelect';
 import {
   UserCheck, FileSpreadsheet, Search, CheckCircle2,
   XCircle, X, Clock, Users, Filter, Download, CalendarRange,
@@ -518,43 +519,63 @@ const StudentAttendance = () => {
       {view === 'daily' && (
         <>
           <div className="glass-card" style={{ padding: 'var(--space-5)', marginBottom: 'var(--space-6)' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'var(--space-4)' }}>
-              <div style={filterGroupStyle}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
+              <div style={{ ...filterGroupStyle, flex: '1 1 220px', maxWidth: '300px' }}>
                 <label style={labelStyle}>Date de l'appel</label>
                 <div style={{ position: 'relative' }}>
                   <Calendar size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)', pointerEvents: 'none' }} />
                   <input type="date" className="input-premium" style={{ width: '100%', paddingLeft: '34px' }} value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }} />
                 </div>
               </div>
-              <div style={filterGroupStyle}>
+              <div style={{ ...filterGroupStyle, flex: '1 1 160px', maxWidth: '240px' }}>
                 <label style={labelStyle}>Niveau</label>
-                <select className="input-premium" style={{ width: '100%' }} value={filterDiploma} onChange={(e) => { setFilterDiploma(e.target.value); setFilterMajor(''); setFilterModule(''); }}>
-                  <option value="" disabled>Choisir niveau</option>
-                  {Object.keys(FILIERES).map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
+                <FilterSelect
+                  value={filterDiploma}
+                  onChange={(val) => { setFilterDiploma(val); setFilterMajor(''); setFilterModule(''); }}
+                  options={[
+                    { label: "Choisir niveau", value: "" },
+                    ...Object.keys(FILIERES).map(d => ({ label: d, value: d }))
+                  ]}
+                  style={{ width: '100%' }}
+                />
               </div>
-              <div style={filterGroupStyle}>
+              <div style={{ ...filterGroupStyle, flex: '1 1 160px', maxWidth: '240px' }}>
                 <label style={labelStyle}>Filière</label>
-                <select className="input-premium" style={{ width: '100%' }} value={filterMajor} onChange={(e) => { setFilterMajor(e.target.value); setFilterModule(''); }}>
-                  <option value="" disabled>Choisir filière</option>
-                  {availableMajors.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
+                <FilterSelect
+                  value={filterMajor}
+                  onChange={(val) => { setFilterMajor(val); setFilterModule(''); }}
+                  options={[
+                    { label: "Choisir filière", value: "" },
+                    ...availableMajors.map(m => ({ label: m, value: m }))
+                  ]}
+                  style={{ width: '100%' }}
+                />
               </div>
-              <div style={filterGroupStyle}>
+              <div style={{ ...filterGroupStyle, flex: '1 1 100px', maxWidth: '150px' }}>
                 <label style={labelStyle}>Année</label>
-                <select className="input-premium" style={{ width: '100%' }} value={filterYear} onChange={(e) => { setFilterYear(e.target.value); setFilterModule(''); }}>
-                  <option value="" disabled>Année</option>
-                  <option value="1ère année">1ère année</option>
-                  <option value="2ème année">2ème année</option>
-                </select>
+                <FilterSelect
+                  value={filterYear}
+                  onChange={(val) => { setFilterYear(val); setFilterModule(''); }}
+                  options={[
+                    { label: "Année", value: "" },
+                    { label: "1ère année", value: "1ère année" },
+                    { label: "2ème année", value: "2ème année" }
+                  ]}
+                  style={{ width: '100%' }}
+                />
               </div>
-              <div style={filterGroupStyle}>
+              <div style={{ ...filterGroupStyle, flex: '1 1 160px', maxWidth: '240px' }}>
                 <label style={labelStyle}>Module</label>
-                <select className="input-premium" style={{ width: '100%' }} value={filterModule} onChange={(e) => setFilterModule(e.target.value)}>
-                  <option value="">Module requis</option>
-                  {availableModules.map(m => <option key={m} value={m}>{m}</option>)}
-                  {availableModules.length === 0 && <option value="global">Général</option>}
-                </select>
+                <FilterSelect
+                  value={filterModule}
+                  onChange={(val) => setFilterModule(val)}
+                  options={[
+                    { label: "Module requis", value: "" },
+                    ...availableModules.map(m => ({ label: m, value: m })),
+                    ...(availableModules.length === 0 ? [{ label: "Général", value: "global" }] : [])
+                  ]}
+                  style={{ width: '100%' }}
+                />
               </div>
             </div>
           </div>
@@ -684,37 +705,53 @@ const StudentAttendance = () => {
         <>
           {/* Monthly filters */}
           <div className="glass-card" style={{ padding: '20px', marginBottom: 'var(--space-5)' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', alignItems: 'end' }}>
-              <div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'end' }}>
+              <div style={{ flex: '1.2', minWidth: '160px' }}>
                 <label style={labelStyle}>Mois</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <select className="input-premium" style={{ width: '100%', textAlign: 'center', fontWeight: '700' }} value={mMonth} onChange={e => setMMonth(Number(e.target.value))}>
-                    {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
-                  </select>
+                  <FilterSelect
+                    value={mMonth}
+                    onChange={(val) => setMMonth(Number(val))}
+                    options={MONTHS.map((m, i) => ({ label: m, value: i }))}
+                    style={{ width: '100%', textAlign: 'center', fontWeight: '700' }}
+                  />
                 </div>
               </div>
-              <div>
+              <div style={{ flex: '0.8', minWidth: '110px' }}>
                 <label style={labelStyle}>Année</label>
-                <select className="input-premium" style={{ width: '100%' }} value={mYear} onChange={e => setMYear(Number(e.target.value))}>
-                  {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
+                <FilterSelect
+                  value={mYear}
+                  onChange={(val) => setMYear(Number(val))}
+                  options={availableYears.map(y => ({ label: String(y), value: y }))}
+                  style={{ width: '100%' }}
+                />
               </div>
-              <div>
+              <div style={{ flex: '1.2', minWidth: '160px' }}>
                 <label style={labelStyle}>Filière</label>
-                <select className="input-premium" style={{ width: '100%' }} value={mFilterFiliere} onChange={e => setMFilterFiliere(e.target.value)}>
-                  <option value="">Toutes les filières</option>
-                  {allFilieres.map(f => <option key={f} value={f}>{f}</option>)}
-                </select>
+                <FilterSelect
+                  value={mFilterFiliere}
+                  onChange={(val) => setMFilterFiliere(val)}
+                  options={[
+                    { label: "Toutes les filières", value: "" },
+                    ...allFilieres.map(f => ({ label: f, value: f }))
+                  ]}
+                  style={{ width: '100%' }}
+                />
               </div>
-              <div>
+              <div style={{ flex: '0.8', minWidth: '110px' }}>
                 <label style={labelStyle}>Année d'étude</label>
-                <select className="input-premium" style={{ width: '100%' }} value={mFilterAnnee} onChange={e => setMFilterAnnee(e.target.value)}>
-                  <option value="">Toutes années</option>
-                  <option value="1ère année">1ère année</option>
-                  <option value="2ème année">2ème année</option>
-                </select>
+                <FilterSelect
+                  value={mFilterAnnee}
+                  onChange={(val) => setMFilterAnnee(val)}
+                  options={[
+                    { label: "Toutes années", value: "" },
+                    { label: "1ère année", value: "1ère année" },
+                    { label: "2ème année", value: "2ème année" }
+                  ]}
+                  style={{ width: '100%' }}
+                />
               </div>
-              <div>
+              <div style={{ flex: '1.5', minWidth: '200px' }}>
                 <label style={labelStyle}>Rechercher</label>
                 <div style={{ position: 'relative' }}>
                   <Search size={13} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)' }} />
