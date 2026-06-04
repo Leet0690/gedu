@@ -252,6 +252,7 @@ const FinanceDashboard = () => {
   const [teacherSearchTerm, setTeacherSearchTerm] = useState('');
   const [salaryStatusFilter, setSalaryStatusFilter] = useState('');
   const [dailyStatsDate, setDailyStatsDate] = useState('');
+  const [dailyStatsEndDate, setDailyStatsEndDate] = useState('');
   const [editingTeacherId, setEditingTeacherId] = useState(null);
   
   const [paymentsPage, setPaymentsPage] = useState(1);
@@ -812,27 +813,38 @@ const FinanceDashboard = () => {
     const days = new Map();
     const addDailyAmount = (date, key, amount) => {
       const day = date || 'Sans date';
-      const current = days.get(day) || { date: day, salaries: 0, otherExpenses: 0, total: 0 };
+      const current = days.get(day) || { date: day, salaries: 0, otherExpenses: 0, payments: 0 };
       current[key] += amount;
-      current.total += amount;
       days.set(day, current);
     };
 
     salaries.forEach(s => addDailyAmount(s.date, 'salaries', parseFloat(s.amount) || 0));
     (expenses || []).forEach(e => addDailyAmount(e.date, 'otherExpenses', parseFloat(e.amount) || 0));
+    payments.forEach(p => addDailyAmount(p.date, 'payments', getPaymentTotal(p)));
 
     return Array.from(days.values())
+      .map(day => {
+        day.charges = day.salaries + day.otherExpenses;
+        day.bilan = day.payments - day.charges;
+        return day;
+      })
       .sort((a, b) => {
         if (a.date === 'Sans date') return 1;
         if (b.date === 'Sans date') return -1;
         return b.date.localeCompare(a.date);
       });
-  }, [salaries, expenses]);
+  }, [salaries, expenses, payments]);
 
   const dailyExpenseStats = useMemo(() => {
-    if (!dailyStatsDate) return allDailyExpenseStats;
-    return allDailyExpenseStats.filter(day => day.date === dailyStatsDate);
-  }, [allDailyExpenseStats, dailyStatsDate]);
+    let filtered = allDailyExpenseStats;
+    if (dailyStatsDate) {
+      filtered = filtered.filter(day => day.date >= dailyStatsDate);
+    }
+    if (dailyStatsEndDate) {
+      filtered = filtered.filter(day => day.date <= dailyStatsEndDate);
+    }
+    return filtered;
+  }, [allDailyExpenseStats, dailyStatsDate, dailyStatsEndDate]);
 
   const paginatedDailyExpenseStats = useMemo(() => {
     return dailyExpenseStats.slice((dailyStatsPage - 1) * dailyStatsPerPage, dailyStatsPage * dailyStatsPerPage);
@@ -1658,37 +1670,65 @@ const FinanceDashboard = () => {
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <div style={{ position: 'relative' }}>
-                  <Calendar size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)', pointerEvents: 'none' }} />
-                  <input
-                    type="date"
-                    className="input-premium"
-                    value={dailyStatsDate}
-                    onChange={(e) => {
-                      setDailyStatsDate(e.target.value);
-                      setDailyStatsPage(1);
-                    }}
-                    onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }}
-                    style={{ minWidth: '160px', paddingLeft: '34px' }}
-                  />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ position: 'relative' }}>
+                    <Calendar size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)', pointerEvents: 'none' }} />
+                    <input
+                      type="date"
+                      className="input-premium"
+                      value={dailyStatsDate}
+                      onChange={(e) => {
+                        setDailyStatsDate(e.target.value);
+                        setDailyStatsPage(1);
+                      }}
+                      onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }}
+                      style={{ width: '140px', paddingLeft: '34px' }}
+                      title="Date de début"
+                    />
+                  </div>
+                  <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-muted)' }}>au</span>
+                  <div style={{ position: 'relative' }}>
+                    <Calendar size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)', pointerEvents: 'none' }} />
+                    <input
+                      type="date"
+                      className="input-premium"
+                      value={dailyStatsEndDate}
+                      onChange={(e) => {
+                        setDailyStatsEndDate(e.target.value);
+                        setDailyStatsPage(1);
+                      }}
+                      onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }}
+                      style={{ width: '140px', paddingLeft: '34px' }}
+                      title="Date de fin"
+                    />
+                  </div>
                 </div>
-                {dailyStatsDate && (
+                {(dailyStatsDate || dailyStatsEndDate) && (
                   <button
-                    className="action-btn"
-                    title="Afficher les derniers jours"
                     onClick={() => {
                       setDailyStatsDate('');
+                      setDailyStatsEndDate('');
                       setDailyStatsPage(1);
                     }}
                     style={{
-                      width: '36px',
-                      height: '36px',
                       display: 'inline-flex',
                       alignItems: 'center',
-                      justifyContent: 'center'
+                      gap: '6px',
+                      padding: '0 12px',
+                      height: '36px',
+                      background: 'var(--bg-subtle)',
+                      color: 'var(--text-secondary)',
+                      borderRadius: 'var(--radius-lg)',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
                     }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
                   >
-                    <X size={14} />
+                    <X size={14} /> Réinitialiser
                   </button>
                 )}
                 <span className="badge-status pending">
@@ -1698,28 +1738,23 @@ const FinanceDashboard = () => {
             </div>
 
             {dailyExpenseStats.length === 0 ? (
-              <EmptyState title="Aucune dépense" message={dailyStatsDate ? "Aucune charge ou salaire versé pour ce jour." : "Aucune charge ou salaire versé à analyser."} icon="file" />
+              <EmptyState title="Aucune opération" message={(dailyStatsDate || dailyStatsEndDate) ? "Aucune opération (revenu ou charge) pour cette période." : "Aucune opération à analyser."} icon="file" />
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 1.2fr) repeat(3, minmax(110px, 1fr))', gap: '12px', paddingBottom: '10px', borderBottom: '1px solid var(--border-light)', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(100px, 1.2fr) repeat(4, minmax(80px, 1fr))', gap: '8px', paddingBottom: '10px', borderBottom: '1px solid var(--border-light)', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   <span>Date</span>
+                  <span>Revenus</span>
                   <span>Salaires</span>
-                  <span>Autres charges</span>
-                  <span>Total</span>
+                  <span>Charges</span>
+                  <span>Bilan</span>
                 </div>
                 {paginatedDailyExpenseStats.map(day => (
-                  <div key={day.date} style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 1.2fr) repeat(3, minmax(110px, 1fr))', gap: '12px', alignItems: 'center', padding: '14px 0', borderBottom: '1px solid var(--border-light)' }}>
-                    <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>{formatDisplayDate(day.date)}</span>
-                    <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--danger)' }}>{day.salaries.toLocaleString()} DH</span>
-                    <span style={{ fontSize: '13px', fontWeight: '800', color: '#ea580c' }}>{day.otherExpenses.toLocaleString()} DH</span>
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginBottom: '6px' }}>
-                        <span style={{ fontSize: '13px', fontWeight: '900', color: 'var(--text-primary)' }}>{day.total.toLocaleString()} DH</span>
-                      </div>
-                      <div style={{ width: '100%', height: '8px', background: 'var(--bg-subtle)', borderRadius: '999px', overflow: 'hidden' }}>
-                        <div style={{ width: `${maxDailyExpense ? (day.total / maxDailyExpense) * 100 : 0}%`, height: '100%', background: 'var(--danger)' }} />
-                      </div>
-                    </div>
+                  <div key={day.date} style={{ display: 'grid', gridTemplateColumns: 'minmax(100px, 1.2fr) repeat(4, minmax(80px, 1fr))', gap: '8px', alignItems: 'center', padding: '14px 0', borderBottom: '1px solid var(--border-light)' }}>
+                    <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-primary)' }}>{formatDisplayDate(day.date)}</span>
+                    <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--success)' }}>{day.payments.toLocaleString()} DH</span>
+                    <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--danger)' }}>{day.salaries.toLocaleString()} DH</span>
+                    <span style={{ fontSize: '12px', fontWeight: '800', color: '#ea580c' }}>{day.otherExpenses.toLocaleString()} DH</span>
+                    <span style={{ fontSize: '13px', fontWeight: '900', color: day.bilan >= 0 ? 'var(--success)' : 'var(--danger)' }}>{day.bilan > 0 ? '+' : ''}{day.bilan.toLocaleString()} DH</span>
                   </div>
                 ))}
               </div>
