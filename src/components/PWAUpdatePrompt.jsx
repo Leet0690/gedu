@@ -99,7 +99,7 @@ const PWAUpdatePrompt = () => {
             role="status"
             aria-live="polite"
             style={{
-              background: 'var(--bg-card)',
+              background: '#ffffff',
               border: '1px solid rgba(176,104,185,0.3)',
               borderRadius: '24px',
               boxShadow: '0 25px 60px rgba(0,0,0,0.35)',
@@ -157,7 +157,7 @@ const PWAUpdatePrompt = () => {
               <h2 style={{
                 fontSize: '22px',
                 fontWeight: '800',
-                color: 'var(--text-primary)',
+                color: '#111827',
                 margin: '0 0 10px 0',
                 letterSpacing: '-0.01em',
               }}>
@@ -165,7 +165,7 @@ const PWAUpdatePrompt = () => {
               </h2>
               <p style={{
                 fontSize: '14px',
-                color: 'var(--text-secondary)',
+                color: '#4b5563',
                 lineHeight: '1.5',
                 margin: 0,
               }}>
