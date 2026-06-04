@@ -389,11 +389,35 @@ export const AppProvider = ({ children }) => {
 
           if (studentDoc && isMounted) {
             const studentData = studentDoc.data();
-            setStudents([{ id: studentDoc.id, ...studentData }]);
-            const gradeSnap = await getDoc(doc(db, 'grades', studentDoc.id));
-            if (gradeSnap.exists()) {
-              setGrades({ [studentDoc.id]: gradeSnap.data() });
+            const currentStudent = { id: studentDoc.id, ...studentData };
+            let portalStudents = [currentStudent];
+
+            if (studentData.major) {
+              const classSnap = await getDocs(query(collection(db, 'students'), where('major', '==', studentData.major)));
+              portalStudents = classSnap.docs
+                .map(d => ({ id: d.id, ...d.data() }))
+                .filter(s =>
+                  s.diploma === studentData.diploma &&
+                  s.major === studentData.major &&
+                  s.year === studentData.year
+                );
+
+              if (!portalStudents.some(s => s.id === studentDoc.id)) {
+                portalStudents.unshift(currentStudent);
+              }
             }
+
+            setStudents(portalStudents);
+
+            const gradesData = {};
+            const studentIds = portalStudents.map(s => s.id).filter(Boolean);
+            for (let i = 0; i < studentIds.length; i += 10) {
+              const batch = studentIds.slice(i, i + 10);
+              const graSnap = await getDocs(query(collection(db, 'grades'), where('__name__', 'in', batch)));
+              graSnap.docs.forEach(d => { gradesData[d.id] = d.data(); });
+            }
+            setGrades(gradesData);
+
             // Notes must show the full training year; load all modules then filter locally.
             const modSnap = await getDocs(query(collection(db, 'modules'), orderBy('name', 'asc')));
             setModules(modSnap.docs.map(d => ({ id: d.id, ...d.data() })));

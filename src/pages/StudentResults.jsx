@@ -125,12 +125,15 @@ const StudentResults = () => {
           sCC += cc; sFT += ft; sFP += fp; sCnt++;
         }
       });
-      const avg = sCnt > 0 ? (((sCC / sCnt) * 3) + ((sFT / sCnt) * 2) + ((sFP / sCnt) * 3)) / 8 : 0;
+      const avg = sCnt > 0 ? (((sCC / sCnt) * 3) + ((sFT / sCnt) * 2) + ((sFP / sCnt) * 3)) / 8 : null;
       return { id: s.id, avg };
-    }).sort((a, b) => b.avg - a.avg);
+    }).filter(p => p.avg !== null);
 
-    const rank = peerAvgs.findIndex(p => p.id === student.id) + 1;
-    return { rank: rank || null, total: peers.length };
+    const current = peerAvgs.find(p => p.id === student.id);
+    if (!current) return { rank: null, total: peerAvgs.length };
+
+    const rank = peerAvgs.filter(p => p.avg > current.avg + 0.0001).length + 1;
+    return { rank, total: peerAvgs.length };
   }, [students, grades, student, studentModules]);
 
   const chartData = useMemo(() =>
