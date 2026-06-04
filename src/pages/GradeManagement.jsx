@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { FILIERES } from '../data/modules';
 import { generateFicheSignature, generateFicheNotes, generateBulletinGlobal, generateNoteObtentionDiplome } from '../utils/pdfGenerator';
+import { getStudentGradeModules, sanitizeGradeKey } from '../utils/gradeSync';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import { 
@@ -83,12 +84,7 @@ const GradeManagement = () => {
 
   const selectedStudent = students.find(s => s.id === selectedStudentId);
   const studentModules = useMemo(() => {
-    if (!selectedStudent) return [];
-    return allModules.filter(m => 
-      m.diploma === selectedStudent.diploma && 
-      m.major === selectedStudent.major && 
-      m.year === selectedStudent.year
-    );
+    return getStudentGradeModules(allModules, selectedStudent);
   }, [selectedStudent, allModules]);
   
   const modules = studentModules.map(m => m.name);
@@ -100,10 +96,9 @@ const GradeManagement = () => {
   // Modules for PDF (based on filters, not selected student)
   const pdfModulesList = useMemo(() => {
     if (filterDiploma && filterMajor && filterYear) {
-      return allModules.filter(m => 
-        m.diploma === filterDiploma && 
-        m.major === filterMajor && 
-        m.year === filterYear
+      return getStudentGradeModules(
+        allModules,
+        { diploma: filterDiploma, major: filterMajor, year: filterYear }
       );
     }
     return [];
@@ -122,7 +117,7 @@ const GradeManagement = () => {
   }, [students, filterDiploma, filterMajor, filterYear]);
 
   const handleGradeChange = (module, field, value) => {
-    const safeModule = module.replace(/\./g, '_');
+    const safeModule = sanitizeGradeKey(module);
     setLocalGrades(prev => {
       const current = prev[safeModule] || { c1: '', c2: '', c3: '', efcfp: '', efcft: '' };
       return { ...prev, [safeModule]: { ...current, [field]: value } };
@@ -210,7 +205,7 @@ const GradeManagement = () => {
   const generalAvg = () => {
     let sumCC = 0, sumFT = 0, sumFP = 0, cnt = 0;
     studentModules.forEach(mod => {
-      const g = localGrades[mod.name.replace(/\./g, '_')];
+      const g = localGrades[sanitizeGradeKey(mod.name)];
       const cc = calcMoyenneCC(g);
       if (cc !== null && g?.efcft !== '' && g?.efcft !== undefined && g?.efcfp !== '' && g?.efcfp !== undefined) {
         sumCC += cc;
@@ -226,7 +221,7 @@ const GradeManagement = () => {
     return (((mCC * 3) + (mFT * 2) + (mFP * 3)) / 8).toFixed(2);
   };
 
-  const completedModules = modules.filter(mod => isComplete(localGrades[mod.replace(/\./g, '_')])).length;
+  const completedModules = modules.filter(mod => isComplete(localGrades[sanitizeGradeKey(mod)])).length;
 
   // ── PDF Handlers ──
   const findFormateur = (moduleName) => {
@@ -537,7 +532,7 @@ const GradeManagement = () => {
                     </thead>
                     <tbody>
                       {modules.map((mod, idx) => {
-                        const g = localGrades[mod.replace(/\./g, '_')] || { c1: '', c2: '', c3: '', efcfp: '', efcft: '' };
+                        const g = localGrades[sanitizeGradeKey(mod)] || { c1: '', c2: '', c3: '', efcfp: '', efcft: '' };
                         const moyCC = calcMoyenneCC(g);
                         const avg = calcAvg(g);
                         const complete = isComplete(g);

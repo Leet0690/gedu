@@ -7,7 +7,7 @@ import { logoBase64 } from '../utils/logoBase64';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
-import { DatePicker, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui';
+import { DatePicker } from '../components/ui';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { 
@@ -207,28 +207,6 @@ const getTeacherMonthlyHours = (attendance, teacherId, month, year, schedules = 
 };
 
 const EXPENSE_CATEGORIES = ['Loyer', 'Matériel', 'Fournitures', 'Services', 'Entretien', 'Communication', 'Transport', 'Autre'];
-
-const FILTER_EMPTY_VALUE = '__empty_filter__';
-const normalizeFilterValue = (value) => (String(value ?? '') === '' ? FILTER_EMPTY_VALUE : String(value));
-
-const FinanceFilterSelect = ({ value, onChange, placeholder, options, style }) => (
-  <Select value={normalizeFilterValue(value)} onValueChange={(next) => onChange(next === FILTER_EMPTY_VALUE ? '' : next)}>
-    <SelectTrigger className="finance-radix-select-trigger" style={style}>
-      <SelectValue placeholder={placeholder} />
-    </SelectTrigger>
-    <SelectContent className="finance-radix-select-content">
-      {options.map((option) => (
-        <SelectItem
-          key={normalizeFilterValue(option.value)}
-          value={normalizeFilterValue(option.value)}
-          className="finance-radix-select-item"
-        >
-          {option.label}
-        </SelectItem>
-      ))}
-    </SelectContent>
-  </Select>
-);
 
 const FinanceDashboard = () => {
   const { 
@@ -862,7 +840,7 @@ const FinanceDashboard = () => {
 
   if (!isDirectorAuth) {
     return (
-      <div className="flex-center" style={{ minHeight: 'calc(100vh - 150px)', width: '100%' }}>
+      <div className="flex-center finance-admin-page" style={{ minHeight: 'calc(100vh - 150px)', width: '100%' }}>
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="glass-premium" style={{ padding: 'var(--space-10)', maxWidth: '420px', width: '100%', textAlign: 'center' }}>
           <div style={{ width: '72px', height: '72px', background: 'var(--primary-ultra-light)', borderRadius: 'var(--radius-3xl)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto var(--space-6)', color: 'var(--primary)' }}>
             <Lock size={32} />
@@ -890,7 +868,7 @@ const FinanceDashboard = () => {
   }
 
   return (
-    <div className="section-padding">
+    <div className="section-padding finance-admin-page">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-8)' }}>
         <div>
           <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: '900', color: 'var(--text-primary)' }}>Gestion Financière</h1>
@@ -915,7 +893,7 @@ const FinanceDashboard = () => {
         </div>
       </div>
 
-      <div className="glass-card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap' }}>
+      <div className="glass-card finance-month-indicator-card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <CalendarDays size={18} style={{ color: 'var(--primary)' }} />
           <div>
@@ -931,17 +909,16 @@ const FinanceDashboard = () => {
         />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-8)' }}>
-        <StatCard title="Revenus Totaux" value={stats.revenue} icon={TrendingUp} color="var(--success)" />
-        <StatCard title="Total Charges" value={stats.expenses} icon={TrendingDown} color="var(--danger)" />
-        <StatCard title="Bénéfice Net" value={stats.balance} icon={Wallet} color="var(--primary)" />
-        <div className="glass-card" style={{ padding: '24px', borderLeft: '4px solid #2563eb' }}>
-          <p style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <TrendingUp size={14} style={{ color: '#2563eb' }} /> Taux de recouvrement
-          </p>
-          <p style={{ fontSize: 'var(--text-3xl)', fontWeight: '900', color: '#2563eb' }}>{stats.tauxRecouvrement}<span style={{ fontSize: '16px' }}>%</span></p>
-          <p style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', marginTop: '4px' }}>{stats.paidStudents} / {stats.totalStudents} stagiaires · {summaryMonthFilter}</p>
-        </div>
+      <div className="finance-kpi-grid">
+        <StatCard title="Revenus Totaux" value={stats.revenue} icon={TrendingUp} tone="revenue" helper={`Encaissements · ${summaryMonthFilter}`} />
+        <StatCard title="Total Charges" value={stats.expenses} icon={TrendingDown} tone="expense" helper="Salaires et autres charges" />
+        <StatCard title="Bénéfice Net" value={stats.balance} icon={Wallet} tone="balance" helper={stats.balance >= 0 ? 'Solde positif' : 'Solde à surveiller'} />
+        <RecoveryCard
+          value={stats.tauxRecouvrement}
+          paid={stats.paidStudents}
+          total={stats.totalStudents}
+          month={summaryMonthFilter}
+        />
       </div>
 
       <div className="modern-tabs-container" style={{ marginBottom: 'var(--space-6)' }}>
@@ -2052,7 +2029,13 @@ const FinanceDashboard = () => {
                   </div>
                   <div>
                     <label style={lbl}>Date</label>
-                    <input type="date" className="input-premium" style={{ width: '100%', marginTop: '6px' }} value={expenseData.date} onChange={(e) => setExpenseData({...expenseData, date: e.target.value})} onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }} />
+                    <DatePicker
+                      className="finance-modal-date-picker"
+                      value={expenseData.date}
+                      onChange={(date) => setExpenseData({ ...expenseData, date })}
+                      title="Date de la charge"
+                      placeholder="Choisir une date"
+                    />
                   </div>
                 </div>
                 <button className="btn-modern primary" style={{ width: '100%', padding: '14px', justifyContent: 'center', marginTop: '4px', background: '#dc2626' }}
@@ -2246,12 +2229,38 @@ const FinanceDashboard = () => {
   );
 };
 
-const StatCard = ({ title, value, icon: Icon, color }) => (
-  <div className="glass-card" style={{ padding: '24px', borderLeft: `4px solid ${color}` }}>
-    <p style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-      <Icon size={14} style={{ color }} /> {title}
-    </p>
-    <p style={{ fontSize: 'var(--text-3xl)', fontWeight: '900', color }}>{value.toLocaleString()} <span style={{ fontSize: '16px' }}>DH</span></p>
+const StatCard = ({ title, value, icon: Icon, tone, helper }) => (
+  <div className={`finance-kpi-card finance-kpi-card-${tone}`}>
+    <div className="finance-kpi-card-orb" />
+    <div className="finance-kpi-card-header">
+      <span className="finance-kpi-icon">
+        <Icon size={18} />
+      </span>
+      <span className="finance-kpi-label">{title}</span>
+    </div>
+    <div className="finance-kpi-value">
+      {value.toLocaleString()} <span>DH</span>
+    </div>
+    <p className="finance-kpi-helper">{helper}</p>
+  </div>
+);
+
+const RecoveryCard = ({ value, paid, total, month }) => (
+  <div className="finance-kpi-card finance-kpi-card-recovery">
+    <div className="finance-kpi-card-orb" />
+    <div className="finance-kpi-card-header">
+      <span className="finance-kpi-icon">
+        <TrendingUp size={18} />
+      </span>
+      <span className="finance-kpi-label">Taux de recouvrement</span>
+    </div>
+    <div className="finance-kpi-value">
+      {value}<span>%</span>
+    </div>
+    <div className="finance-kpi-progress" aria-hidden="true">
+      <span style={{ width: `${Math.min(Math.max(value, 0), 100)}%` }} />
+    </div>
+    <p className="finance-kpi-helper">{paid} / {total} stagiaires · {month}</p>
   </div>
 );
 

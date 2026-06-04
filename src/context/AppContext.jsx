@@ -19,6 +19,7 @@ import {
 import { db } from '../firebase';
 import ConfirmModal from '../components/ConfirmModal';
 import { useToast } from './ToastContext';
+import { sanitizeGradeKey } from '../utils/gradeSync';
 
 const AppContext = createContext();
 const ACCESS_LOG_LIMIT = 5;
@@ -393,16 +394,8 @@ export const AppProvider = ({ children }) => {
             if (gradeSnap.exists()) {
               setGrades({ [studentDoc.id]: gradeSnap.data() });
             }
-            // Modules: filter by student's diploma + major (much fewer reads)
-            let modQuery;
-            if (studentData.diploma && studentData.major) {
-              modQuery = query(collection(db, 'modules'), 
-                where('diploma', '==', studentData.diploma),
-                where('major', '==', studentData.major));
-            } else {
-              modQuery = query(collection(db, 'modules'), orderBy('name', 'asc'));
-            }
-            const modSnap = await getDocs(modQuery);
+            // Notes must show the full training year; load all modules then filter locally.
+            const modSnap = await getDocs(query(collection(db, 'modules'), orderBy('name', 'asc')));
             setModules(modSnap.docs.map(d => ({ id: d.id, ...d.data() })));
           }
         } else if (isTeacherPortal) {
@@ -666,7 +659,7 @@ export const AppProvider = ({ children }) => {
 
   // --- NOTES ---
   const updateGrades = async (studentId, subject, gradeData) => {
-    const safeSubject = subject.replace(/\./g, '_');
+    const safeSubject = sanitizeGradeKey(subject);
     const gradeRef = doc(db, 'grades', studentId);
     await setDoc(gradeRef, { [safeSubject]: gradeData }, { merge: true });
     
@@ -685,7 +678,7 @@ export const AppProvider = ({ children }) => {
     const newGrades = { ...grades };
     
     updates.forEach(({studentId, subject, gradeData}) => {
-      const safeSubject = subject.replace(/\./g, '_');
+      const safeSubject = sanitizeGradeKey(subject);
       const gradeRef = doc(db, 'grades', studentId);
       batch.set(gradeRef, { [safeSubject]: gradeData }, { merge: true });
       

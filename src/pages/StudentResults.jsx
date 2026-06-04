@@ -2,6 +2,7 @@ import React, { useMemo, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
+import { getStudentGradeModules, sanitizeGradeKey } from '../utils/gradeSync';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import {
@@ -21,8 +22,6 @@ import {
   Medal,
   BarChart3,
 } from 'lucide-react';
-
-const sanitize = (name) => name.replace(/\./g, '_');
 
 const calcMoyenneCC = (g) => {
   if (!g || g.c1 === '' || g.c1 === undefined || g.c2 === '' || g.c2 === undefined) return null;
@@ -68,7 +67,7 @@ const Grade = ({ val }) => {
 
 const StudentResults = () => {
   const { studentId } = useParams();
-  const { students = [], grades = {}, loading = false, modules: allModules = [], activeSemester = 'S1' } = useApp() || {};
+  const { students = [], grades = {}, loading = false, modules: allModules = [] } = useApp() || {};
 
   const student = students.find(s => {
     if (!s) return false;
@@ -81,6 +80,74 @@ const StudentResults = () => {
       document.title = `${student.lastName || ''} ${student.firstName || ''} - Résultats IPFP`.trim() || 'Résultats Stagiaire';
     }
   }, [student]);
+
+  const studentGrades = student ? (grades[student.id] || {}) : {};
+  const studentModules = useMemo(
+    () => getStudentGradeModules(allModules, student),
+    [allModules, student]
+  );
+  const moduleNames = studentModules.map(m => m.name || '');
+
+  const moduleScores = useMemo(() => studentModules.map(mod => {
+    const g = studentGrades[sanitizeGradeKey(mod.name)] || {};
+    const cc = calcMoyenneCC(g);
+    const score = calcModuleScore(g);
+    const fp = g.efcfp !== '' && g.efcfp !== undefined ? parseFloat(g.efcfp) : null;
+    const ft = g.efcft !== '' && g.efcft !== undefined ? parseFloat(g.efcft) : null;
+    const hasGrades = score !== null;
+    const passed = hasGrades && score >= 10;
+    return { mod, g, cc, score, fp, ft, hasGrades, passed };
+  }), [studentModules, studentGrades]);
+
+  let sumCC = 0, sumFT = 0, sumFP = 0, cnt = 0;
+  moduleScores.forEach(({ cc, fp, ft }) => {
+    if (cc === null || fp === null || ft === null || isNaN(fp) || isNaN(ft)) return;
+    sumCC += cc; sumFT += ft; sumFP += fp; cnt++;
+  });
+  const generalAvgNum = cnt > 0 ? (((sumCC / cnt) * 3) + ((sumFT / cnt) * 2) + ((sumFP / cnt) * 3)) / 8 : 0;
+  const generalAvg = cnt > 0 ? generalAvgNum.toFixed(2) : '—';
+  const completedModules = moduleScores.filter(s => s.hasGrades).length;
+
+  const classRank = useMemo(() => {
+    if (!student) return { rank: null, total: 0 };
+    const peers = students.filter(s =>
+      s.diploma === student.diploma && s.major === student.major && s.year === student.year
+    );
+    const peerAvgs = peers.map(s => {
+      const sGrades = grades[s.id] || {};
+      let sCC = 0, sFT = 0, sFP = 0, sCnt = 0;
+      studentModules.forEach(mod => {
+        const g = sGrades[sanitizeGradeKey(mod.name)] || {};
+        const cc = calcMoyenneCC(g);
+        const fp = g.efcfp !== '' && g.efcfp !== undefined ? parseFloat(g.efcfp) : NaN;
+        const ft = g.efcft !== '' && g.efcft !== undefined ? parseFloat(g.efcft) : NaN;
+        if (cc !== null && !isNaN(fp) && !isNaN(ft)) {
+          sCC += cc; sFT += ft; sFP += fp; sCnt++;
+        }
+      });
+      const avg = sCnt > 0 ? (((sCC / sCnt) * 3) + ((sFT / sCnt) * 2) + ((sFP / sCnt) * 3)) / 8 : 0;
+      return { id: s.id, avg };
+    }).sort((a, b) => b.avg - a.avg);
+
+    const rank = peerAvgs.findIndex(p => p.id === student.id) + 1;
+    return { rank: rank || null, total: peers.length };
+  }, [students, grades, student, studentModules]);
+
+  const chartData = useMemo(() =>
+    moduleScores
+      .filter(s => s.score !== null)
+      .map(({ mod, score }) => ({
+        name: mod.name.length > 22 ? `${mod.name.substring(0, 22)}...` : mod.name,
+        fullName: mod.name,
+        score: parseFloat(score.toFixed(2)),
+      }))
+      .sort((a, b) => b.score - a.score),
+    [moduleScores]
+  );
+
+  const rankLabel = classRank.rank
+    ? `${classRank.rank}${classRank.rank === 1 ? 'er' : 'ème'} / ${classRank.total}`
+    : '—';
 
   if (loading && students.length === 0) {
     return <div className="max-w-container section-padding"><TableSkeleton rows={10} /></div>;
@@ -97,79 +164,6 @@ const StudentResults = () => {
       </div>
     );
   }
-
-  const studentGrades = grades[student.id] || {};
-  const studentModules = (allModules || []).filter(m =>
-    m.diploma === student.diploma &&
-    m.major === student.major &&
-    m.year === student.year &&
-    [activeSemester, 'Annuel'].includes(m.semester || 'S1')
-  );
-  const moduleNames = studentModules.map(m => m.name || '');
-
-  // Per-module computed scores
-  const moduleScores = studentModules.map(mod => {
-    const g = studentGrades[sanitize(mod.name)] || {};
-    const cc = calcMoyenneCC(g);
-    const score = calcModuleScore(g);
-    const fp = g.efcfp !== '' && g.efcfp !== undefined ? parseFloat(g.efcfp) : null;
-    const ft = g.efcft !== '' && g.efcft !== undefined ? parseFloat(g.efcft) : null;
-    const hasGrades = score !== null;
-    const passed = hasGrades && score >= 10;
-    return { mod, g, cc, score, fp, ft, hasGrades, passed };
-  });
-
-  // Global average (only for modules with full data)
-  let sumCC = 0, sumFT = 0, sumFP = 0, cnt = 0;
-  moduleScores.forEach(({ g, cc, fp, ft }) => {
-    if (cc === null || fp === null || ft === null || isNaN(fp) || isNaN(ft)) return;
-    sumCC += cc; sumFT += ft; sumFP += fp; cnt++;
-  });
-  const generalAvgNum = cnt > 0 ? (((sumCC / cnt) * 3) + ((sumFT / cnt) * 2) + ((sumFP / cnt) * 3)) / 8 : 0;
-  const generalAvg = cnt > 0 ? generalAvgNum.toFixed(2) : '—';
-  const completedModules = moduleScores.filter(s => s.hasGrades).length;
-
-  // Feature 4: Class rank
-  const classRank = useMemo(() => {
-    const peers = students.filter(s =>
-      s.diploma === student.diploma && s.major === student.major && s.year === student.year
-    );
-    const peerAvgs = peers.map(s => {
-      const sGrades = grades[s.id] || {};
-      let sCC = 0, sFT = 0, sFP = 0, sCnt = 0;
-      studentModules.forEach(mod => {
-        const g = sGrades[sanitize(mod.name)] || {};
-        const cc = calcMoyenneCC(g);
-        const fp = g.efcfp !== '' && g.efcfp !== undefined ? parseFloat(g.efcfp) : NaN;
-        const ft = g.efcft !== '' && g.efcft !== undefined ? parseFloat(g.efcft) : NaN;
-        if (cc !== null && !isNaN(fp) && !isNaN(ft)) {
-          sCC += cc; sFT += ft; sFP += fp; sCnt++;
-        }
-      });
-      const avg = sCnt > 0 ? (((sCC / sCnt) * 3) + ((sFT / sCnt) * 2) + ((sFP / sCnt) * 3)) / 8 : 0;
-      return { id: s.id, avg };
-    }).sort((a, b) => b.avg - a.avg);
-
-    const rank = peerAvgs.findIndex(p => p.id === student.id) + 1;
-    return { rank: rank || null, total: peers.length };
-  }, [students, grades, student, studentModules]);
-
-  // Feature 5: chart data — per-module score for bar chart
-  const chartData = useMemo(() =>
-    moduleScores
-      .filter(s => s.score !== null)
-      .map(({ mod, score }) => ({
-        name: mod.name.length > 22 ? mod.name.substring(0, 22) + '…' : mod.name,
-        fullName: mod.name,
-        score: parseFloat(score.toFixed(2)),
-      }))
-      .sort((a, b) => b.score - a.score),
-    [moduleScores]
-  );
-
-  const rankLabel = classRank.rank
-    ? `${classRank.rank}${classRank.rank === 1 ? 'er' : 'ème'} / ${classRank.total}`
-    : '—';
 
   return (
     <div className="max-w-container section-padding">

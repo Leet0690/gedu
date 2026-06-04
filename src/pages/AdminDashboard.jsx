@@ -112,6 +112,20 @@ const getActivityIcon = (message) => {
   return { icon: Activity, color: 'var(--text-muted)', bg: 'var(--bg-subtle)' };
 };
 
+const getActivityVisual = (message = '') => {
+  const lower = message.toLowerCase();
+  const fallbackIcon = getActivityIcon(message)?.icon || Activity;
+  if (lower.includes('stagiaire') && lower.includes('ajout')) return { icon: UserPlus, tone: 'success' };
+  if (lower.includes('formateur') && lower.includes('ajout')) return { icon: UserPlus, tone: 'info' };
+  if (lower.includes('supprim')) return { icon: Trash2, tone: 'danger' };
+  if (lower.includes('mis ') || lower.includes('mise ')) return { icon: Edit3, tone: 'warning' };
+  if (lower.includes('note')) return { icon: FileText, tone: 'primary' };
+  if (lower.includes('séance') || lower.includes('seance')) return { icon: Calendar, tone: 'violet' };
+  if (lower.includes('présence') || lower.includes('presence') || lower.includes('absence')) return { icon: UserCheck, tone: 'info' };
+  if (lower.includes('salaire') || lower.includes('paiement') || lower.includes('charge')) return { icon: LineChart, tone: 'success' };
+  return { icon: fallbackIcon, tone: 'muted' };
+};
+
 const TodaySessionsWidget = ({ schedules, teachers, getScheduleModule, activeSemester, setActiveSemester }) => {
   const today = getTodayFrench();
   const todaySessions = useMemo(() => {
@@ -151,23 +165,22 @@ const TodaySessionsWidget = ({ schedules, teachers, getScheduleModule, activeSem
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.45 }}
-      className="glass-card"
-      style={{ padding: '20px', display: 'flex', flexDirection: 'column', minHeight: '260px' }}
+      className="glass-card home-widget home-widget-tall"
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'var(--primary-ultra-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <BookOpen size={14} style={{ color: 'var(--primary)' }} />
+      <div className="home-widget-header">
+        <div className="home-widget-heading">
+          <div className="home-widget-icon home-tone-primary">
+            <BookOpen size={14} />
           </div>
           <div>
-            <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <span className="home-widget-title">
               Séances d'aujourd'hui
             </span>
-            <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '500', marginTop: '1px' }}>{today}</p>
+            <p className="home-widget-subtitle">{today}</p>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--primary)', background: 'var(--primary-ultra-light)', borderRadius: '20px', padding: '3px 10px' }}>
+        <div className="home-widget-actions">
+          <span className="home-widget-pill home-tone-primary">
             {todaySessions.length} séance{todaySessions.length !== 1 ? 's' : ''}
           </span>
           {activeSemester && setActiveSemester && (
@@ -178,10 +191,8 @@ const TodaySessionsWidget = ({ schedules, teachers, getScheduleModule, activeSem
               localStorage.removeItem('ipfp_v2_core_cache');
               window.location.reload();
             }} 
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px', borderRadius: '50%' }}
+            className="home-icon-button"
             title="Rafraîchir les données (Vider le cache)"
-            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--primary)'}
-            onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-faint)'}
           >
             <RotateCw size={12} />
           </button>
@@ -189,60 +200,47 @@ const TodaySessionsWidget = ({ schedules, teachers, getScheduleModule, activeSem
       </div>
 
       {todaySessions.length === 0 ? (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', color: 'var(--text-faint)' }}>
-          <Calendar size={28} style={{ opacity: 0.35 }} />
-          <p style={{ fontSize: '12px', fontWeight: '500' }}>Aucune séance prévue aujourd'hui</p>
+        <div className="home-widget-empty">
+          <Calendar size={28} className="home-widget-empty-icon" />
+          <p>Aucune séance prévue aujourd'hui</p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', overflowY: 'auto', maxHeight: '280px' }}>
+        <div className="home-widget-list home-session-list">
           {todaySessions.map((session) => {
             const isTP = session.type === 'TP';
             const teacher = teachers.find(t => t.id === session.teacherId);
             return (
               <div
                 key={session.id}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '10px',
-                  padding: '9px 12px', borderRadius: '10px',
-                  background: isTP ? '#fdf4fe' : '#fffdf0',
-                  border: `1px solid ${isTP ? 'rgba(176,104,185,0.25)' : 'rgba(254,205,8,0.35)'}`,
-                  borderLeft: `3px solid ${isTP ? 'var(--primary)' : '#fecd08'}`,
-                }}
+                className={`home-session-item ${isTP ? 'home-session-item-tp' : 'home-session-item-course'}`}
               >
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '44px' }}>
-                  <span style={{ fontSize: '10px', fontWeight: '800', color: isTP ? 'var(--primary)' : '#a06208', fontVariantNumeric: 'tabular-nums' }}>
+                <div className="home-session-time">
+                  <span className="home-session-time-start">
                     {session.start}
                   </span>
-                  <div style={{ width: '1px', height: '6px', background: isTP ? 'rgba(176,104,185,0.4)' : 'rgba(254,205,8,0.6)', margin: '2px 0' }} />
-                  <span style={{ fontSize: '9px', fontWeight: '600', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
+                  <div className="home-session-time-divider" />
+                  <span className="home-session-time-end">
                     {session.end}
                   </span>
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: '12px', fontWeight: '700', color: isTP ? '#7a3d82' : '#8a6a00', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '4px' }}>
+                <div className="home-session-content">
+                  <p className="home-session-module">
                     {session.displayModule || 'Module non dÃ©fini'}
                   </p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                  <div className="home-session-meta">
                     {teacher && (
-                      <span style={{ fontSize: '10px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: '2px' }}>
+                      <span className="home-session-teacher">
                         {teacher.name}
                       </span>
                     )}
                     {(session.groupCodes || []).map(abbr => (
-                      <span key={abbr} style={{
-                        fontSize: '10px', fontWeight: '800',
-                        color: isTP ? 'var(--primary)' : '#a06208',
-                        background: isTP ? 'rgba(176,104,185,0.12)' : 'rgba(254,205,8,0.2)',
-                        border: `1px solid ${isTP ? 'rgba(176,104,185,0.3)' : 'rgba(254,205,8,0.5)'}`,
-                        borderRadius: '5px', padding: '1px 7px', flexShrink: 0,
-                        fontFamily: 'monospace',
-                      }}>
+                      <span key={abbr} className="home-session-group">
                         {abbr}
                       </span>
                     ))}
                   </div>
                 </div>
-                <span style={{ fontSize: '9px', fontWeight: '800', color: isTP ? 'var(--primary)' : '#a06208', background: isTP ? 'rgba(176,104,185,0.12)' : 'rgba(254,205,8,0.2)', borderRadius: '5px', padding: '2px 7px', flexShrink: 0 }}>
+                <span className="home-session-type">
                   {session.type || 'Cours'}
                 </span>
               </div>
@@ -265,46 +263,45 @@ const ActivityFeedWidget = ({ notifications }) => {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.5 }}
-      className="glass-card"
-      style={{ padding: '20px', display: 'flex', flexDirection: 'column', minHeight: '260px' }}
+      className="glass-card home-widget home-widget-tall"
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Activity size={14} style={{ color: '#6366f1' }} />
+      <div className="home-widget-header">
+        <div className="home-widget-heading">
+          <div className="home-widget-icon home-tone-indigo">
+            <Activity size={14} />
           </div>
           <div>
-            <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <span className="home-widget-title">
               Activité récente
             </span>
-            <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '500', marginTop: '1px' }}>Dernières actions</p>
+            <p className="home-widget-subtitle">Dernières actions</p>
           </div>
         </div>
       </div>
 
       {recent.length === 0 ? (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', color: 'var(--text-faint)' }}>
-          <Bell size={28} style={{ opacity: 0.35 }} />
-          <p style={{ fontSize: '12px', fontWeight: '500' }}>Aucune activité récente</p>
+        <div className="home-widget-empty">
+          <Bell size={28} className="home-widget-empty-icon" />
+          <p>Aucune activité récente</p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', overflowY: 'auto', maxHeight: '280px' }}>
+        <div className="home-widget-list home-activity-list">
           {visibleActivities.map((notif) => {
-            const { icon: Icon, color, bg } = getActivityIcon(notif.message);
+            const { icon: Icon, tone } = getActivityVisual(notif.message);
             return (
               <div
                 key={notif.id}
-                style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: '9px', background: notif.read ? 'transparent' : 'rgba(99,102,241,0.03)', border: '1px solid var(--border-light)' }}
+                className={`home-activity-item ${notif.read ? '' : 'home-activity-item-unread'}`}
               >
-                <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Icon size={13} style={{ color }} />
+                <div className={`home-activity-icon home-tone-${tone}`}>
+                  <Icon size={13} />
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div className="home-activity-content">
+                  <p className="home-activity-message">
                     {notif.message}
                   </p>
                 </div>
-                <span style={{ fontSize: '9px', fontWeight: '600', color: 'var(--text-faint)', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                <span className="home-activity-time">
                   {formatRelativeTime(notif.timestamp)}
                 </span>
               </div>
@@ -313,7 +310,7 @@ const ActivityFeedWidget = ({ notifications }) => {
           {hasMoreActivities && (
             <button
               onClick={() => setVisibleCount((count) => count + 10)}
-              style={{ marginTop: '6px', width: '100%', border: '1px solid var(--border-light)', borderRadius: '9px', padding: '8px 10px', background: 'rgba(99,102,241,0.06)', color: '#6366f1', cursor: 'pointer', fontSize: '11px', fontWeight: '800' }}
+              className="home-load-more-button"
             >
               Charger plus
             </button>
@@ -391,43 +388,45 @@ const PendingTasksWidget = ({ students, teachers, grades, teacherAttendance, all
 
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-      className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-        <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(220,38,38,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <CheckCircle size={14} style={{ color: '#dc2626' }} />
+      className="glass-card home-widget">
+      <div className="home-widget-header">
+        <div className="home-widget-heading">
+          <div className="home-widget-icon home-tone-danger">
+            <CheckCircle size={14} />
+          </div>
+          <div>
+            <span className="home-widget-title">
+              À faire
+            </span>
+            <p className="home-widget-subtitle">Tâches en attente</p>
+          </div>
         </div>
-        <div>
-          <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            À faire
-          </span>
-          <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '500', marginTop: '1px' }}>Tâches en attente</p>
-        </div>
-        <span style={{ marginLeft: 'auto', fontSize: '11px', fontWeight: '700', color: tasks.length > 0 ? '#dc2626' : '#16a34a', background: tasks.length > 0 ? 'rgba(220,38,38,0.08)' : 'rgba(22,163,74,0.08)', borderRadius: '20px', padding: '3px 10px' }}>
+        <span className={`home-widget-pill ${tasks.length > 0 ? 'home-tone-danger' : 'home-tone-success'}`}>
           {tasks.length > 0 ? `${tasks.length} tâche${tasks.length > 1 ? 's' : ''}` : 'Tout est à jour'}
         </span>
       </div>
 
       {tasks.length === 0 ? (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '24px 0', color: 'var(--text-faint)' }}>
-          <CheckCircle size={32} style={{ color: '#16a34a', opacity: 0.6 }} />
-          <p style={{ fontSize: '13px', fontWeight: '600', color: '#16a34a' }}>Tout est à jour !</p>
-          <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Aucune action requise pour le moment</p>
+        <div className="home-widget-empty home-widget-empty-success">
+          <CheckCircle size={32} />
+          <p>Tout est à jour !</p>
+          <span>Aucune action requise pour le moment</span>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', maxHeight: '320px' }}>
+        <div className="home-widget-list home-task-list">
           {tasks.map((task, i) => {
-            const { color, bg, border, icon: Icon } = SEVERITY_CONFIG[task.severity];
+            const { icon: Icon } = SEVERITY_CONFIG[task.severity];
             return (
-              <Link key={i} to={task.link} style={{ textDecoration: 'none' }}>
-                <motion.div whileHover={{ x: 3 }} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '10px', background: bg, border: `1px solid ${border}`, cursor: 'pointer' }}>
-                  <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-                    <Icon size={14} style={{ color }} />
+              <Link key={i} to={task.link} className="home-task-link">
+                <motion.div whileHover={{ x: 3 }} className={`home-task-card home-task-${task.severity}`}>
+                  <div className="home-task-icon">
+                    <Icon size={14} />
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.text}</p>
-                    <p style={{ fontSize: '10px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.sub}</p>
+                  <div className="home-task-content">
+                    <p className="home-task-title">{task.text}</p>
+                    <p className="home-task-subtitle">{task.sub}</p>
                   </div>
-                  <ArrowRight size={12} style={{ color, flexShrink: 0 }} />
+                  <ArrowRight size={12} className="home-task-arrow" />
                 </motion.div>
               </Link>
             );
@@ -471,51 +470,50 @@ const GradesBreakdownWidget = ({ students, grades, allModules, activeSemester })
     return t > 0 ? Math.round((e / t) * 100) : 0;
   }, [groups]);
 
-  const pctColor = (p) => p >= 75 ? '#16a34a' : p >= 50 ? '#d97706' : '#dc2626';
-  const pctBg = (p) => p >= 75 ? 'rgba(22,163,74,0.12)' : p >= 50 ? 'rgba(217,119,6,0.12)' : 'rgba(220,38,38,0.1)';
+  const pctTone = (p) => p >= 75 ? 'success' : p >= 50 ? 'warning' : 'danger';
 
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
-      className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(254,205,8,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <TrendingUp size={14} style={{ color: '#a06208' }} />
+      className="glass-card home-widget">
+      <div className="home-widget-header">
+        <div className="home-widget-heading">
+          <div className="home-widget-icon home-tone-warning">
+            <TrendingUp size={14} />
           </div>
           <div>
-            <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <span className="home-widget-title">
               Saisie des Notes
             </span>
-            <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '500', marginTop: '1px' }}>Par groupe</p>
+            <p className="home-widget-subtitle">Par groupe</p>
           </div>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <span style={{ fontSize: '20px', fontWeight: '900', color: pctColor(overall) }}>{overall}%</span>
-          <p style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.06em' }}>global</p>
+        <div className={`home-grade-overall home-tone-${pctTone(overall)}`}>
+          <span>{overall}%</span>
+          <p>global</p>
         </div>
       </div>
 
       {groups.length === 0 ? (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)', fontSize: '12px' }}>
+        <div className="home-widget-empty">
           Aucun stagiaire enregistré
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', maxHeight: '320px' }}>
+        <div className="home-widget-list home-grade-list">
           {groups.map((g) => (
-            <div key={g.label}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-                  <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-primary)', fontFamily: 'monospace', background: 'var(--bg-subtle)', padding: '2px 7px', borderRadius: '5px' }}>{g.label}</span>
-                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{g.count} stagiaire{g.count > 1 ? 's' : ''}</span>
+            <div key={g.label} className={`home-grade-row home-tone-${pctTone(g.pct)}`}>
+              <div className="home-grade-row-header">
+                <div className="home-grade-row-meta">
+                  <span className="home-grade-group">{g.label}</span>
+                  <span className="home-grade-count">{g.count} stagiaire{g.count > 1 ? 's' : ''}</span>
                 </div>
-                <span style={{ fontSize: '12px', fontWeight: '800', color: pctColor(g.pct), background: pctBg(g.pct), padding: '2px 8px', borderRadius: '20px' }}>{g.pct}%</span>
+                <span className="home-grade-percent">{g.pct}%</span>
               </div>
-              <div style={{ height: '6px', borderRadius: '99px', background: 'var(--border-light)', overflow: 'hidden' }}>
+              <div className="home-grade-track">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${g.pct}%` }}
                   transition={{ duration: 0.8, ease: 'easeOut', delay: 0.4 }}
-                  style={{ height: '100%', borderRadius: '99px', background: pctColor(g.pct) }}
+                  className="home-grade-fill"
                 />
               </div>
             </div>
@@ -563,32 +561,13 @@ const timeToPxDash = (t = '08:00') => {
 };
 
 const SemesterToggle = ({ activeSemester, onChange, compact = false }) => (
-  <div style={{
-    display: 'inline-flex',
-    padding: compact ? '3px' : '4px',
-    borderRadius: compact ? '10px' : 'var(--radius-xl)',
-    background: 'var(--bg-page)',
-    border: '1px solid var(--border-light)',
-    gap: compact ? '2px' : '3px'
-  }}>
+  <div className={`home-semester-toggle ${compact ? 'home-semester-toggle-compact' : ''}`}>
     {['S1', 'S2'].map(sem => (
       <button
         key={sem}
         type="button"
         onClick={() => onChange(sem)}
-        style={{
-          minWidth: compact ? '38px' : '52px',
-          padding: compact ? '5px 9px' : '8px 16px',
-          borderRadius: compact ? '8px' : 'var(--radius-lg)',
-          border: 'none',
-          cursor: 'pointer',
-          fontSize: compact ? '11px' : '12px',
-          fontWeight: '900',
-          transition: 'all 0.18s ease',
-          background: activeSemester === sem ? 'var(--primary)' : 'transparent',
-          color: activeSemester === sem ? 'white' : 'var(--text-muted)',
-          boxShadow: activeSemester === sem ? 'var(--shadow-xs)' : 'none'
-        }}
+        className={`home-semester-toggle-button ${activeSemester === sem ? 'is-active' : ''}`}
         title={`Activer ${sem}`}
       >
         {sem}
@@ -608,45 +587,43 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
     [realSchedules, selectedFiliere, selectedAnnee]
   );
 
-  const totalGridH = (DASH_END - DASH_START + 1) * DASH_PX;
-
   return (
-    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="glass-card home-widget home-schedule-card">
       {/* Header row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+      <div className="home-schedule-header">
+        <div className="home-schedule-title-group">
+          <span className="home-widget-title">
             Emploi du temps
           </span>
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <FilterSelect style={{ fontSize: '11px', padding: '5px 10px', maxWidth: '200px', cursor: 'pointer' }} value={selectedFiliere} onChange={val => setSelectedFiliere(val)} options={allFilieres.map(f => ({ label: f, value: f }))} />
-            <FilterSelect style={{ fontSize: '11px', padding: '5px 10px', width: '120px', cursor: 'pointer' }} value={selectedAnnee} onChange={val => setSelectedAnnee(val)} options={allAnnees.map(a => ({ label: a, value: a }))} />
+          <div className="home-schedule-filters">
+            <FilterSelect className="home-filter-select home-filter-select-major" value={selectedFiliere} onChange={val => setSelectedFiliere(val)} options={allFilieres.map(f => ({ label: f, value: f }))} />
+            <FilterSelect className="home-filter-select home-filter-select-year" value={selectedAnnee} onChange={val => setSelectedAnnee(val)} options={allAnnees.map(a => ({ label: a, value: a }))} />
             <SemesterToggle activeSemester={activeSemester} onChange={setActiveSemester} compact />
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ padding: '5px 12px', borderRadius: '999px', background: 'var(--primary-ultra-light)', color: 'var(--primary)', fontSize: '11px', fontWeight: '800' }}>
+        <div className="home-schedule-actions">
+          <span className="home-widget-pill home-tone-primary">
             {groupLabel}
           </span>
-          <span style={{ padding: '5px 12px', borderRadius: '999px', background: 'rgba(254,205,8,0.12)', color: '#a06208', fontSize: '11px', fontWeight: '800' }}>
+          <span className="home-widget-pill home-tone-warning">
             {filteredSessions.length} séances {activeSemester}
           </span>
-          <Link to="/admin/schedules" className="btn-modern" style={{ padding: '5px 12px', fontSize: '11px', textDecoration: 'none' }}>
-            <CalendarPlus size={12} style={{ marginRight: '5px' }} /> Gérer
+          <Link to="/admin/schedules" className="btn-modern home-manage-link">
+            <CalendarPlus size={12} /> Gérer
           </Link>
         </div>
       </div>
 
       {/* Time Grid */}
-      <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '480px', borderRadius: '12px', border: '1px solid var(--border-light)' }}>
-        <div style={{ display: 'flex', minWidth: '700px' }}>
+      <div className="home-schedule-scroll">
+        <div className="home-schedule-grid">
           {/* Time axis */}
-          <div style={{ width: '48px', flexShrink: 0, borderRight: '1px solid var(--border-light)', background: 'rgba(248,249,251,0.9)', position: 'sticky', left: 0, zIndex: 20 }}>
-            <div style={{ height: '36px', borderBottom: '1px solid var(--border-light)' }} />
-            <div style={{ position: 'relative', height: `${totalGridH}px` }}>
+          <div className="home-schedule-time-axis">
+            <div className="home-schedule-corner" />
+            <div className="home-schedule-time-body">
               {DASH_HOURS.map(hour => (
-                <div key={hour} style={{ position: 'absolute', top: `${(hour - DASH_START) * DASH_PX - 8}px`, right: '6px' }}>
-                  <span style={{ fontSize: '9px', fontWeight: '700', color: 'var(--text-faint)', fontVariantNumeric: 'tabular-nums' }}>
+                <div key={hour} className={`home-schedule-hour-label home-schedule-hour-${hour}`}>
+                  <span>
                     {hour.toString().padStart(2, '0')}:00
                   </span>
                 </div>
@@ -655,7 +632,7 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
           </div>
 
           {/* Day columns */}
-          <div style={{ flex: 1, display: 'flex' }}>
+          <div className="home-schedule-days">
             {DASH_DAYS.map(day => {
               const daySessions = filteredSessions
                 .filter(s => s.day === day)
@@ -663,37 +640,31 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
                 .sort((a, b) => a.start.localeCompare(b.start));
 
               return (
-                <div key={day} style={{ flex: 1, borderRight: '1px solid var(--border-light)', minWidth: '110px' }}>
+                <div key={day} className="home-schedule-day-column">
                   {/* Day header */}
-                  <div style={{
-                    height: '36px', borderBottom: '1px solid var(--border-light)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    padding: '0 8px',
-                    background: daySessions.length > 0 ? 'rgba(176,104,185,0.04)' : 'rgba(248,249,251,0.6)',
-                    position: 'sticky', top: 0, zIndex: 10
-                  }}>
-                    <span style={{ fontSize: '10px', fontWeight: '900', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center' }}>
+                  <div className={`home-schedule-day-header ${daySessions.length > 0 ? 'has-sessions' : ''}`}>
+                    <span className="home-schedule-day-name">
                       {DAY_ABBREVIATIONS[day] || day.slice(0, 3).toUpperCase()}
                     </span>
                     {daySessions.length > 0 && (
-                      <span style={{ fontSize: '9px', fontWeight: '800', color: 'var(--primary)', background: 'var(--primary-ultra-light)', padding: '1px 5px', borderRadius: '999px' }}>
+                      <span className="home-schedule-day-count">
                         {daySessions.length}
                       </span>
                     )}
                   </div>
 
                   {/* Grid body */}
-                  <div style={{ position: 'relative', height: `${totalGridH}px` }}>
+                  <div className="home-schedule-day-body">
                     {DASH_HOURS.map(hour => (
-                      <div key={hour} style={{ position: 'absolute', top: `${(hour - DASH_START) * DASH_PX}px`, left: 0, right: 0, borderTop: '1px solid var(--border-light)', pointerEvents: 'none' }} />
+                      <div key={hour} className={`home-schedule-hour-line home-schedule-hour-${hour}`} />
                     ))}
                     {DASH_HOURS.map(hour => (
-                      <div key={`h-${hour}`} style={{ position: 'absolute', top: `${(hour - DASH_START) * DASH_PX + DASH_PX / 2}px`, left: 0, right: 0, borderTop: '1px dashed rgba(0,0,0,0.04)', pointerEvents: 'none' }} />
+                      <div key={`h-${hour}`} className={`home-schedule-half-line home-schedule-hour-${hour}`} />
                     ))}
 
                     {daySessions.length === 0 && (
-                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ fontSize: '9px', fontWeight: '800', color: 'var(--text-faint)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Libre</span>
+                      <div className="home-schedule-free">
+                        <span>Libre</span>
                       </div>
                     )}
 
@@ -706,35 +677,23 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
                         <motion.div
                           key={session.id}
                           whileHover={{ scale: 1.02, zIndex: 10 }}
-                          style={{
-                            position: 'absolute', top: `${top}px`, height: `${height}px`,
-                            left: '4px', right: '4px',
-                            borderRadius: '7px', padding: '5px 7px', overflow: 'hidden', zIndex: 5,
-                            backgroundColor: isTP ? '#fdf4fe' : '#fffdf0',
-                            border: `1px solid ${isTP ? 'rgba(176,104,185,0.3)' : 'rgba(254,205,8,0.4)'}`,
-                            boxShadow: isTP ? '0 1px 6px rgba(176,104,185,0.10)' : '0 1px 6px rgba(254,205,8,0.08)',
-                          }}
+                          className={`home-schedule-event ${isTP ? 'home-schedule-event-tp' : 'home-schedule-event-course'}`}
+                          style={{ '--event-top': `${top}px`, '--event-height': `${height}px` }}
                         >
-                          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '3px', borderRadius: '7px 0 0 7px', backgroundColor: isTP ? 'var(--primary)' : '#fecd08' }} />
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '3px', marginBottom: '3px' }}>
-                            <Clock size={8} style={{ color: isTP ? 'var(--primary)' : '#a06208', flexShrink: 0 }} />
-                            <span style={{ fontSize: '8px', fontWeight: '700', color: isTP ? 'var(--primary)' : '#a06208', fontVariantNumeric: 'tabular-nums' }}>
+                          <div className="home-schedule-event-rail" />
+                          <div className="home-schedule-event-time">
+                            <Clock size={8} />
+                            <span>
                               {session.start}–{session.end}
                             </span>
                           </div>
-                          <div style={{
-                            fontSize: '9px', fontWeight: '800',
-                            color: isTP ? '#7a3d82' : '#8a6a00',
-                            lineHeight: 1.3,
-                            display: '-webkit-box', WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical', overflow: 'hidden'
-                          }}>
+                          <div className="home-schedule-event-title">
                             {getScheduleModule(session) || 'Module non défini'}
                           </div>
                           {height >= 44 && teacher && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '3px', marginTop: '3px' }}>
-                              <User size={7} style={{ color: 'var(--text-faint)', flexShrink: 0 }} />
-                              <span style={{ fontSize: '8px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <div className="home-schedule-event-teacher">
+                              <User size={7} />
+                              <span>
                                 {teacher.name}
                               </span>
                             </div>
@@ -1055,7 +1014,7 @@ const AdminDashboard = () => {
   }, [teacherAttendance]);
 
   return (
-    <div className="max-w-container section-padding" style={{ paddingTop: '24px' }}>
+    <div className={`max-w-container section-padding admin-dashboard-shell ${isDashboard ? 'home-dashboard-page' : ''}`}>
       
       {!isDashboard && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
@@ -1090,15 +1049,15 @@ const AdminDashboard = () => {
       )}
 
       {isDashboard && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', marginBottom: 'var(--space-12)' }}>
-          <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ width: '38px', height: '38px', borderRadius: 'var(--radius-lg)', background: 'var(--primary-ultra-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="home-dashboard-stack">
+          <div className="glass-card home-semester-card">
+            <div className="home-semester-copy">
+              <div className="home-semester-icon">
                 <Layers size={18} />
               </div>
               <div>
-                <p style={{ fontSize: '13px', fontWeight: '900', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Semestre actif</p>
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600', marginTop: '2px' }}>
+                <p className="home-semester-title">Semestre actif</p>
+                <p className="home-semester-subtitle">
                   Les modules affichés dans les emplois du temps, appels, notes et rapports suivent {activeSemester}.
                 </p>
               </div>
@@ -1106,20 +1065,20 @@ const AdminDashboard = () => {
             <SemesterToggle activeSemester={activeSemester} onChange={setActiveSemester} />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-3)' }}>
-            <StatCard delay={0.05} icon={GraduationCap} iconColor="var(--primary)" iconBg="var(--primary-ultra-light)" value={(students || []).length} label="Total Stagiaires" />
-            <StatCard delay={0.1} icon={UserPlus} iconColor="#a06208" iconBg="rgba(254, 205, 8, 0.12)" value={(teachers || []).length} label="Total Formateurs" />
-            <StatCard delay={0.15} icon={UserPlus} iconColor="#16a34a" iconBg="rgba(22, 163, 74, 0.1)" value={studentAttendanceRate === null ? '—' : `${studentAttendanceRate}%`} label={`Présence Stagiaires — ${currentMonthName}`} />
-            <StatCard delay={0.2} icon={User} iconColor="#0ea5e9" iconBg="rgba(14, 165, 233, 0.1)" value={teacherAttendanceRate === null ? '—' : `${teacherAttendanceRate}%`} label={`Présence Formateurs — ${currentMonthName}`} />
+          <div className="home-stats-grid">
+            <StatCard delay={0.05} icon={GraduationCap} tone="primary" value={(students || []).length} label="Total Stagiaires" />
+            <StatCard delay={0.1} icon={UserPlus} tone="warning" value={(teachers || []).length} label="Total Formateurs" />
+            <StatCard delay={0.15} icon={UserPlus} tone="success" value={studentAttendanceRate === null ? '—' : `${studentAttendanceRate}%`} label={`Présence Stagiaires — ${currentMonthName}`} />
+            <StatCard delay={0.2} icon={User} tone="info" value={teacherAttendanceRate === null ? '—' : `${teacherAttendanceRate}%`} label={`Présence Formateurs — ${currentMonthName}`} />
           </div>
 
           {/* New Requested Order in Grid format to keep dimensions */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 'var(--space-3)' }}>
+          <div className="home-dashboard-widget-grid">
             <TodaySessionsWidget schedules={schedules || []} teachers={teachers || []} getScheduleModule={getActiveScheduleModule} activeSemester={activeSemester} setActiveSemester={setActiveSemester} />
             <GradesBreakdownWidget students={students || []} grades={grades || {}} allModules={allModules || []} activeSemester={activeSemester} />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 'var(--space-3)' }}>
+          <div className="home-dashboard-widget-grid">
             <PendingTasksWidget students={students || []} teachers={teachers || []} grades={grades || {}} teacherAttendance={teacherAttendance || []} allModules={allModules || []} activeSemester={activeSemester} />
             <ActivityFeedWidget notifications={notifications || []} />
           </div>
@@ -1460,14 +1419,20 @@ const AdminDashboard = () => {
 };
 
 /* ── Helper Components ── */
-const StatCard = ({ delay, icon: Icon, iconColor, iconBg, value, label }) => (
-  <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }} className="glass-card" style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-    <div style={{ width: '42px', height: '42px', borderRadius: 'var(--radius-lg)', background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: iconColor, flexShrink: 0 }}>
-      <Icon size={20} />
+const StatCard = ({ delay, icon: Icon, tone = 'primary', value, label }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 12 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay }}
+    className={`home-stat-card home-tone-${tone}`}
+  >
+    <div className="home-stat-orb" />
+    <div className="home-stat-icon">
+      <Icon size={18} />
     </div>
-    <div>
-      <h3 style={{ fontSize: 'var(--text-xl)', fontWeight: '800', lineHeight: 1, marginBottom: '4px' }}>{value}</h3>
-      <p style={{ fontSize: 'var(--text-xs)', fontWeight: '600', color: 'var(--text-muted)' }}>{label}</p>
+    <div className="home-stat-content">
+      <h3 className="home-stat-value">{value}</h3>
+      <p className="home-stat-label">{label}</p>
     </div>
   </motion.div>
 );
