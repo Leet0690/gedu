@@ -7,7 +7,7 @@ import { logoBase64 } from '../utils/logoBase64';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui';
+import { DatePicker, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { 
@@ -31,7 +31,6 @@ import {
   X,
   CreditCard,
   History,
-  Calendar,
   CalendarDays,
   Receipt,
   Tag,
@@ -1670,40 +1669,34 @@ const FinanceDashboard = () => {
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <input
-                    type="date"
-                    className="input-premium"
+                <div className="finance-period-date-range">
+                  <DatePicker
+                    id="daily-stats-start-date"
+                    label="Début"
                     value={dailyStatsDate}
                     max={dailyStatsEndDate || undefined}
-                    onChange={(e) => {
-                      const newDate = e.target.value;
+                    onChange={(newDate) => {
                       setDailyStatsDate(newDate);
                       if (dailyStatsEndDate && newDate && newDate > dailyStatsEndDate) {
                         setDailyStatsEndDate(newDate);
                       }
                       setDailyStatsPage(1);
                     }}
-                    onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }}
-                    style={{ width: '185px', paddingLeft: '12px' }}
                     title="Date de début"
                   />
-                  <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-muted)' }}>au</span>
-                  <input
-                    type="date"
-                    className="input-premium"
+                  <span className="finance-period-separator">au</span>
+                  <DatePicker
+                    id="daily-stats-end-date"
+                    label="Fin"
                     value={dailyStatsEndDate}
                     min={dailyStatsDate || undefined}
-                    onChange={(e) => {
-                      const newEndDate = e.target.value;
+                    onChange={(newEndDate) => {
                       setDailyStatsEndDate(newEndDate);
                       if (dailyStatsDate && newEndDate && newEndDate < dailyStatsDate) {
                         setDailyStatsDate(newEndDate);
                       }
                       setDailyStatsPage(1);
                     }}
-                    onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }}
-                    style={{ width: '185px', paddingLeft: '12px' }}
                     title="Date de fin"
                   />
                 </div>

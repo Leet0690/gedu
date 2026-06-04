@@ -5,8 +5,9 @@ import { useToast } from '../context/ToastContext';
 import { MODULES_DATA } from '../data/modules';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
+import { DatePicker } from '../components/ui';
 import {
-  Users, Calendar, Search, Download, Clock, UserCheck, X,
+  Users, Search, Download, Clock, UserCheck, X,
   CheckCircle2, XCircle, FileSpreadsheet, GraduationCap,
   CalendarRange, ChevronLeft, ChevronRight
 } from 'lucide-react';
@@ -336,10 +337,12 @@ const TeacherAttendance = () => {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-4)' }}>
               <div style={fGroup}>
                 <label style={labelStyle}>Date d'appel</label>
-                <div style={{ position: 'relative' }}>
-                  <Calendar size={14} style={fIcon} />
-                  <input type="date" className="input-premium" style={{ width: '100%', paddingLeft: '34px' }} value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }} />
-                </div>
+                <DatePicker
+                  value={selectedDate}
+                  onChange={setSelectedDate}
+                  title="Date d'appel"
+                  placeholder="Choisir une date"
+                />
               </div>
               <div style={fGroup}>
                 <label style={labelStyle}>Jour de semaine</label>

@@ -5,11 +5,12 @@ import { useToast } from '../context/ToastContext';
 import { FILIERES, getModulesForFiliere } from '../data/modules';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
+import { DatePicker } from '../components/ui';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import {
   UserCheck, FileSpreadsheet, Search, CheckCircle2,
   XCircle, X, Clock, Users, Filter, Download, CalendarRange,
-  ChevronLeft, ChevronRight, AlertTriangle, CheckCheck, Calendar
+  ChevronLeft, ChevronRight, AlertTriangle, CheckCheck
 } from 'lucide-react';
 
 /* ─── Monthly-view helpers ─── */
@@ -522,10 +523,12 @@ const StudentAttendance = () => {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
               <div style={{ ...filterGroupStyle, flex: '1 1 220px', maxWidth: '300px' }}>
                 <label style={labelStyle}>Date de l'appel</label>
-                <div style={{ position: 'relative' }}>
-                  <Calendar size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)', pointerEvents: 'none' }} />
-                  <input type="date" className="input-premium" style={{ width: '100%', paddingLeft: '34px' }} value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }} />
-                </div>
+                <DatePicker
+                  value={selectedDate}
+                  onChange={setSelectedDate}
+                  title="Date de l'appel"
+                  placeholder="Choisir une date"
+                />
               </div>
               <div style={{ ...filterGroupStyle, flex: '1 1 160px', maxWidth: '240px' }}>
                 <label style={labelStyle}>Niveau</label>
