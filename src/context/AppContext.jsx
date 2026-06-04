@@ -166,7 +166,7 @@ export const AppProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   
   useEffect(() => {
-    const q = query(collection(db, 'activity_logs'), orderBy('timestamp', 'desc'), limit(15));
+    const q = query(collection(db, 'activity_logs'), orderBy('timestamp', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setNotifications(logs);

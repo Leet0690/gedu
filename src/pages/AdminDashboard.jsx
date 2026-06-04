@@ -254,8 +254,11 @@ const TodaySessionsWidget = ({ schedules, teachers, getScheduleModule, activeSem
   );
 };
 
-const ActivityFeedWidget = ({ notifications, onClear }) => {
-  const recent = useMemo(() => (notifications || []).slice(0, 10), [notifications]);
+const ActivityFeedWidget = ({ notifications }) => {
+  const [visibleCount, setVisibleCount] = useState(10);
+  const recent = useMemo(() => notifications || [], [notifications]);
+  const visibleActivities = useMemo(() => recent.slice(0, visibleCount), [recent, visibleCount]);
+  const hasMoreActivities = visibleCount < recent.length;
 
   return (
     <motion.div
@@ -277,15 +280,6 @@ const ActivityFeedWidget = ({ notifications, onClear }) => {
             <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '500', marginTop: '1px' }}>Dernières actions</p>
           </div>
         </div>
-        {recent.length > 0 && (
-          <button
-            onClick={onClear}
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '10px', fontWeight: '700', color: 'var(--text-muted)', padding: '3px 8px', borderRadius: '6px' }}
-            title="Effacer l'historique"
-          >
-            Effacer
-          </button>
-        )}
       </div>
 
       {recent.length === 0 ? (
@@ -295,7 +289,7 @@ const ActivityFeedWidget = ({ notifications, onClear }) => {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', overflowY: 'auto', maxHeight: '280px' }}>
-          {recent.map((notif) => {
+          {visibleActivities.map((notif) => {
             const { icon: Icon, color, bg } = getActivityIcon(notif.message);
             return (
               <div
@@ -316,6 +310,14 @@ const ActivityFeedWidget = ({ notifications, onClear }) => {
               </div>
             );
           })}
+          {hasMoreActivities && (
+            <button
+              onClick={() => setVisibleCount((count) => count + 10)}
+              style={{ marginTop: '6px', width: '100%', border: '1px solid var(--border-light)', borderRadius: '9px', padding: '8px 10px', background: 'rgba(99,102,241,0.06)', color: '#6366f1', cursor: 'pointer', fontSize: '11px', fontWeight: '800' }}
+            >
+              Charger plus
+            </button>
+          )}
         </div>
       )}
     </motion.div>
@@ -752,7 +754,7 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
 };
 
 const AdminDashboard = () => {
-  const { students, teachers, grades, schedules, modules: allModules, deleteStudent, deleteTeacher, updateStudent, updateTeacher, studentAttendance, teacherAttendance, loadStudentAttendanceForMonth, loadTeacherAttendanceForMonth, migrateTeacherTokens, loading, confirmAction, notifications, clearNotifications, activeSemester, setActiveSemester, getActiveScheduleModule } = useApp();
+  const { students, teachers, grades, schedules, modules: allModules, deleteStudent, deleteTeacher, updateStudent, updateTeacher, studentAttendance, teacherAttendance, loadStudentAttendanceForMonth, loadTeacherAttendanceForMonth, migrateTeacherTokens, loading, confirmAction, notifications, activeSemester, setActiveSemester, getActiveScheduleModule } = useApp();
   const { showToast } = useToast();
   const location = useLocation();
   const isDashboard = location.pathname === '/';
@@ -1119,7 +1121,7 @@ const AdminDashboard = () => {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 'var(--space-3)' }}>
             <PendingTasksWidget students={students || []} teachers={teachers || []} grades={grades || {}} teacherAttendance={teacherAttendance || []} allModules={allModules || []} activeSemester={activeSemester} />
-            <ActivityFeedWidget notifications={notifications || []} onClear={clearNotifications} />
+            <ActivityFeedWidget notifications={notifications || []} />
           </div>
 
           <ScheduleCalendar realSchedules={schedules || []} teachers={teachers || []} activeSemester={activeSemester} setActiveSemester={setActiveSemester} getScheduleModule={getActiveScheduleModule} />
