@@ -1665,7 +1665,7 @@ const FinanceDashboard = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <CalendarDays size={22} style={{ color: 'var(--danger)' }} />
                 <div>
-                  <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: '900' }}>Statistiques quotidiennes</h3>
+                  <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: '900' }}>Statistique par période</h3>
                   <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '700' }}>Dépenses et charges par date</p>
                 </div>
               </div>
@@ -1682,7 +1682,7 @@ const FinanceDashboard = () => {
                         setDailyStatsPage(1);
                       }}
                       onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }}
-                      style={{ width: '140px', paddingLeft: '34px' }}
+                      style={{ width: '170px', paddingLeft: '34px' }}
                       title="Date de début"
                     />
                   </div>
@@ -1698,7 +1698,7 @@ const FinanceDashboard = () => {
                         setDailyStatsPage(1);
                       }}
                       onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }}
-                      style={{ width: '140px', paddingLeft: '34px' }}
+                      style={{ width: '170px', paddingLeft: '34px' }}
                       title="Date de fin"
                     />
                   </div>
