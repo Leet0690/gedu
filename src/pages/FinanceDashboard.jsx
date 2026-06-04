@@ -1671,37 +1671,31 @@ const FinanceDashboard = () => {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <div style={{ position: 'relative' }}>
-                    <Calendar size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)', pointerEvents: 'none' }} />
-                    <input
-                      type="date"
-                      className="input-premium"
-                      value={dailyStatsDate}
-                      onChange={(e) => {
-                        setDailyStatsDate(e.target.value);
-                        setDailyStatsPage(1);
-                      }}
-                      onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }}
-                      style={{ width: '170px', paddingLeft: '34px' }}
-                      title="Date de début"
-                    />
-                  </div>
+                  <input
+                    type="date"
+                    className="input-premium"
+                    value={dailyStatsDate}
+                    onChange={(e) => {
+                      setDailyStatsDate(e.target.value);
+                      setDailyStatsPage(1);
+                    }}
+                    onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }}
+                    style={{ width: '185px', paddingLeft: '12px' }}
+                    title="Date de début"
+                  />
                   <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-muted)' }}>au</span>
-                  <div style={{ position: 'relative' }}>
-                    <Calendar size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)', pointerEvents: 'none' }} />
-                    <input
-                      type="date"
-                      className="input-premium"
-                      value={dailyStatsEndDate}
-                      onChange={(e) => {
-                        setDailyStatsEndDate(e.target.value);
-                        setDailyStatsPage(1);
-                      }}
-                      onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }}
-                      style={{ width: '170px', paddingLeft: '34px' }}
-                      title="Date de fin"
-                    />
-                  </div>
+                  <input
+                    type="date"
+                    className="input-premium"
+                    value={dailyStatsEndDate}
+                    onChange={(e) => {
+                      setDailyStatsEndDate(e.target.value);
+                      setDailyStatsPage(1);
+                    }}
+                    onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }}
+                    style={{ width: '185px', paddingLeft: '12px' }}
+                    title="Date de fin"
+                  />
                 </div>
                 {(dailyStatsDate || dailyStatsEndDate) && (
                   <button
