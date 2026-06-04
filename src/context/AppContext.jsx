@@ -13,7 +13,8 @@ import {
   getDoc,
   where,
   limit,
-  writeBatch
+  writeBatch,
+  onSnapshot
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import ConfirmModal from '../components/ConfirmModal';
@@ -162,19 +163,53 @@ const buildAccessLogPayload = async ({ path = '', accessType = 'app' } = {}) => 
 
 export const AppProvider = ({ children }) => {
   const { showToast: originalShowToast } = useToast();
-  const [notifications, setNotifications] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('ipfp_notifications')) || []; } catch { return []; }
-  });
+  const [notifications, setNotifications] = useState([]);
   
-  useEffect(() => { localStorage.setItem('ipfp_notifications', JSON.stringify(notifications)); }, [notifications]);
+  useEffect(() => {
+    const q = query(collection(db, 'activity_logs'), orderBy('timestamp', 'desc'), limit(15));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setNotifications(logs);
+    }, (error) => {
+      console.error("Erreur lecture activité récente:", error);
+    });
+    return () => unsubscribe();
+  }, []);
 
-  const markNotificationAsRead = useCallback((id) => setNotifications(p => p.map(n => n.id === id ? { ...n, read: true } : n)), []);
-  const clearNotifications = useCallback(() => setNotifications([]), []);
+  const markNotificationAsRead = useCallback(async (id) => {
+    try {
+      await updateDoc(doc(db, 'activity_logs', id), { read: true });
+    } catch (e) {
+      console.error("Erreur markRead:", e);
+    }
+  }, []);
 
-  const showToast = useCallback((msg, type = 'info') => {
+  const clearNotifications = useCallback(async () => {
+    if (notifications.length === 0) return;
+    try {
+      const batch = writeBatch(db);
+      notifications.forEach(n => {
+        batch.delete(doc(db, 'activity_logs', n.id));
+      });
+      await batch.commit();
+    } catch (e) {
+      console.error("Erreur clearNotifications:", e);
+    }
+  }, [notifications]);
+
+  const showToast = useCallback(async (msg, type = 'info') => {
     originalShowToast(msg, type);
     if ((type === 'success' || type === 'warning') && !msg.toLowerCase().includes('connexion') && !msg.toLowerCase().includes('déconnexion')) {
-      setNotifications(prev => [{ id: Date.now().toString() + Math.random(), message: msg, type, timestamp: Date.now(), read: false }, ...prev].slice(0, 10));
+      try {
+        await addDoc(collection(db, 'activity_logs'), {
+          message: msg,
+          type,
+          timestamp: Date.now(),
+          read: false
+        });
+      } catch (err) {
+        console.error("Erreur enregistrement log:", err);
+      }
     }
   }, [originalShowToast]);
 
