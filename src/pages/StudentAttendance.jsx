@@ -5,7 +5,6 @@ import { useToast } from '../context/ToastContext';
 import { FILIERES, getModulesForFiliere } from '../data/modules';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
-import ShadcnSelect from '../components/ShadcnSelect';
 import {
   UserCheck, FileSpreadsheet, Search, CheckCircle2,
   XCircle, X, Clock, Users, Filter, Download, CalendarRange,
@@ -529,43 +528,33 @@ const StudentAttendance = () => {
               </div>
               <div style={filterGroupStyle}>
                 <label style={labelStyle}>Niveau</label>
-                <ShadcnSelect
-                  value={filterDiploma}
-                  onChange={(val) => { setFilterDiploma(val); setFilterMajor(''); setFilterModule(''); }}
-                  options={[{ label: 'Choisir niveau', value: '' }, ...Object.keys(FILIERES).map(d => ({ label: d, value: d }))]}
-                />
+                <select className="input-premium" style={{ width: '100%' }} value={filterDiploma} onChange={(e) => { setFilterDiploma(e.target.value); setFilterMajor(''); setFilterModule(''); }}>
+                  <option value="" disabled>Choisir niveau</option>
+                  {Object.keys(FILIERES).map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
               </div>
               <div style={filterGroupStyle}>
                 <label style={labelStyle}>Filière</label>
-                <ShadcnSelect
-                  value={filterMajor}
-                  onChange={(val) => { setFilterMajor(val); setFilterModule(''); }}
-                  options={[{ label: 'Choisir filière', value: '' }, ...availableMajors.map(m => ({ label: m, value: m }))]}
-                />
+                <select className="input-premium" style={{ width: '100%' }} value={filterMajor} onChange={(e) => { setFilterMajor(e.target.value); setFilterModule(''); }}>
+                  <option value="" disabled>Choisir filière</option>
+                  {availableMajors.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
               </div>
               <div style={filterGroupStyle}>
                 <label style={labelStyle}>Année</label>
-                <ShadcnSelect
-                  value={filterYear}
-                  onChange={(val) => { setFilterYear(val); setFilterModule(''); }}
-                  options={[
-                    { label: 'Année', value: '' },
-                    { label: '1ère année', value: '1ère année' },
-                    { label: '2ème année', value: '2ème année' },
-                  ]}
-                />
+                <select className="input-premium" style={{ width: '100%' }} value={filterYear} onChange={(e) => { setFilterYear(e.target.value); setFilterModule(''); }}>
+                  <option value="" disabled>Année</option>
+                  <option value="1ère année">1ère année</option>
+                  <option value="2ème année">2ème année</option>
+                </select>
               </div>
               <div style={filterGroupStyle}>
                 <label style={labelStyle}>Module</label>
-                <ShadcnSelect
-                  value={filterModule}
-                  onChange={setFilterModule}
-                  options={[
-                    { label: 'Module requis', value: '' },
-                    ...availableModules.map(m => ({ label: m, value: m })),
-                    ...(availableModules.length === 0 ? [{ label: 'Général', value: 'global' }] : [])
-                  ]}
-                />
+                <select className="input-premium" style={{ width: '100%' }} value={filterModule} onChange={(e) => setFilterModule(e.target.value)}>
+                  <option value="">Module requis</option>
+                  {availableModules.map(m => <option key={m} value={m}>{m}</option>)}
+                  {availableModules.length === 0 && <option value="global">Général</option>}
+                </select>
               </div>
             </div>
           </div>
@@ -699,40 +688,31 @@ const StudentAttendance = () => {
               <div>
                 <label style={labelStyle}>Mois</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <ShadcnSelect 
-                    value={mMonth} 
-                    onChange={setMMonth} 
-                    options={MONTHS.map((m, i) => ({ label: m, value: i }))} 
-                  />
+                  <select className="input-premium" style={{ width: '100%', textAlign: 'center', fontWeight: '700' }} value={mMonth} onChange={e => setMMonth(Number(e.target.value))}>
+                    {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                  </select>
                 </div>
               </div>
               <div>
                 <label style={labelStyle}>Année</label>
-                <ShadcnSelect 
-                  value={mYear} 
-                  onChange={setMYear} 
-                  options={availableYears} 
-                />
+                <select className="input-premium" style={{ width: '100%' }} value={mYear} onChange={e => setMYear(Number(e.target.value))}>
+                  {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
               </div>
               <div>
                 <label style={labelStyle}>Filière</label>
-                <ShadcnSelect
-                  value={mFilterFiliere}
-                  onChange={setMFilterFiliere}
-                  options={[{ label: 'Toutes les filières', value: '' }, ...allFilieres.map(f => ({ label: f, value: f }))]}
-                />
+                <select className="input-premium" style={{ width: '100%' }} value={mFilterFiliere} onChange={e => setMFilterFiliere(e.target.value)}>
+                  <option value="">Toutes les filières</option>
+                  {allFilieres.map(f => <option key={f} value={f}>{f}</option>)}
+                </select>
               </div>
               <div>
                 <label style={labelStyle}>Année d'étude</label>
-                <ShadcnSelect
-                  value={mFilterAnnee}
-                  onChange={setMFilterAnnee}
-                  options={[
-                    { label: 'Toutes années', value: '' },
-                    { label: '1ère année', value: '1ère année' },
-                    { label: '2ème année', value: '2ème année' },
-                  ]}
-                />
+                <select className="input-premium" style={{ width: '100%' }} value={mFilterAnnee} onChange={e => setMFilterAnnee(e.target.value)}>
+                  <option value="">Toutes années</option>
+                  <option value="1ère année">1ère année</option>
+                  <option value="2ème année">2ème année</option>
+                </select>
               </div>
               <div>
                 <label style={labelStyle}>Rechercher</label>

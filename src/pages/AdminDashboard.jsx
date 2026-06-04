@@ -13,7 +13,6 @@ import { FILIERES, MODULES_DATA, getModulesForStudent, getModulesForFiliere } fr
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
-import ShadcnSelect from '../components/ShadcnSelect';
 import { 
   Plus, 
   Search, 
@@ -617,18 +616,12 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
             Emploi du temps
           </span>
           <div style={{ display: 'flex', gap: '6px' }}>
-            <ShadcnSelect
-              value={selectedFiliere}
-              onChange={setSelectedFiliere}
-              options={allFilieres}
-              style={{ fontSize: '11px', maxWidth: '200px' }}
-            />
-            <ShadcnSelect
-              value={selectedAnnee}
-              onChange={setSelectedAnnee}
-              options={allAnnees}
-              style={{ fontSize: '11px', width: '120px' }}
-            />
+            <select className="input-premium" style={{ fontSize: '11px', padding: '5px 10px', maxWidth: '200px', cursor: 'pointer' }} value={selectedFiliere} onChange={e => setSelectedFiliere(e.target.value)}>
+              {allFilieres.map(f => <option key={f} value={f}>{f}</option>)}
+            </select>
+            <select className="input-premium" style={{ fontSize: '11px', padding: '5px 10px', width: '120px', cursor: 'pointer' }} value={selectedAnnee} onChange={e => setSelectedAnnee(e.target.value)}>
+              {allAnnees.map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
             <SemesterToggle activeSemester={activeSemester} onChange={setActiveSemester} compact />
           </div>
         </div>
@@ -1149,32 +1142,26 @@ const AdminDashboard = () => {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 150px' }}>
               <label style={labelStyle}>Niveau</label>
-              <ShadcnSelect
-                value={diplomaFilter}
-                onChange={(val) => { setDiplomaFilter(val); setCategoryFilter(''); }}
-                options={[{ label: 'Tous niveaux', value: '' }, ...allDiplomas.map(d => ({ label: d, value: d }))]}
-                style={{ width: '100%', fontSize: '13px' }}
-              />
+              <select className="input-premium" style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }} value={diplomaFilter} onChange={(e) => { setDiplomaFilter(e.target.value); setCategoryFilter(''); }}>
+                <option value="">Tous niveaux</option>
+                {allDiplomas.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 140px' }}>
               <label style={labelStyle}>Année</label>
-              <ShadcnSelect
-                value={yearFilter}
-                onChange={setYearFilter}
-                options={[{ label: 'Toutes années', value: '' }, ...availableYears.map(y => ({ label: y, value: y }))]}
-                style={{ width: '100%', fontSize: '13px' }}
-              />
+              <select className="input-premium" style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }} value={yearFilter} onChange={(e) => setYearFilter(e.target.value)}>
+                <option value="">Toutes années</option>
+                {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 160px' }}>
               <label style={labelStyle}>Filière</label>
-              <ShadcnSelect
-                value={categoryFilter}
-                onChange={setCategoryFilter}
-                options={[{ label: 'Toutes filières', value: '' }, ...availableMajors.map(m => ({ label: m, value: m }))]}
-                style={{ width: '100%', fontSize: '13px' }}
-              />
+              <select className="input-premium" style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+                <option value="">Toutes filières</option>
+                {availableMajors.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
             </div>
           </div>
 
@@ -1247,31 +1234,23 @@ const AdminDashboard = () => {
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                           <div style={fGroup}>
                             <label style={lbl}>Niveau</label>
-                            <ShadcnSelect
-                              value={editFormData.diploma || ''}
-                              onChange={(val) => setEditFormData({...editFormData, diploma: val, major: ''})}
-                              options={Object.keys(FILIERES).map(d => ({ label: d, value: d }))}
-                            />
+                            <select className="input-premium" value={editFormData.diploma || ''} onChange={e => setEditFormData({...editFormData, diploma: e.target.value, major: ''})}>
+                              {Object.keys(FILIERES).map(d => <option key={d} value={d}>{d}</option>)}
+                            </select>
                           </div>
                           <div style={fGroup}>
                             <label style={lbl}>Année</label>
-                            <ShadcnSelect
-                              value={editFormData.year || ''}
-                              onChange={(val) => setEditFormData({...editFormData, year: val})}
-                              options={[
-                                { label: '1ère année', value: '1ère année' },
-                                { label: '2ème année', value: '2ème année' },
-                              ]}
-                            />
+                            <select className="input-premium" value={editFormData.year || ''} onChange={e => setEditFormData({...editFormData, year: e.target.value})}>
+                              <option value="1ère année">1ère année</option>
+                              <option value="2ème année">2ème année</option>
+                            </select>
                           </div>
                         </div>
                         <div style={fGroup}>
                           <label style={lbl}>Filière</label>
-                          <ShadcnSelect
-                            value={editFormData.major || ''}
-                            onChange={(val) => setEditFormData({...editFormData, major: val})}
-                            options={(FILIERES[editFormData.diploma] || []).map(f => ({ label: f, value: f }))}
-                          />
+                          <select className="input-premium" value={editFormData.major || ''} onChange={e => setEditFormData({...editFormData, major: e.target.value})}>
+                            {(FILIERES[editFormData.diploma] || []).map(f => <option key={f} value={f}>{f}</option>)}
+                          </select>
                         </div>
                         <div style={fGroup}>
                           <label style={lbl}>Matricule</label>

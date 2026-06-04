@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import ShadcnSelect from '../components/ShadcnSelect';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -299,49 +298,32 @@ const GradeManagement = () => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-4)' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label style={lbl}>Niveau</label>
-            <ShadcnSelect
-              value={filterDiploma}
-              onChange={(val) => { setFilterDiploma(val); setFilterMajor(''); setSelectedStudentId(''); setPdfModule(''); }}
-              options={Object.keys(FILIERES).map(d => ({ label: d, value: d }))}
-              placeholder="-- Choisir le niveau --"
-              style={selectStyle}
-            />
+            <select className="input-premium" style={selectStyle} value={filterDiploma} onChange={(e) => { setFilterDiploma(e.target.value); setFilterMajor(''); setSelectedStudentId(''); setPdfModule(''); }}>
+              <option value="" disabled>-- Choisir le niveau --</option>
+              {Object.keys(FILIERES).map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label style={lbl}>Filière</label>
-            <ShadcnSelect
-              value={filterMajor}
-              onChange={(val) => { setFilterMajor(val); setSelectedStudentId(''); setPdfModule(''); }}
-              options={availableMajors.map(m => ({ label: m, value: m }))}
-              placeholder="-- Choisir la filière --"
-              style={selectStyle}
-            />
+            <select className="input-premium" style={selectStyle} value={filterMajor} onChange={(e) => { setFilterMajor(e.target.value); setSelectedStudentId(''); setPdfModule(''); }}>
+              <option value="" disabled>-- Choisir la filière --</option>
+              {availableMajors.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label style={lbl}>Année</label>
-            <ShadcnSelect
-              value={filterYear}
-              onChange={(val) => { setFilterYear(val); setSelectedStudentId(''); setPdfModule(''); }}
-              options={[
-                { label: "1ère année", value: "1ère année" },
-                { label: "2ème année", value: "2ème année" }
-              ]}
-              placeholder="-- Choisir l'année --"
-              style={selectStyle}
-            />
+            <select className="input-premium" style={selectStyle} value={filterYear} onChange={(e) => { setFilterYear(e.target.value); setSelectedStudentId(''); setPdfModule(''); }}>
+              <option value="" disabled>-- Choisir l'année --</option>
+              <option value="1ère année">1ère année</option>
+              <option value="2ème année">2ème année</option>
+            </select>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label style={lbl}>Stagiaire</label>
-            <ShadcnSelect
-              value={selectedStudentId}
-              onChange={setSelectedStudentId}
-              options={[
-                { label: "Sélectionner un stagiaire", value: "" },
-                ...filteredStudents.map(s => ({ label: `${s.lastName} ${s.firstName}`, value: s.id }))
-              ]}
-              placeholder="Sélectionner un stagiaire"
-              style={selectStyle}
-            />
+            <select className="input-premium" style={selectStyle} value={selectedStudentId} onChange={(e) => setSelectedStudentId(e.target.value)}>
+              <option value="">Sélectionner un stagiaire</option>
+              {filteredStudents.map(s => <option key={s.id} value={s.id}>{s.lastName} {s.firstName}</option>)}
+            </select>
           </div>
         </div>
       </motion.div>
@@ -373,16 +355,10 @@ const GradeManagement = () => {
                 {filterDiploma && filterMajor && filterYear && pdfModules.length > 0 && (
                   <div style={{ marginTop: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
                     <label style={lbl}>Module Cible</label>
-                    <ShadcnSelect
-                      value={pdfModule}
-                      onChange={setPdfModule}
-                      options={[
-                        { label: "Sélectionner un module", value: "" },
-                        ...pdfModules.map(m => ({ label: m, value: m }))
-                      ]}
-                      placeholder="Sélectionner un module"
-                      style={{ ...selectStyle, marginTop: '8px' }}
-                    />
+                    <select className="input-premium" style={{ ...selectStyle, marginTop: '8px' }} value={pdfModule} onChange={(e) => setPdfModule(e.target.value)}>
+                      <option value="">Sélectionner un module</option>
+                      {pdfModules.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
                   </div>
                 )}
 
@@ -395,16 +371,12 @@ const GradeManagement = () => {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
                       <label style={{ fontSize: '11px', fontWeight: '700' }}>Examen</label>
-                      <ShadcnSelect
-                        value={pdfCC}
-                        onChange={setPdfCC}
-                        options={[
-                          { label: "CC1", value: "1" },
-                          { label: "CC2", value: "2" },
-                          { label: "CC3", value: "3" }
-                        ]}
-                        style={{ width: '80px', padding: '4px 28px 4px 12px', fontSize: '12px' }}
-                      />
+                      <select className="input-premium" style={{ ...selectStyle, width: '80px', padding: '4px 28px 4px 12px', fontSize: '12px' }}
+                        value={pdfCC} onChange={(e) => setPdfCC(e.target.value)}>
+                        <option value="1">CC1</option>
+                        <option value="2">CC2</option>
+                        <option value="3">CC3</option>
+                      </select>
                     </div>
                     <button onClick={handleFicheSignature} disabled={!pdfModule} className="btn-modern primary" style={{ width: '100%', opacity: !pdfModule ? 0.5 : 1 }}>
                       <Download size={14} style={{ marginRight: '8px' }} /> Télécharger

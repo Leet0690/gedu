@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
-import ShadcnSelect from '../components/ShadcnSelect';
 import {
   Activity,
   CalendarDays,
@@ -185,17 +184,11 @@ const AccessLogs = () => {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <CalendarDays size={16} style={{ color: 'var(--text-muted)' }} />
-          <div style={{ flex: 1, minWidth: '150px' }}>
-            <ShadcnSelect
-              value={period}
-              onChange={setPeriod}
-              options={[
-                { label: 'Tous les accès', value: 'all' },
-                { label: "Aujourd'hui", value: 'today' },
-                { label: '7 derniers jours', value: 'week' },
-              ]}
-            />
-          </div>
+          <select className="input-premium" value={period} onChange={(event) => setPeriod(event.target.value)}>
+            <option value="all">Tous les accès</option>
+            <option value="today">Aujourd'hui</option>
+            <option value="week">7 derniers jours</option>
+          </select>
         </div>
       </div>
 

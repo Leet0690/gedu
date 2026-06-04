@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import ShadcnSelect from '../components/ShadcnSelect';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -183,21 +182,25 @@ const ScheduleManagement = () => {
       <div className="glass-card" style={{ padding: '16px 20px', marginBottom: 'var(--space-5)', display: 'flex', alignItems: 'end', gap: '12px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 260px' }}>
           <label style={labelStyle}>Filière</label>
-          <ShadcnSelect
-            value={filiere}
-            onChange={setFiliere}
-            options={allFilieres}
+          <select
+            className="input-premium"
             style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }}
-          />
+            value={filiere}
+            onChange={e => setFiliere(e.target.value)}
+          >
+            {allFilieres.map(f => <option key={f} value={f}>{f}</option>)}
+          </select>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '0 1 180px' }}>
           <label style={labelStyle}>Année</label>
-          <ShadcnSelect
-            value={annee}
-            onChange={setAnnee}
-            options={allAnnees}
+          <select
+            className="input-premium"
             style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }}
-          />
+            value={annee}
+            onChange={e => setAnnee(e.target.value)}
+          >
+            {allAnnees.map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
         </div>
         <div style={{
           display: 'inline-flex',
@@ -505,12 +508,9 @@ const ScheduleManagement = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                   <div>
                     <label style={labelStyle}>Jour</label>
-                    <ShadcnSelect
-                      value={formData.day}
-                      onChange={(val) => setFormData({ ...formData, day: val })}
-                      options={DAYS}
-                      style={{ width: '100%', marginTop: '6px' }}
-                    />
+                    <select className="input-premium" style={{ width: '100%', marginTop: '6px' }} value={formData.day} onChange={e => setFormData({ ...formData, day: e.target.value })}>
+                      {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
                   </div>
                   <div>
                     <label style={labelStyle}>Horaire</label>
@@ -547,67 +547,64 @@ const ScheduleManagement = () => {
 
                 <div>
                   <label style={labelStyle}>Intervenant</label>
-                  <ShadcnSelect
+                  <select
+                    className="input-premium" style={{ width: '100%', marginTop: '6px' }} required
                     value={formData.teacherId}
-                    onChange={(val) => {
-                      const teacher = teachers.find(t => t.id === val);
+                    onChange={e => {
+                      const teacher = teachers.find(t => t.id === e.target.value);
                       const teacherSubjects = (teacher?.subjects || [teacher?.subject]).filter(Boolean);
                       const nextModuleS1 = teacherSubjects.find(subject => modulesBySemester.S1.includes(subject)) || '';
                       const nextModuleS2 = teacherSubjects.find(subject => modulesBySemester.S2.includes(subject)) || '';
-                      setFormData({ ...formData, teacherId: val, module: nextModuleS1, moduleS1: nextModuleS1, moduleS2: nextModuleS2 });
+                      setFormData({ ...formData, teacherId: e.target.value, module: nextModuleS1, moduleS1: nextModuleS1, moduleS2: nextModuleS2 });
                     }}
-                    options={[
-                      { label: 'Sélectionner un formateur...', value: '' },
-                      ...(() => {
-                        const filtered = teachers.filter(t =>
-                          (t.groups || []).includes(filiere) && (t.years || []).includes(annee)
-                        );
-                        return filtered.map(t => ({ label: t.name, value: t.id }));
-                      })()
-                    ]}
-                    placeholder="Sélectionner un formateur..."
-                    style={{ width: '100%', marginTop: '6px' }}
-                  />
+                  >
+                    <option value="">Sélectionner un formateur...</option>
+                    {(() => {
+                      const filtered = teachers.filter(t =>
+                        (t.groups || []).includes(filiere) && (t.years || []).includes(annee)
+                      );
+                      if (filtered.length === 0) return <option disabled>Aucun formateur assigné à cette filière/année</option>;
+                      return filtered.map(t => <option key={t.id} value={t.id}>{t.name}</option>);
+                    })()}
+                  </select>
                 </div>
 
                 <div>
                   <label style={labelStyle}>Module S1 / Même horaire</label>
-                  <ShadcnSelect
+                  <select
+                    className="input-premium" style={{ width: '100%', marginTop: '6px' }} required
                     value={formData.moduleS1}
-                    onChange={(val) => setFormData({ ...formData, module: val, moduleS1: val })}
-                    options={[
-                      { label: 'Sélectionner un module...', value: '' },
-                      ...(() => {
-                        const teacher = teachers.find(t => t.id === formData.teacherId);
-                        if (!teacher) return [];
-                        const teacherModules = teacher.subjects || (teacher.subject ? [teacher.subject] : []);
-                        const filtered = (modulesBySemester.S1 || []).filter(m => teacherModules.includes(m));
-                        return filtered.map(m => ({ label: m, value: m }));
-                      })()
-                    ]}
-                    placeholder="Sélectionner un module..."
-                    style={{ width: '100%', marginTop: '6px' }}
-                  />
+                    onChange={e => setFormData({ ...formData, module: e.target.value, moduleS1: e.target.value })}
+                  >
+                    <option value="">Sélectionner un module...</option>
+                    {(() => {
+                      const teacher = teachers.find(t => t.id === formData.teacherId);
+                      if (!teacher) return <option disabled>Veuillez sélectionner un formateur d'abord</option>;
+                      const teacherModules = teacher.subjects || (teacher.subject ? [teacher.subject] : []);
+                      const filtered = (modulesBySemester.S1 || []).filter(m => teacherModules.includes(m));
+                      if (filtered.length === 0) return <option disabled>Aucun module commun disponible pour S1</option>;
+                      return filtered.map(m => <option key={m} value={m}>{m}</option>);
+                    })()}
+                  </select>
                 </div>
 
                 <div>
                   <label style={labelStyle}>Module S2 / Même horaire</label>
-                  <ShadcnSelect
+                  <select
+                    className="input-premium" style={{ width: '100%', marginTop: '6px' }}
                     value={formData.moduleS2}
-                    onChange={(val) => setFormData({ ...formData, moduleS2: val })}
-                    options={[
-                      { label: 'Aucun module S2', value: '' },
-                      ...(() => {
-                        const teacher = teachers.find(t => t.id === formData.teacherId);
-                        if (!teacher) return [];
-                        const teacherModules = teacher.subjects || (teacher.subject ? [teacher.subject] : []);
-                        const filtered = (modulesBySemester.S2 || []).filter(m => teacherModules.includes(m));
-                        return filtered.map(m => ({ label: m, value: m }));
-                      })()
-                    ]}
-                    placeholder={!teachers.find(t => t.id === formData.teacherId) ? "Veuillez sélectionner un formateur d'abord" : "Sélectionner un module S2..."}
-                    style={{ width: '100%', marginTop: '6px' }}
-                  />
+                    onChange={e => setFormData({ ...formData, moduleS2: e.target.value })}
+                  >
+                    <option value="">Aucun module S2</option>
+                    {(() => {
+                      const teacher = teachers.find(t => t.id === formData.teacherId);
+                      if (!teacher) return <option disabled>Veuillez sélectionner un formateur d'abord</option>;
+                      const teacherModules = teacher.subjects || (teacher.subject ? [teacher.subject] : []);
+                      const filtered = (modulesBySemester.S2 || []).filter(m => teacherModules.includes(m));
+                      if (filtered.length === 0) return <option disabled>Aucun module commun disponible pour S2</option>;
+                      return filtered.map(m => <option key={m} value={m}>{m}</option>);
+                    })()}
+                  </select>
                 </div>
 
                 <div>

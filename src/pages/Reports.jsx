@@ -14,7 +14,6 @@ import {
   Award, AlertTriangle, ChevronUp, ChevronDown, Minus,
   CheckCircle, XCircle
 } from 'lucide-react';
-import ShadcnSelect from '../components/ShadcnSelect';
 
 const labelStyle = {
   fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)',
@@ -662,38 +661,28 @@ const Reports = () => {
       <div className="glass-card" style={{ padding: 'var(--space-5)', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)', alignItems: 'flex-end' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <label style={labelStyle}>Niveau</label>
-          <ShadcnSelect
-            value={selectedDiploma}
-            onChange={setSelectedDiploma}
-            options={Object.keys(MODULES_DATA).map(d => ({ label: d, value: d }))}
-          />
+          <select className="input-premium" style={{ minWidth: '180px' }} value={selectedDiploma} onChange={e => setSelectedDiploma(e.target.value)}>
+            {Object.keys(MODULES_DATA).map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <label style={labelStyle}>Filière</label>
-          <ShadcnSelect
-            value={selectedMajor}
-            onChange={setSelectedMajor}
-            options={availableMajors.map(m => ({ label: m, value: m }))}
-          />
+          <select className="input-premium" style={{ minWidth: '200px' }} value={selectedMajor} onChange={e => setSelectedMajor(e.target.value)}>
+            {availableMajors.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <label style={labelStyle}>Année</label>
-          <ShadcnSelect
-            value={selectedYear}
-            onChange={setSelectedYear}
-            options={[
-              { label: '1ère année', value: '1ère année' },
-              { label: '2ème année', value: '2ème année' },
-            ]}
-          />
+          <select className="input-premium" value={selectedYear} onChange={e => setSelectedYear(e.target.value)}>
+            <option value="1ère année">1ère année</option>
+            <option value="2ème année">2ème année</option>
+          </select>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, minWidth: '220px' }}>
           <label style={labelStyle}>Module d'analyse</label>
-          <ShadcnSelect
-            value={selectedModule}
-            onChange={setSelectedModule}
-            options={availableModules.map(m => ({ label: m, value: m }))}
-          />
+          <select className="input-premium" value={selectedModule} onChange={e => setSelectedModule(e.target.value)}>
+            {availableModules.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
         </div>
       </div>
 

@@ -5,7 +5,6 @@ import { useToast } from '../context/ToastContext';
 import { MODULES_DATA } from '../data/modules';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
-import ShadcnSelect from '../components/ShadcnSelect';
 import {
   Users, Calendar, Search, Download, Clock, UserCheck, X,
   CheckCircle2, XCircle, FileSpreadsheet, GraduationCap,
@@ -460,20 +459,16 @@ const TeacherAttendance = () => {
               <div>
                 <label style={labelStyle}>Mois</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <ShadcnSelect 
-                    value={mMonth} 
-                    onChange={setMMonth} 
-                    options={MONTHS.map((m, i) => ({ label: m, value: i }))} 
-                  />
+                  <select className="input-premium" style={{ width: '100%', textAlign: 'center', fontWeight: '700' }} value={mMonth} onChange={e => setMMonth(Number(e.target.value))}>
+                    {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                  </select>
                 </div>
               </div>
               <div>
                 <label style={labelStyle}>Année</label>
-                <ShadcnSelect 
-                  value={mYear} 
-                  onChange={setMYear} 
-                  options={availableYears} 
-                />
+                <select className="input-premium" style={{ width: '100%' }} value={mYear} onChange={e => setMYear(Number(e.target.value))}>
+                  {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
               </div>
               <div>
                 <label style={labelStyle}>Rechercher</label>
