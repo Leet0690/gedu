@@ -477,14 +477,7 @@ const TeacherAttendance = () => {
                   <input type="text" className="input-premium" style={{ width: '100%', paddingLeft: '34px' }} placeholder="Nom du formateur..." value={mSearch} onChange={e => setMSearch(e.target.value)} />
                 </div>
               </div>
-              <div>
-                <label style={labelStyle}>Semestre</label>
-                <div style={{ display: 'inline-flex', padding: '4px', borderRadius: 'var(--radius-xl)', background: 'var(--bg-page)', border: '1px solid var(--border-light)', gap: '3px' }}>
-                  {['S1', 'S2'].map(sem => (
-                    <button key={sem} type="button" onClick={() => setActiveSemester(sem)} style={{ flex: 1, minWidth: '48px', padding: '7px 14px', borderRadius: 'var(--radius-lg)', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '900', transition: 'all 0.18s ease', background: activeSemester === sem ? 'var(--primary)' : 'transparent', color: activeSemester === sem ? 'white' : 'var(--text-muted)', boxShadow: activeSemester === sem ? 'var(--shadow-xs)' : 'none' }} title={`Afficher les modules ${sem}`}>{sem}</button>
-                  ))}
-                </div>
-              </div>
+
             </div>
           </div>
 
