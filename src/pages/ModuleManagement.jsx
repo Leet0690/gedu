@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import ShadcnSelect from '../components/ShadcnSelect';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -249,34 +250,50 @@ const ModuleManagement = () => {
       <div className="glass-card" style={{ padding: 'var(--space-4)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'var(--space-3)' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <label style={labelStyle}>Année</label>
-          <select className="input-premium" style={{ width: '100%' }} value={filterYear} onChange={e => { setFilterYear(e.target.value); setPage(1); }}>
-            <option value="" disabled>Choisir l'année</option>
-            <option value="1ère année">1ère année</option>
-            <option value="2ème année">2ème année</option>
-          </select>
+          <ShadcnSelect
+            value={filterYear}
+            onChange={(val) => { setFilterYear(val); setPage(1); }}
+            options={[
+              { label: "1ère année", value: "1ère année" },
+              { label: "2ème année", value: "2ème année" },
+            ]}
+            placeholder="Choisir l'année"
+            style={{ width: '100%' }}
+          />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <label style={labelStyle}>Niveau</label>
-          <select className="input-premium" style={{ width: '100%' }} value={filterDiploma} onChange={e => { setFilterDiploma(e.target.value); setFilterMajor(''); setPage(1); }}>
-            <option value="" disabled>Choisir le niveau</option>
-            {diplomas.map(d => <option key={d} value={d}>{d}</option>)}
-          </select>
+          <ShadcnSelect
+            value={filterDiploma}
+            onChange={(val) => { setFilterDiploma(val); setFilterMajor(''); setPage(1); }}
+            options={diplomas.map(d => ({ label: d, value: d }))}
+            placeholder="Choisir le niveau"
+            style={{ width: '100%' }}
+          />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <label style={labelStyle}>Filière</label>
-          <select className="input-premium" style={{ width: '100%' }} value={filterMajor} onChange={e => { setFilterMajor(e.target.value); setPage(1); }}>
-            <option value="" disabled>Choisir la filière</option>
-            {majors.map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
+          <ShadcnSelect
+            value={filterMajor}
+            onChange={(val) => { setFilterMajor(val); setPage(1); }}
+            options={majors.map(m => ({ label: m, value: m }))}
+            placeholder="Choisir la filière"
+            style={{ width: '100%' }}
+          />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <label style={labelStyle}>Semestre</label>
-          <select className="input-premium" style={{ width: '100%' }} value={filterSemester} onChange={e => { setFilterSemester(e.target.value); setPage(1); }}>
-            <option value="" disabled>Semestre</option>
-            <option value="S1">S1</option>
-            <option value="S2">S2</option>
-            <option value="Annuel">Annuel (S1 & S2)</option>
-          </select>
+          <ShadcnSelect
+            value={filterSemester}
+            onChange={(val) => { setFilterSemester(val); setPage(1); }}
+            options={[
+              { label: "S1", value: "S1" },
+              { label: "S2", value: "S2" },
+              { label: "Annuel (S1 & S2)", value: "Annuel" },
+            ]}
+            placeholder="Semestre"
+            style={{ width: '100%' }}
+          />
         </div>
       </div>
 
@@ -383,33 +400,45 @@ const ModuleManagement = () => {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={labelStyle}>Semestre</label>
-                    <select className="input-premium" value={formData.semester} onChange={e => setFormData({ ...formData, semester: e.target.value })}>
-                      <option value="S1">S1</option>
-                      <option value="S2">S2</option>
-                      <option value="Annuel">Annuel (S1 & S2)</option>
-                    </select>
+                    <ShadcnSelect
+                      value={formData.semester}
+                      onChange={(val) => setFormData({ ...formData, semester: val })}
+                      options={[
+                        { label: "S1", value: "S1" },
+                        { label: "S2", value: "S2" },
+                        { label: "Annuel (S1 & S2)", value: "Annuel" },
+                      ]}
+                    />
                   </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={labelStyle}>Année</label>
-                    <select className="input-premium" value={formData.year} onChange={e => setFormData({ ...formData, year: e.target.value })}>
-                      <option value="1ère année">1ère année</option>
-                      <option value="2ème année">2ème année</option>
-                    </select>
+                    <ShadcnSelect
+                      value={formData.year}
+                      onChange={(val) => setFormData({ ...formData, year: val })}
+                      options={[
+                        { label: "1ère année", value: "1ère année" },
+                        { label: "2ème année", value: "2ème année" },
+                      ]}
+                    />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={labelStyle}>Niveau</label>
-                    <select className="input-premium" value={formData.diploma} onChange={e => setFormData({ ...formData, diploma: e.target.value, major: Object.keys(MODULES_DATA[e.target.value] || {})[0] || '' })}>
-                      {diplomas.map(d => <option key={d} value={d}>{d}</option>)}
-                    </select>
+                    <ShadcnSelect
+                      value={formData.diploma}
+                      onChange={(val) => setFormData({ ...formData, diploma: val, major: Object.keys(MODULES_DATA[val] || {})[0] || '' })}
+                      options={diplomas.map(d => ({ label: d, value: d }))}
+                    />
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <label style={labelStyle}>Filière</label>
-                  <select className="input-premium" value={formData.major} onChange={e => setFormData({ ...formData, major: e.target.value })}>
-                    {Object.keys(MODULES_DATA[formData.diploma] || {}).map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
+                  <ShadcnSelect
+                    value={formData.major}
+                    onChange={(val) => setFormData({ ...formData, major: val })}
+                    options={Object.keys(MODULES_DATA[formData.diploma] || {}).map(m => ({ label: m, value: m }))}
+                  />
                 </div>
                 <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
                   <button type="button" onClick={() => setIsModalOpen(false)} className="btn-modern" style={{ flex: 1 }}>Annuler</button>

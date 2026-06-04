@@ -171,18 +171,20 @@ const MonthlyAttendance = () => {
 
           <div>
             <label style={labelStyle}>Filière</label>
-            <select className="input-premium" style={{ width: '100%' }} value={filterFiliere} onChange={e => setFilterFiliere(e.target.value)}>
-              <option value="">Toutes les filières</option>
-              {allFilieres.map(f => <option key={f} value={f}>{f}</option>)}
-            </select>
+            <ShadcnSelect
+              value={filterFiliere}
+              onChange={setFilterFiliere}
+              options={[{ label: 'Toutes les filières', value: '' }, ...allFilieres.map(f => ({ label: f, value: f }))]}
+            />
           </div>
 
           <div>
             <label style={labelStyle}>Année d'étude</label>
-            <select className="input-premium" style={{ width: '100%' }} value={filterAnnee} onChange={e => setFilterAnnee(e.target.value)}>
-              <option value="">Toutes années</option>
-              {allAnnees.map(a => <option key={a} value={a}>{a}</option>)}
-            </select>
+            <ShadcnSelect
+              value={filterAnnee}
+              onChange={setFilterAnnee}
+              options={[{ label: 'Toutes années', value: '' }, ...allAnnees.map(a => ({ label: a, value: a }))]}
+            />
           </div>
 
           <div>

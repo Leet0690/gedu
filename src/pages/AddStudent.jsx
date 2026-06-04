@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Layers
 } from 'lucide-react';
+import ShadcnSelect from '../components/ShadcnSelect';
 
 const AddStudent = () => {
   const { addStudent, modules: allModules } = useApp();
@@ -89,18 +90,23 @@ const AddStudent = () => {
             <div className="form-grid">
               <div className="field-group">
                 <label className="field-label">Niveau de formation</label>
-                <select required className="input-premium" value={formData.diploma} onChange={(e) => setFormData({...formData, diploma: e.target.value, major: ''})}>
-                  <option value="">Sélectionner...</option>
-                  {allDiplomas.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
+                <ShadcnSelect
+                  value={formData.diploma}
+                  onChange={(val) => setFormData({...formData, diploma: val, major: ''})}
+                  options={[{ label: 'Sélectionner...', value: '' }, ...allDiplomas.map(d => ({ label: d, value: d }))]}
+                />
               </div>
               <div className="field-group">
                 <label className="field-label">Année d'étude</label>
-                <select required className="input-premium" value={formData.year} onChange={(e) => setFormData({...formData, year: e.target.value})}>
-                  <option value="">Sélectionner...</option>
-                  <option value="1ère année">1ère année</option>
-                  <option value="2ème année">2ème année</option>
-                </select>
+                <ShadcnSelect
+                  value={formData.year}
+                  onChange={(val) => setFormData({...formData, year: val})}
+                  options={[
+                    { label: 'Sélectionner...', value: '' },
+                    { label: '1ère année', value: '1ère année' },
+                    { label: '2ème année', value: '2ème année' },
+                  ]}
+                />
               </div>
             </div>
 
@@ -108,10 +114,17 @@ const AddStudent = () => {
               <label className="field-label">Filière spécifique</label>
               <div className="input-with-icon">
                 <Layers size={14} className="field-icon" />
-                <select required className="input-premium" style={{ width: '100%', paddingLeft: '34px' }} value={formData.major} onChange={(e) => setFormData({...formData, major: e.target.value})} disabled={!formData.diploma}>
-                  <option value="">{formData.diploma ? 'Choisir la filière' : 'Veuillez choisir un niveau'}</option>
-                  {availableFilieres.map(f => <option key={f} value={f}>{f}</option>)}
-                </select>
+                <div style={{ flex: 1, paddingLeft: '34px' }}>
+                  <ShadcnSelect
+                    value={formData.major}
+                    onChange={(val) => setFormData({...formData, major: val})}
+                    disabled={!formData.diploma}
+                    options={[
+                      { label: formData.diploma ? 'Choisir la filière' : 'Veuillez choisir un niveau', value: '' },
+                      ...availableFilieres.map(f => ({ label: f, value: f }))
+                    ]}
+                  />
+                </div>
               </div>
             </div>
 

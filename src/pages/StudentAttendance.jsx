@@ -529,33 +529,43 @@ const StudentAttendance = () => {
               </div>
               <div style={filterGroupStyle}>
                 <label style={labelStyle}>Niveau</label>
-                <select className="input-premium" style={{ width: '100%' }} value={filterDiploma} onChange={(e) => { setFilterDiploma(e.target.value); setFilterMajor(''); setFilterModule(''); }}>
-                  <option value="" disabled>Choisir niveau</option>
-                  {Object.keys(FILIERES).map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
+                <ShadcnSelect
+                  value={filterDiploma}
+                  onChange={(val) => { setFilterDiploma(val); setFilterMajor(''); setFilterModule(''); }}
+                  options={[{ label: 'Choisir niveau', value: '' }, ...Object.keys(FILIERES).map(d => ({ label: d, value: d }))]}
+                />
               </div>
               <div style={filterGroupStyle}>
                 <label style={labelStyle}>Filière</label>
-                <select className="input-premium" style={{ width: '100%' }} value={filterMajor} onChange={(e) => { setFilterMajor(e.target.value); setFilterModule(''); }}>
-                  <option value="" disabled>Choisir filière</option>
-                  {availableMajors.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
+                <ShadcnSelect
+                  value={filterMajor}
+                  onChange={(val) => { setFilterMajor(val); setFilterModule(''); }}
+                  options={[{ label: 'Choisir filière', value: '' }, ...availableMajors.map(m => ({ label: m, value: m }))]}
+                />
               </div>
               <div style={filterGroupStyle}>
                 <label style={labelStyle}>Année</label>
-                <select className="input-premium" style={{ width: '100%' }} value={filterYear} onChange={(e) => { setFilterYear(e.target.value); setFilterModule(''); }}>
-                  <option value="" disabled>Année</option>
-                  <option value="1ère année">1ère année</option>
-                  <option value="2ème année">2ème année</option>
-                </select>
+                <ShadcnSelect
+                  value={filterYear}
+                  onChange={(val) => { setFilterYear(val); setFilterModule(''); }}
+                  options={[
+                    { label: 'Année', value: '' },
+                    { label: '1ère année', value: '1ère année' },
+                    { label: '2ème année', value: '2ème année' },
+                  ]}
+                />
               </div>
               <div style={filterGroupStyle}>
                 <label style={labelStyle}>Module</label>
-                <select className="input-premium" style={{ width: '100%' }} value={filterModule} onChange={(e) => setFilterModule(e.target.value)}>
-                  <option value="">Module requis</option>
-                  {availableModules.map(m => <option key={m} value={m}>{m}</option>)}
-                  {availableModules.length === 0 && <option value="global">Général</option>}
-                </select>
+                <ShadcnSelect
+                  value={filterModule}
+                  onChange={setFilterModule}
+                  options={[
+                    { label: 'Module requis', value: '' },
+                    ...availableModules.map(m => ({ label: m, value: m })),
+                    ...(availableModules.length === 0 ? [{ label: 'Général', value: 'global' }] : [])
+                  ]}
+                />
               </div>
             </div>
           </div>
@@ -706,18 +716,23 @@ const StudentAttendance = () => {
               </div>
               <div>
                 <label style={labelStyle}>Filière</label>
-                <select className="input-premium" style={{ width: '100%' }} value={mFilterFiliere} onChange={e => setMFilterFiliere(e.target.value)}>
-                  <option value="">Toutes les filières</option>
-                  {allFilieres.map(f => <option key={f} value={f}>{f}</option>)}
-                </select>
+                <ShadcnSelect
+                  value={mFilterFiliere}
+                  onChange={setMFilterFiliere}
+                  options={[{ label: 'Toutes les filières', value: '' }, ...allFilieres.map(f => ({ label: f, value: f }))]}
+                />
               </div>
               <div>
                 <label style={labelStyle}>Année d'étude</label>
-                <select className="input-premium" style={{ width: '100%' }} value={mFilterAnnee} onChange={e => setMFilterAnnee(e.target.value)}>
-                  <option value="">Toutes années</option>
-                  <option value="1ère année">1ère année</option>
-                  <option value="2ème année">2ème année</option>
-                </select>
+                <ShadcnSelect
+                  value={mFilterAnnee}
+                  onChange={setMFilterAnnee}
+                  options={[
+                    { label: 'Toutes années', value: '' },
+                    { label: '1ère année', value: '1ère année' },
+                    { label: '2ème année', value: '2ème année' },
+                  ]}
+                />
               </div>
               <div>
                 <label style={labelStyle}>Rechercher</label>

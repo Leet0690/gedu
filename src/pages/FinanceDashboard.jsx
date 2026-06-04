@@ -953,19 +953,19 @@ const FinanceDashboard = () => {
                   }}
                 />
               </div>
-              <select
-                className="input-premium"
+              <ShadcnSelect
                 style={{ minWidth: '150px' }}
                 value={paymentStatusFilter}
-                onChange={(e) => {
-                  setPaymentStatusFilter(e.target.value);
+                onChange={(val) => {
+                  setPaymentStatusFilter(val);
                   setPaymentsPage(1);
                 }}
-              >
-                <option value="">Tous les statuts</option>
-                <option value="paid">Payé</option>
-                <option value="unpaid">Impayé</option>
-              </select>
+                options={[
+                  { label: 'Tous les statuts', value: '' },
+                  { label: 'Payé', value: 'paid' },
+                  { label: 'Impayé', value: 'unpaid' }
+                ]}
+              />
               <div style={{ minWidth: '150px' }}>
                 <ShadcnSelect
                   value={paymentMonthFilter}
@@ -1196,25 +1196,27 @@ const FinanceDashboard = () => {
                 />
               </div>
             </div>
-            <select className="input-premium" value={salaryFilter.year} onChange={(e) => {
-              setSalaryFilter({...salaryFilter, year: parseInt(e.target.value)});
-              setTeachersPage(1);
-            }}>
-              {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
-            <select
-              className="input-premium"
-              style={{ minWidth: '150px' }}
-              value={salaryStatusFilter}
-              onChange={(e) => {
-                setSalaryStatusFilter(e.target.value);
+            <ShadcnSelect
+              value={salaryFilter.year}
+              onChange={(val) => {
+                setSalaryFilter({...salaryFilter, year: Number(val)});
                 setTeachersPage(1);
               }}
-            >
-              <option value="">Tous les statuts</option>
-              <option value="paid">Réglé</option>
-              <option value="unpaid">Non réglé</option>
-            </select>
+              options={availableYears.map(y => ({ label: String(y), value: y }))}
+            />
+            <ShadcnSelect
+              style={{ minWidth: '150px' }}
+              value={salaryStatusFilter}
+              onChange={(val) => {
+                setSalaryStatusFilter(val);
+                setTeachersPage(1);
+              }}
+              options={[
+                { label: 'Tous les statuts', value: '' },
+                { label: 'Réglé', value: 'paid' },
+                { label: 'Non réglé', value: 'unpaid' }
+              ]}
+            />
           </div>
 
           <div className="glass-card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-5)', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -1489,25 +1491,28 @@ const FinanceDashboard = () => {
                 options={[{ label: 'Tous les mois', value: '' }, ...months.map(m => ({ label: m, value: m }))]}
               />
             </div>
-            <select className="input-premium" style={{ minWidth: '90px' }}
+            <ShadcnSelect
+              style={{ minWidth: '90px' }}
               value={expenseFilter.year}
-              onChange={e => {
-                setExpenseFilter(f => ({ ...f, year: parseInt(e.target.value) }));
+              onChange={val => {
+                setExpenseFilter(f => ({ ...f, year: Number(val) }));
                 setExpensesPage(1);
-              }}>
-              <option value={2026}>2026</option>
-              <option value={2025}>2025</option>
-              <option value={2024}>2024</option>
-            </select>
-            <select className="input-premium" style={{ minWidth: '140px' }}
+              }}
+              options={[
+                { label: '2026', value: 2026 },
+                { label: '2025', value: 2025 },
+                { label: '2024', value: 2024 }
+              ]}
+            />
+            <ShadcnSelect
+              style={{ minWidth: '140px' }}
               value={expenseFilter.category}
-              onChange={e => {
-                setExpenseFilter(f => ({ ...f, category: e.target.value }));
+              onChange={val => {
+                setExpenseFilter(f => ({ ...f, category: val }));
                 setExpensesPage(1);
-              }}>
-              <option value="">Toutes catégories</option>
-              {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+              }}
+              options={[{ label: 'Toutes catégories', value: '' }, ...EXPENSE_CATEGORIES.map(c => ({ label: c, value: c }))]}
+            />
             {(expenseFilter.month || expenseFilter.category) && (
               <button className="action-btn" title="Réinitialiser les filtres"
                 onClick={() => {
@@ -1786,14 +1791,12 @@ const FinanceDashboard = () => {
                   <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '700' }}>Revenus, charges et solde mois par mois</p>
                 </div>
               </div>
-              <select
-                className="input-premium"
+              <ShadcnSelect
                 style={{ minWidth: '140px' }}
                 value={annualYear}
-                onChange={e => setAnnualYear(parseInt(e.target.value))}
-              >
-                {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
+                onChange={val => setAnnualYear(Number(val))}
+                options={availableYears.map(y => ({ label: String(y), value: y }))}
+              />
             </div>
 
             <div style={{ overflowX: 'auto' }}>
@@ -1960,9 +1963,12 @@ const FinanceDashboard = () => {
                   </div>
                   <div>
                     <label style={lbl}>Catégorie</label>
-                    <select className="input-premium" style={{ width: '100%', marginTop: '6px' }} value={expenseData.category} onChange={(e) => setExpenseData({...expenseData, category: e.target.value})}>
-                      {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                    <ShadcnSelect
+                      style={{ width: '100%', marginTop: '6px' }}
+                      value={expenseData.category}
+                      onChange={(val) => setExpenseData({...expenseData, category: val})}
+                      options={EXPENSE_CATEGORIES.map(c => ({ label: c, value: c }))}
+                    />
                   </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
@@ -1977,9 +1983,12 @@ const FinanceDashboard = () => {
                   </div>
                   <div>
                     <label style={lbl}>Année</label>
-                    <select className="input-premium" style={{ width: '100%', marginTop: '6px' }} value={expenseData.year} onChange={(e) => setExpenseData({...expenseData, year: parseInt(e.target.value)})}>
-                      {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-                    </select>
+                    <ShadcnSelect
+                      style={{ width: '100%', marginTop: '6px' }}
+                      value={expenseData.year}
+                      onChange={(val) => setExpenseData({...expenseData, year: Number(val)})}
+                      options={availableYears.map(y => ({ label: String(y), value: y }))}
+                    />
                   </div>
                   <div>
                     <label style={lbl}>Date</label>
@@ -2016,30 +2025,30 @@ const FinanceDashboard = () => {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
                     <div>
                       <label style={{ ...lbl, fontSize: '9px' }}>Niveau</label>
-                      <select className="input-premium" style={{ width: '100%', marginTop: '4px', fontSize: '12px' }}
+                      <ShadcnSelect
+                        style={{ width: '100%', marginTop: '4px', fontSize: '12px' }}
                         value={paymentModalFilter.diploma}
-                        onChange={e => { setPaymentModalFilter(f => ({ ...f, diploma: e.target.value, major: '', year: '' })); setPaymentData(d => ({ ...d, studentId: '' })); }}>
-                        <option value="">Tous</option>
-                        {modalDiplomas.map(d => <option key={d} value={d}>{d}</option>)}
-                      </select>
+                        onChange={val => { setPaymentModalFilter(f => ({ ...f, diploma: val, major: '', year: '' })); setPaymentData(d => ({ ...d, studentId: '' })); }}
+                        options={[{ label: 'Tous', value: '' }, ...modalDiplomas.map(d => ({ label: d, value: d }))]}
+                      />
                     </div>
                     <div>
                       <label style={{ ...lbl, fontSize: '9px' }}>Filière</label>
-                      <select className="input-premium" style={{ width: '100%', marginTop: '4px', fontSize: '12px' }}
+                      <ShadcnSelect
+                        style={{ width: '100%', marginTop: '4px', fontSize: '12px' }}
                         value={paymentModalFilter.major}
-                        onChange={e => { setPaymentModalFilter(f => ({ ...f, major: e.target.value, year: '' })); setPaymentData(d => ({ ...d, studentId: '' })); }}>
-                        <option value="">Toutes</option>
-                        {modalMajors.map(m => <option key={m} value={m}>{m}</option>)}
-                      </select>
+                        onChange={val => { setPaymentModalFilter(f => ({ ...f, major: val, year: '' })); setPaymentData(d => ({ ...d, studentId: '' })); }}
+                        options={[{ label: 'Toutes', value: '' }, ...modalMajors.map(m => ({ label: m, value: m }))]}
+                      />
                     </div>
                     <div>
                       <label style={{ ...lbl, fontSize: '9px' }}>Année</label>
-                      <select className="input-premium" style={{ width: '100%', marginTop: '4px', fontSize: '12px' }}
+                      <ShadcnSelect
+                        style={{ width: '100%', marginTop: '4px', fontSize: '12px' }}
                         value={paymentModalFilter.year}
-                        onChange={e => { setPaymentModalFilter(f => ({ ...f, year: e.target.value })); setPaymentData(d => ({ ...d, studentId: '' })); }}>
-                        <option value="">Toutes</option>
-                        {modalYears.map(y => <option key={y} value={y}>{y}</option>)}
-                      </select>
+                        onChange={val => { setPaymentModalFilter(f => ({ ...f, year: val })); setPaymentData(d => ({ ...d, studentId: '' })); }}
+                        options={[{ label: 'Toutes', value: '' }, ...modalYears.map(y => ({ label: String(y), value: y }))]}
+                      />
                     </div>
                   </div>
                 </div>}
@@ -2056,10 +2065,13 @@ const FinanceDashboard = () => {
                       {students.find(s => s.id === paymentData.studentId)?.lastName} {students.find(s => s.id === paymentData.studentId)?.firstName}
                     </p>
                   ) : (
-                    <select className="input-premium" style={{ width: '100%', marginTop: '6px' }} value={paymentData.studentId} onChange={(e) => setPaymentData({...paymentData, studentId: e.target.value})}>
-                      <option value="">Sélectionner un stagiaire...</option>
-                      {modalStudents.map(s => <option key={s.id} value={s.id}>{s.lastName} {s.firstName}</option>)}
-                    </select>
+                    <ShadcnSelect
+                      style={{ width: '100%', marginTop: '6px' }}
+                      value={paymentData.studentId}
+                      onChange={(val) => setPaymentData({...paymentData, studentId: val})}
+                      placeholder="Sélectionner un stagiaire..."
+                      options={[{ label: 'Sélectionner un stagiaire...', value: '' }, ...modalStudents.map(s => ({ label: `${s.lastName} ${s.firstName}`, value: s.id }))]}
+                    />
                   )}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
