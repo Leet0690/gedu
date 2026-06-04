@@ -7,6 +7,7 @@ import { logoBase64 } from '../utils/logoBase64';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
+import ShadcnSelect from '../components/ShadcnSelect';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { 
   Lock, 
@@ -888,14 +889,13 @@ const FinanceDashboard = () => {
             <p style={{ fontSize: '14px', fontWeight: '900', color: 'var(--text-primary)' }}>{summaryMonthFilter}</p>
           </div>
         </div>
-        <select
-          className="input-premium"
-          style={{ minWidth: '160px' }}
-          value={summaryMonthFilter}
-          onChange={(e) => setSummaryMonthFilter(e.target.value)}
-        >
-          {months.map(m => <option key={m} value={m}>{m}</option>)}
-        </select>
+        <div style={{ minWidth: '160px' }}>
+          <ShadcnSelect
+            value={summaryMonthFilter}
+            onChange={setSummaryMonthFilter}
+            options={months}
+          />
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-8)' }}>
@@ -966,19 +966,16 @@ const FinanceDashboard = () => {
                 <option value="paid">Payé</option>
                 <option value="unpaid">Impayé</option>
               </select>
-              <select
-                className="input-premium"
-                style={{ minWidth: '150px' }}
-                value={paymentMonthFilter}
-                onChange={(e) => {
-                  setPaymentMonthFilter(e.target.value);
-                  setPaymentsPage(1);
-                }}
-              >
-                {months.map(m => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
+              <div style={{ minWidth: '150px' }}>
+                <ShadcnSelect
+                  value={paymentMonthFilter}
+                  onChange={(val) => {
+                    setPaymentMonthFilter(val);
+                    setPaymentsPage(1);
+                  }}
+                  options={months}
+                />
+              </div>
               {(searchTerm || paymentStatusFilter || paymentMonthFilter !== currentMonthName) && (
                 <button
                   className="action-btn"
@@ -1188,12 +1185,16 @@ const FinanceDashboard = () => {
           <div className="glass-card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-5)', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <CalendarDays size={16} style={{ color: 'var(--text-muted)' }} />
-              <select className="input-premium" value={salaryFilter.month} onChange={(e) => {
-                setSalaryFilter({...salaryFilter, month: parseInt(e.target.value)});
-                setTeachersPage(1);
-              }}>
-                {months.map((m, i) => <option key={m} value={i}>{m}</option>)}
-              </select>
+              <div style={{ flex: 1 }}>
+                <ShadcnSelect 
+                  value={salaryFilter.month} 
+                  onChange={(val) => {
+                    setSalaryFilter({...salaryFilter, month: val});
+                    setTeachersPage(1);
+                  }}
+                  options={months.map((m, i) => ({ label: m, value: i }))}
+                />
+              </div>
             </div>
             <select className="input-premium" value={salaryFilter.year} onChange={(e) => {
               setSalaryFilter({...salaryFilter, year: parseInt(e.target.value)});
@@ -1478,15 +1479,16 @@ const FinanceDashboard = () => {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <div className="glass-card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-4)', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <CalendarDays size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-            <select className="input-premium" style={{ minWidth: '130px' }}
-              value={expenseFilter.month}
-              onChange={e => {
-                setExpenseFilter(f => ({ ...f, month: e.target.value }));
-                setExpensesPage(1);
-              }}>
-              <option value="">Tous les mois</option>
-              {months.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
+            <div style={{ minWidth: '130px' }}>
+              <ShadcnSelect
+                value={expenseFilter.month}
+                onChange={val => {
+                  setExpenseFilter(f => ({ ...f, month: val }));
+                  setExpensesPage(1);
+                }}
+                options={[{ label: 'Tous les mois', value: '' }, ...months.map(m => ({ label: m, value: m }))]}
+              />
+            </div>
             <select className="input-premium" style={{ minWidth: '90px' }}
               value={expenseFilter.year}
               onChange={e => {
@@ -1966,9 +1968,12 @@ const FinanceDashboard = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
                   <div>
                     <label style={lbl}>Mois</label>
-                    <select className="input-premium" style={{ width: '100%', marginTop: '6px' }} value={expenseData.month} onChange={(e) => setExpenseData({...expenseData, month: e.target.value})}>
-                      {months.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
+                    <ShadcnSelect 
+                      value={expenseData.month} 
+                      onChange={(val) => setExpenseData({...expenseData, month: val})}
+                      options={months}
+                      style={{ marginTop: '6px' }}
+                    />
                   </div>
                   <div>
                     <label style={lbl}>Année</label>
@@ -2064,16 +2069,47 @@ const FinanceDashboard = () => {
                   </div>
                   <div>
                     <label style={lbl}>Mois Concerné</label>
-                    <select className="input-premium" style={{ width: '100%', marginTop: '6px' }} value={paymentData.month} onChange={(e) => setPaymentData({...paymentData, month: e.target.value})}>
-                      {months.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
+                    <ShadcnSelect 
+                      value={paymentData.month} 
+                      onChange={(val) => setPaymentData({...paymentData, month: val})}
+                      options={months}
+                      style={{ marginTop: '6px' }}
+                    />
                   </div>
                   <div>
                     <label style={lbl}>Mode de paiement</label>
-                    <select className="input-premium" style={{ width: '100%', marginTop: '6px' }} value={paymentData.paymentMethod} onChange={(e) => setPaymentData({...paymentData, paymentMethod: e.target.value})}>
-                      <option value="Espèces">Espèces</option>
-                      <option value="Virement">Virement</option>
-                    </select>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                      {['Espèces', 'Virement'].map((method) => (
+                        <label 
+                          key={method} 
+                          style={{
+                            flex: 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '10px 12px',
+                            borderRadius: 'var(--radius-md)',
+                            border: `1px solid ${paymentData.paymentMethod === method ? 'var(--primary)' : 'var(--border-light)'}`,
+                            background: paymentData.paymentMethod === method ? 'var(--primary-ultra-light)' : 'var(--bg-page)',
+                            color: paymentData.paymentMethod === method ? 'var(--primary)' : 'var(--text-primary)',
+                            fontSize: '13px',
+                            fontWeight: paymentData.paymentMethod === method ? '700' : '500',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                          }}
+                        >
+                          <input 
+                            type="radio" 
+                            name="paymentMethod" 
+                            value={method} 
+                            checked={paymentData.paymentMethod === method}
+                            onChange={(e) => setPaymentData({...paymentData, paymentMethod: e.target.value})}
+                            style={{ display: 'none' }} 
+                          />
+                          {method}
+                        </label>
+                      ))}
+                    </div>
                   </div>
                 </div>
                 <div style={{ background: 'var(--bg-subtle)', borderRadius: 'var(--radius-xl)', padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>

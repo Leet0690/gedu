@@ -5,6 +5,7 @@ import {
   GraduationCap, Download, Search,
   CheckCircle2, XCircle, Clock, Users, ChevronLeft, ChevronRight
 } from 'lucide-react';
+import ShadcnSelect from '../components/ShadcnSelect';
 
 const MONTHS = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
@@ -214,19 +215,21 @@ const MonthlyAttendanceTeachers = () => {
           <div>
             <label style={labelStyle}>Mois</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <button onClick={prevMonth} className="action-btn" style={{ flexShrink: 0 }}><ChevronLeft size={16} /></button>
-              <select className="input-premium" style={{ flex: 1, textAlign: 'center' }} value={month} onChange={e => setMonth(Number(e.target.value))}>
-                {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
-              </select>
-              <button onClick={nextMonth} className="action-btn" style={{ flexShrink: 0 }}><ChevronRight size={16} /></button>
+              <ShadcnSelect 
+                value={month} 
+                onChange={setMonth} 
+                options={MONTHS.map((m, i) => ({ label: m, value: i }))} 
+              />
             </div>
           </div>
 
           <div>
             <label style={labelStyle}>Année</label>
-            <select className="input-premium" style={{ width: '100%' }} value={year} onChange={e => setYear(Number(e.target.value))}>
-              {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
+            <ShadcnSelect 
+              value={year} 
+              onChange={setYear} 
+              options={availableYears} 
+            />
           </div>
 
           <div>
