@@ -437,10 +437,20 @@ const TeacherAttendance = () => {
                               </div>
                             </td>
                             <td style={{ ...tdStyle, textAlign: 'center' }}>
-                              <div style={{ display: 'inline-flex', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-xl)', padding: '4px', gap: '2px' }}>
+                              <div className="teacher-attendance-status-actions">
                                 <StatusBtnDaily active={status === 'present'} color="var(--success)" onClick={() => handleStatusChange(row, 'present')}>Présent</StatusBtnDaily>
                                 <StatusBtnDaily active={status === 'absent'} color="var(--danger)" onClick={() => handleStatusChange(row, 'absent')}>Absent</StatusBtnDaily>
-                                {status && <button onClick={() => handleStatusChange(row, '')} className="action-btn" style={{ padding: '0 8px' }}><X size={14} /></button>}
+                                {status && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleStatusChange(row, '')}
+                                    className="teacher-attendance-reset-button"
+                                    title="Reinitialiser le statut"
+                                    aria-label="Reinitialiser le statut"
+                                  >
+                                    <X size={13} />
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </tr>

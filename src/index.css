@@ -977,6 +977,68 @@ input.input-premium[type="date"]::-webkit-datetime-edit {
    TABS
    ═══════════════════════════════════════════════════════════════ */
 
+/* Teacher attendance status controls */
+.teacher-attendance-status-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(248, 249, 251, 0.78)),
+    var(--bg-subtle);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.82),
+    var(--shadow-xs);
+}
+
+.teacher-attendance-reset-button {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 2px;
+  border: 1px solid rgba(220, 38, 38, 0.18);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 34% 22%, rgba(255, 255, 255, 0.92), transparent 36%),
+    rgba(220, 38, 38, 0.07);
+  color: #dc2626;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  transition:
+    transform var(--duration-fast) var(--ease-smooth),
+    border-color var(--duration-fast) var(--ease-smooth),
+    background var(--duration-fast) var(--ease-smooth),
+    color var(--duration-fast) var(--ease-smooth),
+    box-shadow var(--duration-fast) var(--ease-smooth);
+}
+
+.teacher-attendance-reset-button:hover {
+  transform: translateY(-1px);
+  border-color: #dc2626;
+  background: #dc2626;
+  color: var(--white);
+  box-shadow:
+    0 10px 22px rgba(220, 38, 38, 0.20),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.teacher-attendance-reset-button:focus-visible {
+  outline: none;
+  border-color: #dc2626;
+  box-shadow:
+    0 0 0 3px rgba(220, 38, 38, 0.14),
+    0 10px 22px rgba(220, 38, 38, 0.16);
+}
+
+.teacher-attendance-reset-button svg {
+  stroke-width: 2.5;
+}
+
 .modern-tabs-container {
   display: flex;
   background: var(--bg-subtle);
