@@ -1675,8 +1675,13 @@ const FinanceDashboard = () => {
                     type="date"
                     className="input-premium"
                     value={dailyStatsDate}
+                    max={dailyStatsEndDate || undefined}
                     onChange={(e) => {
-                      setDailyStatsDate(e.target.value);
+                      const newDate = e.target.value;
+                      setDailyStatsDate(newDate);
+                      if (dailyStatsEndDate && newDate && newDate > dailyStatsEndDate) {
+                        setDailyStatsEndDate(newDate);
+                      }
                       setDailyStatsPage(1);
                     }}
                     onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }}
@@ -1688,8 +1693,13 @@ const FinanceDashboard = () => {
                     type="date"
                     className="input-premium"
                     value={dailyStatsEndDate}
+                    min={dailyStatsDate || undefined}
                     onChange={(e) => {
-                      setDailyStatsEndDate(e.target.value);
+                      const newEndDate = e.target.value;
+                      setDailyStatsEndDate(newEndDate);
+                      if (dailyStatsDate && newEndDate && newEndDate < dailyStatsDate) {
+                        setDailyStatsDate(newEndDate);
+                      }
                       setDailyStatsPage(1);
                     }}
                     onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }}
