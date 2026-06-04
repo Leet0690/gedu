@@ -7,6 +7,7 @@ import { logoBase64 } from '../utils/logoBase64';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { 
   Lock, 
@@ -206,6 +207,28 @@ const getTeacherMonthlyHours = (attendance, teacherId, month, year, schedules = 
 };
 
 const EXPENSE_CATEGORIES = ['Loyer', 'Matériel', 'Fournitures', 'Services', 'Entretien', 'Communication', 'Transport', 'Autre'];
+
+const FILTER_EMPTY_VALUE = '__empty_filter__';
+const normalizeFilterValue = (value) => (String(value ?? '') === '' ? FILTER_EMPTY_VALUE : String(value));
+
+const FinanceFilterSelect = ({ value, onChange, placeholder, options, style }) => (
+  <Select value={normalizeFilterValue(value)} onValueChange={(next) => onChange(next === FILTER_EMPTY_VALUE ? '' : next)}>
+    <SelectTrigger className="finance-radix-select-trigger" style={style}>
+      <SelectValue placeholder={placeholder} />
+    </SelectTrigger>
+    <SelectContent className="finance-radix-select-content">
+      {options.map((option) => (
+        <SelectItem
+          key={normalizeFilterValue(option.value)}
+          value={normalizeFilterValue(option.value)}
+          className="finance-radix-select-item"
+        >
+          {option.label}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+);
 
 const FinanceDashboard = () => {
   const { 
@@ -953,32 +976,28 @@ const FinanceDashboard = () => {
                   }}
                 />
               </div>
-              <select
-                className="input-premium"
-                style={{ minWidth: '150px' }}
+              <FinanceFilterSelect
                 value={paymentStatusFilter}
-                onChange={(e) => {
-                  setPaymentStatusFilter(e.target.value);
+                placeholder="Tous les statuts"
+                options={[
+                  { value: '', label: 'Tous les statuts' },
+                  { value: 'paid', label: 'Payé' },
+                  { value: 'unpaid', label: 'Impayé' }
+                ]}
+                onChange={(value) => {
+                  setPaymentStatusFilter(value);
                   setPaymentsPage(1);
                 }}
-              >
-                <option value="">Tous les statuts</option>
-                <option value="paid">Payé</option>
-                <option value="unpaid">Impayé</option>
-              </select>
-              <select
-                className="input-premium"
-                style={{ minWidth: '150px' }}
+              />
+              <FinanceFilterSelect
                 value={paymentMonthFilter}
-                onChange={(e) => {
-                  setPaymentMonthFilter(e.target.value);
+                placeholder="Mois"
+                options={months.map(m => ({ value: m, label: m }))}
+                onChange={(value) => {
+                  setPaymentMonthFilter(value);
                   setPaymentsPage(1);
                 }}
-              >
-                {months.map(m => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
+              />
               {(searchTerm || paymentStatusFilter || paymentMonthFilter !== currentMonthName) && (
                 <button
                   className="action-btn"
@@ -2011,30 +2030,33 @@ const FinanceDashboard = () => {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
                     <div>
                       <label style={{ ...lbl, fontSize: '9px' }}>Niveau</label>
-                      <select className="input-premium" style={{ width: '100%', marginTop: '4px', fontSize: '12px' }}
+                      <FinanceFilterSelect 
+                        style={{ width: '100%', marginTop: '4px' }}
                         value={paymentModalFilter.diploma}
-                        onChange={e => { setPaymentModalFilter(f => ({ ...f, diploma: e.target.value, major: '', year: '' })); setPaymentData(d => ({ ...d, studentId: '' })); }}>
-                        <option value="">Tous</option>
-                        {modalDiplomas.map(d => <option key={d} value={d}>{d}</option>)}
-                      </select>
+                        placeholder="Tous"
+                        onChange={val => { setPaymentModalFilter(f => ({ ...f, diploma: val, major: '', year: '' })); setPaymentData(d => ({ ...d, studentId: '' })); }}
+                        options={[{ value: '', label: 'Tous' }, ...modalDiplomas.map(d => ({ value: d, label: d }))]}
+                      />
                     </div>
                     <div>
                       <label style={{ ...lbl, fontSize: '9px' }}>Filière</label>
-                      <select className="input-premium" style={{ width: '100%', marginTop: '4px', fontSize: '12px' }}
+                      <FinanceFilterSelect 
+                        style={{ width: '100%', marginTop: '4px' }}
                         value={paymentModalFilter.major}
-                        onChange={e => { setPaymentModalFilter(f => ({ ...f, major: e.target.value, year: '' })); setPaymentData(d => ({ ...d, studentId: '' })); }}>
-                        <option value="">Toutes</option>
-                        {modalMajors.map(m => <option key={m} value={m}>{m}</option>)}
-                      </select>
+                        placeholder="Toutes"
+                        onChange={val => { setPaymentModalFilter(f => ({ ...f, major: val, year: '' })); setPaymentData(d => ({ ...d, studentId: '' })); }}
+                        options={[{ value: '', label: 'Toutes' }, ...modalMajors.map(m => ({ value: m, label: m }))]}
+                      />
                     </div>
                     <div>
                       <label style={{ ...lbl, fontSize: '9px' }}>Année</label>
-                      <select className="input-premium" style={{ width: '100%', marginTop: '4px', fontSize: '12px' }}
+                      <FinanceFilterSelect 
+                        style={{ width: '100%', marginTop: '4px' }}
                         value={paymentModalFilter.year}
-                        onChange={e => { setPaymentModalFilter(f => ({ ...f, year: e.target.value })); setPaymentData(d => ({ ...d, studentId: '' })); }}>
-                        <option value="">Toutes</option>
-                        {modalYears.map(y => <option key={y} value={y}>{y}</option>)}
-                      </select>
+                        placeholder="Toutes"
+                        onChange={val => { setPaymentModalFilter(f => ({ ...f, year: val })); setPaymentData(d => ({ ...d, studentId: '' })); }}
+                        options={[{ value: '', label: 'Toutes' }, ...modalYears.map(y => ({ value: y, label: y }))]}
+                      />
                     </div>
                   </div>
                 </div>}
@@ -2051,10 +2073,13 @@ const FinanceDashboard = () => {
                       {students.find(s => s.id === paymentData.studentId)?.lastName} {students.find(s => s.id === paymentData.studentId)?.firstName}
                     </p>
                   ) : (
-                    <select className="input-premium" style={{ width: '100%', marginTop: '6px' }} value={paymentData.studentId} onChange={(e) => setPaymentData({...paymentData, studentId: e.target.value})}>
-                      <option value="">Sélectionner un stagiaire...</option>
-                      {modalStudents.map(s => <option key={s.id} value={s.id}>{s.lastName} {s.firstName}</option>)}
-                    </select>
+                    <FinanceFilterSelect 
+                      style={{ width: '100%', marginTop: '6px' }}
+                      value={paymentData.studentId}
+                      placeholder="Sélectionner un stagiaire..."
+                      onChange={val => setPaymentData({...paymentData, studentId: val})}
+                      options={[{ value: '', label: 'Sélectionner un stagiaire...' }, ...modalStudents.map(s => ({ value: s.id, label: `${s.lastName} ${s.firstName}` }))]}
+                    />
                   )}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
@@ -2064,9 +2089,13 @@ const FinanceDashboard = () => {
                   </div>
                   <div>
                     <label style={lbl}>Mois Concerné</label>
-                    <select className="input-premium" style={{ width: '100%', marginTop: '6px' }} value={paymentData.month} onChange={(e) => setPaymentData({...paymentData, month: e.target.value})}>
-                      {months.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
+                    <FinanceFilterSelect 
+                      style={{ width: '100%', marginTop: '6px' }}
+                      value={paymentData.month}
+                      placeholder="Sélectionner un mois..."
+                      onChange={val => setPaymentData({...paymentData, month: val})}
+                      options={months.map(m => ({ value: m, label: m }))}
+                    />
                   </div>
                   <div>
                     <label style={lbl}>Mode de paiement</label>
