@@ -552,9 +552,6 @@ const TeacherAttendance = () => {
                         <td style={{ ...mTdStyle, textAlign: 'center' }}><span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-faint)' }}>{idx + 1}</span></td>
                         <td style={{ ...mTdStyle, position: 'sticky', left: 0, zIndex: 5, background: idx % 2 === 0 ? 'white' : 'rgba(248,249,251,0.8)', borderRight: '1px solid var(--border-light)' }}>
                           <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '174px' }}>{teacher.name}</div>
-                          <div style={{ fontSize: '10px', color: 'var(--text-faint)', fontWeight: '600', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '174px' }}>
-                            {(teacher.subjects || [teacher.subject]).filter(Boolean).slice(0, 2).join(', ') || '—'}
-                          </div>
                         </td>
                         {mDays.map(d => {
                           const isWeekend = new Date(mYear, mMonth, d).getDay() % 6 === 0;
