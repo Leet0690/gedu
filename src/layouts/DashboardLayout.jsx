@@ -182,12 +182,16 @@ export default function DashboardLayout({ children }) {
 
   const renderNavLink = (item, isMobile = false) => {
     const isActive = location.pathname === item.to;
+    const isCollapsed = !isMobile && !isSidebarOpen;
+    
     return (
       <Link 
         key={item.to} 
         to={item.to}
         onClick={() => isMobile && setIsMobileMenuOpen(false)}
-        className={`group relative flex items-center gap-3 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
+        className={`group relative flex items-center rounded-full text-sm font-medium transition-all duration-200 ${
+          isCollapsed ? 'justify-center w-10 h-10 mx-auto' : 'gap-3 px-3 py-2 w-full'
+        } ${
           isActive 
             ? 'text-white' 
             : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
