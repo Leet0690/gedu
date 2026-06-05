@@ -26,7 +26,8 @@ import {
   ChevronUp, 
   ChevronLeft,
   School,
-  WifiOff
+  WifiOff,
+  Wand2
 } from 'lucide-react';
 
 const useOnlineStatus = () => {
@@ -59,6 +60,7 @@ const NAV_CATEGORIES = [
       { to: "/admin/grades", icon: PenTool, label: "Notes", color: "text-amber-500" },
       { to: "/admin/reports", icon: LineChart, label: "Rapports", color: "text-emerald-500" },
       { to: "/admin/schedules", icon: CalendarDays, label: "Emplois du Temps", color: "text-orange-500" },
+      { to: "/admin/schedule-generation", icon: Wand2, label: "Génération (EDT)", color: "text-fuchsia-500" },
     ]
   },
   {
