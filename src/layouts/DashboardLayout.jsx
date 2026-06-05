@@ -187,7 +187,7 @@ export default function DashboardLayout({ children }) {
         key={item.to} 
         to={item.to}
         onClick={() => isMobile && setIsMobileMenuOpen(false)}
-        className={`group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+        className={`group relative flex items-center gap-3 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
           isActive 
             ? 'text-white' 
             : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
@@ -196,7 +196,7 @@ export default function DashboardLayout({ children }) {
         {isActive && (
           <motion.div
             layoutId="activeNavBubble"
-            className="absolute inset-0 rounded-md bg-primary shadow-md shadow-primary/30"
+            className="absolute inset-0 rounded-full bg-primary shadow-md shadow-primary/30"
             initial={false}
             transition={{ type: 'spring', stiffness: 350, damping: 30 }}
             style={{ zIndex: 0 }}
