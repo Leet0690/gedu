@@ -5,16 +5,20 @@ import { useApp } from '../context/AppContext';
 import Logo from '../components/Logo';
 import { 
   LayoutDashboard, 
+  Home,
+  Library,
   Boxes, 
   PenTool, 
   LineChart, 
   CalendarDays, 
-  CalendarCheck, 
+  ClipboardList,
+  UserCheck, 
+  UserX,
   Users, 
-  GraduationCap, 
+  Presentation, 
   Wallet, 
   Settings, 
-  LogOut, 
+  Power, 
   Menu, 
   X, 
   Bell, 
@@ -22,7 +26,6 @@ import {
   ChevronUp, 
   ChevronLeft,
   School,
-  UserCheck,
   WifiOff
 } from 'lucide-react';
 
@@ -42,41 +45,44 @@ const NAV_CATEGORIES = [
   {
     label: "Tableau de Bord",
     icon: LayoutDashboard,
+    color: "text-blue-500",
     items: [
-      { to: "/", icon: LayoutDashboard, label: "Tableau de bord" },
+      { to: "/", icon: Home, label: "Tableau de bord", color: "text-blue-500" },
     ]
   },
   {
     label: "Pôle Académique",
-    icon: GraduationCap,
+    icon: Library,
+    color: "text-violet-500",
     items: [
-      { to: "/admin/modules", icon: Boxes, label: "Modules" },
-      { to: "/admin/grades", icon: PenTool, label: "Notes" },
-      { to: "/admin/reports", icon: LineChart, label: "Rapports" },
-      { to: "/admin/schedules", icon: CalendarDays, label: "Emplois du Temps" },
+      { to: "/admin/modules", icon: Boxes, label: "Modules", color: "text-violet-500" },
+      { to: "/admin/grades", icon: PenTool, label: "Notes", color: "text-amber-500" },
+      { to: "/admin/reports", icon: LineChart, label: "Rapports", color: "text-emerald-500" },
+      { to: "/admin/schedules", icon: CalendarDays, label: "Emplois du Temps", color: "text-orange-500" },
     ]
   },
   {
     label: "Suivi de Présence",
-    icon: UserCheck,
+    icon: ClipboardList,
+    color: "text-rose-500",
     items: [
-      { to: "/admin/attendance-students", icon: UserCheck, label: "Absences Stagiaires" },
-      { to: "/admin/attendance-teachers", icon: CalendarCheck, label: "Présences Formateurs" },
+      { to: "/admin/attendance-students", icon: UserX, label: "Absences Stagiaires", color: "text-rose-500" },
+      { to: "/admin/attendance-teachers", icon: UserCheck, label: "Présences Formateurs", color: "text-teal-500" },
     ]
   },
   {
     label: "Administration",
     icon: Settings,
+    color: "text-indigo-500",
     items: [
-      { to: "/admin/students", icon: Users, label: "Stagiaires" },
-      { to: "/admin/teachers", icon: GraduationCap, label: "Formateurs" },
-      { to: "/admin/finance", icon: Wallet, label: "Finance" },
+      { to: "/admin/students", icon: Users, label: "Stagiaires", color: "text-sky-500" },
+      { to: "/admin/teachers", icon: Presentation, label: "Formateurs", color: "text-indigo-500" },
+      { to: "/admin/finance", icon: Wallet, label: "Finance", color: "text-green-600" },
     ]
   }
 ];
 
 const SidebarCategory = ({ cat, isSidebarOpen, renderNavLink, location, isMobile }) => {
-  // Dashboard has only 1 item, render directly
   if (cat.items.length === 1) {
     return renderNavLink(cat.items[0]);
   }
@@ -84,41 +90,27 @@ const SidebarCategory = ({ cat, isSidebarOpen, renderNavLink, location, isMobile
   const isAnyActive = cat.items.some(item => location.pathname === item.to);
   const [open, setOpen] = React.useState(isAnyActive);
   
-  // Auto-open if navigating to a child
   React.useEffect(() => {
     if (isAnyActive) setOpen(true);
   }, [isAnyActive]);
 
   if (!isSidebarOpen && !isMobile) {
-    // Collapsed: show only icons
     return cat.items.map(item => renderNavLink(item));
   }
 
   return (
-    <div style={{ marginBottom: '4px' }}>
+    <div className="mb-2">
       <button
         onClick={() => setOpen(!open)}
-        style={{
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 'var(--space-3)',
-          padding: 'var(--space-3) var(--space-4)',
-          borderRadius: 'var(--radius-lg)',
-          fontSize: '11px',
-          fontWeight: '800',
-          color: isAnyActive ? 'var(--primary)' : 'var(--text-muted)',
-          background: 'transparent',
-          border: 'none',
-          cursor: 'pointer',
-          textTransform: 'uppercase',
-          letterSpacing: '0.06em',
-          transition: 'all 0.2s',
-        }}
+        className="flex w-full items-center justify-between gap-3 px-3 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider transition-colors hover:text-slate-800"
       >
-        <cat.icon size={16} strokeWidth={2.5} />
-        <span style={{ flex: 1, textAlign: 'left' }}>{cat.label}</span>
-        {open ? <ChevronUp size={12} opacity={0.5} /> : <ChevronDown size={12} opacity={0.5} />}
+        <div className="flex items-center gap-3">
+          <cat.icon className={`h-4 w-4 ${cat.color || 'text-slate-400'}`} strokeWidth={2} />
+          <span className="text-left">{cat.label}</span>
+        </div>
+        <ChevronDown 
+          className={`h-4 w-4 text-slate-400 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} 
+        />
       </button>
       <AnimatePresence initial={false}>
         {open && (
@@ -126,10 +118,22 @@ const SidebarCategory = ({ cat, isSidebarOpen, renderNavLink, location, isMobile
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: 'easeInOut' }}
-            style={{ overflow: 'hidden', paddingLeft: '8px' }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            className="overflow-hidden"
           >
-            {cat.items.map(item => renderNavLink(item))}
+            <div className="mt-1 flex flex-col gap-1 ml-[18px] border-l-2 border-slate-100 pl-3 py-1">
+              {cat.items.map((item, i) => (
+                <motion.div
+                  key={item.to}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -5 }}
+                  transition={{ duration: 0.2, delay: i * 0.04, ease: 'easeOut' }}
+                >
+                  {renderNavLink(item)}
+                </motion.div>
+              ))}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -144,7 +148,28 @@ export default function DashboardLayout({ children }) {
   const [showNotifs, setShowNotifs] = useState(false);
   const location = useLocation();
   const scrollRef = useRef(null);
+  const sidebarRef = useRef(null);
   const isOnline = useOnlineStatus();
+
+  // Click outside to close sidebar (Desktop)
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      // Ignore on mobile (handled by overlay)
+      if (window.innerWidth < 1024) return;
+      // Ignore if clicking inside sidebar
+      if (sidebarRef.current && sidebarRef.current.contains(e.target)) return;
+      // Ignore if clicking the toggle button
+      if (e.target.closest('.desktop-menu-btn')) return;
+      
+      // Close sidebar if open
+      if (isSidebarOpen) {
+        setIsSidebarOpen(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isSidebarOpen]);
 
   // Scroll to top on route change
   useEffect(() => {
@@ -155,7 +180,6 @@ export default function DashboardLayout({ children }) {
 
   const unreadCount = (notifications || []).filter(n => !n.read).length;
 
-  // Render a single nav link with Framer Motion hover effects
   const renderNavLink = (item, isMobile = false) => {
     const isActive = location.pathname === item.to;
     return (
@@ -163,143 +187,88 @@ export default function DashboardLayout({ children }) {
         key={item.to} 
         to={item.to}
         onClick={() => isMobile && setIsMobileMenuOpen(false)}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          padding: '12px 16px',
-          borderRadius: 'var(--radius-lg)',
-          fontSize: '13px',
-          fontWeight: '600',
-          color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
-          background: isActive ? 'var(--primary-ultra-light)' : 'transparent',
-          textDecoration: 'none',
-          transition: 'all 0.2s var(--ease-smooth)',
-          position: 'relative',
-          overflow: 'hidden'
-        }}
-        onMouseEnter={(e) => {
-          if (!isActive) e.currentTarget.style.background = 'var(--bg-subtle)';
-        }}
-        onMouseLeave={(e) => {
-          if (!isActive) e.currentTarget.style.background = 'transparent';
-        }}
+        className={`group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+          isActive 
+            ? 'text-white' 
+            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+        }`}
       >
-        <div style={{
-          width: '24px',
-          height: '24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0
-        }}>
-          <item.icon size={isActive ? 18 : 16} strokeWidth={isActive ? 2.5 : 2} />
-        </div>
-        
-        <AnimatePresence initial={false}>
-          {(!isMobile && isSidebarOpen) || isMobile ? (
-            <motion.span
-              initial={{ opacity: 0, width: 0 }}
-              animate={{ opacity: 1, width: 'auto' }}
-              exit={{ opacity: 0, width: 0 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              style={{ whiteSpace: 'nowrap' }}
-            >
-              {item.label}
-            </motion.span>
-          ) : null}
-        </AnimatePresence>
-        
         {isActive && (
           <motion.div
-            layoutId="activeTab"
-            style={{
-              position: 'absolute',
-              left: 0,
-              top: '10%',
-              bottom: '10%',
-              width: '3px',
-              backgroundColor: 'var(--primary)',
-              borderRadius: '0 4px 4px 0'
-            }}
+            layoutId="activeNavBubble"
+            className="absolute inset-0 rounded-md bg-primary shadow-md shadow-primary/30"
+            initial={false}
+            transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+            style={{ zIndex: 0 }}
           />
+        )}
+
+        <div className={`relative z-10 flex h-5 w-5 shrink-0 items-center justify-center transition-transform duration-200 ${isActive ? 'text-white' : item.color || 'text-slate-500'} group-hover:scale-110`}>
+          <item.icon className="h-4 w-4" strokeWidth={isActive ? 2.5 : 2} />
+        </div>
+        
+        {((!isMobile && isSidebarOpen) || isMobile) && (
+          <span className="relative z-10 whitespace-nowrap transition-transform duration-200 group-hover:translate-x-1">
+            {item.label}
+          </span>
+        )}
+
+        {/* Tooltip for reduced menu */}
+        {!isMobile && !isSidebarOpen && (
+          <div className="absolute left-full top-1/2 ml-2 -translate-y-1/2 rounded-full bg-gradient-to-r from-violet-600/80 to-fuchsia-600/80 backdrop-blur-md border border-white/20 px-3 py-1.5 text-[11px] font-bold tracking-wide text-white opacity-0 scale-90 shadow-[0_8px_20px_rgba(139,92,246,0.3)] transition-all duration-300 ease-out group-hover:ml-4 group-hover:scale-100 group-hover:opacity-100 z-[100] pointer-events-none whitespace-nowrap">
+            {item.label}
+          </div>
         )}
       </Link>
     );
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-page)', overflow: 'hidden' }}>
+    <div className="flex min-h-screen bg-transparent font-sans text-foreground">
       
-      {/* Desktop Sidebar */}
+      {/* Desktop Sidebar (Simple) */}
       <motion.aside
-        className="glass-premium desktop-sidebar"
+        ref={sidebarRef}
+        className="desktop-sidebar border-r border-slate-200 bg-white"
         initial={false}
-        animate={{ width: isSidebarOpen ? '260px' : '80px' }}
-        transition={{ duration: 0.3, type: 'spring', bounce: 0, stiffness: 200, damping: 25 }}
+        animate={{ width: isSidebarOpen ? '260px' : '72px' }}
+        transition={{ duration: 0.2 }}
         style={{
           display: 'flex',
           flexDirection: 'column',
-          borderRight: '1px solid var(--border-light)',
           position: 'relative',
           zIndex: 40,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: isSidebarOpen ? 'space-between' : 'center', height: '72px', padding: isSidebarOpen ? '0 var(--space-5)' : '0', borderBottom: '1px solid rgba(176, 104, 185, 0.04)' }}>
-          <Link to="/" style={{ textDecoration: 'none' }}>
-            <Logo size={isSidebarOpen ? 32 : 36} showText={isSidebarOpen} />
+        <div className="flex h-[64px] items-center border-b border-slate-200 px-5" style={{ justifyContent: isSidebarOpen ? 'space-between' : 'center', padding: isSidebarOpen ? '0 20px' : '0' }}>
+          <Link to="/" className="flex items-center">
+            <Logo size={isSidebarOpen ? 28 : 32} showText={isSidebarOpen} />
           </Link>
         </div>
 
-        <nav style={{ flex: 1, padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: '2px', overflowY: 'auto' }} className="no-scrollbar">
+        <nav className={`no-scrollbar flex flex-1 flex-col gap-1 p-4 ${isSidebarOpen ? 'overflow-y-auto' : 'overflow-visible'}`}>
           {NAV_CATEGORIES.map((cat, ci) => (
-            <SidebarCategory key={ci} cat={cat} isSidebarOpen={isSidebarOpen} renderNavLink={renderNavLink} location={location} />
+            <SidebarCategory key={ci} cat={cat} isSidebarOpen={isSidebarOpen} renderNavLink={renderNavLink} location={location} isMobile={false} />
           ))}
         </nav>
 
-        <div style={{ padding: '16px 12px', borderTop: '1px solid var(--border-light)' }}>
+        <div className="border-t border-slate-200 p-4 shrink-0">
            <button 
              onClick={logout} 
-             style={{ 
-               width: '100%', 
-               padding: '12px 16px', 
-               borderRadius: 'var(--radius-md)', 
-               border: '1px solid var(--border)', 
-               background: 'transparent', 
-               color: 'var(--text-secondary)', 
-               fontSize: '13px', 
-               fontWeight: '600',
-               cursor: 'pointer', 
-               display: 'flex', 
-               alignItems: 'center', 
-               justifyContent: isSidebarOpen ? 'flex-start' : 'center',
-               gap: '12px',
-               transition: 'all 0.2s ease'
-             }}
-             onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-subtle)'; e.currentTarget.style.color = '#ef4444'; }}
-             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+             className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-red-500 transition-colors hover:bg-red-50 hover:text-red-700"
+             style={{ justifyContent: isSidebarOpen ? 'flex-start' : 'center' }}
            >
-             <LogOut size={16} />
+             <Power className="h-4 w-4" />
              {isSidebarOpen && <span>Déconnexion</span>}
            </button>
         </div>
       </motion.aside>
 
       {/* Main Content Area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: '#faf8fc' }}>
         
-        {/* Top Header inside main area */}
-        <header style={{ 
-          height: '72px', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between', 
-          padding: '0 24px', 
-          background: 'rgba(255, 255, 255, 0.5)', 
-          backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid var(--border-light)',
-          zIndex: 30
-        }}>
+        {/* Simple Flat Header */}
+        <header className="flex h-[64px] shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6" style={{ zIndex: 30 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             {/* Desktop toggler */}
             <button 
@@ -420,42 +389,28 @@ export default function DashboardLayout({ children }) {
             initial={{ x: '-100%' }}
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            style={{
-              position: 'fixed',
-              top: 0, left: 0, bottom: 0,
-              width: '280px',
-              background: 'var(--white)',
-              zIndex: 101,
-              display: 'flex',
-              flexDirection: 'column',
-              boxShadow: 'var(--shadow-xl)'
-            }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-y-0 left-0 z-[101] flex w-[280px] flex-col border-r border-slate-200 bg-white shadow-xl"
           >
-            <div style={{ padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-light)' }}>
-               <Link to="/" onClick={() => setIsMobileMenuOpen(false)} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '32px', height: '32px', background: 'var(--primary)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '14px' }}>
-                  <School size={16} />
-                </div>
-                <div>
-                  <span className="luminous-text" style={{ fontSize: '15px', fontWeight: '900' }}>IPFP</span>
-                  <p style={{ fontSize: '9px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Manager</p>
-                </div>
+            <div className="flex h-[64px] shrink-0 items-center justify-between border-b border-slate-200 px-5">
+               <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center">
+                 <Logo size={28} showText={true} />
               </Link>
-              <button onClick={() => setIsMobileMenuOpen(false)} className="close-button" aria-label="Fermer le menu" title="Fermer">
-                <X size={24} />
+              <button onClick={() => setIsMobileMenuOpen(false)} className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900">
+                <X className="h-5 w-5" />
               </button>
             </div>
-            
-            <nav style={{ flex: 1, padding: '20px 12px', display: 'flex', flexDirection: 'column', gap: '2px', overflowY: 'auto' }}>
+            <nav className="no-scrollbar flex flex-1 flex-col gap-1 overflow-y-auto p-4">
               {NAV_CATEGORIES.map((cat, ci) => (
                 <SidebarCategory key={ci} cat={cat} isSidebarOpen={true} renderNavLink={(item) => renderNavLink(item, true)} location={location} isMobile={true} />
               ))}
             </nav>
-            
-            <div style={{ padding: '20px 16px', borderTop: '1px solid var(--border-light)' }}>
-              <button onClick={() => { logout(); setIsMobileMenuOpen(false); }} style={{ width: '100%', padding: '12px', background: 'var(--bg-subtle)', border: 'none', borderRadius: 'var(--radius-lg)', color: '#ef4444', fontWeight: '600', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer' }}>
-                <LogOut size={16} />
+            <div className="border-t border-slate-200 p-4 shrink-0">
+              <button 
+                onClick={() => { logout(); setIsMobileMenuOpen(false); }} 
+                className="flex w-full items-center justify-center gap-2 rounded-md bg-red-50 px-4 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 hover:text-red-700"
+              >
+                <Power className="h-4 w-4" />
                 Déconnexion
               </button>
             </div>
