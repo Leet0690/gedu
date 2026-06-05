@@ -10,6 +10,7 @@ import {
 } from 'recharts';
 import { jsPDF } from 'jspdf';
 import { logoBase64 } from '../utils/logoBase64.js';
+import { isActiveStudent } from '../utils/studentStatus';
 import {
   ChartLine, Users, TrendingUp, TrendingDown, Download,
   Award, AlertTriangle, ChevronUp, ChevronDown, Minus,
@@ -77,6 +78,7 @@ const Reports = () => {
   const [selectedModule, setSelectedModule] = useState('');
   const [rankSort, setRankSort] = useState('avg_desc');
   const [isExporting, setIsExporting] = useState(false);
+  const activeStudents = useMemo(() => (students || []).filter(isActiveStudent), [students]);
 
   useEffect(() => {
     if (loadStudentAttendanceForMonth) {
@@ -114,7 +116,7 @@ const Reports = () => {
   }, [availableModules, selectedModule]);
 
   const analytics = useMemo(() => {
-    const filteredStudents = students.filter(s =>
+    const filteredStudents = activeStudents.filter(s =>
       s.diploma === selectedDiploma && s.major === selectedMajor && s.year === selectedYear
     );
 
@@ -209,7 +211,7 @@ const Reports = () => {
       bestModule: globalModuleData[0] || null,
       worstModule: globalModuleData[globalModuleData.length - 1] || null,
     };
-  }, [students, grades, selectedDiploma, selectedMajor, selectedYear, selectedModule, availableModules, availableModulesList, studentAttendance]);
+  }, [activeStudents, grades, selectedDiploma, selectedMajor, selectedYear, selectedModule, availableModules, availableModulesList, studentAttendance]);
 
   const sortedRankings = useMemo(() => {
     const copy = [...(analytics.studentRankings || [])];
@@ -244,17 +246,17 @@ const Reports = () => {
       if (!groups.has(key)) groups.set(key, { diploma, major, year });
     };
 
-    students.forEach(addGroup);
+    activeStudents.forEach(addGroup);
     allModules.forEach(addGroup);
 
     return Array.from(groups.values())
       .map(group => ({
         ...group,
-        studentsCount: students.filter(s => s.diploma === group.diploma && s.major === group.major && s.year === group.year).length,
+        studentsCount: activeStudents.filter(s => s.diploma === group.diploma && s.major === group.major && s.year === group.year).length,
         modulesCount: allModules.filter(m => m.diploma === group.diploma && m.major === group.major && m.year === group.year).length,
       }))
       .sort((a, b) => `${a.diploma} ${a.major} ${a.year}`.localeCompare(`${b.diploma} ${b.major} ${b.year}`));
-  }, [students, allModules]);
+  }, [activeStudents, allModules]);
 
   const getReportModuleDetails = useCallback((studentId, moduleName) => {
     const g = grades[studentId]?.[gradeModuleKey(moduleName)];
@@ -286,8 +288,8 @@ const Reports = () => {
   }, [allModules]);
 
   const getGroupStudents = useCallback((group) =>
-    students.filter(s => s.diploma === group.diploma && s.major === group.major && s.year === group.year),
-  [students]);
+    activeStudents.filter(s => s.diploma === group.diploma && s.major === group.major && s.year === group.year),
+  [activeStudents]);
 
   const buildGroupStats = useCallback((group) => {
     const groupStudents = getGroupStudents(group);

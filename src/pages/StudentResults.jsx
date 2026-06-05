@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { getStudentGradeModules, sanitizeGradeKey } from '../utils/gradeSync';
+import { isActiveStudent, isLaureatStudent } from '../utils/studentStatus';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import {
@@ -110,9 +111,19 @@ const StudentResults = () => {
 
   const classRank = useMemo(() => {
     if (!student) return { rank: null, total: 0 };
-    const peers = students.filter(s =>
-      s.diploma === student.diploma && s.major === student.major && s.year === student.year
-    );
+    const studentIsLaureat = isLaureatStudent(student);
+    const peers = students.filter(s => {
+      const sameClass = s.diploma === student.diploma && s.major === student.major && s.year === student.year;
+      if (!sameClass) return false;
+      if (studentIsLaureat) {
+        if (!isLaureatStudent(s)) return false;
+        if (student.graduationAcademicYear) return s.graduationAcademicYear === student.graduationAcademicYear;
+        return true;
+      }
+      if (!isActiveStudent(s)) return false;
+      if (student.academicYear && s.academicYear) return s.academicYear === student.academicYear;
+      return true;
+    });
     const peerAvgs = peers.map(s => {
       const sGrades = grades[s.id] || {};
       let sCC = 0, sFT = 0, sFP = 0, sCnt = 0;

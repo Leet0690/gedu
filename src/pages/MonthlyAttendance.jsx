@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { FILIERES } from '../data/modules';
 import { FilterSelect } from '../components/ui/FilterSelect';
+import { isActiveStudent } from '../utils/studentStatus';
 import {
   CalendarRange, Download, Search, Filter,
   CheckCircle2, XCircle, Clock, Users, ChevronLeft, ChevronRight
@@ -68,13 +69,14 @@ const MonthlyAttendance = () => {
 
   const daysInMonth = useMemo(() => new Date(year, month + 1, 0).getDate(), [month, year]);
   const days = useMemo(() => Array.from({ length: daysInMonth }, (_, i) => i + 1), [daysInMonth]);
+  const activeStudents = useMemo(() => (students || []).filter(isActiveStudent), [students]);
 
   useEffect(() => {
     loadStudentAttendanceForMonth(month, year);
   }, [month, year, loadStudentAttendanceForMonth]);
 
   const filteredStudents = useMemo(() => {
-    return (students || []).filter(s => {
+    return activeStudents.filter(s => {
       if (filterFiliere && s.major !== filterFiliere) return false;
       if (filterAnnee && s.year !== filterAnnee) return false;
       if (search) {
@@ -83,7 +85,7 @@ const MonthlyAttendance = () => {
       }
       return true;
     }).sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
-  }, [students, filterFiliere, filterAnnee, search]);
+  }, [activeStudents, filterFiliere, filterAnnee, search]);
 
   const pad = (n) => String(n).padStart(2, '0');
   const monthPrefix = `${year}-${pad(month + 1)}`;

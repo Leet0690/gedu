@@ -7,6 +7,7 @@ import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import { DatePicker } from '../components/ui';
 import { FilterSelect } from '../components/ui/FilterSelect';
+import { isActiveStudent } from '../utils/studentStatus';
 import {
   UserCheck, FileSpreadsheet, Search, CheckCircle2,
   XCircle, X, Clock, Users, Filter, Download, CalendarRange,
@@ -69,9 +70,10 @@ const StudentAttendance = () => {
     const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
     return days[new Date(selectedDate).getDay()];
   }, [selectedDate]);
+  const activeStudents = useMemo(() => (students || []).filter(isActiveStudent), [students]);
 
   const filteredStudents = useMemo(() => {
-    return (students || []).filter(s => {
+    return activeStudents.filter(s => {
       const hasClassToday = (schedules || []).some(sc => sc.filiere === s.major && sc.annee === s.year && sc.day === dayOfWeek);
       if (!hasClassToday) return false;
       if (filterDiploma && s.diploma !== filterDiploma) return false;
@@ -83,9 +85,9 @@ const StudentAttendance = () => {
       }
       return true;
     }).sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
-  }, [students, filterDiploma, filterMajor, filterYear, searchTerm, schedules, dayOfWeek]);
+  }, [activeStudents, filterDiploma, filterMajor, filterYear, searchTerm, schedules, dayOfWeek]);
 
-  const availableMajors = filterDiploma ? (FILIERES[filterDiploma] || []) : Array.from(new Set(students.map(s => s.major)));
+  const availableMajors = filterDiploma ? (FILIERES[filterDiploma] || []) : Array.from(new Set(activeStudents.map(s => s.major)));
   const availableModules = useMemo(() => {
     if (filterMajor && filterYear) {
       const scheduledModules = (schedules || [])
@@ -139,7 +141,7 @@ const StudentAttendance = () => {
     const teacherName = (teachers || []).find(t => t.id === matchingSession.teacherId)?.name || '—';
 
     const groups = allTeacherSessions.map(session => {
-      const groupStudents = (students || []).filter(s =>
+      const groupStudents = activeStudents.filter(s =>
         s.major === session.filiere && s.year === session.annee
       );
       const safeModule = (getActiveScheduleModule(session) || 'global').replace(/[^a-zA-Z0-9]/g, '_');
@@ -154,7 +156,7 @@ const StudentAttendance = () => {
 
     const completedCount = groups.filter(g => g.done).length;
     return { teacherName, time: matchingSession.time, groups, completedCount, totalGroups: groups.length };
-  }, [filterModule, filterMajor, filterYear, dayOfWeek, schedules, students, studentAttendance, selectedDate, teachers, getActiveScheduleModule]);
+  }, [filterModule, filterMajor, filterYear, dayOfWeek, schedules, activeStudents, studentAttendance, selectedDate, teachers, getActiveScheduleModule]);
 
   useEffect(() => {
     if (filterModule && selectedDate) loadAttendanceForSession(filterModule, selectedDate);
@@ -199,7 +201,7 @@ const StudentAttendance = () => {
     const combinedAttendance = [...(studentAttendance || []), ...extraRecords];
 
     const allGroupsComplete = allTeacherSessions.every(session => {
-      const groupStudents = (students || []).filter(s =>
+      const groupStudents = activeStudents.filter(s =>
         s.major === session.filiere && s.year === session.annee
       );
       if (groupStudents.length === 0) return true;
@@ -221,7 +223,7 @@ const StudentAttendance = () => {
       const duration = calcDuration(matchingSession.time);
       await updateTeacherAttendance(matchingSession.teacherId, selectedDate, 'present', '', duration, matchingModule, matchingSession.time);
     }
-  }, [schedules, students, studentAttendance, teacherAttendance, dayOfWeek, selectedDate, updateTeacherAttendance, getActiveScheduleModule]);
+  }, [schedules, activeStudents, studentAttendance, teacherAttendance, dayOfWeek, selectedDate, updateTeacherAttendance, getActiveScheduleModule]);
 
   const handleStatusChange = async (studentId, status) => {
     if (!filterModule) { showToast("Veuillez d'abord sélectionner un module.", 'warning'); return; }
@@ -344,7 +346,7 @@ const StudentAttendance = () => {
   const monthPrefix = `${mYear}-${pad(mMonth + 1)}`;
 
   const mFilteredStudents = useMemo(() =>
-    (students || []).filter(s => {
+    activeStudents.filter(s => {
       if (mFilterFiliere && s.major !== mFilterFiliere) return false;
       if (mFilterAnnee && s.year !== mFilterAnnee) return false;
       if (mSearch) {
@@ -353,7 +355,7 @@ const StudentAttendance = () => {
       }
       return true;
     }).sort((a, b) => (a.lastName || '').localeCompare(b.lastName || '')),
-    [students, mFilterFiliere, mFilterAnnee, mSearch]
+    [activeStudents, mFilterFiliere, mFilterAnnee, mSearch]
   );
 
   const monthColumns = useMemo(() => {
@@ -459,14 +461,14 @@ const StudentAttendance = () => {
   const [alertThreshold, setAlertThreshold] = useState(10);
 
   const flaggedStudents = useMemo(() => {
-    if (!studentAttendance || studentAttendance.length === 0 || !students || students.length === 0) return [];
+    if (!studentAttendance || studentAttendance.length === 0 || activeStudents.length === 0) return [];
     const byStudent = {};
     studentAttendance.forEach(a => {
       if (!byStudent[a.studentId]) byStudent[a.studentId] = { total: 0, absences: 0 };
       byStudent[a.studentId].total++;
       if (a.status === 'absent') byStudent[a.studentId].absences++;
     });
-    return students
+    return activeStudents
       .filter(s => {
         const rec = byStudent[s.id];
         if (!rec || rec.total === 0) return false;
@@ -477,7 +479,7 @@ const StudentAttendance = () => {
         return { ...s, absenceRate: Math.round((rec.absences / rec.total) * 100), absences: rec.absences, total: rec.total };
       })
       .sort((a, b) => b.absenceRate - a.absenceRate);
-  }, [studentAttendance, students, alertThreshold]);
+  }, [studentAttendance, activeStudents, alertThreshold]);
 
   return (
     <div className="max-w-container section-padding">

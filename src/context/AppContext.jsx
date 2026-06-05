@@ -20,6 +20,7 @@ import { db } from '../firebase';
 import ConfirmModal from '../components/ConfirmModal';
 import { useToast } from './ToastContext';
 import { sanitizeGradeKey } from '../utils/gradeSync';
+import { FIRST_YEAR, SECOND_YEAR, STUDENT_STATUS, isActiveStudent, validateAcademicYearTransition } from '../utils/studentStatus';
 
 const AppContext = createContext();
 const ACCESS_LOG_LIMIT = 5;
@@ -605,6 +606,215 @@ export const AppProvider = ({ children }) => {
     showToast(`Profil stagiaire mis à jour.`, 'success');
   };
 
+  const promoteAcademicYear = async ({ fromAcademicYear = '', toAcademicYear = '' } = {}) => {
+    // Improvement #1: Validate academic year format
+    if (!validateAcademicYearTransition(fromAcademicYear, toAcademicYear)) {
+      showToast('Format d\u2019ann\u00e9e invalide. Utilisez le format AAAA-AAAA (ex: 2025-2026).', 'error');
+      return { promotedCount: 0, graduatedCount: 0, error: 'INVALID_FORMAT' };
+    }
+
+    const closedAt = new Date().toISOString();
+    const operationId = `academic-year-${Date.now()}`;
+    const candidates = (students || [])
+      .filter(isActiveStudent)
+      .filter(s => s.year === FIRST_YEAR || s.year === SECOND_YEAR);
+
+    if (candidates.length === 0) {
+      showToast('Aucun stagiaire actif \u00e0 promouvoir.', 'info');
+      return { promotedCount: 0, graduatedCount: 0, error: 'NO_CANDIDATES' };
+    }
+
+    // Improvement #3: Detect double closure
+    const alreadyClosed = candidates.some(s =>
+      Array.isArray(s.classHistory) &&
+      s.classHistory.some(h => h.academicYear === fromAcademicYear)
+    );
+    if (alreadyClosed) {
+      showToast(`L\u2019ann\u00e9e ${fromAcademicYear} a d\u00e9j\u00e0 \u00e9t\u00e9 cl\u00f4tur\u00e9e pour certains stagiaires.`, 'error');
+      return { promotedCount: 0, graduatedCount: 0, error: 'ALREADY_CLOSED' };
+    }
+
+    const updates = candidates.map(student => {
+      const historyEntry = {
+        academicYear: fromAcademicYear,
+        diploma: student.diploma || '',
+        major: student.major || '',
+        year: student.year || '',
+        status: student.status || STUDENT_STATUS.ACTIVE,
+        closedAt,
+        operationId,
+      };
+      const classHistory = [...(Array.isArray(student.classHistory) ? student.classHistory : []), historyEntry];
+
+      if (student.year === SECOND_YEAR) {
+        return {
+          id: student.id,
+          localData: {
+            status: STUDENT_STATUS.LAUREAT,
+            graduationAcademicYear: fromAcademicYear,
+            graduatedAt: closedAt,
+            classHistory,
+          },
+          firestoreData: {
+            status: STUDENT_STATUS.LAUREAT,
+            graduationAcademicYear: fromAcademicYear,
+            graduatedAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            classHistory,
+          },
+          type: 'graduated',
+        };
+      }
+
+      return {
+        id: student.id,
+        localData: {
+          year: SECOND_YEAR,
+          status: STUDENT_STATUS.ACTIVE,
+          academicYear: toAcademicYear,
+          previousAcademicYear: fromAcademicYear,
+          promotedFromYear: FIRST_YEAR,
+          promotedAt: closedAt,
+          classHistory,
+        },
+        firestoreData: {
+          year: SECOND_YEAR,
+          status: STUDENT_STATUS.ACTIVE,
+          academicYear: toAcademicYear,
+          previousAcademicYear: fromAcademicYear,
+          promotedFromYear: FIRST_YEAR,
+          promotedAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          classHistory,
+        },
+        type: 'promoted',
+      };
+    });
+
+    // Improvement #9: Progressive batch processing with error handling
+    let processedIds = [];
+    try {
+      for (let i = 0; i < updates.length; i += 450) {
+        const chunk = updates.slice(i, i + 450);
+        const batch = writeBatch(db);
+        chunk.forEach(({ id, firestoreData }) => {
+          batch.update(doc(db, 'students', id), firestoreData);
+        });
+        await batch.commit();
+        // Update local state progressively after each successful batch
+        const chunkIds = chunk.map(c => c.id);
+        processedIds = [...processedIds, ...chunkIds];
+        const chunkMap = new Map(chunk.map(item => [item.id, item.localData]));
+        setStudents(prev => prev.map(student => chunkMap.has(student.id) ? { ...student, ...chunkMap.get(student.id) } : student));
+      }
+    } catch (err) {
+      console.error('Erreur batch cl\u00f4ture:', err);
+      if (processedIds.length > 0) {
+        showToast(`Erreur partielle : ${processedIds.length}/${updates.length} stagiaires mis \u00e0 jour. Certains dossiers n\u2019ont pas \u00e9t\u00e9 modifi\u00e9s.`, 'error');
+      }
+      throw err;
+    }
+
+    localStorage.removeItem(CORE_CACHE_KEY);
+
+    const promotedCount = updates.filter(item => item.type === 'promoted').length;
+    const graduatedCount = updates.filter(item => item.type === 'graduated').length;
+
+    // Improvement #7: Build breakdown by filière
+    const breakdown = {};
+    updates.forEach(({ id, type }) => {
+      const student = candidates.find(s => s.id === id);
+      if (!student) return;
+      const key = `${student.diploma || 'N/A'} - ${student.major || 'N/A'}`;
+      if (!breakdown[key]) breakdown[key] = { promoted: 0, graduated: 0 };
+      breakdown[key][type === 'promoted' ? 'promoted' : 'graduated']++;
+    });
+
+    // Improvement #8: Log operation in Firestore
+    try {
+      await addDoc(collection(db, 'operations'), {
+        type: 'academic_year_closure',
+        operationId,
+        fromAcademicYear,
+        toAcademicYear,
+        promotedCount,
+        graduatedCount,
+        totalAffected: updates.length,
+        promotedIds: updates.filter(u => u.type === 'promoted').map(u => u.id),
+        graduatedIds: updates.filter(u => u.type === 'graduated').map(u => u.id),
+        breakdown,
+        performedAt: serverTimestamp(),
+        closedAt,
+      });
+    } catch (logErr) {
+      console.error('Erreur journalisation:', logErr);
+    }
+
+    showToast(`${promotedCount} stagiaire(s) promu(s), ${graduatedCount} laur\u00e9at(s) archiv\u00e9(s).`, 'success');
+    return { promotedCount, graduatedCount, operationId, breakdown };
+  };
+
+  // Improvement #6: Undo last promotion
+  const undoLastPromotion = async (operationId) => {
+    if (!operationId) {
+      showToast('Aucune op\u00e9ration \u00e0 annuler.', 'info');
+      return;
+    }
+
+    const affected = (students || []).filter(s =>
+      Array.isArray(s.classHistory) &&
+      s.classHistory.length > 0 &&
+      s.classHistory[s.classHistory.length - 1].operationId === operationId
+    );
+
+    if (affected.length === 0) {
+      showToast('Aucun stagiaire trouv\u00e9 pour cette op\u00e9ration.', 'info');
+      return;
+    }
+
+    const undoUpdates = affected.map(student => {
+      const lastEntry = student.classHistory[student.classHistory.length - 1];
+      const restoredHistory = student.classHistory.slice(0, -1);
+
+      const restoreData = {
+        year: lastEntry.year,
+        status: lastEntry.status || STUDENT_STATUS.ACTIVE,
+        classHistory: restoredHistory,
+      };
+
+      // Clean up promotion/graduation fields
+      const cleanFields = {
+        graduationAcademicYear: '',
+        graduatedAt: '',
+        academicYear: '',
+        previousAcademicYear: '',
+        promotedFromYear: '',
+        promotedAt: '',
+      };
+
+      return {
+        id: student.id,
+        localData: { ...restoreData, ...cleanFields },
+        firestoreData: { ...restoreData, ...cleanFields, updatedAt: serverTimestamp() },
+      };
+    });
+
+    for (let i = 0; i < undoUpdates.length; i += 450) {
+      const batch = writeBatch(db);
+      undoUpdates.slice(i, i + 450).forEach(({ id, firestoreData }) => {
+        batch.update(doc(db, 'students', id), firestoreData);
+      });
+      await batch.commit();
+    }
+
+    const updateMap = new Map(undoUpdates.map(item => [item.id, item.localData]));
+    setStudents(prev => prev.map(student => updateMap.has(student.id) ? { ...student, ...updateMap.get(student.id) } : student));
+    localStorage.removeItem(CORE_CACHE_KEY);
+
+    showToast(`${affected.length} stagiaire(s) restaur\u00e9(s) \u00e0 leur \u00e9tat pr\u00e9c\u00e9dent.`, 'success');
+    return { restoredCount: affected.length };
+  };
+
   const deleteStudent = async (id) => {
     await deleteDoc(doc(db, 'students', id));
     setStudents(prev => prev.filter(s => s.id !== id));
@@ -958,7 +1168,7 @@ export const AppProvider = ({ children }) => {
     <AppContext.Provider value={{
       students, teachers, grades, isAuthenticated, isDirectorAuth, loading,
       login, logout, loginDirector, logoutDirector,
-      addStudent, addTeacher, updateStudent, updateTeacher, deleteStudent, deleteTeacher, updateGrades, batchUpdateGrades,
+      addStudent, addTeacher, updateStudent, promoteAcademicYear, undoLastPromotion, updateTeacher, deleteStudent, deleteTeacher, updateGrades, batchUpdateGrades,
       studentAttendance, teacherAttendance, updateStudentAttendance, updateTeacherAttendance,
       loadAttendanceForSession, loadStudentAttendanceForMonth, loadTeacherAttendanceForDate, loadTeacherAttendanceForMonth,
       schedules, addSchedule, updateSchedule, deleteSchedule, clearAllSchedules, migrateTeacherTokens,

@@ -6,6 +6,7 @@ import { useToast } from '../context/ToastContext';
 import { FILIERES } from '../data/modules';
 import { generateFicheSignature, generateFicheNotes, generateBulletinGlobal, generateNoteObtentionDiplome } from '../utils/pdfGenerator';
 import { getStudentGradeModules, sanitizeGradeKey } from '../utils/gradeSync';
+import { isActiveStudent } from '../utils/studentStatus';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import { 
@@ -65,6 +66,7 @@ const GradeManagement = () => {
   const [filterYear, setFilterYear] = useState('');
   const [saved, setSaved] = useState(false);
   const [localGrades, setLocalGrades] = useState({});
+  const activeStudents = useMemo(() => (students || []).filter(isActiveStudent), [students]);
 
   // ── PDF States ──
   const [showDocPanel, setShowDocPanel] = useState(false);
@@ -72,17 +74,17 @@ const GradeManagement = () => {
   const [pdfCC, setPdfCC] = useState('1');
 
   const filteredStudents = useMemo(() => {
-    return (students || []).filter(s => {
+    return activeStudents.filter(s => {
       if (filterDiploma && s.diploma !== filterDiploma) return false;
       if (filterMajor && s.major !== filterMajor) return false;
       if (filterYear && s.year !== filterYear) return false;
       return true;
     });
-  }, [students, filterDiploma, filterMajor, filterYear]);
+  }, [activeStudents, filterDiploma, filterMajor, filterYear]);
 
-  const availableMajors = filterDiploma ? (FILIERES[filterDiploma] || []) : Array.from(new Set(students.map(s => s.major)));
+  const availableMajors = filterDiploma ? (FILIERES[filterDiploma] || []) : Array.from(new Set(activeStudents.map(s => s.major)));
 
-  const selectedStudent = students.find(s => s.id === selectedStudentId);
+  const selectedStudent = activeStudents.find(s => s.id === selectedStudentId);
   const studentModules = useMemo(() => {
     return getStudentGradeModules(allModules, selectedStudent);
   }, [selectedStudent, allModules]);
@@ -108,13 +110,13 @@ const GradeManagement = () => {
 
   // Students for PDF (filtered)
   const pdfStudents = useMemo(() => {
-    return (students || []).filter(s => {
+    return activeStudents.filter(s => {
       if (filterDiploma && s.diploma !== filterDiploma) return false;
       if (filterMajor && s.major !== filterMajor) return false;
       if (filterYear && s.year !== filterYear) return false;
       return true;
     }).sort((a, b) => (a.regNo || '').localeCompare(b.regNo || ''));
-  }, [students, filterDiploma, filterMajor, filterYear]);
+  }, [activeStudents, filterDiploma, filterMajor, filterYear]);
 
   const handleGradeChange = (module, field, value) => {
     const safeModule = sanitizeGradeKey(module);
@@ -269,7 +271,7 @@ const GradeManagement = () => {
     showToast('Attestation générée', 'success');
   };
 
-  if (loading && students.length === 0) {
+  if (loading && activeStudents.length === 0) {
     return (
       <div className="max-w-container section-padding">
         <TableSkeleton rows={12} />

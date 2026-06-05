@@ -9,6 +9,7 @@ import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
 import { DatePicker } from '../components/ui';
 import { FilterSelect } from '../components/ui/FilterSelect';
+import { isActiveStudent } from '../utils/studentStatus';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { 
   Lock, 
@@ -218,6 +219,7 @@ const FinanceDashboard = () => {
     isDirectorAuth, loginDirector, logoutDirector, logout, confirmAction
   } = useApp();
   const { showToast } = useToast();
+  const activeStudents = useMemo(() => (students || []).filter(isActiveStudent), [students]);
 
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -523,13 +525,15 @@ const FinanceDashboard = () => {
 
   const monthlyPaymentRows = useMemo(() => {
     const selectedMonth = paymentMonthFilter || currentMonthName;
+    const activeStudentIds = new Set(activeStudents.map(student => student.id));
     const paymentsForMonth = payments.filter(p =>
-      (p.month || '').toLowerCase() === selectedMonth.toLowerCase()
+      (p.month || '').toLowerCase() === selectedMonth.toLowerCase() &&
+      activeStudentIds.has(p.studentId)
     );
     const paidStudentIds = new Set(paymentsForMonth.map(p => p.studentId).filter(Boolean));
     const monthlyRows = [
       ...paymentsForMonth,
-      ...students
+      ...activeStudents
         .filter(student => !paidStudentIds.has(student.id))
         .map(student => ({
           id: `unpaid-${student.id}-${selectedMonth}`,
@@ -543,7 +547,7 @@ const FinanceDashboard = () => {
     ];
 
     return monthlyRows;
-  }, [payments, students, paymentMonthFilter, currentMonthName]);
+  }, [payments, activeStudents, paymentMonthFilter, currentMonthName]);
 
   const paymentStatusCounts = useMemo(() => {
     const paidStudentIds = new Set();
@@ -582,25 +586,25 @@ const FinanceDashboard = () => {
     setPaymentsPage(prev => Math.min(prev, Math.max(1, totalPaymentsPages)));
   }, [totalPaymentsPages]);
 
-  const modalDiplomas = useMemo(() => [...new Set(students.map(s => s.diploma).filter(Boolean))].sort(), [students]);
+  const modalDiplomas = useMemo(() => [...new Set(activeStudents.map(s => s.diploma).filter(Boolean))].sort(), [activeStudents]);
   const modalMajors = useMemo(() => {
-    const base = paymentModalFilter.diploma ? students.filter(s => s.diploma === paymentModalFilter.diploma) : students;
+    const base = paymentModalFilter.diploma ? activeStudents.filter(s => s.diploma === paymentModalFilter.diploma) : activeStudents;
     return [...new Set(base.map(s => s.major).filter(Boolean))].sort();
-  }, [students, paymentModalFilter.diploma]);
+  }, [activeStudents, paymentModalFilter.diploma]);
   const modalYears = useMemo(() => {
-    let base = students;
+    let base = activeStudents;
     if (paymentModalFilter.diploma) base = base.filter(s => s.diploma === paymentModalFilter.diploma);
     if (paymentModalFilter.major) base = base.filter(s => s.major === paymentModalFilter.major);
     return [...new Set(base.map(s => s.year).filter(Boolean))].sort();
-  }, [students, paymentModalFilter.diploma, paymentModalFilter.major]);
+  }, [activeStudents, paymentModalFilter.diploma, paymentModalFilter.major]);
   const modalStudents = useMemo(() => {
-    return students.filter(s => {
+    return activeStudents.filter(s => {
       if (paymentModalFilter.diploma && s.diploma !== paymentModalFilter.diploma) return false;
       if (paymentModalFilter.major && s.major !== paymentModalFilter.major) return false;
       if (paymentModalFilter.year && s.year !== paymentModalFilter.year) return false;
       return true;
     });
-  }, [students, paymentModalFilter]);
+  }, [activeStudents, paymentModalFilter]);
 
   const calculatedSalaries = useMemo(() => {
     return teachers.map(t => {
@@ -689,8 +693,9 @@ const FinanceDashboard = () => {
       .filter(e => isSelectedMonth(e.month))
       .reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0);
     const totalExpenses = totalSalaries + totalOtherExpenses;
-    const paidStudentIds = new Set(monthPayments.map(p => p.studentId).filter(Boolean));
-    const totalStudents = students.length;
+    const activeStudentIds = new Set(activeStudents.map(student => student.id));
+    const paidStudentIds = new Set(monthPayments.map(p => p.studentId).filter(id => activeStudentIds.has(id)));
+    const totalStudents = activeStudents.length;
     const tauxRecouvrement = totalStudents > 0 ? Math.round((paidStudentIds.size / totalStudents) * 100) : 0;
     return {
       revenue: totalRevenue,
@@ -703,7 +708,7 @@ const FinanceDashboard = () => {
       paidStudents: paidStudentIds.size,
       totalStudents
     };
-  }, [payments, salaries, expenses, calculatedSalaries, summaryMonthFilter, currentMonthName, students]);
+  }, [payments, salaries, expenses, calculatedSalaries, summaryMonthFilter, currentMonthName, activeStudents]);
 
   const monthlyTrendData = useMemo(() => {
     return months.map(month => {
@@ -722,7 +727,7 @@ const FinanceDashboard = () => {
   const overdueMap = useMemo(() => {
     const currentMonthIdx = new Date().getMonth();
     const result = {};
-    students.forEach(student => {
+    activeStudents.forEach(student => {
       const paidMonthKeys = new Set(
         payments
           .filter(p => p.studentId === student.id && getPaymentStatusKey(p.status) === 'paid')
@@ -746,16 +751,16 @@ const FinanceDashboard = () => {
       if (overdue >= 2) result[student.id] = overdue;
     });
     return result;
-  }, [students, payments, months]);
+  }, [activeStudents, payments, months]);
 
   const overdueStudents = useMemo(() => {
-    return students
+    return activeStudents
       .filter(s => overdueMap[s.id])
       .sort((a, b) =>
         overdueMap[b.id] - overdueMap[a.id] ||
         `${a.lastName || ''} ${a.firstName || ''}`.localeCompare(`${b.lastName || ''} ${b.firstName || ''}`)
       );
-  }, [students, overdueMap]);
+  }, [activeStudents, overdueMap]);
 
   const paginatedOverdueStudents = useMemo(() => {
     return overdueStudents.slice((overduePage - 1) * overduePerPage, overduePage * overduePerPage);

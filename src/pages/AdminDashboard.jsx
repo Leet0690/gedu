@@ -14,6 +14,15 @@ import { FilterSelect } from '../components/ui/FilterSelect';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
+import {
+  STUDENT_STATUS,
+  getDefaultAcademicYearTransition,
+  getStudentStatusLabel,
+  isActiveStudent,
+  isLaureatStudent,
+  validateAcademicYearTransition,
+  hasExistingClosure
+} from '../utils/studentStatus';
 import { 
   Plus, 
   Search, 
@@ -54,7 +63,8 @@ import {
   ArrowRight,
   TrendingUp,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  Undo2
 } from 'lucide-react';
 
 const labelStyle = { fontSize: 'var(--text-xs)', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', paddingLeft: '2px' };
@@ -713,7 +723,7 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
 };
 
 const AdminDashboard = () => {
-  const { students, teachers, grades, schedules, modules: allModules, deleteStudent, deleteTeacher, updateStudent, updateTeacher, studentAttendance, teacherAttendance, loadStudentAttendanceForMonth, loadTeacherAttendanceForMonth, migrateTeacherTokens, loading, confirmAction, notifications, activeSemester, setActiveSemester, getActiveScheduleModule } = useApp();
+  const { students, teachers, grades, schedules, modules: allModules, deleteStudent, deleteTeacher, updateStudent, promoteAcademicYear, undoLastPromotion, updateTeacher, studentAttendance, teacherAttendance, loadStudentAttendanceForMonth, loadTeacherAttendanceForMonth, migrateTeacherTokens, loading, confirmAction, notifications, activeSemester, setActiveSemester, getActiveScheduleModule } = useApp();
   const { showToast } = useToast();
   const location = useLocation();
   const isDashboard = location.pathname === '/';
@@ -741,6 +751,11 @@ const AdminDashboard = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [editFormData, setEditFormData] = useState({});
   const [editModuleSearch, setEditModuleSearch] = useState('');
+  
+  const [promotionModalOpen, setPromotionModalOpen] = useState(false);
+  const [promotionForm, setPromotionForm] = useState(() => getDefaultAcademicYearTransition());
+  const [isPromotingAcademicYear, setIsPromotingAcademicYear] = useState(false);
+  const [promotionResult, setPromotionResult] = useState(null);
 
   // QR modal state
   const [qrModal, setQrModal] = useState(null); // { title, links: [{ label, url, color }] }
@@ -748,6 +763,27 @@ const AdminDashboard = () => {
   const closeQR = useCallback(() => setQrModal(null), []);
 
   const BASE = 'https://portail-ipfp.web.app';
+
+  const activeStudents = useMemo(() => (students || []).filter(isActiveStudent), [students]);
+  const promotionPreview = useMemo(() => {
+    const eligible = activeStudents.filter(s => s.year === '1\u00e8re ann\u00e9e' || s.year === '2\u00e8me ann\u00e9e');
+    // Improvement #7: Build breakdown by filière
+    const filiereBreakdown = {};
+    eligible.forEach(s => {
+      const key = `${s.diploma || 'N/A'} - ${s.major || 'N/A'}`;
+      if (!filiereBreakdown[key]) filiereBreakdown[key] = { promoted: 0, graduated: 0 };
+      if (s.year === '1\u00e8re ann\u00e9e') filiereBreakdown[key].promoted++;
+      else filiereBreakdown[key].graduated++;
+    });
+    return {
+      promoted: eligible.filter(s => s.year === '1\u00e8re ann\u00e9e').length,
+      graduated: eligible.filter(s => s.year === '2\u00e8me ann\u00e9e').length,
+      total: eligible.length,
+      filiereBreakdown,
+    };
+  }, [activeStudents]);
+  const isYearFormatValid = useMemo(() => validateAcademicYearTransition(promotionForm.fromAcademicYear, promotionForm.toAcademicYear), [promotionForm]);
+  const isAlreadyClosed = useMemo(() => hasExistingClosure(activeStudents, promotionForm.fromAcademicYear), [activeStudents, promotionForm.fromAcademicYear]);
 
   const allDiplomas = useMemo(() => Array.from(new Set(allModules.map(m => m.diploma))), [allModules]);
   const availableYears = useMemo(() => Array.from(new Set(allModules.map(m => m.year))), [allModules]);
@@ -868,6 +904,65 @@ const AdminDashboard = () => {
       setIsSaving(false);
     }
   }, [activeTab, selectedItem, editFormData, updateStudent, updateTeacher, closeModal, showToast]);
+
+  const handlePromoteAcademicYear = useCallback(async () => {
+    if (promotionPreview.total === 0) {
+      showToast('Aucun stagiaire actif \u00e0 cl\u00f4turer.', 'info');
+      return;
+    }
+    if (!isYearFormatValid) {
+      showToast('Format d\u2019ann\u00e9e invalide.', 'error');
+      return;
+    }
+    if (isAlreadyClosed) {
+      showToast(`L\u2019ann\u00e9e ${promotionForm.fromAcademicYear} a d\u00e9j\u00e0 \u00e9t\u00e9 cl\u00f4tur\u00e9e.`, 'error');
+      return;
+    }
+
+    const confirmed = await confirmAction({
+      title: "Cl\u00f4turer l'ann\u00e9e scolaire ?",
+      message: `${promotionPreview.graduated} stagiaire(s) de 2\u00e8me ann\u00e9e deviendront laur\u00e9ats et ${promotionPreview.promoted} stagiaire(s) de 1\u00e8re ann\u00e9e passeront en 2\u00e8me ann\u00e9e. Cette action mettra \u00e0 jour les dossiers actifs.`,
+      type: 'warning'
+    });
+    if (!confirmed) return;
+
+    setIsPromotingAcademicYear(true);
+    try {
+      const result = await promoteAcademicYear({
+        fromAcademicYear: promotionForm.fromAcademicYear,
+        toAcademicYear: promotionForm.toAcademicYear,
+      });
+      if (result.error) return;
+      setStudentStatusFilter(STUDENT_STATUS.ACTIVE);
+      setPromotionResult(result);
+    } catch (err) {
+      console.error(err);
+      showToast("Erreur pendant la cl\u00f4ture de l'ann\u00e9e scolaire.", 'error');
+    } finally {
+      setIsPromotingAcademicYear(false);
+    }
+  }, [confirmAction, promoteAcademicYear, promotionForm, promotionPreview, isYearFormatValid, isAlreadyClosed, showToast]);
+
+  const handleUndoPromotion = useCallback(async () => {
+    if (!promotionResult?.operationId) return;
+    const confirmed = await confirmAction({
+      title: 'Annuler la cl\u00f4ture ?',
+      message: 'Cette action restaurera tous les stagiaires \u00e0 leur \u00e9tat pr\u00e9c\u00e9dent. Voulez-vous continuer ?',
+      type: 'warning'
+    });
+    if (!confirmed) return;
+    setIsPromotingAcademicYear(true);
+    try {
+      await undoLastPromotion(promotionResult.operationId);
+      setPromotionResult(null);
+      setPromotionModalOpen(false);
+    } catch (err) {
+      console.error(err);
+      showToast('Erreur lors de l\u2019annulation.', 'error');
+    } finally {
+      setIsPromotingAcademicYear(false);
+    }
+  }, [confirmAction, undoLastPromotion, promotionResult, showToast]);
 
   const exportCSV = () => {
     let data = tableData;
@@ -1027,6 +1122,11 @@ const AdminDashboard = () => {
             </p>
           </div>
           <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+            {activeTab === 'students' && (
+              <button className="btn-modern" style={{ background: 'rgba(15,23,42,0.04)', color: 'var(--text-primary)' }} onClick={() => setPromotionModalOpen(true)}>
+                <GraduationCap size={14} style={{ marginRight: '6px' }} /> Cl&ocirc;turer l&apos;ann&eacute;e
+              </button>
+            )}
             {activeTab === 'students' && (
               <button className="btn-modern primary" style={{ background: '#6366f1' }} onClick={async () => {
                 if (await confirmAction({ 
@@ -1410,6 +1510,141 @@ const AdminDashboard = () => {
                   </div>
                 </div>
               ))}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {promotionModalOpen && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.28)', backdropFilter: 'blur(4px)' }} onClick={() => { setPromotionModalOpen(false); setPromotionResult(null); }} />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 12 }} className="glass-premium"
+              style={{ width: '100%', maxWidth: '600px', padding: '30px', borderRadius: 'var(--radius-3xl)', position: 'relative', zIndex: 101, boxShadow: 'var(--shadow-xl)', maxHeight: '90vh', overflowY: 'auto' }}>
+              <button onClick={() => { setPromotionModalOpen(false); setPromotionResult(null); }} className="close-button" aria-label="Fermer la fenetre" title="Fermer" style={{ position: 'absolute', right: '20px', top: '20px' }}>
+                <X size={20} />
+              </button>
+
+              {/* Improvement #4: Post-closure summary */}
+              {promotionResult ? (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '22px' }}>
+                    <div style={{ width: '46px', height: '46px', borderRadius: '16px', background: 'rgba(34,197,94,0.1)', color: 'var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <CheckCircle size={22} />
+                    </div>
+                    <div>
+                      <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900', color: 'var(--text-primary)' }}>Cl&ocirc;ture termin&eacute;e</h2>
+                      <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '600' }}>L&apos;ann&eacute;e {promotionForm.fromAcademicYear} a &eacute;t&eacute; cl&ocirc;tur&eacute;e avec succ&egrave;s.</p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '18px' }}>
+                    <InfoBox label="Promus" value={promotionResult.promotedCount} icon={ArrowRight} valueColor="var(--primary)" />
+                    <InfoBox label={'Laur\u00e9ats'} value={promotionResult.graduatedCount} icon={GraduationCap} valueColor="#a16207" />
+                    <InfoBox label="Total" value={promotionResult.promotedCount + promotionResult.graduatedCount} icon={UsersIcon} valueColor="var(--success)" />
+                  </div>
+
+                  {/* Improvement #7: Breakdown by filière */}
+                  {promotionResult.breakdown && Object.keys(promotionResult.breakdown).length > 0 && (
+                    <div style={{ marginBottom: '18px' }}>
+                      <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>D&eacute;tail par fili&egrave;re</p>
+                      <div style={{ borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-light)', overflow: 'hidden' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0', padding: '8px 12px', background: 'var(--bg-subtle)', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          <span>Fili&egrave;re</span><span style={{ textAlign: 'center' }}>Promus</span><span style={{ textAlign: 'center' }}>Laur&eacute;ats</span>
+                        </div>
+                        {Object.entries(promotionResult.breakdown).map(([filiere, counts]) => (
+                          <div key={filiere} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', padding: '8px 12px', borderTop: '1px solid var(--border-light)', fontSize: '12px', fontWeight: '600' }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>{filiere}</span>
+                            <span style={{ textAlign: 'center', color: 'var(--primary)', fontWeight: '800' }}>{counts.promoted || 0}</span>
+                            <span style={{ textAlign: 'center', color: '#a16207', fontWeight: '800' }}>{counts.graduated || 0}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-xl)', background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.18)', color: '#166534', fontSize: '12px', fontWeight: '700', lineHeight: 1.6, marginBottom: '20px' }}>
+                    Op&eacute;ration journalis&eacute;e. Vous pouvez annuler cette cl&ocirc;ture si n&eacute;cessaire.
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    {/* Improvement #6: Undo button */}
+                    <button type="button" className="btn-modern" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: '#dc2626' }} disabled={isPromotingAcademicYear} onClick={handleUndoPromotion}>
+                      <Undo2 size={14} /> Annuler la cl&ocirc;ture
+                    </button>
+                    <button type="button" className="btn-modern primary" style={{ flex: 2 }} onClick={() => { setPromotionModalOpen(false); setPromotionResult(null); }}>Fermer</button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '22px' }}>
+                    <div style={{ width: '46px', height: '46px', borderRadius: '16px', background: 'rgba(15,23,42,0.06)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <GraduationCap size={22} />
+                    </div>
+                    <div>
+                      <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900', color: 'var(--text-primary)' }}>Cl&ocirc;turer l&apos;ann&eacute;e scolaire</h2>
+                      <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '600' }}>Promotion automatique des stagiaires actifs.</p>
+                    </div>
+                  </div>
+
+                  {/* Improvement #5: Read-only year fields */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '18px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={labelStyle}>Ann&eacute;e cl&ocirc;tur&eacute;e</label>
+                      <div className="input-premium" style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-subtle)', cursor: 'default', fontWeight: '800', color: 'var(--text-primary)' }}>{promotionForm.fromAcademicYear}</div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={labelStyle}>Nouvelle ann&eacute;e</label>
+                      <div className="input-premium" style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-subtle)', cursor: 'default', fontWeight: '800', color: 'var(--text-primary)' }}>{promotionForm.toAcademicYear}</div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '18px' }}>
+                    <InfoBox label="Promus" value={promotionPreview.promoted} icon={ArrowRight} valueColor="var(--primary)" />
+                    <InfoBox label={'Laur\u00e9ats'} value={promotionPreview.graduated} icon={GraduationCap} valueColor="#a16207" />
+                    <InfoBox label="Actifs" value={activeStudents.length} icon={UsersIcon} valueColor="var(--success)" />
+                  </div>
+
+                  {/* Improvement #7: Breakdown by filière in preview */}
+                  {Object.keys(promotionPreview.filiereBreakdown).length > 0 && (
+                    <div style={{ marginBottom: '18px' }}>
+                      <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>D&eacute;tail par fili&egrave;re</p>
+                      <div style={{ borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-light)', overflow: 'hidden' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0', padding: '8px 12px', background: 'var(--bg-subtle)', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          <span>Fili&egrave;re</span><span style={{ textAlign: 'center' }}>1&egrave;re &rarr; 2&egrave;me</span><span style={{ textAlign: 'center' }}>2&egrave;me &rarr; Laur&eacute;at</span>
+                        </div>
+                        {Object.entries(promotionPreview.filiereBreakdown).map(([filiere, counts]) => (
+                          <div key={filiere} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', padding: '8px 12px', borderTop: '1px solid var(--border-light)', fontSize: '12px', fontWeight: '600' }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>{filiere}</span>
+                            <span style={{ textAlign: 'center', color: 'var(--primary)', fontWeight: '800' }}>{counts.promoted || 0}</span>
+                            <span style={{ textAlign: 'center', color: '#a16207', fontWeight: '800' }}>{counts.graduated || 0}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Improvement #3: Double closure warning */}
+                  {isAlreadyClosed && (
+                    <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-xl)', background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.18)', color: '#991b1b', fontSize: '12px', fontWeight: '700', lineHeight: 1.6, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+                      L&apos;ann&eacute;e {promotionForm.fromAcademicYear} a d&eacute;j&agrave; &eacute;t&eacute; cl&ocirc;tur&eacute;e. Cette op&eacute;ration est bloqu&eacute;e.
+                    </div>
+                  )}
+
+                  <div style={{ padding: '14px 16px', borderRadius: 'var(--radius-xl)', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.22)', color: '#92400e', fontSize: '12px', fontWeight: '700', lineHeight: 1.6, marginBottom: '24px' }}>
+                    Les 2&egrave;me ann&eacute;e seront marqu&eacute;s comme laur&eacute;ats. Les 1&egrave;re ann&eacute;e passeront en 2&egrave;me ann&eacute;e. Un historique sera conserv&eacute; dans chaque dossier.
+                  </div>
+
+                  {/* Improvement #2: Disable button when invalid */}
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <button type="button" className="btn-modern" style={{ flex: 1 }} onClick={() => setPromotionModalOpen(false)}>Annuler</button>
+                    <button type="button" className="btn-modern primary" style={{ flex: 2 }} disabled={isPromotingAcademicYear || promotionPreview.total === 0 || !isYearFormatValid || isAlreadyClosed} onClick={handlePromoteAcademicYear}>
+                      {isPromotingAcademicYear ? 'Cl\u00f4ture en cours...' : "Confirmer la cl\u00f4ture"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </motion.div>
           </div>
         )}

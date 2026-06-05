@@ -30,6 +30,7 @@ import {
   Heart
 } from 'lucide-react';
 import { FilterSelect } from '../components/ui/FilterSelect';
+import { isActiveStudent } from '../utils/studentStatus';
 
 const APP_VERSION = '2.5.0';
 const VERSION_KEY = 'ipfp_app_version';
@@ -296,7 +297,9 @@ const TeacherPortal = () => {
 
   const relevantStudents = useMemo(() => {
     if (activeTab === 'attendance' && !currentSession) return [];
-    const filtered = students.filter(s => s.major === selectedGroup && s.year === filterYear && (!selectedDiploma || s.diploma === selectedDiploma));
+    const filtered = students
+      .filter(isActiveStudent)
+      .filter(s => s.major === selectedGroup && s.year === filterYear && (!selectedDiploma || s.diploma === selectedDiploma));
     
     // Anti-doublons : empêche l'affichage multiple si la DB contient des erreurs
     const uniqueStudents = [];
