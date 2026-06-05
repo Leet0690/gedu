@@ -161,7 +161,8 @@ textarea:focus-visible {
   box-shadow: var(--shadow-xs);
   transition: all var(--duration-slow) var(--ease-spring);
   position: relative;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .glass-card::before {
