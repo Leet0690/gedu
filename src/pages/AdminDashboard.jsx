@@ -264,7 +264,9 @@ const TodaySessionsWidget = ({ schedules, teachers, getScheduleModule, activeSem
 
 const ActivityFeedWidget = ({ notifications }) => {
   const [visibleCount, setVisibleCount] = useState(10);
-  const recent = useMemo(() => notifications || [], [notifications]);
+  const recent = useMemo(() => {
+    return (notifications || []).filter(n => !n.message.includes('Accès Direction autorisé'));
+  }, [notifications]);
   const visibleActivities = useMemo(() => recent.slice(0, visibleCount), [recent, visibleCount]);
   const hasMoreActivities = visibleCount < recent.length;
 
