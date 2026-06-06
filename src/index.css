@@ -1628,10 +1628,22 @@ input.input-premium[type="date"]::-webkit-datetime-edit {
   font-weight: 800;
 }
 
-.home-task-list,
-.home-grade-list {
+.home-task-list {
   gap: 8px;
   max-height: 320px;
+}
+
+.home-grade-list {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  max-height: none !important;
+}
+
+@media (max-width: 768px) {
+  .home-grade-list {
+    grid-template-columns: 1fr;
+  }
 }
 
 .home-task-link {
@@ -1746,7 +1758,7 @@ input.input-premium[type="date"]::-webkit-datetime-edit {
   border: 1px solid transparent;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
   transition: all 0.2s ease-out;
-  margin-bottom: 4px;
+  margin-bottom: 0;
 }
 
 .home-grade-row:hover {

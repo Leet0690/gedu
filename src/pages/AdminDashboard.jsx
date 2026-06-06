@@ -532,7 +532,6 @@ const GradesBreakdownWidget = ({ students, grades, allModules, activeSemester })
               <div className="home-grade-row-header">
                 <div className="home-grade-row-meta">
                   <span className="home-grade-group">{g.label}</span>
-                  <span className="home-grade-count">{g.count} stagiaire{g.count > 1 ? 's' : ''}</span>
                 </div>
                 <span className="home-grade-percent">{g.pct}%</span>
               </div>
