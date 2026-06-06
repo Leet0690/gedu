@@ -294,6 +294,8 @@ const FinanceDashboard = () => {
     "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
   ];
   const currentMonthName = getCurrentMonthName();
+  const currentMonthIndex = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
 
   const availableYears = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -879,7 +881,16 @@ const FinanceDashboard = () => {
           <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: '900', color: 'var(--text-primary)' }}>Gestion Financière</h1>
           <p style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Tableau de bord des flux et de la trésorerie</p>
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div className="finance-header-actions">
+          <div className="finance-month-compact" data-tooltip="Indicateurs du mois" aria-label="Indicateurs du mois">
+            <CalendarDays size={15} />
+            <FilterSelect
+              className="finance-month-compact-select"
+              value={summaryMonthFilter}
+              onChange={(val) => setSummaryMonthFilter(val)}
+              options={months.map(m => ({ value: m, label: m }))}
+            />
+          </div>
           <button
             onClick={logoutDirector}
             className="btn-modern"
@@ -888,7 +899,8 @@ const FinanceDashboard = () => {
               color: '#a16207',
               border: '1px solid rgba(234, 179, 8, 0.35)'
             }}
-            title="Verrouiller l'espace direction"
+            data-tooltip="Verrouiller l'espace direction"
+            aria-label="Verrouiller l'espace direction"
           >
             <Lock size={16} style={{ marginRight: '8px' }} /> Verrouiller
           </button>
@@ -896,22 +908,6 @@ const FinanceDashboard = () => {
             <RotateCcw size={16} style={{ marginRight: '8px' }} /> Déconnexion
           </button>
         </div>
-      </div>
-
-      <div className="glass-card finance-month-indicator-card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <CalendarDays size={18} style={{ color: 'var(--primary)' }} />
-          <div>
-            <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Indicateurs du mois</p>
-            <p style={{ fontSize: '14px', fontWeight: '900', color: 'var(--text-primary)' }}>{summaryMonthFilter}</p>
-          </div>
-        </div>
-        <FilterSelect
-          style={{ minWidth: '160px' }}
-          value={summaryMonthFilter}
-          onChange={(val) => setSummaryMonthFilter(val)}
-          options={months.map(m => ({ value: m, label: m }))}
-        />
       </div>
 
       <div className="finance-kpi-grid">
@@ -952,14 +948,14 @@ const FinanceDashboard = () => {
 
       {activeTab === 'payments' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <div className="glass-card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              <div style={{ position: 'relative', width: '320px', maxWidth: '100%' }}>
-                <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)' }} />
+          <div className="finance-payment-filter-toolbar">
+          <div className="glass-card finance-filter-card">
+            <div className="finance-filter-row finance-filter-row-primary">
+              <div className="finance-filter-search finance-filter-search-wide">
+                <Search size={16} className="finance-filter-search-icon" />
                 <input
                   type="text"
                   className="input-premium"
-                  style={{ width: '100%', paddingLeft: '38px' }}
                   placeholder="Rechercher un stagiaire ou mois..."
                   value={searchTerm}
                   onChange={(e) => {
@@ -992,56 +988,46 @@ const FinanceDashboard = () => {
               />
               {(searchTerm || paymentStatusFilter || paymentMonthFilter !== currentMonthName) && (
                 <button
-                  className="action-btn"
-                  title="Réinitialiser les filtres"
+                  className="action-btn finance-filter-reset"
+                  aria-label="Réinitialiser les filtres"
                   onClick={() => {
                     setSearchTerm('');
                     setPaymentStatusFilter('');
                     setPaymentMonthFilter(currentMonthName);
                     setPaymentsPage(1);
                   }}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '10px',
-                    border: '1px solid var(--border)',
-                    background: 'var(--bg-subtle)',
-                    color: 'var(--text-secondary)',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s'
-                  }}
                 >
-                  <X size={14} />
+                  <RotateCcw size={15} />
                 </button>
               )}
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={() => openPaymentModal()} className="btn-modern primary">
-                <Plus size={16} style={{ marginRight: '8px' }} /> Enregistrer Paiement
-              </button>
+          </div>
+          <div className="finance-payment-status-inline">
+            <div
+              className="finance-payment-status-card finance-payment-status-paid"
+              data-tooltip={`Stagiaires payés · ${paymentMonthFilter}`}
+              aria-label={`Stagiaires payés: ${paymentStatusCounts.paid}`}
+            >
+              <Check size={15} />
+              <span className="finance-payment-status-text">Payés</span>
+              <span className="finance-payment-status-value">{paymentStatusCounts.paid.toLocaleString()}</span>
+            </div>
+            <div
+              className="finance-payment-status-card finance-payment-status-unpaid"
+              data-tooltip={`Stagiaires impayés · ${paymentMonthFilter}`}
+              aria-label={`Stagiaires impayés: ${paymentStatusCounts.unpaid}`}
+            >
+              <RotateCcw size={14} />
+              <span className="finance-payment-status-text">Impayés</span>
+              <span className="finance-payment-status-value">{paymentStatusCounts.unpaid.toLocaleString()}</span>
             </div>
           </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-5)' }}>
-            <StatusCountCard
-              title="Stagiaires payés"
-              value={paymentStatusCounts.paid}
-              subtitle={paymentMonthFilter}
-              icon={Check}
-              color="var(--success)"
-              bg="var(--success-bg)"
-            />
-            <StatusCountCard
-              title="Stagiaires impayés"
-              value={paymentStatusCounts.unpaid}
-              subtitle={paymentMonthFilter}
-              icon={RotateCcw}
-              color="#a16207"
-              bg="rgba(234,179,8,0.12)"
-            />
+          <button
+            onClick={() => openPaymentModal()}
+            className="btn-modern primary finance-payment-add-button"
+          >
+            <Plus size={16} style={{ marginRight: '8px' }} /> Enregistrer Paiement
+          </button>
           </div>
 
           <div className="glass-card" style={{ overflow: 'hidden' }}>
@@ -1132,7 +1118,7 @@ const FinanceDashboard = () => {
                                   }}
                                   onMouseEnter={e => { e.currentTarget.style.background = '#2563eb'; e.currentTarget.style.color = '#fff'; }}
                                   onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,99,235,0.08)'; e.currentTarget.style.color = '#2563eb'; }}
-                                  title="Modifier"
+                                  aria-label="Modifier"
                                 >
                                   <Edit3 size={15} />
                                 </motion.button>
@@ -1148,7 +1134,7 @@ const FinanceDashboard = () => {
                                   }}
                                   onMouseEnter={e => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.color = '#ffffff'; }}
                                   onMouseLeave={e => { e.currentTarget.style.background = 'rgba(176, 104, 185, 0.08)'; e.currentTarget.style.color = 'var(--primary)'; }}
-                                  title="Reçu PDF"
+                                  aria-label="Reçu PDF"
                                 >
                                   <FileDown size={16} />
                                 </motion.button>
@@ -1168,7 +1154,7 @@ const FinanceDashboard = () => {
                                   }}
                                   onMouseEnter={e => { e.currentTarget.style.background = '#ef4444'; e.currentTarget.style.color = '#ffffff'; }}
                                   onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)'; e.currentTarget.style.color = '#ef4444'; }}
-                                  title="Supprimer"
+                                  aria-label="Supprimer"
                                 >
                                   <Trash2 size={16} />
                                 </motion.button>
@@ -1196,9 +1182,9 @@ const FinanceDashboard = () => {
 
       {activeTab === 'salaries' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <div className="glass-card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-5)', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <CalendarDays size={16} style={{ color: 'var(--text-muted)' }} />
+          <div className="glass-card finance-filter-card">
+            <div className="finance-filter-row finance-filter-row-primary">
+              <CalendarDays size={16} className="finance-filter-leading-icon" />
               <FilterSelect
                 value={salaryFilter.month.toString()}
                 placeholder="Mois"
@@ -1208,7 +1194,6 @@ const FinanceDashboard = () => {
                 }}
                 options={months.map((m, i) => ({ value: i.toString(), label: m }))}
               />
-            </div>
             <FilterSelect
               value={salaryFilter.year.toString()}
               placeholder="Année"
@@ -1219,7 +1204,6 @@ const FinanceDashboard = () => {
               options={availableYears.map(y => ({ value: y.toString(), label: y.toString() }))}
             />
             <FilterSelect
-              style={{ minWidth: '150px' }}
               value={salaryStatusFilter}
               placeholder="Tous les statuts"
               onChange={(val) => {
@@ -1232,12 +1216,11 @@ const FinanceDashboard = () => {
                 { value: 'unpaid', label: 'Non réglé' }
               ]}
             />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: '200px' }}>
-              <Search size={16} style={{ color: 'var(--text-muted)' }} />
+            <div className="finance-filter-search finance-filter-search-fluid">
+              <Search size={16} className="finance-filter-search-icon" />
               <input
                 type="text"
                 className="input-premium"
-                style={{ width: '100%' }}
                 placeholder="Rechercher un formateur..."
                 value={teacherSearchTerm}
                 onChange={e => {
@@ -1245,6 +1228,21 @@ const FinanceDashboard = () => {
                   setTeachersPage(1);
                 }}
               />
+            </div>
+            {(teacherSearchTerm || salaryStatusFilter || salaryFilter.month !== currentMonthIndex || salaryFilter.year !== currentYear) && (
+              <button
+                className="action-btn finance-filter-reset"
+                aria-label="Réinitialiser les filtres"
+                onClick={() => {
+                  setTeacherSearchTerm('');
+                  setSalaryStatusFilter('');
+                  setSalaryFilter({ teacherId: '', month: currentMonthIndex, year: currentYear });
+                  setTeachersPage(1);
+                }}
+              >
+                <RotateCcw size={15} />
+              </button>
+            )}
             </div>
           </div>
 
@@ -1314,10 +1312,10 @@ const FinanceDashboard = () => {
                       {editingTeacherId === s.id ? (
                         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                           <input type="number" className="input-premium" style={{ width: '80px', padding: '6px' }} defaultValue={s.hourlyRate} id={`rate-${s.id}`} autoFocus />
-                          <button className="action-btn" onClick={() => handleSaveRate(s.id)} title="Confirmer">
+                          <button className="action-btn" onClick={() => handleSaveRate(s.id)} aria-label="Confirmer">
                             <Check size={14} style={{ color: 'var(--success)' }} />
                           </button>
-                          <button className="action-btn" onClick={() => setEditingTeacherId(null)} title="Annuler">
+                          <button className="action-btn" onClick={() => setEditingTeacherId(null)} aria-label="Annuler">
                             <X size={14} style={{ color: 'var(--danger)' }} />
                           </button>
                         </div>
@@ -1437,7 +1435,7 @@ const FinanceDashboard = () => {
                             e.currentTarget.style.background = 'rgba(176, 104, 185, 0.08)';
                             e.currentTarget.style.color = 'var(--primary)';
                           }}
-                          title="Reçu formateur PDF"
+                          aria-label="Reçu formateur PDF"
                         >
                           <FileDown size={16} />
                         </motion.button>
@@ -1470,7 +1468,7 @@ const FinanceDashboard = () => {
                             e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)';
                             e.currentTarget.style.color = '#ef4444';
                           }}
-                          title="Supprimer"
+                          aria-label="Supprimer"
                         >
                           <Trash2 size={16} />
                         </motion.button>
@@ -1493,10 +1491,11 @@ const FinanceDashboard = () => {
 
       {activeTab === 'expenses' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <div className="glass-card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-4)', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-            <CalendarDays size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+          <div className="finance-expense-filter-toolbar">
+          <div className="glass-card finance-filter-card">
+            <div className="finance-filter-row finance-filter-row-primary">
+            <CalendarDays size={16} className="finance-filter-leading-icon" />
             <FilterSelect
-              style={{ minWidth: '130px' }}
               value={expenseFilter.month}
               placeholder="Tous les mois"
               onChange={val => {
@@ -1506,7 +1505,6 @@ const FinanceDashboard = () => {
               options={[{ value: '', label: 'Tous les mois' }, ...months.map(m => ({ value: m, label: m }))]}
             />
             <FilterSelect
-              style={{ minWidth: '90px' }}
               value={expenseFilter.year.toString()}
               placeholder="Année"
               onChange={val => {
@@ -1520,7 +1518,6 @@ const FinanceDashboard = () => {
               ]}
             />
             <FilterSelect
-              style={{ minWidth: '140px' }}
               value={expenseFilter.category}
               placeholder="Toutes catégories"
               onChange={val => {
@@ -1529,16 +1526,18 @@ const FinanceDashboard = () => {
               }}
               options={[{ value: '', label: 'Toutes catégories' }, ...EXPENSE_CATEGORIES.map(c => ({ value: c, label: c }))]}
             />
-            {(expenseFilter.month || expenseFilter.category) && (
-              <button className="action-btn" title="Réinitialiser les filtres"
+            {(expenseFilter.month || expenseFilter.category || expenseFilter.year !== currentYear) && (
+              <button className="action-btn finance-filter-reset" aria-label="Réinitialiser les filtres"
                 onClick={() => {
-                  setExpenseFilter({ month: '', year: new Date().getFullYear(), category: '' });
+                  setExpenseFilter({ month: '', year: currentYear, category: '' });
                   setExpensesPage(1);
                 }}>
-                <X size={14} />
+                <RotateCcw size={15} />
               </button>
             )}
-            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '16px' }}>
+            </div>
+          </div>
+            <div className="finance-filter-actions finance-expense-summary">
               <div style={{ textAlign: 'right' }}>
                 <p style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>
                   {filteredExpenses.length} charge{filteredExpenses.length !== 1 ? 's' : ''}
@@ -1618,7 +1617,7 @@ const FinanceDashboard = () => {
                             e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)';
                             e.currentTarget.style.color = '#ef4444';
                           }}
-                          title="Supprimer"
+                          aria-label="Supprimer"
                         >
                           <Trash2 size={16} />
                         </motion.button>
@@ -1642,7 +1641,7 @@ const FinanceDashboard = () => {
       {activeTab === 'stats' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-6)' }}>
           <div className="glass-card" style={{ padding: 'var(--space-6)', gridColumn: '1 / -1', overflowX: 'auto' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: 'var(--space-5)' }}>
+            <div className="finance-section-toolbar">
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <CalendarDays size={22} style={{ color: 'var(--danger)' }} />
                 <div>
@@ -1650,8 +1649,8 @@ const FinanceDashboard = () => {
                   <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '700' }}>Dépenses et charges par date</p>
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <div className="finance-period-date-range">
+              <div className="finance-filter-row finance-filter-row-compact">
+                <div className="finance-period-date-range finance-filter-date-range">
                   <DatePicker
                     id="daily-stats-start-date"
                     label="Début"
@@ -1684,30 +1683,15 @@ const FinanceDashboard = () => {
                 </div>
                 {(dailyStatsDate || dailyStatsEndDate) && (
                   <button
+                    className="action-btn finance-filter-reset"
+                    aria-label="Réinitialiser les filtres"
                     onClick={() => {
                       setDailyStatsDate('');
                       setDailyStatsEndDate('');
                       setDailyStatsPage(1);
                     }}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '0 12px',
-                      height: '36px',
-                      background: 'var(--bg-subtle)',
-                      color: 'var(--text-secondary)',
-                      borderRadius: 'var(--radius-lg)',
-                      fontSize: '12px',
-                      fontWeight: '700',
-                      border: 'none',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
                   >
-                    <X size={14} />
+                    <RotateCcw size={15} />
                   </button>
                 )}
                 <span className="badge-status pending">
@@ -1819,7 +1803,7 @@ const FinanceDashboard = () => {
       {activeTab === 'annual' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <div className="glass-card" style={{ padding: 'var(--space-6)', marginBottom: 'var(--space-6)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', marginBottom: 'var(--space-6)' }}>
+            <div className="finance-section-toolbar finance-annual-toolbar">
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div style={{ width: '44px', height: '44px', borderRadius: 'var(--radius-xl)', background: 'var(--primary-ultra-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Table2 size={22} style={{ color: 'var(--primary)' }} />
@@ -1829,13 +1813,23 @@ const FinanceDashboard = () => {
                   <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '700' }}>Revenus, charges et solde mois par mois</p>
                 </div>
               </div>
-              <FilterSelect
-                style={{ minWidth: '140px' }}
-                value={annualYear.toString()}
-                placeholder="Année"
-                onChange={val => setAnnualYear(parseInt(val))}
-                options={availableYears.map(y => ({ value: y.toString(), label: y.toString() }))}
-              />
+              <div className="finance-filter-row finance-filter-row-compact">
+                <FilterSelect
+                  value={annualYear.toString()}
+                  placeholder="Année"
+                  onChange={val => setAnnualYear(parseInt(val))}
+                  options={availableYears.map(y => ({ value: y.toString(), label: y.toString() }))}
+                />
+                {annualYear !== currentYear && (
+                  <button
+                    className="action-btn finance-filter-reset"
+                    aria-label="Réinitialiser les filtres"
+                    onClick={() => setAnnualYear(currentYear)}
+                  >
+                    <RotateCcw size={15} />
+                  </button>
+                )}
+              </div>
             </div>
 
             <div style={{ overflowX: 'auto' }}>
@@ -1860,7 +1854,7 @@ const FinanceDashboard = () => {
                         <td style={{ ...tdStyle, fontWeight: '800', color: row.revenue > 0 ? 'var(--success)' : 'var(--text-faint)' }}>
                           {row.revenue > 0 ? `+${row.revenue.toLocaleString()} DH` : '—'}
                         </td>
-                        <td style={{ ...tdStyle, color: row.salaryAmt > 0 ? 'var(--danger)' : 'var(--text-faint)' }}>
+                        <td style={{ ...tdStyle, fontWeight: '800', color: row.salaryAmt > 0 ? 'var(--danger)' : 'var(--text-faint)' }}>
                           {row.salaryAmt > 0 ? `${row.salaryAmt.toLocaleString()} DH` : '—'}
                         </td>
                         <td style={{ ...tdStyle, color: row.expenseAmt > 0 ? '#ea580c' : 'var(--text-faint)' }}>
@@ -1978,7 +1972,7 @@ const FinanceDashboard = () => {
 
       <AnimatePresence>
         {showExpenseModal && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div className="finance-payment-modal-overlay">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(6px)' }} onClick={() => setShowExpenseModal(false)} />
             <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="glass-premium" style={{ position: 'relative', width: '100%', maxWidth: '520px', padding: '32px', borderRadius: 'var(--radius-3xl)', boxShadow: 'var(--shadow-xl)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
@@ -1988,7 +1982,7 @@ const FinanceDashboard = () => {
                   </div>
                   <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900' }}>Ajouter une charge</h2>
                 </div>
-                <button onClick={() => setShowExpenseModal(false)} className="close-button" aria-label="Fermer la fenêtre" title="Fermer"><X size={20} /></button>
+                <button onClick={() => setShowExpenseModal(false)} className="close-button" aria-label="Fermer la fenêtre"><X size={20} /></button>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
                 <div>
@@ -2038,7 +2032,6 @@ const FinanceDashboard = () => {
                       className="finance-modal-date-picker"
                       value={expenseData.date}
                       onChange={(date) => setExpenseData({ ...expenseData, date })}
-                      title="Date de la charge"
                       placeholder="Choisir une date"
                     />
                   </div>
@@ -2062,15 +2055,15 @@ const FinanceDashboard = () => {
         {showPaymentModal && (
           <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(6px)' }} onClick={() => setShowPaymentModal(false)} />
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="glass-premium" style={{ position: 'relative', width: '100%', maxWidth: '560px', maxHeight: '98vh', overflowY: 'auto', padding: '16px', borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-xl)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="glass-premium finance-payment-modal">
+              <div className="finance-payment-modal-header">
                 <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900' }}>{editingPayment ? 'Modifier le paiement' : 'Enregistrer un Paiement'}</h2>
-                <button onClick={() => { setShowPaymentModal(false); setEditingPayment(null); }} className="close-button" aria-label="Fermer la fenêtre" title="Fermer"><X size={20} /></button>
+                <button onClick={() => { setShowPaymentModal(false); setEditingPayment(null); }} className="close-button" aria-label="Fermer la fenêtre"><X size={20} /></button>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {!editingPayment && <div style={{ background: 'var(--bg-subtle)', borderRadius: 'var(--radius-lg)', padding: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div className="finance-payment-modal-stack">
+                {!editingPayment && <div className="finance-payment-modal-panel">
                   
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                  <div className="finance-payment-modal-grid finance-payment-modal-grid-three">
                     <div>
                       <label style={{ ...lbl, fontSize: '9px' }}>Niveau</label>
                       <FilterSelect 
@@ -2125,7 +2118,7 @@ const FinanceDashboard = () => {
                     />
                   )}
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                <div className="finance-payment-modal-grid finance-payment-modal-grid-three">
                   <div>
                     <label style={lbl}>Montant (DH)</label>
                     <input type="number" className="input-premium" style={{ width: '100%', marginTop: '6px' }} value={paymentData.amount} onChange={(e) => setPaymentData({...paymentData, amount: e.target.value})} />
@@ -2176,9 +2169,9 @@ const FinanceDashboard = () => {
                     </div>
                   </div>
                 </div>
-                <div style={{ background: 'var(--bg-subtle)', borderRadius: 'var(--radius-lg)', padding: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div className="finance-payment-modal-panel">
                   
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                  <div className="finance-payment-modal-grid finance-payment-modal-grid-three">
                     {PAYMENT_FEE_FIELDS.map(({ key, label }) => (
                       <div key={key}>
                         <label style={{ ...lbl, fontSize: '9px' }}>{label}</label>
@@ -2206,6 +2199,15 @@ const FinanceDashboard = () => {
                       .map(({ key, label }) => ({ key, label, amount: parseFloat(paymentData[key]) || 0 }))
                       .filter(fee => fee.amount > 0);
                     if (editingPayment) {
+                      const alreadyPaidForMonth = payments.some(payment =>
+                        payment.id !== editingPayment.id &&
+                        payment.studentId === paymentData.studentId &&
+                        payment.month === paymentData.month &&
+                        getPaymentStatusKey(payment.status) === 'paid'
+                      );
+                      if (alreadyPaidForMonth) {
+                        return showToast('Ce stagiaire a déjà payé ce mois.', 'warning');
+                      }
                       await updatePayment(editingPayment.id, {
                         ...paymentData,
                         tuitionAmount: paymentBaseAmount,
@@ -2214,6 +2216,14 @@ const FinanceDashboard = () => {
                       });
                       setEditingPayment(null);
                     } else {
+                      const alreadyPaidForMonth = payments.some(payment =>
+                        payment.studentId === paymentData.studentId &&
+                        payment.month === paymentData.month &&
+                        getPaymentStatusKey(payment.status) === 'paid'
+                      );
+                      if (alreadyPaidForMonth) {
+                        return showToast('Ce stagiaire a déjà payé ce mois.', 'warning');
+                      }
                       await addPayment({
                         ...paymentData,
                         tuitionAmount: paymentBaseAmount,
@@ -2270,16 +2280,16 @@ const RecoveryCard = ({ value, paid, total, month }) => (
 );
 
 const StatusCountCard = ({ title, value, subtitle, icon: Icon, color, bg }) => (
-  <div className="glass-card" style={{ padding: '20px', borderLeft: `4px solid ${color}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px' }}>
+  <div className="glass-card finance-status-count-card" style={{ '--status-color': color, '--status-bg': bg }}>
     <div>
-      <p style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <Icon size={14} style={{ color }} /> {title}
+      <p className="finance-status-count-title">
+        <Icon size={12} /> {title}
       </p>
-      <p style={{ fontSize: 'var(--text-3xl)', fontWeight: '900', color }}>{value.toLocaleString()}</p>
-      <p style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', marginTop: '4px' }}>{subtitle}</p>
+      <p className="finance-status-count-value">{value.toLocaleString()}</p>
+      <p className="finance-status-count-subtitle">{subtitle}</p>
     </div>
-    <div style={{ width: '44px', height: '44px', borderRadius: 'var(--radius-xl)', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color }}>
-      <Icon size={22} />
+    <div className="finance-status-count-icon">
+      <Icon size={15} />
     </div>
   </div>
 );

@@ -88,7 +88,7 @@ const DatePicker = React.forwardRef<HTMLButtonElement, DatePickerProps>(
               id={id}
               type="button"
               className={cn('shadcn-date-picker-trigger', !selectedDate && 'is-placeholder', triggerClassName)}
-              title={title}
+              data-tooltip={title}
               aria-label={title || label || placeholder}
               disabled={disabled}
             >
