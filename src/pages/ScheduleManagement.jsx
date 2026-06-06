@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import { useApp } from '../context/AppContext';
@@ -12,7 +12,7 @@ import {
 const START_HOUR = 8;
 const END_HOUR = 19;
 const HOURS = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i);
-const PX_PER_HOUR = 64;
+const PX_PER_HOUR = 80;
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 
 const formatTimeDash = (timeStr) => {
@@ -35,6 +35,55 @@ const parseTimeRange = (timeStr = '') => {
 const timeToPixels = (timeStr = '08:00') => {
   const [h, m] = timeStr.split(':').map(Number);
   return ((h - START_HOUR) * 60 + (m || 0)) * (PX_PER_HOUR / 60);
+};
+
+const getDeterministicEventStyles = (moduleName = '') => {
+  let hash = 0;
+  const str = moduleName || 'non defini';
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash % 360);
+  return {
+    '--event-bg': `linear-gradient(135deg, hsla(${hue}, 85%, 96%, 0.95) 0%, hsla(${hue}, 85%, 98%, 0.8) 100%)`,
+    '--event-border': `hsla(${hue}, 60%, 75%, 0.8)`,
+    '--event-color': `hsl(${hue}, 60%, 40%)`,
+    '--event-text': `hsl(${hue}, 70%, 20%)`,
+    '--event-rail': `linear-gradient(180deg, hsl(${hue}, 75%, 48%) 0%, hsl(${hue}, 75%, 32%) 100%)`
+  };
+};
+
+const getDayColors = (day = '') => {
+  const normalized = day.trim().toLowerCase();
+  if (normalized.includes('lun')) {
+    return { bg: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(99, 102, 241, 0.02) 100%)', text: '#4f46e5', border: 'rgba(99, 102, 241, 0.2)' };
+  }
+  if (normalized.includes('mar')) {
+    return { bg: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.02) 100%)', text: '#059669', border: 'rgba(16, 185, 129, 0.2)' };
+  }
+  if (normalized.includes('mer')) {
+    return { bg: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(245, 158, 11, 0.02) 100%)', text: '#d97706', border: 'rgba(245, 158, 11, 0.2)' };
+  }
+  if (normalized.includes('jeu')) {
+    return { bg: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(139, 92, 246, 0.02) 100%)', text: '#7c3aed', border: 'rgba(139, 92, 246, 0.2)' };
+  }
+  if (normalized.includes('ven')) {
+    return { bg: 'linear-gradient(135deg, rgba(244, 63, 94, 0.08) 0%, rgba(244, 63, 94, 0.02) 100%)', text: '#e11d48', border: 'rgba(244, 63, 94, 0.2)' };
+  }
+  if (normalized.includes('sam')) {
+    return { bg: 'linear-gradient(135deg, rgba(14, 165, 233, 0.08) 0%, rgba(14, 165, 233, 0.02) 100%)', text: '#0284c7', border: 'rgba(14, 165, 233, 0.2)' };
+  }
+  return { bg: 'linear-gradient(135deg, rgba(20, 184, 166, 0.08) 0%, rgba(20, 184, 166, 0.02) 100%)', text: '#0d9488', border: 'rgba(20, 184, 166, 0.2)' };
+};
+
+const getHourColors = (hour) => {
+  const hue = ((hour - 8) * 30) % 360;
+  return {
+    bg: `linear-gradient(180deg, hsla(${hue}, 85%, 97%, 0.95) 0%, hsla(${hue}, 85%, 99%, 0.7) 100%)`,
+    text: `hsl(${hue}, 70%, 35%)`,
+    border: `hsla(${hue}, 60%, 80%, 0.5)`,
+    accent: `hsl(${hue}, 75%, 45%)`
+  };
 };
 
 const getGroupAbbreviation = (filiere, annee) => {
@@ -161,6 +210,21 @@ const ScheduleManagement = () => {
   };
 
   const totalGridHeight = (END_HOUR - START_HOUR + 1) * PX_PER_HOUR;
+  const today = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
+  const topScrollRef = useRef(null);
+  const mainScrollRef = useRef(null);
+
+  const handleTopScroll = () => {
+    if (topScrollRef.current && mainScrollRef.current) {
+      mainScrollRef.current.scrollLeft = topScrollRef.current.scrollLeft;
+    }
+  };
+
+  const handleMainScroll = () => {
+    if (topScrollRef.current && mainScrollRef.current) {
+      topScrollRef.current.scrollLeft = mainScrollRef.current.scrollLeft;
+    }
+  };
 
   return (
     <div className="max-w-container section-padding">
@@ -215,109 +279,115 @@ const ScheduleManagement = () => {
 
       {/* Time Grid */}
       <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
-          <div style={{ display: 'flex', minWidth: '900px' }}>
+        {/* Top Sync Scrollbar */}
+        <div 
+          ref={topScrollRef} 
+          onScroll={handleTopScroll} 
+          className="top-scrollbar-container"
+          style={{ width: '100%', overflowX: 'auto', overflowY: 'hidden', height: '6px' }}
+        >
+          <div style={{ width: `${90 + HOURS.length * PX_PER_HOUR}px`, height: '1px' }} />
+        </div>
 
-            {/* Time Axis */}
-            <div style={{
-              width: '72px', flexShrink: 0,
-              borderRight: '1px solid var(--border-light)',
-              background: '#fcfdfe',
-              position: 'sticky', left: 0, zIndex: 20
-            }}>
-              {/* Corner spacer */}
-              <div style={{ height: '48px', borderBottom: '1px solid var(--border-light)' }} />
-              {/* Hour labels */}
-              <div style={{ position: 'relative', height: `${totalGridHeight}px` }}>
-                {HOURS.map(hour => (
-                  <div key={hour} style={{ position: 'absolute', top: `${(hour - START_HOUR) * PX_PER_HOUR - 9}px`, right: '12px' }}>
-                    <span style={{ 
-                      fontSize: '11px', 
-                      fontWeight: '800', 
-                      color: 'var(--text-secondary)', 
-                      fontVariantNumeric: 'tabular-nums',
-                      letterSpacing: '-0.02em'
-                    }}>
-                      {hour.toString().padStart(2, '0')}:00
-                    </span>
-                  </div>
-                ))}
+        <div ref={mainScrollRef} onScroll={handleMainScroll} style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 'none' }}>
+          <div className="home-schedule-grid-inverted" style={{ width: '100%' }}>
+            {/* Columns Header Row (Hours) */}
+            <div className="home-schedule-header-row">
+              <div className="home-schedule-corner-inverted">Jour \ Heure</div>
+              <div className="home-schedule-hours-row">
+                {HOURS.map(hour => {
+                  const colors = getHourColors(hour);
+                  return (
+                    <div 
+                      key={hour} 
+                      className="home-schedule-hour-col-header" 
+                      style={{ 
+                        width: `${PX_PER_HOUR}px`, 
+                        flexShrink: 0,
+                        background: colors.bg,
+                        borderBottom: `2.5px solid ${colors.accent}`,
+                        borderRight: `1px solid ${colors.border}`
+                      }}
+                    >
+                      <span style={{ color: colors.text }}>{hour.toString().padStart(2, '0')}:00</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
-            {/* Day Columns */}
-            <div style={{ flex: 1, display: 'flex' }}>
+            {/* Rows (Days) */}
+            <div className="home-schedule-rows-container" style={{ position: 'relative' }}>
+              {/* Watermark */}
+              <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                fontSize: '130px',
+                fontWeight: '900',
+                color: 'rgba(176, 104, 185, 0.09)',
+                zIndex: 2,
+                pointerEvents: 'none',
+                whiteSpace: 'nowrap',
+                userSelect: 'none',
+                letterSpacing: '0.08em',
+                fontFamily: 'Inter, system-ui, sans-serif'
+              }}>
+                {groupLabel}
+              </div>
               {DAYS.map(day => {
                 const daySessions = filteredSchedules
                   .filter(s => s.day === day)
-                  .map(s => {
-                    const { start, end } = parseTimeRange(s.time);
-                    return { ...s, start, end };
-                  })
+                  .map(s => { const { start, end } = parseTimeRange(s.time); return { ...s, start, end }; })
                   .sort((a, b) => a.start.localeCompare(b.start));
 
+                const colors = getDayColors(day);
                 return (
-                  <div key={day} style={{ flex: 1, borderRight: '1px solid var(--border-light)', minWidth: '140px' }}>
-                    {/* Day header */}
-                    <div style={{
-                      height: '48px', borderBottom: '1px solid var(--border-light)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '0 12px',
-                      background: daySessions.length > 0 ? 'rgba(176,104,185,0.04)' : 'rgba(248,249,251,0.6)',
-                      position: 'sticky', top: 0, zIndex: 10
-                    }}>
-                    <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <div key={day} className="home-schedule-day-row" style={{ height: '96px' }}>
+                    {/* Day label (sticky col) */}
+                    <div 
+                      className="home-schedule-day-label-col"
+                      style={{
+                        background: colors.bg,
+                        borderRightColor: colors.border,
+                        borderLeft: `4px solid ${colors.text}`
+                      }}
+                    >
+                      <span className="home-schedule-day-name" style={{ color: colors.text }}>
                         {day.toUpperCase()}
                       </span>
                       {daySessions.length > 0 && (
-                        <span style={{ fontSize: '10px', fontWeight: '800', color: 'var(--primary)', background: 'var(--primary-ultra-light)', padding: '2px 7px', borderRadius: '999px' }}>
+                        <span className="home-schedule-day-count" style={{ backgroundColor: colors.text, color: '#ffffff' }}>
                           {daySessions.length}
                         </span>
                       )}
                     </div>
 
-                    {/* Grid body */}
-                    <div style={{ position: 'relative', height: `${totalGridHeight}px` }}>
-                      {/* Hour grid lines */}
+                    {/* Day Timeline body */}
+                    <div className="home-schedule-day-timeline" style={{ width: `${HOURS.length * PX_PER_HOUR}px`, flexShrink: 0 }}>
+                      {/* Hour grid lines (vertical columns) */}
                       {HOURS.map(hour => (
-                        <div key={hour} style={{
-                          position: 'absolute', top: `${(hour - START_HOUR) * PX_PER_HOUR}px`,
-                          left: 0, right: 0, borderTop: '1px solid var(--border-light)',
-                          pointerEvents: 'none'
-                        }} />
+                        <div key={hour} className="home-schedule-hour-vertical-line" style={{ left: `${(hour - START_HOUR) * PX_PER_HOUR}px` }} />
+                      ))}
+                      {/* Half-hour lines (dashed) */}
+                      {HOURS.map(hour => (
+                        <div key={`h-${hour}`} className="home-schedule-half-vertical-line" style={{ left: `${(hour - START_HOUR) * PX_PER_HOUR + PX_PER_HOUR / 2}px` }} />
                       ))}
 
-                      {/* Half-hour lines */}
-                      {HOURS.map(hour => (
-                        <div key={`h-${hour}`} style={{
-                          position: 'absolute', top: `${(hour - START_HOUR) * PX_PER_HOUR + PX_PER_HOUR / 2}px`,
-                          left: 0, right: 0,
-                          borderTop: '1px dashed rgba(0,0,0,0.04)',
-                          pointerEvents: 'none'
-                        }} />
-                      ))}
-
-                      {/* Empty state */}
                       {daySessions.length === 0 && (
-                        <div style={{
-                          position: 'absolute', inset: 0, display: 'flex',
-                          alignItems: 'center', justifyContent: 'center',
-                          flexDirection: 'column', gap: '6px'
-                        }}>
-                          <span style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-faint)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                            Libre
-                          </span>
+                        <div className="home-schedule-free">
+                          <span>Libre</span>
                         </div>
                       )}
 
-                      {/* Session cards */}
-      {/* Session cards */}
                       {daySessions.map(session => {
-                      const top = timeToPixels(session.start);
-                      const height = Math.max(timeToPixels(session.end) - top, PX_PER_HOUR * 0.75);
-                      const isTP = session.type === 'TP';
-                      const teacher = teachers.find(t => t.id === session.teacherId);
-                      const displayedModule = getActiveScheduleModule(session);
+                        const left = timeToPixels(session.start);
+                        const width = Math.max(timeToPixels(session.end) - left, PX_PER_HOUR * 0.7);
+                        const isTP = session.type === 'TP';
+                        const teacher = teachers.find(t => t.id === session.teacherId);
+                        const displayedModule = getActiveScheduleModule(session);
+                        const eventStyles = getDeterministicEventStyles(displayedModule || session.module || '');
 
                         return (
                           <motion.div
@@ -325,48 +395,57 @@ const ScheduleManagement = () => {
                             layout
                             initial={{ opacity: 0, scale: 0.96 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className={`home-schedule-event ${isTP ? 'home-schedule-event-tp' : 'home-schedule-event-course'}`}
+                            className={`home-schedule-event ${isTP ? 'home-schedule-event-tp' : 'home-schedule-event-course'} ${day === today ? 'home-schedule-event-today' : ''}`}
                             style={{
                               position: 'absolute',
-                              top: `${top}px`,
-                              height: `${height}px`,
-                              left: '6px', right: '6px',
+                              left: `${left + 4}px`,
+                              width: `${width - 8}px`,
+                              top: '6px',
+                              bottom: '6px',
+                              height: 'auto',
                               cursor: 'default',
-                              zIndex: 5
+                              zIndex: 5,
+                              ...eventStyles
                             }}
                             whileHover={{ scale: 1.015, zIndex: 10 }}
                           >
-                            {/* Left accent bar */}
-                            <div className="home-schedule-event-rail" />
+                            <div className="home-schedule-event-rail-horizontal" />
 
                             {/* Action buttons */}
                             <div style={{ position: 'absolute', top: '5px', right: '5px', display: 'flex', gap: '4px', zIndex: 15 }}>
                               <button
                                 onClick={() => openEdit(session)}
-                                style={{
-                                  background: 'transparent', border: 'none', cursor: 'pointer',
-                                  color: 'var(--event-color)', padding: '2px', borderRadius: '4px',
-                                  lineHeight: 1, opacity: 0.6,
-                                  transition: 'opacity 0.15s, color 0.15s'
-                                }}
-                                onMouseEnter={e => { e.currentTarget.style.opacity = '1'; }}
-                                onMouseLeave={e => { e.currentTarget.style.opacity = '0.6'; }}
+                                className="schedule-action-btn edit"
+                                title="Modifier"
                               >
-                                <Edit size={11} />
+                                <Edit size={10} />
                               </button>
                               <button
                                 onClick={() => handleDelete(session.id)}
-                                style={{
-                                  background: 'transparent', border: 'none', cursor: 'pointer',
-                                  color: 'var(--event-color)', padding: '2px', borderRadius: '4px',
-                                  lineHeight: 1, opacity: 0.6,
-                                  transition: 'opacity 0.15s, color 0.15s'
-                                }}
-                                onMouseEnter={e => { e.currentTarget.style.color = 'var(--danger)'; e.currentTarget.style.opacity = '1'; }}
-                                onMouseLeave={e => { e.currentTarget.style.color = 'var(--event-color)'; e.currentTarget.style.opacity = '0.6'; }}
+                                className="schedule-action-btn delete"
+                                title="Supprimer"
                               >
-                                <Trash2 size={11} />
+                                <Trash2 size={10} />
                               </button>
+                            </div>
+
+                            {/* Session type badge */}
+                            <div style={{
+                              position: 'absolute',
+                              top: '5px',
+                              left: '8px',
+                              fontSize: '7.5px',
+                              fontWeight: '850',
+                              padding: '1.5px 4.5px',
+                              borderRadius: '4px',
+                              backgroundColor: isTP ? 'rgba(99, 102, 241, 0.12)' : 'rgba(245, 158, 11, 0.15)',
+                              color: 'var(--event-text)',
+                              textTransform: 'uppercase',
+                              lineHeight: 1.1,
+                              border: '1.5px solid currentColor',
+                              opacity: 0.9
+                            }}>
+                              {session.type || 'Cours'}
                             </div>
 
                             {/* Time range */}
@@ -375,45 +454,44 @@ const ScheduleManagement = () => {
                               <span>
                                 {session.start}–{session.end}
                               </span>
-                              <span style={{
-                                marginLeft: 'auto',
-                                marginRight: '16px',
-                                fontSize: '8px', fontWeight: '850', padding: '1px 5px', borderRadius: '4px',
-                                backgroundColor: isTP ? 'rgba(99, 102, 241, 0.12)' : 'rgba(245, 158, 11, 0.15)',
-                                color: 'var(--event-text)',
-                                textTransform: 'uppercase',
-                                lineHeight: 1.1
-                              }}>
-                                {session.type || 'Cours'}
-                              </span>
                             </div>
 
                             {/* Module name */}
-                            <div className="home-schedule-event-title" style={{ marginRight: '12px' }}>
+                            <div className="home-schedule-event-title">
                               {displayedModule || 'Module non défini'}
                             </div>
 
                             {/* Meta */}
-                            {height >= 56 && (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: 'auto' }}>
-                                {session.room && (
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                    <MapPin size={9} style={{ color: 'var(--event-color)', opacity: 0.7, flexShrink: 0 }} />
-                                    <span style={{ fontSize: '8.5px', fontWeight: '700', fontFamily: 'Inter, sans-serif', color: 'var(--event-text)', opacity: 0.85, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                      {session.room}
-                                    </span>
-                                  </div>
-                                )}
-                                {teacher && (
-                                  <div className="home-schedule-event-teacher">
-                                    <User size={8} />
-                                    <span>
-                                      {teacher.name}
-                                    </span>
-                                  </div>
-                                )}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '4px', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                              {session.room && (
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', width: '100%' }}>
+                                  <MapPin size={9} style={{ color: 'var(--event-color)', opacity: 0.7, flexShrink: 0 }} />
+                                  <span style={{ fontSize: '8.5px', fontWeight: '700', fontFamily: 'Inter, sans-serif', color: 'var(--event-text)', opacity: 0.85, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {session.room}
+                                  </span>
+                                </div>
+                              )}
+                              {teacher && (
+                                <div className="home-schedule-event-teacher" style={{ width: '100%' }}>
+                                  <User size={8} />
+                                  <span>
+                                    {teacher.name}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Hover Tooltip */}
+                            <div className="schedule-tooltip">
+                              <div style={{ fontWeight: '800', fontSize: '10px', marginBottom: '4px', borderBottom: '1px solid var(--event-border)', paddingBottom: '3px', color: 'var(--event-color)' }}>
+                                {displayedModule || 'Module non défini'}
                               </div>
-                            )}
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', color: 'var(--event-text)', opacity: 0.95, fontSize: '9px' }}>
+                                <div>🕒 {session.start} – {session.end} ({session.type || 'Cours'})</div>
+                                {teacher && <div>👤 {teacher.name}</div>}
+                                {session.room && <div>📍 Salle : {session.room}</div>}
+                              </div>
+                            </div>
                           </motion.div>
                         );
                       })}
@@ -467,13 +545,27 @@ const ScheduleManagement = () => {
                   </div>
                   <div>
                     <label style={labelStyle}>Horaire</label>
-                    <input
-                      type="text" className="input-premium"
-                      style={{ width: '100%', marginTop: '6px' }}
-                      placeholder="Ex: 08:30-10:30" required
-                      value={formData.time}
-                      onChange={e => setFormData({ ...formData, time: e.target.value })}
-                    />
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <input
+                        type="time" className="input-premium flex-1"
+                        required
+                        value={formData.time ? formData.time.split('-')[0] : ''}
+                        onChange={e => {
+                          const end = formData.time && formData.time.includes('-') ? formData.time.split('-')[1] : '';
+                          setFormData({ ...formData, time: `${e.target.value}-${end}` });
+                        }}
+                      />
+                      <span className="text-muted-foreground font-semibold text-xs">à</span>
+                      <input
+                        type="time" className="input-premium flex-1"
+                        required
+                        value={formData.time && formData.time.includes('-') ? formData.time.split('-')[1] : ''}
+                        onChange={e => {
+                          const start = formData.time ? formData.time.split('-')[0] : '';
+                          setFormData({ ...formData, time: `${start}-${e.target.value}` });
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
 

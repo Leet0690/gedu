@@ -1893,7 +1893,7 @@ input.input-premium[type="date"]::-webkit-datetime-edit {
 .home-schedule-scroll {
   max-height: 480px;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
   border: 1px solid var(--border-light);
   border-radius: 12px;
 }
@@ -2035,6 +2035,162 @@ input.input-premium[type="date"]::-webkit-datetime-edit {
   text-transform: uppercase;
 }
 
+/* Inverted Schedule Grid Styles */
+.home-schedule-grid-inverted {
+  min-width: max-content;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+}
+
+.home-schedule-header-row {
+  display: flex;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: #ffffff;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.home-schedule-corner-inverted {
+  width: 90px;
+  flex-shrink: 0;
+  padding: 10px;
+  font-size: 9px;
+  font-weight: 900;
+  color: var(--text-faint);
+  border-right: 1px solid var(--border-light);
+  background: #f8f9fa;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.home-schedule-hours-row {
+  display: flex;
+  flex: 1;
+}
+
+.home-schedule-hour-col-header {
+  text-align: center;
+  padding: 10px 0;
+  border-right: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.home-schedule-hour-col-header span {
+  color: var(--text-faint);
+  font-size: 9px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.home-schedule-rows-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.home-schedule-day-row {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--border-light);
+  height: 76px;
+}
+
+.home-schedule-day-label-col {
+  width: 90px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-right: 1px solid var(--border-light);
+  background: #f8f9fa;
+  position: sticky;
+  left: 0;
+  z-index: 20;
+}
+
+.home-schedule-day-row:nth-child(even) .home-schedule-day-label-col {
+  background: #f1f5f9;
+}
+
+.home-schedule-day-timeline {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+}
+
+.home-schedule-day-row:nth-child(even) .home-schedule-day-timeline {
+  background: #fafbfd;
+}
+
+.home-schedule-hour-vertical-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid var(--border-light);
+  pointer-events: none;
+}
+
+.home-schedule-half-vertical-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px dashed rgba(0, 0, 0, 0.04);
+  pointer-events: none;
+}
+
+.home-schedule-event-rail-horizontal {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--event-rail);
+}
+
+.home-schedule-scroll {
+  max-height: 580px;
+  overflow-y: auto;
+  overflow-x: auto; /* Allow horizontal scroll for inverted axis */
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+}
+
+.top-scrollbar-container {
+  overflow-x: auto;
+  overflow-y: hidden;
+  width: 100%;
+  height: 6px;
+  background: transparent;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+  margin-bottom: 2px;
+}
+
+.top-scrollbar-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.top-scrollbar-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.top-scrollbar-container::-webkit-scrollbar-thumb {
+  background-color: var(--primary-light);
+  border-radius: 99px;
+  opacity: 0.8;
+}
+
+.top-scrollbar-container::-webkit-scrollbar-thumb:hover {
+  background-color: var(--primary);
+}
+
+
+
 .home-schedule-event {
   position: absolute;
   top: var(--event-top);
@@ -2052,15 +2208,54 @@ input.input-premium[type="date"]::-webkit-datetime-edit {
   transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
+  justify-content: center;
+  align-items: center;
 }
 
 .home-schedule-event:hover {
-  transform: translateY(-1px) scale(1.015);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px) scale(1.015);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
   border-color: var(--event-color);
-  z-index: 10;
+  z-index: 50 !important;
+  overflow: visible; /* Allows tooltip to render outside the card bounds */
 }
+
+/* Styled Premium Tooltip */
+.schedule-tooltip {
+  display: none;
+  position: absolute;
+  top: 110%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ffffff;
+  border: 1.5px solid var(--event-color);
+  color: var(--event-text);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 10px;
+  min-width: 180px;
+  max-width: 250px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.2);
+  z-index: 100;
+  pointer-events: none;
+  text-align: left;
+}
+
+.schedule-tooltip::after {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent transparent var(--event-color) transparent;
+}
+
+.home-schedule-event:hover .schedule-tooltip {
+  display: block;
+}
+
 
 .home-schedule-event-tp {
   --event-bg: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.03) 100%);
@@ -2087,6 +2282,41 @@ input.input-premium[type="date"]::-webkit-datetime-edit {
   background: var(--event-rail);
 }
 
+/* Schedule Event Action Buttons (Edit/Delete) */
+.schedule-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  color: var(--event-color);
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.schedule-action-btn:hover {
+  transform: scale(1.15);
+  background: #ffffff;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.schedule-action-btn.edit:hover {
+  color: #4f46e5;
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
+.schedule-action-btn.delete:hover {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
 .home-schedule-event-time,
 .home-schedule-event-teacher {
   display: flex;
@@ -2102,6 +2332,7 @@ input.input-premium[type="date"]::-webkit-datetime-edit {
   font-family: 'Inter', system-ui, sans-serif;
   letter-spacing: 0.02em;
   text-transform: uppercase;
+  justify-content: center;
 }
 
 .home-schedule-event-time svg,
@@ -2120,13 +2351,15 @@ input.input-premium[type="date"]::-webkit-datetime-edit {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   margin-bottom: 4px;
+  text-align: center;
 }
 
 .home-schedule-event-teacher {
   gap: 4px;
-  margin-top: auto;
+  margin-top: 4px; /* Changed from auto to fixed margin for center alignment flow */
   color: var(--event-color);
   opacity: 0.85;
+  justify-content: center;
 }
 
 .home-schedule-event-teacher span {

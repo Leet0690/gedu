@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
 import {
@@ -563,7 +563,7 @@ const DAY_ABBREVIATIONS = {
 const DASH_START = 8;
 const DASH_END = 19;
 const DASH_HOURS = Array.from({ length: DASH_END - DASH_START + 1 }, (_, i) => DASH_START + i);
-const DASH_PX = 52;
+const DASH_PX = 80;
 
 const formatTimeDash = (timeStr) => {
   if (!timeStr) return '';
@@ -587,6 +587,55 @@ const timeToPxDash = (t = '08:00') => {
   return ((h - DASH_START) * 60 + (m || 0)) * (DASH_PX / 60);
 };
 
+const getDeterministicEventStyles = (moduleName = '') => {
+  let hash = 0;
+  const str = moduleName || 'non defini';
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash % 360);
+  return {
+    '--event-bg': `linear-gradient(135deg, hsla(${hue}, 85%, 96%, 0.95) 0%, hsla(${hue}, 85%, 98%, 0.8) 100%)`,
+    '--event-border': `hsla(${hue}, 60%, 75%, 0.8)`,
+    '--event-color': `hsl(${hue}, 60%, 40%)`,
+    '--event-text': `hsl(${hue}, 70%, 20%)`,
+    '--event-rail': `linear-gradient(180deg, hsl(${hue}, 75%, 48%) 0%, hsl(${hue}, 75%, 32%) 100%)`
+  };
+};
+
+const getDayColors = (day = '') => {
+  const normalized = day.trim().toLowerCase();
+  if (normalized.includes('lun')) {
+    return { bg: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(99, 102, 241, 0.02) 100%)', text: '#4f46e5', border: 'rgba(99, 102, 241, 0.2)' };
+  }
+  if (normalized.includes('mar')) {
+    return { bg: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.02) 100%)', text: '#059669', border: 'rgba(16, 185, 129, 0.2)' };
+  }
+  if (normalized.includes('mer')) {
+    return { bg: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(245, 158, 11, 0.02) 100%)', text: '#d97706', border: 'rgba(245, 158, 11, 0.2)' };
+  }
+  if (normalized.includes('jeu')) {
+    return { bg: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(139, 92, 246, 0.02) 100%)', text: '#7c3aed', border: 'rgba(139, 92, 246, 0.2)' };
+  }
+  if (normalized.includes('ven')) {
+    return { bg: 'linear-gradient(135deg, rgba(244, 63, 94, 0.08) 0%, rgba(244, 63, 94, 0.02) 100%)', text: '#e11d48', border: 'rgba(244, 63, 94, 0.2)' };
+  }
+  if (normalized.includes('sam')) {
+    return { bg: 'linear-gradient(135deg, rgba(14, 165, 233, 0.08) 0%, rgba(14, 165, 233, 0.02) 100%)', text: '#0284c7', border: 'rgba(14, 165, 233, 0.2)' };
+  }
+  return { bg: 'linear-gradient(135deg, rgba(20, 184, 166, 0.08) 0%, rgba(20, 184, 166, 0.02) 100%)', text: '#0d9488', border: 'rgba(20, 184, 166, 0.2)' };
+};
+
+const getHourColors = (hour) => {
+  const hue = ((hour - 8) * 30) % 360;
+  return {
+    bg: `linear-gradient(180deg, hsla(${hue}, 85%, 97%, 0.95) 0%, hsla(${hue}, 85%, 99%, 0.7) 100%)`,
+    text: `hsl(${hue}, 70%, 35%)`,
+    border: `hsla(${hue}, 60%, 80%, 0.5)`,
+    accent: `hsl(${hue}, 75%, 45%)`
+  };
+};
+
 const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSemester, getScheduleModule }) => {
   const allFilieres = useMemo(() => Array.from(new Set(Object.values(FILIERES).flat())), []);
   const allAnnees = ['1ère année', '2ème année'];
@@ -597,6 +646,22 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
     () => realSchedules.filter(s => s.filiere === selectedFiliere && s.annee === selectedAnnee),
     [realSchedules, selectedFiliere, selectedAnnee]
   );
+
+  const today = getTodayFrench();
+  const topScrollRef = useRef(null);
+  const mainScrollRef = useRef(null);
+
+  const handleTopScroll = () => {
+    if (topScrollRef.current && mainScrollRef.current) {
+      mainScrollRef.current.scrollLeft = topScrollRef.current.scrollLeft;
+    }
+  };
+
+  const handleMainScroll = () => {
+    if (topScrollRef.current && mainScrollRef.current) {
+      topScrollRef.current.scrollLeft = mainScrollRef.current.scrollLeft;
+    }
+  };
 
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="glass-card home-widget home-schedule-card">
@@ -624,52 +689,99 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
         </div>
       </div>
 
-      {/* Time Grid */}
-      <div className="home-schedule-scroll">
-        <div className="home-schedule-grid">
-          {/* Time axis */}
-          <div className="home-schedule-time-axis">
-            <div className="home-schedule-corner" />
-            <div className="home-schedule-time-body">
-              {DASH_HOURS.map(hour => (
-                <div key={hour} className={`home-schedule-hour-label home-schedule-hour-${hour}`}>
-                  <span>
-                    {hour.toString().padStart(2, '0')}:00
-                  </span>
-                </div>
-              ))}
+      {/* Top Sync Scrollbar */}
+      <div 
+        ref={topScrollRef} 
+        onScroll={handleTopScroll} 
+        className="top-scrollbar-container"
+      >
+        <div style={{ width: `${90 + DASH_HOURS.length * DASH_PX}px`, height: '1px' }} />
+      </div>
+
+      {/* Time Grid (Inverted Axes) */}
+      <div ref={mainScrollRef} onScroll={handleMainScroll} className="home-schedule-scroll">
+        <div className="home-schedule-grid-inverted">
+          {/* Columns Header Row (Hours) */}
+          <div className="home-schedule-header-row">
+            <div className="home-schedule-corner-inverted">Jour \ Heure</div>
+            <div className="home-schedule-hours-row">
+              {DASH_HOURS.map(hour => {
+                const colors = getHourColors(hour);
+                return (
+                  <div 
+                    key={hour} 
+                    className="home-schedule-hour-col-header" 
+                    style={{ 
+                      width: `${DASH_PX}px`,
+                      background: colors.bg,
+                      borderBottom: `2.5px solid ${colors.accent}`,
+                      borderRight: `1px solid ${colors.border}`
+                    }}
+                  >
+                    <span style={{ color: colors.text }}>{hour.toString().padStart(2, '0')}:00</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          {/* Day columns */}
-          <div className="home-schedule-days">
+          {/* Rows (Days) */}
+          <div className="home-schedule-rows-container" style={{ position: 'relative' }}>
+            {/* Watermark */}
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              fontSize: '110px',
+              fontWeight: '900',
+              color: 'rgba(176, 104, 185, 0.09)',
+              zIndex: 2,
+              pointerEvents: 'none',
+              whiteSpace: 'nowrap',
+              userSelect: 'none',
+              letterSpacing: '0.08em',
+              fontFamily: 'Inter, system-ui, sans-serif'
+            }}>
+              {groupLabel}
+            </div>
             {DASH_DAYS.map(day => {
               const daySessions = filteredSessions
                 .filter(s => s.day === day)
                 .map(s => { const { start, end } = parseTimeRangeDash(s.time); return { ...s, start, end }; })
                 .sort((a, b) => a.start.localeCompare(b.start));
 
+              const colors = getDayColors(day);
               return (
-                <div key={day} className="home-schedule-day-column">
-                  {/* Day header */}
-                  <div className={`home-schedule-day-header ${daySessions.length > 0 ? 'has-sessions' : ''}`}>
-                    <span className="home-schedule-day-name">
+                <div key={day} className="home-schedule-day-row">
+                  {/* Day label (sticky col) */}
+                  <div 
+                    className="home-schedule-day-label-col"
+                    style={{
+                      background: colors.bg,
+                      borderRightColor: colors.border,
+                      borderLeft: `4px solid ${colors.text}`
+                    }}
+                  >
+                    <span className="home-schedule-day-name" style={{ color: colors.text }}>
                       {DAY_ABBREVIATIONS[day] || day.slice(0, 3).toUpperCase()}
                     </span>
                     {daySessions.length > 0 && (
-                      <span className="home-schedule-day-count">
+                      <span className="home-schedule-day-count" style={{ backgroundColor: colors.text, color: '#ffffff' }}>
                         {daySessions.length}
                       </span>
                     )}
                   </div>
 
-                  {/* Grid body */}
-                  <div className="home-schedule-day-body">
+                  {/* Day Timeline body */}
+                  <div className="home-schedule-day-timeline" style={{ width: `${DASH_HOURS.length * DASH_PX}px` }}>
+                    {/* Hour grid lines (vertical columns) */}
                     {DASH_HOURS.map(hour => (
-                      <div key={hour} className={`home-schedule-hour-line home-schedule-hour-${hour}`} />
+                      <div key={hour} className="home-schedule-hour-vertical-line" style={{ left: `${(hour - DASH_START) * DASH_PX}px` }} />
                     ))}
+                    {/* Half-hour lines (dashed) */}
                     {DASH_HOURS.map(hour => (
-                      <div key={`h-${hour}`} className={`home-schedule-half-line home-schedule-hour-${hour}`} />
+                      <div key={`h-${hour}`} className="home-schedule-half-vertical-line" style={{ left: `${(hour - DASH_START) * DASH_PX + DASH_PX / 2}px` }} />
                     ))}
 
                     {daySessions.length === 0 && (
@@ -679,18 +791,28 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
                     )}
 
                     {daySessions.map(session => {
-                      const top = timeToPxDash(session.start);
-                      const height = Math.max(timeToPxDash(session.end) - top, DASH_PX * 0.7);
+                      const left = timeToPxDash(session.start);
+                      const width = Math.max(timeToPxDash(session.end) - left, DASH_PX * 0.7);
                       const isTP = session.type === 'TP';
                       const teacher = teachers.find(t => t.id === session.teacherId);
+                      const moduleName = getScheduleModule(session) || '';
+                      const eventStyles = getDeterministicEventStyles(moduleName);
                       return (
                         <motion.div
                           key={session.id}
                           whileHover={{ scale: 1.02, zIndex: 10 }}
-                          className={`home-schedule-event ${isTP ? 'home-schedule-event-tp' : 'home-schedule-event-course'}`}
-                          style={{ '--event-top': `${top}px`, '--event-height': `${height}px` }}
+                          className={`home-schedule-event ${isTP ? 'home-schedule-event-tp' : 'home-schedule-event-course'} ${day === today ? 'home-schedule-event-today' : ''}`}
+                          style={{
+                            position: 'absolute',
+                            left: `${left + 4}px`,
+                            width: `${width - 8}px`,
+                            top: '6px',
+                            bottom: '6px',
+                            height: 'auto',
+                            ...eventStyles
+                          }}
                         >
-                          <div className="home-schedule-event-rail" />
+                          <div className="home-schedule-event-rail-horizontal" />
                           <div className="home-schedule-event-time">
                             <Clock size={8} />
                             <span>
@@ -700,7 +822,7 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
                           <div className="home-schedule-event-title">
                             {getScheduleModule(session) || 'Module non défini'}
                           </div>
-                          {height >= 44 && teacher && (
+                          {teacher && (
                             <div className="home-schedule-event-teacher">
                               <User size={7} />
                               <span>
@@ -708,6 +830,18 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
                               </span>
                             </div>
                           )}
+
+                          {/* Hover Tooltip */}
+                          <div className="schedule-tooltip">
+                            <div style={{ fontWeight: '800', fontSize: '10px', marginBottom: '4px', borderBottom: '1px solid var(--event-border)', paddingBottom: '3px', color: 'var(--event-color)' }}>
+                              {moduleName || 'Module non défini'}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', color: 'var(--event-text)', opacity: 0.95, fontSize: '9px' }}>
+                              <div>🕒 {session.start} – {session.end} ({session.type || 'Cours'})</div>
+                              {teacher && <div>👤 {teacher.name}</div>}
+                              {session.room && <div>📍 Salle : {session.room}</div>}
+                            </div>
+                          </div>
                         </motion.div>
                       );
                     })}
