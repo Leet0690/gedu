@@ -196,9 +196,6 @@ const TodaySessionsWidget = ({ schedules, teachers, getScheduleModule, activeSem
           <span className="home-widget-pill home-tone-primary">
             {todaySessions.length} séance{todaySessions.length !== 1 ? 's' : ''}
           </span>
-          {activeSemester && setActiveSemester && (
-            <SemesterToggle activeSemester={activeSemester} onChange={setActiveSemester} compact />
-          )}
           <button 
             onClick={() => {
               localStorage.removeItem('ipfp_v2_core_cache');
@@ -573,22 +570,6 @@ const timeToPxDash = (t = '08:00') => {
   return ((h - DASH_START) * 60 + (m || 0)) * (DASH_PX / 60);
 };
 
-const SemesterToggle = ({ activeSemester, onChange, compact = false }) => (
-  <div className={`home-semester-toggle ${compact ? 'home-semester-toggle-compact' : ''}`}>
-    {['S1', 'S2'].map(sem => (
-      <button
-        key={sem}
-        type="button"
-        onClick={() => onChange(sem)}
-        className={`home-semester-toggle-button ${activeSemester === sem ? 'is-active' : ''}`}
-        title={`Activer ${sem}`}
-      >
-        {sem}
-      </button>
-    ))}
-  </div>
-);
-
 const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSemester, getScheduleModule }) => {
   const allFilieres = useMemo(() => Array.from(new Set(Object.values(FILIERES).flat())), []);
   const allAnnees = ['1ère année', '2ème année'];
@@ -611,7 +592,6 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
           <div className="home-schedule-filters">
             <FilterSelect className="home-filter-select home-filter-select-major" value={selectedFiliere} onChange={val => setSelectedFiliere(val)} options={allFilieres.map(f => ({ label: f, value: f }))} />
             <FilterSelect className="home-filter-select home-filter-select-year" value={selectedAnnee} onChange={val => setSelectedAnnee(val)} options={allAnnees.map(a => ({ label: a, value: a }))} />
-            <SemesterToggle activeSemester={activeSemester} onChange={setActiveSemester} compact />
           </div>
         </div>
         <div className="home-schedule-actions">
@@ -1153,21 +1133,6 @@ const AdminDashboard = () => {
 
       {isDashboard && (
         <div className="home-dashboard-stack">
-          <div className="glass-card home-semester-card">
-            <div className="home-semester-copy">
-              <div className="home-semester-icon">
-                <Layers size={18} />
-              </div>
-              <div>
-                <p className="home-semester-title">Semestre actif</p>
-                <p className="home-semester-subtitle">
-                  Les modules affichés dans les emplois du temps, appels, notes et rapports suivent {activeSemester}.
-                </p>
-              </div>
-            </div>
-            <SemesterToggle activeSemester={activeSemester} onChange={setActiveSemester} />
-          </div>
-
           <div className="home-stats-grid">
             <StatCard delay={0.05} icon={UsersIcon} tone="primary" value={(students || []).length} label="Total Stagiaires" />
             <StatCard delay={0.1} icon={Presentation} tone="warning" value={(teachers || []).length} label="Total Formateurs" />

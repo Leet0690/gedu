@@ -179,7 +179,7 @@ const mThStyle = { padding: '12px 4px', fontSize: '11px', fontWeight: '800', col
 const mTdStyle = { padding: '10px 8px', verticalAlign: 'middle' };
 
 const TeacherAttendance = () => {
-  const { teachers, teacherAttendance, updateTeacherAttendance, loadTeacherAttendanceForDate, loadTeacherAttendanceForMonth, schedules, loading, getActiveScheduleModule, activeSemester, setActiveSemester } = useApp();
+  const { teachers, teacherAttendance, updateTeacherAttendance, loadTeacherAttendanceForDate, loadTeacherAttendanceForMonth, schedules, loading, getActiveScheduleModule, activeSemester } = useApp();
   const { showToast } = useToast();
 
   const [view, setView] = useState('daily');
@@ -353,14 +353,6 @@ const TeacherAttendance = () => {
                 <div style={{ position: 'relative' }}>
                   <Search size={14} style={fIcon} />
                   <input type="text" className="input-premium" style={{ width: '100%', paddingLeft: '34px' }} placeholder="Nom..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                </div>
-              </div>
-              <div style={fGroup}>
-                <label style={labelStyle}>Semestre</label>
-                <div style={{ display: 'inline-flex', padding: '4px', borderRadius: 'var(--radius-xl)', background: 'var(--bg-page)', border: '1px solid var(--border-light)', gap: '3px', alignSelf: 'stretch' }}>
-                  {['S1', 'S2'].map(sem => (
-                    <button key={sem} type="button" onClick={() => setActiveSemester(sem)} style={{ flex: 1, padding: '7px 14px', borderRadius: 'var(--radius-lg)', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '900', transition: 'all 0.18s ease', background: activeSemester === sem ? 'var(--primary)' : 'transparent', color: activeSemester === sem ? 'white' : 'var(--text-muted)', boxShadow: activeSemester === sem ? 'var(--shadow-xs)' : 'none' }} title={`Afficher les modules ${sem}`}>{sem}</button>
-                  ))}
                 </div>
               </div>
             </div>

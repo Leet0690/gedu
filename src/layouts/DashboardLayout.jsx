@@ -3,6 +3,7 @@ import { useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import Logo from '../components/Logo';
+import { SemesterToggle } from '../components/SemesterToggle';
 import { 
   LayoutDashboard, 
   Home,
@@ -144,7 +145,7 @@ const SidebarCategory = ({ cat, isSidebarOpen, renderNavLink, location, isMobile
 };
 
 export default function DashboardLayout({ children }) {
-  const { logout, notifications, markNotificationAsRead, clearNotifications } = useApp();
+  const { logout, notifications, markNotificationAsRead, clearNotifications, activeSemester, setActiveSemester } = useApp();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showNotifs, setShowNotifs] = useState(false);
@@ -333,6 +334,10 @@ export default function DashboardLayout({ children }) {
               )}
             </AnimatePresence>
 
+            {/* Semester Toggle Component */}
+            {activeSemester && setActiveSemester && (
+              <SemesterToggle activeSemester={activeSemester} onChange={setActiveSemester} compact />
+            )}
 
             {/* User Profile Mini */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', paddingLeft: '16px', borderLeft: '1px solid var(--border)' }}>

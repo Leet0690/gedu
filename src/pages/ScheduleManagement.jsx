@@ -64,7 +64,7 @@ const ScheduleManagement = () => {
   const { 
     teachers, schedules, addSchedule, updateSchedule, 
     deleteSchedule, modules: allModules, confirmAction,
-    activeSemester, setActiveSemester, getActiveScheduleModule
+    activeSemester, getActiveScheduleModule
   } = useApp();
   const { showToast } = useToast();
 
@@ -197,39 +197,6 @@ const ScheduleManagement = () => {
             options={allAnnees.map(a => ({ label: a, value: a }))}
           />
         </div>
-        <div style={{
-          display: 'inline-flex',
-          padding: '4px',
-          borderRadius: 'var(--radius-xl)',
-          background: 'var(--bg-page)',
-          border: '1px solid var(--border-light)',
-          gap: '3px'
-        }}>
-          {['S1', 'S2'].map(sem => (
-            <button
-              key={sem}
-              type="button"
-              onClick={() => setActiveSemester(sem)}
-              style={{
-                minWidth: '48px',
-                padding: '7px 14px',
-                borderRadius: 'var(--radius-lg)',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '12px',
-                fontWeight: '900',
-                transition: 'all 0.18s ease',
-                background: semester === sem ? 'var(--primary)' : 'transparent',
-                color: semester === sem ? 'white' : 'var(--text-muted)',
-                boxShadow: semester === sem ? 'var(--shadow-xs)' : 'none'
-              }}
-              title={`Afficher les modules ${sem}`}
-            >
-              {sem}
-            </button>
-          ))}
-        </div>
-
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '999px', background: 'var(--primary-ultra-light)', border: '1px solid rgba(176,104,185,0.15)' }}>
             <Users size={13} style={{ color: 'var(--primary)' }} />
