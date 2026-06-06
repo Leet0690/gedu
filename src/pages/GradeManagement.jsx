@@ -3,12 +3,59 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
-import { FILIERES } from '../data/modules';
+import { FILIERES, MODULES_DATA } from '../data/modules';
 import { generateFicheSignature, generateFicheNotes, generateBulletinGlobal, generateNoteObtentionDiplome } from '../utils/pdfGenerator';
 import { getStudentGradeModules, sanitizeGradeKey } from '../utils/gradeSync';
 import { isActiveStudent } from '../utils/studentStatus';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
+
+const getGroupAbbreviation = (filiere, annee) => {
+  let diplomaAbbr = "";
+  let majorAbbr = "";
+  
+  for (const dip in MODULES_DATA) {
+    if (MODULES_DATA[dip] && MODULES_DATA[dip][filiere]) {
+      diplomaAbbr = dip.includes('Spécialisé') ? "TS" : "T";
+      break;
+    }
+  }
+
+  if (filiere.includes('Développement')) majorAbbr = "DI";
+  else if (filiere.includes('Gestion Informatisée')) majorAbbr = "GI";
+  else if (filiere.includes('Logistique')) majorAbbr = "GTL";
+  else if (filiere.includes('Entreprises')) majorAbbr = "GE";
+  else majorAbbr = filiere.split(' ').map(w => w[0]).join('').toUpperCase();
+
+  const yearNum = annee.includes('1') ? "1" : "2";
+  
+  return diplomaAbbr + majorAbbr + yearNum;
+};
+
+const getClassColor = (label) => {
+  const colors = {
+    'TSDI1': { background: '#eff6ff', color: '#1d4ed8', borderColor: '#bfdbfe' },
+    'TSDI2': { background: '#dbeafe', color: '#1e40af', borderColor: '#93c5fd' },
+    'TSGTL1': { background: '#f0fdf4', color: '#16a34a', borderColor: '#bbf7d0' },
+    'TSGTL2': { background: '#dcfce7', color: '#15803d', borderColor: '#86efac' },
+    'TSGE1': { background: '#f5f3ff', color: '#7c3aed', borderColor: '#ddd6fe' },
+    'TSGE2': { background: '#ede9fe', color: '#6d28d9', borderColor: '#c7d2fe' },
+    'TGI1': { background: '#fffbeb', color: '#d97706', borderColor: '#fde68a' },
+    'TGI2': { background: '#fef3c7', color: '#b45309', borderColor: '#fcd34d' },
+  };
+
+  if (colors[label]) return colors[label];
+
+  const hash = Array.from(label).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const hues = [190, 340, 200, 280, 15, 160, 80, 120];
+  const hue = hues[hash % hues.length];
+  return {
+    background: `hsl(${hue}, 85%, 96%)`,
+    color: `hsl(${hue}, 85%, 32%)`,
+    borderColor: `hsl(${hue}, 80%, 88%)`
+  };
+};
+
 import { 
   FileText, 
   Download, 
@@ -282,8 +329,22 @@ const GradeManagement = () => {
   return (
     <div className="max-w-container section-padding">
       <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: '900', color: 'var(--text-primary)', marginBottom: '4px' }}>
+        <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: '900', color: 'var(--text-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '12px' }}>
           Gestion des Notes
+          {filterDiploma && filterMajor && filterYear && (
+            <span style={{
+              ...getClassColor(getGroupAbbreviation(filterMajor, filterYear)),
+              padding: '3px 10px',
+              borderRadius: '8px',
+              fontSize: '12px',
+              fontWeight: '800',
+              border: '1px solid currentColor',
+              borderWidth: '1px',
+              display: 'inline-block'
+            }}>
+              {getGroupAbbreviation(filterMajor, filterYear)}
+            </span>
+          )}
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-8)' }}>
           Saisie centralisée des résultats académiques par stagiaire.
@@ -335,7 +396,10 @@ const GradeManagement = () => {
               onChange={(val) => setSelectedStudentId(val)}
               options={[
                 { label: "Sélectionner un stagiaire", value: "" },
-                ...filteredStudents.map(s => ({ label: `${s.lastName} ${s.firstName}`, value: s.id }))
+                ...filteredStudents.map(s => ({ 
+                  label: `${s.lastName} ${s.firstName} [${getGroupAbbreviation(s.major, s.year)}]`, 
+                  value: s.id 
+                }))
               ]}
             />
           </div>
@@ -458,8 +522,22 @@ const GradeManagement = () => {
                   {selectedStudent.lastName[0]}
                 </div>
                 <div>
-                  <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: '800' }}>{selectedStudent.lastName} {selectedStudent.firstName}</h3>
-                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>
+                  <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {selectedStudent.lastName} {selectedStudent.firstName}
+                    <span style={{
+                      ...getClassColor(getGroupAbbreviation(selectedStudent.major, selectedStudent.year)),
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      fontSize: '11px',
+                      fontWeight: '800',
+                      border: '1px solid currentColor',
+                      borderWidth: '1px',
+                      display: 'inline-block'
+                    }}>
+                      {getGroupAbbreviation(selectedStudent.major, selectedStudent.year)}
+                    </span>
+                  </h3>
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600', marginTop: '4px' }}>
                     {selectedStudent.major} · {selectedStudent.year}
                   </p>
                 </div>

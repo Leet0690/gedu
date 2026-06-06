@@ -368,9 +368,9 @@ const PendingTasksWidget = ({ students, teachers, grades, teacherAttendance, all
       });
       const pct = total > 0 ? Math.round((entered / total) * 100) : 0;
       if (pct === 0) {
-        items.push({ severity: 'urgent', text: `Aucune note saisie — groupe ${label}`, sub: `${gs.length} stagiaire${gs.length > 1 ? 's' : ''} concerné${gs.length > 1 ? 's' : ''}`, link: '/admin/grades' });
+        items.push({ severity: 'urgent', type: 'grades', typeLabel: 'Notes', text: `Aucune note saisie — groupe ${label}`, sub: `${gs.length} stagiaire${gs.length > 1 ? 's' : ''} concerné${gs.length > 1 ? 's' : ''}`, link: '/admin/grades' });
       } else if (pct < 50) {
-        items.push({ severity: 'warning', text: `Notes incomplètes — groupe ${label}`, sub: `Seulement ${pct}% des notes saisies`, link: '/admin/grades' });
+        items.push({ severity: 'warning', type: 'grades', typeLabel: 'Notes', text: `Notes incomplètes — groupe ${label}`, sub: `Seulement ${pct}% des notes saisies`, link: '/admin/grades' });
       }
     });
 
@@ -382,6 +382,8 @@ const PendingTasksWidget = ({ students, teachers, grades, teacherAttendance, all
       const names = missingTeachers.slice(0, 2).map(t => t.name || 'Formateur').join(', ');
       items.push({
         severity: 'warning',
+        type: 'attendance',
+        typeLabel: 'Présences',
         text: `${missingTeachers.length} formateur${missingTeachers.length > 1 ? 's' : ''} sans présence ce mois`,
         sub: names + (missingTeachers.length > 2 ? ` +${missingTeachers.length - 2} autre${missingTeachers.length - 2 > 1 ? 's' : ''}` : ''),
         link: '/admin/monthly-attendance-teachers',
@@ -390,7 +392,7 @@ const PendingTasksWidget = ({ students, teachers, grades, teacherAttendance, all
 
     const incompleteStudents = (students || []).filter(s => !s.diploma || !s.major || !s.year);
     if (incompleteStudents.length > 0) {
-      items.push({ severity: 'info', text: `${incompleteStudents.length} profil${incompleteStudents.length > 1 ? 's' : ''} stagiaire incomplet${incompleteStudents.length > 1 ? 's' : ''}`, sub: 'Niveau, filière ou année manquant', link: '/admin/students' });
+      items.push({ severity: 'info', type: 'profile', typeLabel: 'Profils', text: `${incompleteStudents.length} profil${incompleteStudents.length > 1 ? 's' : ''} stagiaire incomplet${incompleteStudents.length > 1 ? 's' : ''}`, sub: 'Niveau, filière ou année manquant', link: '/admin/students' });
     }
 
     return items;
@@ -428,12 +430,28 @@ const PendingTasksWidget = ({ students, teachers, grades, teacherAttendance, all
             const { icon: Icon } = SEVERITY_CONFIG[task.severity];
             return (
               <Link key={i} to={task.link} className="home-task-link">
-                <motion.div whileHover={{ x: 3 }} className={`home-task-card home-task-${task.severity}`}>
+                <motion.div whileHover={{ x: 3 }} className={`home-task-card home-task-${task.type}`}>
                   <div className="home-task-icon">
                     <Icon size={14} />
                   </div>
                   <div className="home-task-content">
-                    <p className="home-task-title">{task.text}</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <p className="home-task-title" style={{ margin: 0 }}>{task.text}</p>
+                      <span style={{
+                        fontSize: '9px',
+                        fontWeight: '850',
+                        textTransform: 'uppercase',
+                        padding: '1px 6px',
+                        borderRadius: '4px',
+                        background: 'rgba(255, 255, 255, 0.6)',
+                        border: '1px solid currentColor',
+                        color: 'var(--task-color)',
+                        display: 'inline-block',
+                        lineHeight: 1.2
+                      }}>
+                        {task.typeLabel}
+                      </span>
+                    </div>
                     <p className="home-task-subtitle">{task.sub}</p>
                   </div>
                   <ArrowRight size={12} className="home-task-arrow" />
