@@ -3535,6 +3535,7 @@ input.input-premium[type="date"]::-webkit-datetime-edit {
   color: var(--text-muted);
   font-size: 11px;
   font-weight: 900;
+  font-family: 'Inter', system-ui, sans-serif;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -3544,6 +3545,7 @@ input.input-premium[type="date"]::-webkit-datetime-edit {
   color: var(--kpi-color);
   font-size: clamp(1.55rem, 2.2vw, 2.05rem);
   font-weight: 950;
+  font-family: 'Inter', system-ui, sans-serif;
   letter-spacing: -0.055em;
   line-height: 1;
 }
@@ -3562,6 +3564,7 @@ input.input-premium[type="date"]::-webkit-datetime-edit {
   color: var(--text-muted);
   font-size: 11px;
   font-weight: 750;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
 .finance-kpi-progress {
