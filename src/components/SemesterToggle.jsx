@@ -8,7 +8,7 @@ export const SemesterToggle = ({ activeSemester, onChange, compact = false }) =>
         type="button"
         onClick={() => onChange(sem)}
         className={`home-semester-toggle-button ${activeSemester === sem ? 'is-active' : ''}`}
-        title={`Activer ${sem}`}
+        data-tooltip={`Activer le semestre ${sem}`}
       >
         {sem}
       </button>
