@@ -400,7 +400,7 @@ const PendingTasksWidget = ({ students, teachers, grades, teacherAttendance, all
 
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-      className="glass-card home-widget">
+      className="glass-card home-widget home-widget-tall">
       <div className="home-widget-header">
         <div className="home-widget-heading">
           <div className="home-widget-icon home-tone-danger">
@@ -502,7 +502,7 @@ const GradesBreakdownWidget = ({ students, grades, allModules, activeSemester })
 
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
-      className="glass-card home-widget">
+      className="glass-card home-widget home-widget-tall">
       <div className="home-widget-header">
         <div className="home-widget-heading">
           <div className="home-widget-icon home-tone-warning">

@@ -1892,13 +1892,14 @@ input.input-premium[type="date"]::-webkit-datetime-edit {
 
 .home-schedule-scroll {
   max-height: 480px;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   border: 1px solid var(--border-light);
   border-radius: 12px;
 }
 
 .home-schedule-grid {
-  min-width: 700px;
+  min-width: 100%;
   display: flex;
 }
 
