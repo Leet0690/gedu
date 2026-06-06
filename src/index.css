@@ -2043,30 +2043,39 @@ input.input-premium[type="date"]::-webkit-datetime-edit {
   right: 4px;
   z-index: 5;
   overflow: hidden;
-  border-radius: 7px;
-  padding: 5px 7px;
+  border-radius: 8px;
+  padding: 6px 9px;
   border: 1px solid var(--event-border);
   background: var(--event-bg);
   color: var(--event-color);
-  box-shadow: var(--event-shadow);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.home-schedule-event:hover {
+  transform: translateY(-1px) scale(1.015);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  border-color: var(--event-color);
+  z-index: 10;
 }
 
 .home-schedule-event-tp {
-  --event-bg: #fdf4fe;
-  --event-border: rgba(176, 104, 185, 0.30);
-  --event-color: var(--primary);
-  --event-text: #7a3d82;
-  --event-rail: var(--primary);
-  --event-shadow: 0 1px 6px rgba(176, 104, 185, 0.10);
+  --event-bg: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.03) 100%);
+  --event-border: rgba(99, 102, 241, 0.16);
+  --event-color: #6366f1;
+  --event-text: #312e81;
+  --event-rail: linear-gradient(180deg, #6366f1 0%, #8b5cf6 100%);
 }
 
 .home-schedule-event-course {
-  --event-bg: #fffdf0;
-  --event-border: rgba(254, 205, 8, 0.40);
-  --event-color: #a06208;
-  --event-text: #8a6a00;
-  --event-rail: #fecd08;
-  --event-shadow: 0 1px 6px rgba(254, 205, 8, 0.08);
+  --event-bg: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(217, 119, 6, 0.03) 100%);
+  --event-border: rgba(245, 158, 11, 0.18);
+  --event-color: #d97706;
+  --event-text: #78350f;
+  --event-rail: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
 }
 
 .home-schedule-event-rail {
@@ -2074,8 +2083,7 @@ input.input-premium[type="date"]::-webkit-datetime-edit {
   left: 0;
   top: 0;
   bottom: 0;
-  width: 3px;
-  border-radius: 7px 0 0 7px;
+  width: 3.5px;
   background: var(--event-rail);
 }
 
@@ -2086,12 +2094,14 @@ input.input-premium[type="date"]::-webkit-datetime-edit {
 }
 
 .home-schedule-event-time {
-  gap: 3px;
-  margin-bottom: 3px;
+  gap: 4px;
+  margin-bottom: 4px;
   color: var(--event-color);
   font-size: 8px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  font-family: 'Inter', system-ui, sans-serif;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .home-schedule-event-time svg,
@@ -2103,23 +2113,28 @@ input.input-premium[type="date"]::-webkit-datetime-edit {
   display: -webkit-box;
   overflow: hidden;
   color: var(--event-text);
-  font-size: 9px;
+  font-size: 9.5px;
   font-weight: 800;
-  line-height: 1.3;
+  line-height: 1.35;
+  font-family: 'Inter', system-ui, sans-serif;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  margin-bottom: 4px;
 }
 
 .home-schedule-event-teacher {
-  gap: 3px;
-  margin-top: 3px;
-  color: var(--text-faint);
+  gap: 4px;
+  margin-top: auto;
+  color: var(--event-color);
+  opacity: 0.85;
 }
 
 .home-schedule-event-teacher span {
   overflow: hidden;
-  color: var(--text-muted);
-  font-size: 8px;
+  color: var(--event-text);
+  font-size: 8.5px;
+  font-weight: 700;
+  font-family: 'Inter', system-ui, sans-serif;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
