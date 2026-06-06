@@ -64,7 +64,10 @@ import {
   TrendingUp,
   ChevronsLeft,
   ChevronsRight,
-  Undo2
+  Undo2,
+  Presentation,
+  CalendarCheck,
+  BarChart3
 } from 'lucide-react';
 
 const labelStyle = { fontSize: 'var(--text-xs)', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', paddingLeft: '2px' };
@@ -1166,10 +1169,10 @@ const AdminDashboard = () => {
           </div>
 
           <div className="home-stats-grid">
-            <StatCard delay={0.05} icon={GraduationCap} tone="primary" value={(students || []).length} label="Total Stagiaires" />
-            <StatCard delay={0.1} icon={UserPlus} tone="warning" value={(teachers || []).length} label="Total Formateurs" />
-            <StatCard delay={0.15} icon={UserPlus} tone="success" value={studentAttendanceRate === null ? '—' : `${studentAttendanceRate}%`} label={`Présence Stagiaires — ${currentMonthName}`} />
-            <StatCard delay={0.2} icon={User} tone="info" value={teacherAttendanceRate === null ? '—' : `${teacherAttendanceRate}%`} label={`Présence Formateurs — ${currentMonthName}`} />
+            <StatCard delay={0.05} icon={UsersIcon} tone="primary" value={(students || []).length} label="Total Stagiaires" />
+            <StatCard delay={0.1} icon={Presentation} tone="warning" value={(teachers || []).length} label="Total Formateurs" />
+            <StatCard delay={0.15} icon={CalendarCheck} tone="success" value={studentAttendanceRate === null ? '—' : `${studentAttendanceRate}%`} label={`Présence Stagiaires — ${currentMonthName}`} />
+            <StatCard delay={0.2} icon={BarChart3} tone="info" value={teacherAttendanceRate === null ? '—' : `${teacherAttendanceRate}%`} label={`Présence Formateurs — ${currentMonthName}`} />
           </div>
 
           {/* New Requested Order in Grid format to keep dimensions */}
@@ -1661,9 +1664,8 @@ const StatCard = ({ delay, icon: Icon, tone = 'primary', value, label }) => (
     transition={{ delay }}
     className={`home-stat-card home-tone-${tone}`}
   >
-    <div className="home-stat-orb" />
     <div className="home-stat-icon">
-      <Icon size={18} />
+      <Icon size={21} />
     </div>
     <div className="home-stat-content">
       <h3 className="home-stat-value">{value}</h3>
