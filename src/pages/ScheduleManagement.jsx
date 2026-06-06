@@ -311,6 +311,7 @@ const ScheduleManagement = () => {
                       )}
 
                       {/* Session cards */}
+      {/* Session cards */}
                       {daySessions.map(session => {
                       const top = timeToPixels(session.start);
                       const height = Math.max(timeToPixels(session.end) - top, PX_PER_HOUR * 0.75);
@@ -324,43 +325,32 @@ const ScheduleManagement = () => {
                             layout
                             initial={{ opacity: 0, scale: 0.96 }}
                             animate={{ opacity: 1, scale: 1 }}
+                            className={`home-schedule-event ${isTP ? 'home-schedule-event-tp' : 'home-schedule-event-course'}`}
                             style={{
                               position: 'absolute',
                               top: `${top}px`,
                               height: `${height}px`,
                               left: '6px', right: '6px',
-                              borderRadius: '10px',
-                              padding: '8px 10px',
-                              overflow: 'hidden',
                               cursor: 'default',
-                              backgroundColor: isTP ? '#fdf4fe' : '#fffdf0',
-                              border: `1px solid ${isTP ? 'rgba(176,104,185,0.3)' : 'rgba(254,205,8,0.4)'}`,
-                              boxShadow: isTP
-                                ? '0 2px 8px rgba(176,104,185,0.10)'
-                                : '0 2px 8px rgba(254,205,8,0.08)',
                               zIndex: 5
                             }}
-                            whileHover={{ scale: 1.015, zIndex: 10, boxShadow: isTP ? '0 4px 16px rgba(176,104,185,0.18)' : '0 4px 16px rgba(254,205,8,0.18)' }}
+                            whileHover={{ scale: 1.015, zIndex: 10 }}
                           >
                             {/* Left accent bar */}
-                            <div style={{
-                              position: 'absolute', left: 0, top: 0, bottom: 0, width: '3px',
-                              borderRadius: '10px 0 0 10px',
-                              backgroundColor: isTP ? 'var(--primary)' : '#fecd08'
-                            }} />
+                            <div className="home-schedule-event-rail" />
 
                             {/* Action buttons */}
-                            <div style={{ position: 'absolute', top: '5px', right: '5px', display: 'flex', gap: '4px' }}>
+                            <div style={{ position: 'absolute', top: '5px', right: '5px', display: 'flex', gap: '4px', zIndex: 15 }}>
                               <button
                                 onClick={() => openEdit(session)}
                                 style={{
                                   background: 'transparent', border: 'none', cursor: 'pointer',
-                                  color: 'var(--text-faint)', padding: '2px', borderRadius: '4px',
+                                  color: 'var(--event-color)', padding: '2px', borderRadius: '4px',
                                   lineHeight: 1, opacity: 0.6,
                                   transition: 'opacity 0.15s, color 0.15s'
                                 }}
-                                onMouseEnter={e => { e.currentTarget.style.color = 'var(--primary)'; e.currentTarget.style.opacity = '1'; }}
-                                onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-faint)'; e.currentTarget.style.opacity = '0.6'; }}
+                                onMouseEnter={e => { e.currentTarget.style.opacity = '1'; }}
+                                onMouseLeave={e => { e.currentTarget.style.opacity = '0.6'; }}
                               >
                                 <Edit size={11} />
                               </button>
@@ -368,59 +358,56 @@ const ScheduleManagement = () => {
                                 onClick={() => handleDelete(session.id)}
                                 style={{
                                   background: 'transparent', border: 'none', cursor: 'pointer',
-                                  color: 'var(--text-faint)', padding: '2px', borderRadius: '4px',
+                                  color: 'var(--event-color)', padding: '2px', borderRadius: '4px',
                                   lineHeight: 1, opacity: 0.6,
                                   transition: 'opacity 0.15s, color 0.15s'
                                 }}
                                 onMouseEnter={e => { e.currentTarget.style.color = 'var(--danger)'; e.currentTarget.style.opacity = '1'; }}
-                                onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-faint)'; e.currentTarget.style.opacity = '0.6'; }}
+                                onMouseLeave={e => { e.currentTarget.style.color = 'var(--event-color)'; e.currentTarget.style.opacity = '0.6'; }}
                               >
                                 <Trash2 size={11} />
                               </button>
                             </div>
 
                             {/* Time range */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '5px' }}>
-                              <Clock size={9} style={{ color: isTP ? 'var(--primary)' : '#a06208', flexShrink: 0 }} />
-                              <span style={{ fontSize: '9px', fontWeight: '700', color: isTP ? 'var(--primary)' : '#a06208', fontVariantNumeric: 'tabular-nums' }}>
-                                {session.start} – {session.end}
+                            <div className="home-schedule-event-time">
+                              <Clock size={8} />
+                              <span>
+                                {session.start}–{session.end}
                               </span>
                               <span style={{
                                 marginLeft: 'auto',
-                                fontSize: '9px', fontWeight: '800', padding: '1px 6px', borderRadius: '4px',
-                                backgroundColor: isTP ? 'rgba(176,104,185,0.15)' : 'rgba(254,205,8,0.2)',
-                                color: isTP ? '#8a4d92' : '#a06208'
+                                marginRight: '16px',
+                                fontSize: '8px', fontWeight: '850', padding: '1px 5px', borderRadius: '4px',
+                                backgroundColor: isTP ? 'rgba(99, 102, 241, 0.12)' : 'rgba(245, 158, 11, 0.15)',
+                                color: 'var(--event-text)',
+                                textTransform: 'uppercase',
+                                lineHeight: 1.1
                               }}>
                                 {session.type || 'Cours'}
                               </span>
                             </div>
 
                             {/* Module name */}
-                            <div style={{
-                              fontSize: '11px', fontWeight: '800',
-                              color: isTP ? '#7a3d82' : '#8a6a00',
-                              lineHeight: 1.3, marginBottom: '6px',
-                              display: '-webkit-box', WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical', overflow: 'hidden'
-                            }}>
+                            <div className="home-schedule-event-title" style={{ marginRight: '12px' }}>
                               {displayedModule || 'Module non défini'}
                             </div>
 
                             {/* Meta */}
                             {height >= 56 && (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: 'auto' }}>
                                 {session.room && (
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                    <MapPin size={9} style={{ color: 'var(--text-faint)', flexShrink: 0 }} />
-                                    <span style={{ fontSize: '9px', fontWeight: '600', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    <MapPin size={9} style={{ color: 'var(--event-color)', opacity: 0.7, flexShrink: 0 }} />
+                                    <span style={{ fontSize: '8.5px', fontWeight: '700', fontFamily: 'Inter, sans-serif', color: 'var(--event-text)', opacity: 0.85, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                       {session.room}
                                     </span>
                                   </div>
                                 )}
                                 {teacher && (
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                    <User size={9} style={{ color: 'var(--text-faint)', flexShrink: 0 }} />
-                                    <span style={{ fontSize: '9px', fontWeight: '600', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  <div className="home-schedule-event-teacher">
+                                    <User size={8} />
+                                    <span>
                                       {teacher.name}
                                     </span>
                                   </div>
