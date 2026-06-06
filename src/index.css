@@ -2874,8 +2874,15 @@ input.input-premium[type="date"]::-webkit-datetime-edit {
   pointer-events: none;
   transform: translate(-50%, 6px);
   transition:
-    opacity var(--duration-fast) var(--ease-smooth),
-    transform var(--duration-fast) var(--ease-smooth);
+    opacity 100ms ease-out,
+    transform 100ms ease-out;
+}
+
+[data-tooltip]:active::before,
+[data-tooltip]:active::after {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transition: none !important;
 }
 
 [data-tooltip]::before {
