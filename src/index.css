@@ -1629,8 +1629,16 @@ input.input-premium[type="date"]::-webkit-datetime-edit {
 }
 
 .home-task-list {
-  gap: 8px;
-  max-height: 320px;
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  max-height: none !important;
+}
+
+@media (max-width: 768px) {
+  .home-task-list {
+    grid-template-columns: 1fr;
+  }
 }
 
 .home-grade-list {
