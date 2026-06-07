@@ -366,7 +366,7 @@ export default function DashboardLayout({ children }) {
                   letterSpacing: '0.02em',
                   lineHeight: '1.3'
                 }}>
-                  INSTITUT Privé de formation professionnelle
+                  Institut polytechnique de la formation professionnelle privée
                 </span>
                 <span style={{ fontSize: '8.5px', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '1px' }}>
                   Espace Direction
