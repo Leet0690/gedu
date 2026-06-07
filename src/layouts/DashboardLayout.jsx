@@ -28,7 +28,8 @@ import {
   ChevronLeft,
   School,
   WifiOff,
-  Wand2
+  Wand2,
+  ArrowUp
 } from 'lucide-react';
 
 const useOnlineStatus = () => {
@@ -149,6 +150,7 @@ export default function DashboardLayout({ children }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showNotifs, setShowNotifs] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const location = useLocation();
   const scrollRef = useRef(null);
   const sidebarRef = useRef(null);
@@ -180,6 +182,18 @@ export default function DashboardLayout({ children }) {
       scrollRef.current.scrollTo(0, 0);
     }
   }, [location.pathname]);
+
+  const handleMainScroll = (e) => {
+    if (e.target.scrollTop > 300) {
+      setShowScrollTop(true);
+    } else {
+      setShowScrollTop(false);
+    }
+  };
+
+  const scrollToTop = () => {
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const unreadCount = (notifications || []).filter(n => !n.read).length;
 
@@ -353,7 +367,7 @@ export default function DashboardLayout({ children }) {
         </header>
 
         {/* Content Scroll Area */}
-        <main ref={scrollRef} style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '24px' }}>
+        <main ref={scrollRef} onScroll={handleMainScroll} style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '24px' }}>
           <div className="max-w-container" style={{ 
             padding: 0, 
             maxWidth: isSidebarOpen ? '1200px' : '100%', 
@@ -379,6 +393,26 @@ export default function DashboardLayout({ children }) {
           </div>
         </main>
       </div>
+
+      {/* Scroll to Top Button */}
+      <AnimatePresence>
+        {showScrollTop && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            style={{ position: 'fixed', bottom: '30px', right: '30px', zIndex: 90 }}
+          >
+            <button 
+              onClick={scrollToTop}
+              className="btn-modern primary"
+              style={{ width: '44px', height: '44px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', boxShadow: '0 8px 24px rgba(79, 70, 229, 0.25)' }}
+            >
+              <ArrowUp size={20} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Mobile Drawer Overlay */}
       <AnimatePresence>
