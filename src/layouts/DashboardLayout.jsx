@@ -355,12 +355,31 @@ export default function DashboardLayout({ children }) {
 
             {/* User Profile Mini */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', paddingLeft: '16px', borderLeft: '1px solid var(--border)' }}>
-              <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>Admin IPFP</span>
-                <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '600' }}>Direction</span>
+              <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', maxWidth: '180px', alignItems: 'center' }}>
+                <span style={{ 
+                  fontSize: '10.5px', 
+                  fontWeight: '900', 
+                  textTransform: 'uppercase',
+                  background: 'linear-gradient(135deg, #8b5cf6 0%, #eab308 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  letterSpacing: '0.02em',
+                  lineHeight: '1.3'
+                }}>
+                  INSTITUT Privé de formation professionnelle
+                </span>
+                <span style={{ fontSize: '8.5px', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '1px' }}>
+                  Espace Direction
+                </span>
               </div>
-              <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'var(--primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold' }}>
-                A
+              <div style={{ 
+                width: '38px', height: '38px', borderRadius: '12px', 
+                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(234, 179, 8, 0.15) 100%)', 
+                border: '1px solid rgba(139, 92, 246, 0.25)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                color: '#8b5cf6', flexShrink: 0 
+              }}>
+                <School size={18} />
               </div>
             </div>
           </div>
