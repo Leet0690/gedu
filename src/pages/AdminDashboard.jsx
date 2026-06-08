@@ -1053,7 +1053,7 @@ const AdminDashboard = () => {
 
     const confirmed = await confirmAction({
       title: "Cl\u00f4turer l'ann\u00e9e scolaire ?",
-      message: `${promotionPreview.graduated} stagiaire(s) en fin de cycle deviendront lauréats et ${promotionPreview.promoted} stagiaire(s) passeront à l'année suivante. Cette action mettra à jour les dossiers actifs.`,
+      message: `${promotionPreview.graduated} stagiaire(s) en fin de cycle deviendront lauréats et ${promotionPreview.promoted} stagiaire(s) passeront à l'année suivante. Les prochains numéros de reçus recommenceront à FD0001 pour les paiements et F0001 pour les formateurs.`,
       type: 'warning'
     });
     if (!confirmed) return;
@@ -1065,7 +1065,6 @@ const AdminDashboard = () => {
         toAcademicYear: promotionForm.toAcademicYear,
       });
       if (result.error) return;
-      setStudentStatusFilter(STUDENT_STATUS.ACTIVE);
       setPromotionResult(result);
     } catch (err) {
       console.error(err);
@@ -1681,7 +1680,7 @@ const AdminDashboard = () => {
                   )}
 
                   <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-xl)', background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.18)', color: '#166534', fontSize: '12px', fontWeight: '700', lineHeight: 1.6, marginBottom: '20px' }}>
-                    Op&eacute;ration journalis&eacute;e. Vous pouvez annuler cette cl&ocirc;ture si n&eacute;cessaire.
+                    Op&eacute;ration journalis&eacute;e. Les prochains re&ccedil;us commenceront par FD0001 pour les paiements et F0001 pour les formateurs.
                   </div>
 
                   <div style={{ display: 'flex', gap: '12px' }}>

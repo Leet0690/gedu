@@ -730,6 +730,25 @@ export const AppProvider = ({ children }) => {
     const promotedCount = updates.filter(item => item.type === 'promoted').length;
     const graduatedCount = updates.filter(item => item.type === 'graduated').length;
 
+    const receiptCounterBatch = writeBatch(db);
+    const receiptCounterReset = {
+      value: 0,
+      academicYear: toAcademicYear,
+      resetAt: serverTimestamp(),
+      resetByOperationId: operationId,
+    };
+    receiptCounterBatch.set(
+      doc(db, RECEIPT_COUNTERS_COLLECTION, 'payment_FD'),
+      { ...receiptCounterReset, prefix: STUDENT_RECEIPT_PREFIX },
+      { merge: true }
+    );
+    receiptCounterBatch.set(
+      doc(db, RECEIPT_COUNTERS_COLLECTION, 'salary_F'),
+      { ...receiptCounterReset, prefix: 'F' },
+      { merge: true }
+    );
+    await receiptCounterBatch.commit();
+
     // Improvement #7: Build breakdown by filière
     const breakdown = {};
     updates.forEach(({ id, type }) => {
@@ -753,6 +772,7 @@ export const AppProvider = ({ children }) => {
         promotedIds: updates.filter(u => u.type === 'promoted').map(u => u.id),
         graduatedIds: updates.filter(u => u.type === 'graduated').map(u => u.id),
         breakdown,
+        receiptCountersReset: true,
         performedAt: serverTimestamp(),
         closedAt,
       });
@@ -760,8 +780,8 @@ export const AppProvider = ({ children }) => {
       console.error('Erreur journalisation:', logErr);
     }
 
-    showToast(`${promotedCount} stagiaire(s) promu(s), ${graduatedCount} laur\u00e9at(s) archiv\u00e9(s).`, 'success');
-    return { promotedCount, graduatedCount, operationId, breakdown };
+    showToast(`${promotedCount} stagiaire(s) promu(s), ${graduatedCount} laur\u00e9at(s) archiv\u00e9(s). Les num\u00e9ros de re\u00e7us ont \u00e9t\u00e9 r\u00e9initialis\u00e9s.`, 'success');
+    return { promotedCount, graduatedCount, operationId, breakdown, receiptCountersReset: true };
   };
 
   // Improvement #6: Undo last promotion
@@ -1107,11 +1127,13 @@ export const AppProvider = ({ children }) => {
 
     await runTransaction(db, async transaction => {
       const counterSnapshot = await transaction.get(counterRef);
-      const currentValue = counterSnapshot.exists() ? Number(counterSnapshot.data()?.value) || 0 : 0;
-      const nextValue = Math.max(currentValue, existingFloor) + 1;
+      const counterData = counterSnapshot.exists() ? counterSnapshot.data() : {};
+      const currentValue = Number(counterData?.value) || 0;
+      const nextValue = counterSnapshot.exists() ? currentValue + 1 : existingFloor + 1;
       newPayment = {
         ...paymentData,
         receiptNumber: `${prefix}${String(nextValue).padStart(4, '0')}`,
+        receiptAcademicYear: counterData?.academicYear || paymentData.academicYear || '',
         createdAt: serverTimestamp()
       };
       transaction.set(counterRef, { value: nextValue, updatedAt: serverTimestamp() }, { merge: true });
@@ -1150,11 +1172,13 @@ export const AppProvider = ({ children }) => {
 
     await runTransaction(db, async transaction => {
       const counterSnapshot = await transaction.get(counterRef);
-      const currentValue = counterSnapshot.exists() ? Number(counterSnapshot.data()?.value) || 0 : 0;
-      const nextValue = Math.max(currentValue, existingFloor) + 1;
+      const counterData = counterSnapshot.exists() ? counterSnapshot.data() : {};
+      const currentValue = Number(counterData?.value) || 0;
+      const nextValue = counterSnapshot.exists() ? currentValue + 1 : existingFloor + 1;
       newSalary = {
         ...salaryData,
         receiptNumber: `F${String(nextValue).padStart(4, '0')}`,
+        receiptAcademicYear: counterData?.academicYear || salaryData.academicYear || '',
         createdAt: serverTimestamp()
       };
       transaction.set(counterRef, { value: nextValue, updatedAt: serverTimestamp() }, { merge: true });
