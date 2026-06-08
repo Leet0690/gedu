@@ -169,9 +169,22 @@ function FormationsTab({ trainings, ctStudents, onAdd, onEdit, onDelete }) {
           {filtered.map(tr => {
             const cfg = typeConfig(tr.type);
             const Icon = cfg.icon;
-            const studentCount = ctStudents.filter(s => s.trainingId === tr.id).length;
-            const totalPaid = ctStudents.filter(s => s.trainingId === tr.id)
-              .reduce((sum, s) => sum + (s.payments || []).reduce((a, p) => a + Number(p.amount || 0), 0), 0);
+            const trainingStudents = ctStudents.filter(s => s.trainingId === tr.id);
+            const studentCount = trainingStudents.length;
+            const totalPaid = trainingStudents.reduce((sum, s) => sum + (s.payments || []).reduce((a, p) => a + Number(p.amount || 0), 0), 0);
+            const totalDue = Number(tr.pricePerStudent || 0) * studentCount;
+            const paidPct = totalDue > 0 ? Math.min(100, Math.round((totalPaid / totalDue) * 100)) : 0;
+            const soldéCount = trainingStudents.filter(s => {
+              const paid = (s.payments || []).reduce((a, p) => a + Number(p.amount || 0), 0);
+              return Number(tr.pricePerStudent || 0) > 0 && paid >= Number(tr.pricePerStudent || 0);
+            }).length;
+
+            const barColor = paidPct === 100
+              ? 'bg-green-500'
+              : paidPct >= 50
+              ? 'bg-amber-400'
+              : 'bg-red-400';
+
             return (
               <Card key={tr.id} className="group transition-all duration-200 hover:-translate-y-1 hover:shadow-lg border border-border/60">
                 <CardContent className="p-5">
@@ -203,7 +216,7 @@ function FormationsTab({ trainings, ctStudents, onAdd, onEdit, onDelete }) {
                       <span className="font-semibold">{studentCount} étudiant{studentCount !== 1 ? 's' : ''}</span>
                     </div>
                     <div className="flex items-center gap-1.5 font-semibold col-span-1">
-                      {Number(tr.pricePerStudent || 0).toLocaleString()} DH
+                      {Number(tr.pricePerStudent || 0).toLocaleString()} DH / étudiant
                     </div>
                     <div className="flex items-center gap-1.5">
                       <Percent size={11} className="shrink-0" />
@@ -211,9 +224,33 @@ function FormationsTab({ trainings, ctStudents, onAdd, onEdit, onDelete }) {
                     </div>
                   </div>
 
-                  <div className="pt-3 border-t border-border/60 flex justify-between items-center">
-                    <span className="text-[11px] text-muted-foreground">Total encaissé</span>
-                    <span className="text-base font-black text-green-600">{totalPaid.toLocaleString()} DH</span>
+                  <div className="pt-3 border-t border-border/60 space-y-2">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground font-medium">Encaissements</span>
+                      <div className="flex items-center gap-2">
+                        <span className={cn(
+                          'font-bold',
+                          paidPct === 100 ? 'text-green-600' : paidPct >= 50 ? 'text-amber-500' : 'text-red-500',
+                        )}>
+                          {paidPct}%
+                        </span>
+                        <span className="text-muted-foreground">
+                          {soldéCount}/{studentCount} soldé{soldéCount !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="relative h-2 w-full rounded-full bg-muted overflow-hidden">
+                      <motion.div
+                        className={cn('absolute inset-y-0 left-0 rounded-full', barColor)}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${paidPct}%` }}
+                        transition={{ duration: 0.6, ease: 'easeOut' }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                      <span className="font-semibold text-green-600">{totalPaid.toLocaleString()} DH</span>
+                      {totalDue > 0 && <span>{totalDue.toLocaleString()} DH total</span>}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
