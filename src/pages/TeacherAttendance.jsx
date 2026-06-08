@@ -225,11 +225,11 @@ const TeacherAttendance = () => {
 
   const exportDailyCSV = () => {
     if (!sessionRows.length) return showToast('Aucune donnée.', 'info');
-    const headers = "\uFEFFFormateur,Module,Horaire,Groupes,Date,Statut,Heures\n";
+    const headers = "\uFEFFFormateur,Module,Horaire,Groupes,Date,Statut,Heures['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']";
     const rows = sessionRows.map(row => {
       const r = getRecordForScheduledRow(teacherAttendance, row) || {};
       return `"${row.teacher.name}","${row.module}","${row.time}","${row.groups.join(', ')}","${selectedDate}","${r.status || 'non défini'}","${r.status === 'present' ? r.hours || 0 : 0}"`;
-    }).join('\n');
+    }).join('['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']');
     const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a'); link.href = URL.createObjectURL(blob);
     link.setAttribute('download', `Presences_Formateurs_${selectedDate}.csv`);
@@ -280,7 +280,7 @@ const TeacherAttendance = () => {
 
   const exportMonthlyCSV = () => {
     const dayHeaders = mDays.map(d => `${pad(d)}/${pad(mMonth + 1)}`).join(',');
-    const header = `\uFEFFFormateur,${dayHeaders},Jours Présents,Jours Absents,Heures\n`;
+    const header = `\uFEFFFormateur,${dayHeaders},Jours Présents,Jours Absents,Heures['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']`;
     const rows = mGridData.map(({ teacher, byDay, hoursByDay, counts }) => {
       const cells = mDays.map(d => {
         if (!byDay[d]) return '-';
@@ -288,7 +288,7 @@ const TeacherAttendance = () => {
         return byDay[d][0].toUpperCase();
       }).join(',');
       return `"${teacher.name}",${cells},${counts.present},${counts.absent},${counts.totalHours}`;
-    }).join('\n');
+    }).join('['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']');
     const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);

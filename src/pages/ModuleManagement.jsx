@@ -185,7 +185,7 @@ const ModuleManagement = () => {
     try {
       await addModule({ name, coefficient: 1, diploma: filterDiploma, major: filterMajor, year: filterYear, semester: filterSemester });
     } catch {
-      showToast('Erreur lors de l\'ajout', 'error');
+      showToast('Erreur lors de l['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']ajout', 'error');
     }
   };
 

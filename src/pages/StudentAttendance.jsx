@@ -314,12 +314,12 @@ const StudentAttendance = () => {
 
   const exportDailyCSV = () => {
     if (!filteredStudents.length) return showToast('Aucune donnée.', 'info');
-    const headers = "\uFEFFStagiaire,Matricule,Module,Date,Statut,Commentaire\n";
+    const headers = "\uFEFFStagiaire,Matricule,Module,Date,Statut,Commentaire['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']";
     const rows = filteredStudents.map(s => {
       const docId = `${s.id}_${(filterModule || 'global').replace(/[^a-zA-Z0-9]/g, '_')}_${selectedDate}`;
       const r = studentAttendance.find(a => a.id === docId) || {};
       return `"${s.lastName} ${s.firstName}","${s.regNo}","${filterModule}","${selectedDate}","${r.status || 'non défini'}","${r.comment || ''}"`;
-    }).join('\n');
+    }).join('['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']');
     const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a'); link.href = URL.createObjectURL(blob);
     link.setAttribute('download', `Absences_Stagiaires_${selectedDate}.csv`);
@@ -439,14 +439,14 @@ const StudentAttendance = () => {
        return showToast("Veuillez sélectionner une filière et une année pour exporter.", "warning");
     }
     const dayHeaders = monthColumns.map(c => `${pad(c.d)}/${pad(mMonth + 1)} ${c.module} (${c.time})`).join(',');
-    const header = `\uFEFFNom,Prénom,Matricule,${dayHeaders},Séances Présentes,Séances Absentes\n`;
+    const header = `\uFEFFNom,Prénom,Matricule,${dayHeaders},Séances Présentes,Séances Absentes['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']`;
     const rows = mGridData.map(({ student, byColumn, counts }) => {
       const cells = monthColumns.map(c => {
         const st = byColumn[c.key];
         return st ? st[0].toUpperCase() : '-';
       }).join(',');
       return `"${student.lastName}","${student.firstName}","${student.regNo || ''}",${cells},${counts.present},${counts.absent}`;
-    }).join('\n');
+    }).join('['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']');
     const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);

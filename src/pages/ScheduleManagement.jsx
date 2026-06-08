@@ -293,7 +293,7 @@ const ScheduleManagement = () => {
           <div className="home-schedule-grid-inverted" style={{ width: '100%' }}>
             {/* Columns Header Row (Hours) */}
             <div className="home-schedule-header-row">
-              <div className="home-schedule-corner-inverted">Jour \ Heure</div>
+              <div className="home-schedule-corner-inverted">Jour ['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']Heure</div>
               <div className="home-schedule-hours-row">
                 {HOURS.map(hour => {
                   const colors = getHourColors(hour);

@@ -105,7 +105,7 @@ const getTodayFrench = () => {
 const formatRelativeTime = (timestamp) => {
   const diff = Date.now() - timestamp;
   const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return 'À l\'instant';
+  if (minutes < 1) return 'À l['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']instant';
   if (minutes < 60) return `Il y a ${minutes} min`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `Il y a ${hours}h`;
@@ -705,7 +705,7 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
         <div className="home-schedule-grid-inverted">
           {/* Columns Header Row (Hours) */}
           <div className="home-schedule-header-row">
-            <div className="home-schedule-corner-inverted">Jour \ Heure</div>
+            <div className="home-schedule-corner-inverted">Jour ['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']Heure</div>
             <div className="home-schedule-hours-row">
               {DASH_HOURS.map(hour => {
                 const colors = getHourColors(hour);
@@ -1103,11 +1103,11 @@ const AdminDashboard = () => {
   const exportCSV = () => {
     let data = tableData;
     if (data.length === 0) return showToast('Aucune donnée.', 'info');
-    const headers = activeTab === 'students' ? "\uFEFFNom,Prénom,Matricule,Niveau,Filière,Année,Statut\n" : "\uFEFFNom,Module,Statut\n";
+    const headers = activeTab === 'students' ? "\uFEFFNom,Prénom,Matricule,Niveau,Filière,Année,Statut['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']" : "\uFEFFNom,Module,Statut['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']";
     const rows = data.map(item => {
       if (activeTab === 'students') return `"${item.lastName}","${item.firstName}","${item.regNo}","${item.diploma || ''}","${item.major}","${item.year || ''}","ACTIF"`;
       return `"${item.name || ''}","${item.subject || ''}","ACTIF"`;
-    }).join('\n');
+    }).join('['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']');
     const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a'); link.href = URL.createObjectURL(blob);
     link.setAttribute('download', `IPFP_${activeTab}_${new Date().toISOString().split('T')[0]}.csv`);

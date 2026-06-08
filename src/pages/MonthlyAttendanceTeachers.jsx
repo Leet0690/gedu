@@ -180,11 +180,11 @@ const MonthlyAttendanceTeachers = () => {
 
   const exportCSV = () => {
     const dayHeaders = days.map(d => `${pad(d)}/${pad(month + 1)}`).join(',');
-    const header = `\uFEFFFormateur,${dayHeaders},Présents,Absents,Retards,Heures\n`;
+    const header = `\uFEFFFormateur,${dayHeaders},Présents,Absents,Retards,Heures['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']`;
     const rows = gridData.map(({ teacher, byDay, counts }) => {
       const cells = days.map(d => byDay[d] ? byDay[d][0].toUpperCase() : '-').join(',');
       return `"${teacher.name || ''}",${cells},${counts.present},${counts.absent},${counts.retard},${counts.totalHours}`;
-    }).join('\n');
+    }).join('['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']');
     const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
