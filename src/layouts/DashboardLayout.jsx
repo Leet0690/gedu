@@ -29,7 +29,8 @@ import {
   School,
   WifiOff,
   Wand2,
-  ArrowUp
+  ArrowUp,
+  GraduationCap
 } from 'lucide-react';
 
 const useOnlineStatus = () => {
@@ -82,6 +83,7 @@ const NAV_CATEGORIES = [
       { to: "/admin/students", icon: Users, label: "Stagiaires", color: "text-sky-500" },
       { to: "/admin/teachers", icon: Presentation, label: "Formateurs", color: "text-indigo-500" },
       { to: "/admin/finance", icon: Wallet, label: "Finance", color: "text-green-600" },
+      { to: "/admin/continuous", icon: GraduationCap, label: "Formations Continues", color: "text-purple-500" },
     ]
   }
 ];

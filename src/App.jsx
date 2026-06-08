@@ -23,6 +23,7 @@ const MonthlyAttendance        = lazy(() => import('./pages/MonthlyAttendance'))
 const MonthlyAttendanceTeachers = lazy(() => import('./pages/MonthlyAttendanceTeachers'));
 const AccessLogs               = lazy(() => import('./pages/AccessLogs'));
 const ScheduleGeneration       = lazy(() => import('./pages/ScheduleGeneration'));
+const ContinuousTrainings      = lazy(() => import('./pages/ContinuousTrainings'));
 const PageLoader = () => (
   <div className="app-loader-shell">
     <div className="app-loader" role="status" aria-label="Chargement">
@@ -113,6 +114,7 @@ const AppContent = () => {
         <Route path="/admin/reports" element={<Reports />} />
         <Route path="/admin/attendance-teachers" element={<TeacherAttendance />} />
         <Route path="/admin/finance" element={<FinanceDashboard />} />
+        <Route path="/admin/continuous" element={<ContinuousTrainings />} />
         <Route path="/admin/logs" element={<AccessLogs />} />
         <Route path="/admin/schedule-generation" element={<ScheduleGeneration />} />
         <Route path="/admin/access-logs" element={<Navigate to="/admin/logs" replace />} />

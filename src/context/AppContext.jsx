@@ -234,6 +234,9 @@ export const AppProvider = ({ children }) => {
   const [salaries, setSalaries] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [modules, setModules] = useState([]);
+  const [continuousTrainings, setContinuousTrainings] = useState([]);
+  const [ctStudents, setCtStudents] = useState([]);
+  const [ctSessions, setCtSessions] = useState([]);
   const [accessLogs, setAccessLogs] = useState([]);
   const [activeSemester, setActiveSemesterState] = useState(() => {
     try { return normalizeSemester(localStorage.getItem(ACTIVE_SEMESTER_KEY)); } catch { return 'S1'; }
@@ -384,6 +387,17 @@ export const AppProvider = ({ children }) => {
           setGrades(coreData.grades || {});
           setSchedules(coreData.schedules || []);
           setModules(coreData.modules || []);
+
+          Promise.all([
+            getDocs(query(collection(db, 'continuousTrainings'), orderBy('createdAt', 'desc'))),
+            getDocs(query(collection(db, 'ctStudents'), orderBy('createdAt', 'desc'))),
+            getDocs(query(collection(db, 'ctSessions'), orderBy('createdAt', 'desc')))
+          ]).then(([ctSnap, ctsSnap, ctSesSnap]) => {
+            if (!isMounted) return;
+            setContinuousTrainings(ctSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+            setCtStudents(ctsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+            setCtSessions(ctSesSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+          }).catch(error => console.warn('Impossible de charger les formations continues:', error));
 
         } else if (isStudentPortal) {
           // 2. Portail Stagiaire: Chargement EXCLUSIF des données de ce stagiaire
@@ -1240,6 +1254,40 @@ export const AppProvider = ({ children }) => {
     showToast(`Module supprimé.`, 'warning');
   };
 
+  // --- FORMATIONS CONTINUES ---
+  const addContinuousTraining = async (data) => {
+    const docRef = await addDoc(collection(db, 'continuousTrainings'), { ...data, createdAt: serverTimestamp() });
+    setContinuousTrainings(prev => [{ id: docRef.id, ...data }, ...prev]);
+  };
+  const updateContinuousTraining = async (id, data) => {
+    await updateDoc(doc(db, 'continuousTrainings', id), data);
+    setContinuousTrainings(prev => prev.map(item => item.id === id ? { ...item, ...data } : item));
+  };
+  const deleteContinuousTraining = async (id) => {
+    await deleteDoc(doc(db, 'continuousTrainings', id));
+    setContinuousTrainings(prev => prev.filter(item => item.id !== id));
+  };
+  const addCtStudent = async (data) => {
+    const docRef = await addDoc(collection(db, 'ctStudents'), { ...data, createdAt: serverTimestamp() });
+    setCtStudents(prev => [{ id: docRef.id, ...data }, ...prev]);
+  };
+  const updateCtStudent = async (id, data) => {
+    await updateDoc(doc(db, 'ctStudents', id), data);
+    setCtStudents(prev => prev.map(item => item.id === id ? { ...item, ...data } : item));
+  };
+  const deleteCtStudent = async (id) => {
+    await deleteDoc(doc(db, 'ctStudents', id));
+    setCtStudents(prev => prev.filter(item => item.id !== id));
+  };
+  const addCtSession = async (data) => {
+    const docRef = await addDoc(collection(db, 'ctSessions'), { ...data, createdAt: serverTimestamp() });
+    setCtSessions(prev => [{ id: docRef.id, ...data }, ...prev]);
+  };
+  const deleteCtSession = async (id) => {
+    await deleteDoc(doc(db, 'ctSessions', id));
+    setCtSessions(prev => prev.filter(item => item.id !== id));
+  };
+
   return (
     <AppContext.Provider value={{
       students, teachers, grades, isAuthenticated, isDirectorAuth, loading,
@@ -1250,6 +1298,9 @@ export const AppProvider = ({ children }) => {
       schedules, addSchedule, updateSchedule, deleteSchedule, clearAllSchedules, migrateTeacherTokens,
       payments, salaries, expenses, loadFinancialData, addPayment, updatePayment, deletePayment, addSalary, updateSalary, deleteSalary, addExpense, deleteExpense,
       modules, addModule, updateModule, deleteModule,
+      continuousTrainings, addContinuousTraining, updateContinuousTraining, deleteContinuousTraining,
+      ctStudents, addCtStudent, updateCtStudent, deleteCtStudent,
+      ctSessions, addCtSession, deleteCtSession,
       accessLogs, logAppAccess, loadAccessLogs,
       activeSemester, setActiveSemester, getActiveScheduleModule,
       confirmAction, notifications, markNotificationAsRead, clearNotifications
