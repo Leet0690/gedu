@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
-import { FILIERES } from '../data/modules';
+import { FILIERES, getStudyYearsForMajor } from '../data/modules';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import { isActiveStudent } from '../utils/studentStatus';
 import {
@@ -61,7 +61,7 @@ const MonthlyAttendance = () => {
   const [search, setSearch] = useState('');
 
   const allFilieres = useMemo(() => Array.from(new Set(Object.values(FILIERES).flat())), []);
-  const allAnnees = ['1ère année', '2ème année'];
+  const allAnnees = useMemo(() => getStudyYearsForMajor(filterFiliere), [filterFiliere]);
   const availableYears = useMemo(() => {
     const y = now.getFullYear();
     return [y - 1, y, y + 1];
@@ -118,11 +118,11 @@ const MonthlyAttendance = () => {
 
   const exportCSV = () => {
     const dayHeaders = days.map(d => `${pad(d)}/${pad(month + 1)}`).join(',');
-    const header = `\uFEFFNom,Prénom,Matricule,${dayHeaders},Présents,Absents,Retards['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']`;
+    const header = `\uFEFFNom,Prénom,Matricule,${dayHeaders},Présents,Absents,Retards\n`;
     const rows = gridData.map(({ student, byDay, counts }) => {
       const cells = days.map(d => byDay[d] ? byDay[d][0].toUpperCase() : '-').join(',');
       return `"${student.lastName}","${student.firstName}","${student.regNo || ''}",${cells},${counts.present},${counts.absent},${counts.retard}`;
-    }).join('['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']');
+    }).join('\n');
     const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -179,7 +179,7 @@ const MonthlyAttendance = () => {
             <label style={labelStyle}>Filière</label>
             <FilterSelect
               value={filterFiliere}
-              onChange={(val) => setFilterFiliere(val)}
+              onChange={(val) => { setFilterFiliere(val); setFilterAnnee(''); }}
               options={[
                 { label: "Toutes les filières", value: "" },
                 ...allFilieres.map(f => ({ label: f, value: f }))

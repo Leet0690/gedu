@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
-import { getModulesForStudent, MODULES_DATA } from '../data/modules';
+import { ALL_STUDY_YEARS, getClassCode, getModulesForStudent, MODULES_DATA } from '../data/modules';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import { 
@@ -71,23 +71,7 @@ const GradeInput = ({ value, onChange, placeholder = '—' }) => {
   );
 };
 
-const getGroupAbbreviation = (filiere, annee) => {
-  let diplomaAbbr = "";
-  let majorAbbr = "";
-  for (const dip in MODULES_DATA) {
-    if (MODULES_DATA[dip][filiere]) {
-      diplomaAbbr = dip.includes('Spécialisé') ? "TS" : "T";
-      break;
-    }
-  }
-  if (filiere.includes('Développement')) majorAbbr = "DI";
-  else if (filiere.includes('Gestion Informatisée')) majorAbbr = "GI";
-  else if (filiere.includes('Logistique')) majorAbbr = "GTL";
-  else if (filiere.includes('Entreprises')) majorAbbr = "GE";
-  else majorAbbr = filiere.split(' ').map(w => w[0]).join('').toUpperCase();
-  const yearNum = annee.includes('1') ? "1" : "2";
-  return diplomaAbbr + majorAbbr + yearNum;
-};
+const getGroupAbbreviation = (filiere, annee) => getClassCode('', filiere, annee);
 
 const TeacherPortal = () => {
   const { teacherId } = useParams();
@@ -238,7 +222,7 @@ const TeacherPortal = () => {
 
   const availableYears = useMemo(() => {
     if (!teacher || !selectedDiploma) return [];
-    const teacherYears = teacher.years || ['1ère année', '2ème année'];
+    const teacherYears = teacher.years || ALL_STUDY_YEARS;
     const teacherSubjects = teacher.subjects || [teacher.subject] || [];
     return teacherYears.filter(y =>
       (allModules || []).some(m =>

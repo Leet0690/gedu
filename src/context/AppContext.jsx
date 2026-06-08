@@ -14,16 +14,25 @@ import {
   where,
   limit,
   writeBatch,
-  onSnapshot
+  onSnapshot,
+  runTransaction
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import ConfirmModal from '../components/ConfirmModal';
 import { useToast } from './ToastContext';
 import { sanitizeGradeKey } from '../utils/gradeSync';
-import { FIRST_YEAR, SECOND_YEAR, STUDENT_STATUS, isActiveStudent, validateAcademicYearTransition } from '../utils/studentStatus';
+import { STUDENT_STATUS, isActiveStudent, validateAcademicYearTransition } from '../utils/studentStatus';
+import { getNextStudyYear, isKnownStudyYear } from '../data/modules';
 
 const AppContext = createContext();
 const ACCESS_LOG_LIMIT = 5;
+const RECEIPT_COUNTERS_COLLECTION = 'receipt_counters';
+const STUDENT_RECEIPT_PREFIX = 'FD';
+
+const getReceiptNumberValue = (receiptNumber = '', prefix = '') => {
+  const match = String(receiptNumber).match(/^([A-Z]+)(\d+)$/);
+  return match?.[1] === prefix ? parseInt(match[2], 10) || 0 : 0;
+};
 
 export const useApp = () => useContext(AppContext);
 
@@ -617,7 +626,7 @@ export const AppProvider = ({ children }) => {
     const operationId = `academic-year-${Date.now()}`;
     const candidates = (students || [])
       .filter(isActiveStudent)
-      .filter(s => s.year === FIRST_YEAR || s.year === SECOND_YEAR);
+      .filter(s => isKnownStudyYear(s.diploma, s.year));
 
     if (candidates.length === 0) {
       showToast('Aucun stagiaire actif \u00e0 promouvoir.', 'info');
@@ -646,7 +655,8 @@ export const AppProvider = ({ children }) => {
       };
       const classHistory = [...(Array.isArray(student.classHistory) ? student.classHistory : []), historyEntry];
 
-      if (student.year === SECOND_YEAR) {
+      const nextStudyYear = getNextStudyYear(student.diploma, student.year);
+      if (!nextStudyYear) {
         return {
           id: student.id,
           localData: {
@@ -669,20 +679,20 @@ export const AppProvider = ({ children }) => {
       return {
         id: student.id,
         localData: {
-          year: SECOND_YEAR,
+          year: nextStudyYear,
           status: STUDENT_STATUS.ACTIVE,
           academicYear: toAcademicYear,
           previousAcademicYear: fromAcademicYear,
-          promotedFromYear: FIRST_YEAR,
+          promotedFromYear: student.year,
           promotedAt: closedAt,
           classHistory,
         },
         firestoreData: {
-          year: SECOND_YEAR,
+          year: nextStudyYear,
           status: STUDENT_STATUS.ACTIVE,
           academicYear: toAcademicYear,
           previousAcademicYear: fromAcademicYear,
-          promotedFromYear: FIRST_YEAR,
+          promotedFromYear: student.year,
           promotedAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           classHistory,
@@ -1086,11 +1096,32 @@ export const AppProvider = ({ children }) => {
   }, [showToast]);
 
   const addPayment = async (paymentData) => {
-    const newPayment = { ...paymentData, createdAt: serverTimestamp() };
-    const docRef = await addDoc(collection(db, 'payments'), newPayment);
-    setPayments(prev => [{ id: docRef.id, ...newPayment }, ...prev]);
+    const prefix = STUDENT_RECEIPT_PREFIX;
+    const existingFloor = Math.max(
+      payments.length,
+      ...payments.map(payment => getReceiptNumberValue(payment.receiptNumber, prefix))
+    );
+    const paymentRef = doc(collection(db, 'payments'));
+    const counterRef = doc(db, RECEIPT_COUNTERS_COLLECTION, 'payment_FD');
+    let newPayment;
+
+    await runTransaction(db, async transaction => {
+      const counterSnapshot = await transaction.get(counterRef);
+      const currentValue = counterSnapshot.exists() ? Number(counterSnapshot.data()?.value) || 0 : 0;
+      const nextValue = Math.max(currentValue, existingFloor) + 1;
+      newPayment = {
+        ...paymentData,
+        receiptNumber: `${prefix}${String(nextValue).padStart(4, '0')}`,
+        createdAt: serverTimestamp()
+      };
+      transaction.set(counterRef, { value: nextValue, updatedAt: serverTimestamp() }, { merge: true });
+      transaction.set(paymentRef, newPayment);
+    });
+
+    setPayments(prev => [{ id: paymentRef.id, ...newPayment }, ...prev]);
     localStorage.removeItem(FINANCE_CACHE_KEY);
     showToast('Paiement enregistré', 'success');
+    return { id: paymentRef.id, ...newPayment };
   };
 
   const updatePayment = async (id, data) => {
@@ -1108,11 +1139,32 @@ export const AppProvider = ({ children }) => {
   };
 
   const addSalary = async (salaryData) => {
-    const newSalary = { ...salaryData, createdAt: serverTimestamp() };
-    const docRef = await addDoc(collection(db, 'salaries'), newSalary);
-    setSalaries(prev => [{ id: docRef.id, ...newSalary }, ...prev]);
+    const prefix = 'F';
+    const existingFloor = Math.max(
+      salaries.length,
+      ...salaries.map(salary => getReceiptNumberValue(salary.receiptNumber, prefix))
+    );
+    const salaryRef = doc(collection(db, 'salaries'));
+    const counterRef = doc(db, RECEIPT_COUNTERS_COLLECTION, 'salary_F');
+    let newSalary;
+
+    await runTransaction(db, async transaction => {
+      const counterSnapshot = await transaction.get(counterRef);
+      const currentValue = counterSnapshot.exists() ? Number(counterSnapshot.data()?.value) || 0 : 0;
+      const nextValue = Math.max(currentValue, existingFloor) + 1;
+      newSalary = {
+        ...salaryData,
+        receiptNumber: `F${String(nextValue).padStart(4, '0')}`,
+        createdAt: serverTimestamp()
+      };
+      transaction.set(counterRef, { value: nextValue, updatedAt: serverTimestamp() }, { merge: true });
+      transaction.set(salaryRef, newSalary);
+    });
+
+    setSalaries(prev => [{ id: salaryRef.id, ...newSalary }, ...prev]);
     localStorage.removeItem(FINANCE_CACHE_KEY);
     showToast('Salaire enregistré', 'success');
+    return { id: salaryRef.id, ...newSalary };
   };
 
   const updateSalary = async (id, data) => {

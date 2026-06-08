@@ -3,34 +3,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
-import { FILIERES, MODULES_DATA } from '../data/modules';
+import { FILIERES, getClassCode, getNextStudyYear, getStudyYearsForDiploma } from '../data/modules';
 import { generateFicheSignature, generateFicheNotes, generateBulletinGlobal, generateNoteObtentionDiplome } from '../utils/pdfGenerator';
 import { getStudentGradeModules, sanitizeGradeKey } from '../utils/gradeSync';
 import { isActiveStudent } from '../utils/studentStatus';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 
-const getGroupAbbreviation = (filiere, annee) => {
-  let diplomaAbbr = "";
-  let majorAbbr = "";
-  
-  for (const dip in MODULES_DATA) {
-    if (MODULES_DATA[dip] && MODULES_DATA[dip][filiere]) {
-      diplomaAbbr = dip.includes('Spécialisé') ? "TS" : "T";
-      break;
-    }
-  }
-
-  if (filiere.includes('Développement')) majorAbbr = "DI";
-  else if (filiere.includes('Gestion Informatisée')) majorAbbr = "GI";
-  else if (filiere.includes('Logistique')) majorAbbr = "GTL";
-  else if (filiere.includes('Entreprises')) majorAbbr = "GE";
-  else majorAbbr = filiere.split(' ').map(w => w[0]).join('').toUpperCase();
-
-  const yearNum = annee.includes('1') ? "1" : "2";
-  
-  return diplomaAbbr + majorAbbr + yearNum;
-};
+const getGroupAbbreviation = (filiere, annee) => getClassCode('', filiere, annee);
 
 const getClassColor = (label) => {
   const colors = {
@@ -132,6 +112,9 @@ const GradeManagement = () => {
   const availableMajors = filterDiploma ? (FILIERES[filterDiploma] || []) : Array.from(new Set(activeStudents.map(s => s.major)));
 
   const selectedStudent = activeStudents.find(s => s.id === selectedStudentId);
+  const supportsTwoYearFinalDocument = !!selectedStudent
+    && getStudyYearsForDiploma(selectedStudent.diploma).length > 1
+    && !getNextStudyYear(selectedStudent.diploma, selectedStudent.year);
   const studentModules = useMemo(() => {
     return getStudentGradeModules(allModules, selectedStudent);
   }, [selectedStudent, allModules]);
@@ -359,7 +342,7 @@ const GradeManagement = () => {
             <label style={lbl}>Niveau</label>
             <FilterSelect
               value={filterDiploma}
-              onChange={(val) => { setFilterDiploma(val); setFilterMajor(''); setSelectedStudentId(''); setPdfModule(''); }}
+              onChange={(val) => { setFilterDiploma(val); setFilterMajor(''); setFilterYear(''); setSelectedStudentId(''); setPdfModule(''); }}
               options={[
                 { label: "-- Choisir le niveau --", value: "" },
                 ...Object.keys(FILIERES).map(d => ({ label: d, value: d }))
@@ -384,8 +367,7 @@ const GradeManagement = () => {
               onChange={(val) => { setFilterYear(val); setSelectedStudentId(''); setPdfModule(''); }}
               options={[
                 { label: "-- Choisir l'année --", value: "" },
-                { label: "1ère année", value: "1ère année" },
-                { label: "2ème année", value: "2ème année" }
+                ...getStudyYearsForDiploma(filterDiploma).map(year => ({ label: year, value: year }))
               ]}
             />
           </div>
@@ -499,8 +481,8 @@ const GradeManagement = () => {
                       <Award size={16} style={{ color: '#8b5cf6' }} />
                       <h4 style={{ fontSize: 'var(--text-sm)', fontWeight: '800' }}>Attestation Admis</h4>
                     </div>
-                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '22px' }}>Note d'obtention (2ème année uniquement).</p>
-                    <button onClick={handleNoteObtentionDiplome} disabled={!selectedStudent || selectedStudent.year === '1ère année'} className="btn-modern primary" style={{ width: '100%', background: '#8b5cf6', borderColor: '#8b5cf6', opacity: (!selectedStudent || selectedStudent.year === '1ère année') ? 0.5 : 1 }}>
+                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '22px' }}>Note d'obtention disponible en fin de cycle de deux années.</p>
+                    <button onClick={handleNoteObtentionDiplome} disabled={!supportsTwoYearFinalDocument} className="btn-modern primary" style={{ width: '100%', background: '#8b5cf6', borderColor: '#8b5cf6', opacity: supportsTwoYearFinalDocument ? 1 : 0.5 }}>
                       <Download size={14} style={{ marginRight: '8px' }} /> Attestation
                     </button>
                   </div>
@@ -562,7 +544,7 @@ const GradeManagement = () => {
             </AnimatePresence>
 
             {/* 2nd Year Specific Saisie */}
-            {selectedStudent.year === '2ème année' && (
+            {supportsTwoYearFinalDocument && (
               <div className="glass-card" style={{ padding: '20px', marginBottom: '20px', background: 'rgba(99, 102, 241, 0.03)', border: '1px dashed var(--primary-light)' }}>
                 <h4 style={{ fontSize: 'var(--text-sm)', fontWeight: '800', marginBottom: '16px', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <History size={16} /> Historique & NSTI

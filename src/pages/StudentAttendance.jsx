@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
-import { FILIERES, getModulesForFiliere } from '../data/modules';
+import { FILIERES, getModulesForFiliere, getStudyYearsForDiploma, getStudyYearsForMajor } from '../data/modules';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import { DatePicker } from '../components/ui';
@@ -314,12 +314,12 @@ const StudentAttendance = () => {
 
   const exportDailyCSV = () => {
     if (!filteredStudents.length) return showToast('Aucune donnée.', 'info');
-    const headers = "\uFEFFStagiaire,Matricule,Module,Date,Statut,Commentaire['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']";
+    const headers = "\uFEFFStagiaire,Matricule,Module,Date,Statut,Commentaire\n";
     const rows = filteredStudents.map(s => {
       const docId = `${s.id}_${(filterModule || 'global').replace(/[^a-zA-Z0-9]/g, '_')}_${selectedDate}`;
       const r = studentAttendance.find(a => a.id === docId) || {};
       return `"${s.lastName} ${s.firstName}","${s.regNo}","${filterModule}","${selectedDate}","${r.status || 'non défini'}","${r.comment || ''}"`;
-    }).join('['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']');
+    }).join('\n');
     const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a'); link.href = URL.createObjectURL(blob);
     link.setAttribute('download', `Absences_Stagiaires_${selectedDate}.csv`);
@@ -439,14 +439,14 @@ const StudentAttendance = () => {
        return showToast("Veuillez sélectionner une filière et une année pour exporter.", "warning");
     }
     const dayHeaders = monthColumns.map(c => `${pad(c.d)}/${pad(mMonth + 1)} ${c.module} (${c.time})`).join(',');
-    const header = `\uFEFFNom,Prénom,Matricule,${dayHeaders},Séances Présentes,Séances Absentes['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']`;
+    const header = `\uFEFFNom,Prénom,Matricule,${dayHeaders},Séances Présentes,Séances Absentes\n`;
     const rows = mGridData.map(({ student, byColumn, counts }) => {
       const cells = monthColumns.map(c => {
         const st = byColumn[c.key];
         return st ? st[0].toUpperCase() : '-';
       }).join(',');
       return `"${student.lastName}","${student.firstName}","${student.regNo || ''}",${cells},${counts.present},${counts.absent}`;
-    }).join('['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']');
+    }).join('\n');
     const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -536,7 +536,7 @@ const StudentAttendance = () => {
                 <label style={labelStyle}>Niveau</label>
                 <FilterSelect
                   value={filterDiploma}
-                  onChange={(val) => { setFilterDiploma(val); setFilterMajor(''); setFilterModule(''); }}
+                  onChange={(val) => { setFilterDiploma(val); setFilterMajor(''); setFilterYear(''); setFilterModule(''); }}
                   options={[
                     { label: "Choisir niveau", value: "" },
                     ...Object.keys(FILIERES).map(d => ({ label: d, value: d }))
@@ -563,8 +563,7 @@ const StudentAttendance = () => {
                   onChange={(val) => { setFilterYear(val); setFilterModule(''); }}
                   options={[
                     { label: "Année", value: "" },
-                    { label: "1ère année", value: "1ère année" },
-                    { label: "2ème année", value: "2ème année" }
+                    ...getStudyYearsForDiploma(filterDiploma).map(year => ({ label: year, value: year }))
                   ]}
                   style={{ width: '100%' }}
                 />
@@ -750,8 +749,7 @@ const StudentAttendance = () => {
                   onChange={(val) => setMFilterAnnee(val)}
                   options={[
                     { label: "Toutes années", value: "" },
-                    { label: "1ère année", value: "1ère année" },
-                    { label: "2ème année", value: "2ème année" }
+                    ...getStudyYearsForMajor(mFilterFiliere).map(year => ({ label: year, value: year }))
                   ]}
                   style={{ width: '100%' }}
                 />

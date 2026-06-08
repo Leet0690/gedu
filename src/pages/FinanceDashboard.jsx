@@ -182,6 +182,22 @@ const getPaymentBaseAmount = (payment) => {
   return Math.max(0, getPaymentTotal(payment) - feesTotal);
 };
 
+const STUDENT_RECEIPT_PREFIX = 'FD';
+
+const getCreatedAtValue = (record = {}) => {
+  if (typeof record.createdAt?.toMillis === 'function') return record.createdAt.toMillis();
+  if (typeof record.createdAt?.seconds === 'number') return record.createdAt.seconds * 1000;
+  return 0;
+};
+
+const getLegacyReceiptNumber = (record, records, prefix, getPrefix = () => prefix) => {
+  const orderedRecords = records
+    .filter(item => getPrefix(item) === prefix)
+    .sort((a, b) => getCreatedAtValue(a) - getCreatedAtValue(b) || String(a.id).localeCompare(String(b.id)));
+  const index = orderedRecords.findIndex(item => item.id === record.id);
+  return `${prefix}${String(Math.max(index + 1, 1)).padStart(4, '0')}`;
+};
+
 const getTeacherMonthlySessionRows = (attendance, teacherId, month, year, schedules = [], getScheduleModule) => {
   const rows = [];
   getMonthDates(month, year).forEach(date => {
@@ -337,7 +353,7 @@ const FinanceDashboard = () => {
         getPaymentStatusLabel(p.status)
       ]);
     });
-    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']');
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url;
@@ -390,63 +406,95 @@ const FinanceDashboard = () => {
     setShowPaymentModal(true);
   };
 
+  const resolvePaymentReceiptNumber = (payment) =>
+    /^FD\d+$/.test(payment.receiptNumber || '')
+      ? payment.receiptNumber
+      : getLegacyReceiptNumber(payment, payments, STUDENT_RECEIPT_PREFIX);
+
+  const resolveSalaryReceiptNumber = (salary) =>
+    salary.receiptNumber || getLegacyReceiptNumber(salary, salaries, 'F');
+
   const generateReceipt = (payment, student) => {
     if (!student) return showToast('Stagiaire introuvable', 'warning');
 
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
     const w = doc.internal.pageSize.getWidth();
-    const margin = 10;
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const halfPageHeight = pageHeight / 2;
+    const margin = 7;
     const feeItems = getPaymentFeeItems(payment);
-    const lineItems = [
+    const rawLineItems = [
       { label: `Frais de formation - ${payment.month}`, amount: getPaymentBaseAmount(payment) },
       ...feeItems
     ].filter(item => item.amount > 0);
+    const lineItems = rawLineItems.length > 8
+      ? [
+          ...rawLineItems.slice(0, 7),
+          {
+            label: `Autres frais (${rawLineItems.length - 7})`,
+            amount: rawLineItems.slice(7).reduce((sum, item) => sum + item.amount, 0)
+          }
+        ]
+      : rawLineItems;
     const total = getPaymentTotal(payment);
+    const receiptNumber = resolvePaymentReceiptNumber(payment, student);
 
-    try { doc.addImage(logoBase64, 'JPEG', margin, 8, 34, 15); } catch(e) {}
-    doc.setFontSize(14); doc.setTextColor(35, 35, 35); doc.setFont('helvetica', 'bold');
-    doc.text('RECU DE PAIEMENT', w / 2, 28, { align: 'center' });
-    doc.setDrawColor(200); doc.line(margin, 33, w - margin, 33);
+    const drawReceiptCopy = (offsetY, copyLabel) => {
+      try { doc.addImage(logoBase64, 'JPEG', margin, offsetY + 2.5, 20, 8.5); } catch {}
+      doc.setFontSize(5.5); doc.setTextColor(120, 120, 120); doc.setFont('helvetica', 'bold');
+      doc.text(copyLabel, w - margin, offsetY + 5.5, { align: 'right' });
+      doc.setFontSize(9.5); doc.setTextColor(35, 35, 35);
+      doc.text('RECU DE PAIEMENT', w / 2, offsetY + 11.5, { align: 'center' });
+      doc.setDrawColor(200); doc.line(margin, offsetY + 14.5, w - margin, offsetY + 14.5);
 
-    doc.setFontSize(8); doc.setTextColor(80, 80, 80); doc.setFont('helvetica', 'normal');
-    doc.text(`N Recu: ${payment.id.substring(0, 8).toUpperCase()}`, margin, 42);
-    doc.text(`Date: ${payment.date}`, w - margin, 42, { align: 'right' });
+      doc.setFontSize(6); doc.setTextColor(80, 80, 80); doc.setFont('helvetica', 'normal');
+      doc.text(`N Recu: ${receiptNumber}`, margin, offsetY + 19);
+      doc.text(`Date: ${payment.date}`, w - margin, offsetY + 19, { align: 'right' });
 
-    doc.setFillColor(248, 250, 252); doc.rect(margin, 48, w - (margin * 2), 34, 'F');
-    doc.setDrawColor(226, 232, 240); doc.rect(margin, 48, w - (margin * 2), 34, 'S');
-    doc.setTextColor(40, 40, 40); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-    doc.text('Stagiaire', margin + 5, 57);
-    doc.text('Paiement', 86, 57);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-    doc.text(`${student.firstName || ''} ${student.lastName || ''}`.trim(), margin + 5, 65);
-    doc.text(`Filiere: ${student.major || '-'}`, margin + 5, 72);
-    doc.text(`Mois: ${payment.month}`, 86, 65);
-    doc.text(`Mode: ${payment.paymentMethod || 'Espèces'}`, 86, 72);
+      doc.setFillColor(248, 250, 252); doc.rect(margin, offsetY + 22, w - (margin * 2), 18, 'F');
+      doc.setDrawColor(226, 232, 240); doc.rect(margin, offsetY + 22, w - (margin * 2), 18, 'S');
+      doc.setTextColor(40, 40, 40); doc.setFont('helvetica', 'bold'); doc.setFontSize(6);
+      doc.text('Stagiaire', margin + 3, offsetY + 27);
+      doc.text('Paiement', w / 2 + 3, offsetY + 27);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5);
+      doc.text(doc.splitTextToSize(`${student.firstName || ''} ${student.lastName || ''}`.trim(), 56)[0] || '-', margin + 3, offsetY + 32);
+      doc.text(doc.splitTextToSize(`Filiere: ${student.major || '-'}`, 56)[0] || '-', margin + 3, offsetY + 37);
+      doc.text(`Mois: ${payment.month}`, w / 2 + 3, offsetY + 32);
+      doc.text(`Mode: ${payment.paymentMethod || 'Espèces'}`, w / 2 + 3, offsetY + 37);
 
-    let y = 94;
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-    doc.text('Designation', margin, y);
-    doc.text('Montant', w - margin, y, { align: 'right' });
-    y += 3;
-    doc.setDrawColor(210); doc.line(margin, y, w - margin, y);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+      let y = offsetY + 47;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(6);
+      doc.text('Designation', margin, y);
+      doc.text('Montant', w - margin, y, { align: 'right' });
+      y += 2;
+      doc.setDrawColor(210); doc.line(margin, y, w - margin, y);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5);
 
-    lineItems.forEach(item => {
-      y += 8;
-      doc.text(item.label, margin, y);
-      doc.text(`${formatMoney(item.amount)} DH`, w - margin, y, { align: 'right' });
-    });
+      lineItems.forEach(item => {
+        y += 4;
+        doc.text(doc.splitTextToSize(item.label, w - (margin * 2) - 30)[0] || '-', margin, y);
+        doc.text(`${formatMoney(item.amount)} DH`, w - margin, y, { align: 'right' });
+      });
 
-    y += 10;
-    doc.setDrawColor(35); doc.line(margin, y, w - margin, y);
-    y += 9;
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
-    doc.text('TOTAL PAYE', margin, y);
-    doc.text(`${formatMoney(total)} DH`, w - margin, y, { align: 'right' });
+      y += 4;
+      doc.setDrawColor(35); doc.line(margin, y, w - margin, y);
+      y += 5;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
+      doc.text('TOTAL PAYE', margin, y);
+      doc.text(`${formatMoney(total)} DH`, w - margin, y, { align: 'right' });
 
-    doc.setFontSize(8); doc.setFont('helvetica', 'italic');
-    doc.text('Signature et Cachet IPFP', w - margin - 38, 188);
-    doc.save(`Recu_${student.lastName}_${payment.month}.pdf`);
+      doc.setFontSize(5.5); doc.setFont('helvetica', 'italic');
+      doc.text('Signature et Cachet IPFP', w - margin, offsetY + 99, { align: 'right' });
+    };
+
+    drawReceiptCopy(0, 'COPIE STAGIAIRE');
+    doc.setDrawColor(130, 130, 130);
+    doc.setLineDashPattern([1.5, 1.5], 0);
+    doc.line(8, halfPageHeight, w - 8, halfPageHeight);
+    doc.setLineDashPattern([], 0);
+    drawReceiptCopy(halfPageHeight, 'COPIE ADMINISTRATION');
+
+    doc.save(`Recu_${receiptNumber}_${student.lastName}_${payment.month}.pdf`);
     showToast('Reçu généré', 'success');
   };
 
@@ -470,7 +518,8 @@ const FinanceDashboard = () => {
     doc.setDrawColor(200); doc.line(margin, 33, w - margin, 33);
 
     doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(80, 80, 80);
-    doc.text(`N Recu: ${salary.id.substring(0, 8).toUpperCase()}`, margin, 42);
+    const salaryReceiptNumber = resolveSalaryReceiptNumber(salary);
+    doc.text(`N Recu: ${salaryReceiptNumber}`, margin, 42);
     doc.text(`Date: ${salary.date || new Date().toISOString().split('T')[0]}`, w - margin, 42, { align: 'right' });
     doc.text(`Formateur: ${salary.teacherName || teacher?.name || '-'}`, margin, 50);
     doc.text(`Periode: ${salary.month} ${salary.year}`, margin, 57);
@@ -521,7 +570,7 @@ const FinanceDashboard = () => {
     doc.setFontSize(8); doc.setFont('helvetica', 'italic');
     doc.text('Signature formateur', margin, 196);
     doc.text('Signature et Cachet IPFP', w - margin - 38, 196);
-    doc.save(`Recu_Formateur_${(salary.teacherName || 'Formateur').replace(/\s+/g, '_')}_${salary.month}_${salary.year}.pdf`);
+    doc.save(`Recu_${salaryReceiptNumber}_Formateur_${(salary.teacherName || 'Formateur').replace(/\s+/g, '_')}_${salary.month}_${salary.year}.pdf`);
     showToast('Reçu formateur généré', 'success');
   };
 
@@ -1035,6 +1084,7 @@ const FinanceDashboard = () => {
               <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: 'var(--bg-subtle)' }}>
+                    <th style={thStyle}>N° Reçu</th>
                     <th style={thStyle}>Stagiaire</th>
                     <th style={thStyle}>Période</th>
                     <th style={thStyle}>Montant</th>
@@ -1045,12 +1095,17 @@ const FinanceDashboard = () => {
                 </thead>
                 <tbody>
                   {filteredPayments.length === 0 ? (
-                    <tr><td colSpan="6"><EmptyState title="Aucun paiement" message="Aucune transaction trouvée pour cette recherche." icon="search" /></td></tr>
+                    <tr><td colSpan="7"><EmptyState title="Aucun paiement" message="Aucune transaction trouvée pour cette recherche." icon="search" /></td></tr>
                   ) : paginatedPayments.map(p => {
                     const student = students.find(s => s.id === p.studentId);
                     const paymentStatus = getPaymentStatusKey(p.status);
                     return (
                       <tr key={p.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                        <td style={tdStyle}>
+                          <span style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: '900', color: 'var(--primary)' }}>
+                            {p.isVirtualUnpaid ? '—' : resolvePaymentReceiptNumber(p, student)}
+                          </span>
+                        </td>
                         <td style={tdStyle}>
                           <p style={{ fontWeight: '700', fontSize: 'var(--text-sm)' }}>{student?.firstName} {student?.lastName}</p>
                           <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{student?.major}</p>
@@ -1392,6 +1447,7 @@ const FinanceDashboard = () => {
               <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: 'var(--bg-subtle)' }}>
+                    <th style={thStyle}>N° Reçu</th>
                     <th style={thStyle}>Bénéficiaire</th>
                     <th style={thStyle}>Période</th>
                     <th style={thStyle}>Montant</th>
@@ -1401,9 +1457,14 @@ const FinanceDashboard = () => {
                 </thead>
                 <tbody>
                   {paginatedSalaries.length === 0 ? (
-                    <tr><td colSpan="5"><EmptyState title="Aucun historique" message="Aucun versement n'a encore été enregistré." icon="history" /></td></tr>
+                    <tr><td colSpan="6"><EmptyState title="Aucun historique" message="Aucun versement n'a encore été enregistré." icon="history" /></td></tr>
                   ) : paginatedSalaries.map(s => (
                     <tr key={s.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                      <td style={tdStyle}>
+                        <span style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: '900', color: 'var(--primary)' }}>
+                          {resolveSalaryReceiptNumber(s)}
+                        </span>
+                      </td>
                       <td style={tdStyle}><span style={{ fontWeight: '700' }}>{s.teacherName}</span></td>
                       <td style={tdStyle}>{s.month} {s.year}</td>
                       <td style={tdStyle}><span style={{ fontWeight: '800' }}>{s.amount.toLocaleString()} DH</span></td>

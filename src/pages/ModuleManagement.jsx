@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
-import { MODULES_DATA } from '../data/modules';
+import { ALL_STUDY_YEARS, MODULES_DATA, getClassCode, getDiplomaAbbreviation, getStudyYearsForDiploma } from '../data/modules';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
@@ -23,6 +23,45 @@ import {
 } from 'lucide-react';
 
 const labelStyle = { fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' };
+const HIGHER_EDUCATION_DIPLOMAS = ['Licence Professionnelle', 'Master spécialisé'];
+
+const isHigherEducationDiploma = (diploma) => HIGHER_EDUCATION_DIPLOMAS.includes(diploma);
+
+const getSemesterOptions = (diploma) => {
+  if (diploma === 'Master spécialisé') {
+    return ['S1', 'S2', 'S3', 'S4'].map(semester => ({ label: semester, value: semester }));
+  }
+  if (diploma === 'Licence Professionnelle') {
+    return ['S1', 'S2'].map(semester => ({ label: semester, value: semester }));
+  }
+  return [
+    { label: 'S1', value: 'S1' },
+    { label: 'S2', value: 'S2' },
+    { label: 'Annuel (S1 & S2)', value: 'Annuel' }
+  ];
+};
+
+const normalizeModuleFormData = (data) => {
+  if (data.diploma === 'Licence Professionnelle') {
+    return { ...data, year: '1ère année' };
+  }
+  if (data.diploma === 'Master spécialisé') {
+    const semesterNumber = Number(data.semester.replace('S', '')) || 1;
+    return {
+      ...data,
+      year: semesterNumber <= 2 ? '1ère année' : '2ème année',
+      semester: semesterNumber % 2 === 1 ? 'S1' : 'S2'
+    };
+  }
+  return data;
+};
+
+const getFormSemester = (module) => {
+  if (module.diploma !== 'Master spécialisé' || module.year !== '2ème année') {
+    return module.semester || 'S1';
+  }
+  return (module.semester || 'S1') === 'S2' ? 'S4' : 'S3';
+};
 
 const ActionBtn = ({ icon: Icon, title, onClick, color = 'var(--text-muted)' }) => (
   <button onClick={onClick} title={title} className="action-btn"
@@ -30,18 +69,6 @@ const ActionBtn = ({ icon: Icon, title, onClick, color = 'var(--text-muted)' }) 
     <Icon size={16} />
   </button>
 );
-
-const getClassCode = (diploma, major, year) => {
-  const dipPrefix = diploma === 'Technicien Spécialisé' ? 'TS' : (diploma === 'Technicien' ? 'T' : 'Q');
-  let majorCode = '';
-  if (major.toLowerCase().includes('développement')) majorCode = 'DI';
-  else if (major.toLowerCase().includes('gestion informatisée')) majorCode = 'GI';
-  else if (major.toLowerCase().includes('logistique')) majorCode = 'GTL';
-  else if (major.toLowerCase().includes('entreprises')) majorCode = 'GE';
-  else majorCode = major.split(' ').filter(w => w.length > 2).map(w => w[0]).join('').toUpperCase();
-  const yearNum = year.match(/\d/)?.[0] || '';
-  return `${dipPrefix}${majorCode}${yearNum}`;
-};
 
 const ModuleManagement = () => {
   const { modules, addModule, updateModule, deleteModule, loading, confirmAction } = useApp();
@@ -76,6 +103,11 @@ const ModuleManagement = () => {
 
   const diplomas = Object.keys(MODULES_DATA);
   const majors = filterDiploma ? Object.keys(MODULES_DATA[filterDiploma] || {}) : [];
+  const filterYears = filterDiploma ? getStudyYearsForDiploma(filterDiploma) : ALL_STUDY_YEARS;
+  const formYears = getStudyYearsForDiploma(formData.diploma);
+  const formSemesterOptions = getSemesterOptions(formData.diploma);
+  const filterSemesterOptions = filterDiploma ? getSemesterOptions(filterDiploma) : getSemesterOptions('');
+  const hideYearChoice = isHigherEducationDiploma(formData.diploma);
 
   // All available groups across all diplomas for the copy modal
   const allGroups = useMemo(() => {
@@ -97,14 +129,14 @@ const ModuleManagement = () => {
       if (filterDiploma && m.diploma !== filterDiploma) return false;
       if (filterMajor && m.major !== filterMajor) return false;
       if (filterYear && m.year !== filterYear) return false;
-      const sem = m.semester || 'S1';
+      const sem = getFormSemester(m);
       if (filterSemester && sem !== filterSemester) return false;
       return true;
     });
 
     const groups = {};
     f.forEach(m => {
-      const key = `${m.name}_${m.coefficient}_${m.semester || 'S1'}`;
+      const key = `${m.name}_${m.coefficient}_${getFormSemester(m)}`;
       if (!groups[key]) {
         groups[key] = { ...m, allClasses: [], allDiplomas: [], ids: [] };
       }
@@ -141,12 +173,17 @@ const ModuleManagement = () => {
     if (!formData.name || !formData.coefficient) return;
     try {
       const trimmedName = formData.name.trim();
+      const normalizedFormData = normalizeModuleFormData({
+        ...formData,
+        name: trimmedName,
+        coefficient: parseFloat(formData.coefficient)
+      });
       if (isEditing) {
         for (const id of selectedIds) {
-          await updateModule(id, { ...formData, name: trimmedName, coefficient: parseFloat(formData.coefficient) });
+          await updateModule(id, normalizedFormData);
         }
       } else {
-        await addModule({ ...formData, name: trimmedName, coefficient: parseFloat(formData.coefficient) });
+        await addModule(normalizedFormData);
       }
       setIsModalOpen(false);
       resetForm();
@@ -162,7 +199,7 @@ const ModuleManagement = () => {
       diploma: m.diploma,
       major: m.major,
       year: m.year,
-      semester: m.semester || 'S1'
+      semester: getFormSemester(m)
     });
     setSelectedIds(m.ids || [m.id]);
     setIsEditing(true);
@@ -185,7 +222,7 @@ const ModuleManagement = () => {
     try {
       await addModule({ name, coefficient: 1, diploma: filterDiploma, major: filterMajor, year: filterYear, semester: filterSemester });
     } catch {
-      showToast('Erreur lors de l['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']ajout', 'error');
+      showToast("Erreur lors de l'ajout", 'error');
     }
   };
 
@@ -255,8 +292,7 @@ const ModuleManagement = () => {
             onChange={val => { setFilterYear(val); setPage(1); }}
             options={[
               { label: "Choisir l'année", value: "" },
-              { label: "1ère année", value: "1ère année" },
-              { label: "2ème année", value: "2ème année" }
+              ...filterYears.map(year => ({ label: year, value: year }))
             ]}
             placeholder="Choisir l'année"
           />
@@ -265,7 +301,7 @@ const ModuleManagement = () => {
           <label style={labelStyle}>Niveau</label>
           <FilterSelect
             value={filterDiploma}
-            onChange={val => { setFilterDiploma(val); setFilterMajor(''); setPage(1); }}
+            onChange={val => { setFilterDiploma(val); setFilterMajor(''); setFilterYear(''); setFilterSemester(''); setPage(1); }}
             options={[
               { label: "Choisir le niveau", value: "" },
               ...diplomas.map(d => ({ label: d, value: d }))
@@ -290,12 +326,7 @@ const ModuleManagement = () => {
           <FilterSelect
             value={filterSemester}
             onChange={val => { setFilterSemester(val); setPage(1); }}
-            options={[
-              { label: "Semestre", value: "" },
-              { label: "S1", value: "S1" },
-              { label: "S2", value: "S2" },
-              { label: "Annuel (S1 & S2)", value: "Annuel" }
-            ]}
+            options={[{ label: "Semestre", value: "" }, ...filterSemesterOptions]}
             placeholder="Semestre"
           />
         </div>
@@ -337,7 +368,7 @@ const ModuleManagement = () => {
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
                           {m.allDiplomas.map((d, i) => (
                             <span key={i} style={{ fontSize: '10px', fontWeight: '700', color: 'var(--primary)', background: 'var(--primary-ultra-light)', padding: '2px 6px', borderRadius: '5px' }}>
-                              {d === 'Technicien Spécialisé' ? 'TS' : d === 'Technicien' ? 'T' : d}
+                              {getDiplomaAbbreviation(d)}
                             </span>
                           ))}
                         </div>
@@ -346,7 +377,7 @@ const ModuleManagement = () => {
                       )}
                     </td>
                     <td style={{ padding: '16px', textAlign: 'center' }}>
-                      <span style={{ fontWeight: '800', color: 'var(--primary)', fontSize: '12px', background: 'var(--primary-ultra-light)', padding: '4px 8px', borderRadius: '6px' }}>{m.semester || 'S1'}</span>
+                      <span style={{ fontWeight: '800', color: 'var(--primary)', fontSize: '12px', background: 'var(--primary-ultra-light)', padding: '4px 8px', borderRadius: '6px' }}>{getFormSemester(m)}</span>
                     </td>
                     <td style={{ padding: '16px' }}>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
@@ -393,56 +424,70 @@ const ModuleManagement = () => {
                 <button onClick={() => setIsModalOpen(false)} className="close-button" aria-label="Fermer la fenêtre" title="Fermer"><X size={20} /></button>
               </div>
               <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={labelStyle}>Nom du Module</label>
-                  <input className="input-premium" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required placeholder="Ex: Algorithmique" />
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(120px, 1fr)', gap: '12px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={labelStyle}>Nom du Module</label>
+                    <input className="input-premium" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required placeholder="Ex: Algorithmique" />
+                  </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={labelStyle}>Coefficient</label>
                     <input className="input-premium" type="number" step="0.25" min="0.25" value={formData.coefficient} onChange={e => setFormData({ ...formData, coefficient: e.target.value })} required />
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={labelStyle}>Semestre</label>
-                    <FilterSelect
-                      value={formData.semester}
-                      onChange={val => setFormData({ ...formData, semester: val })}
-                      options={[
-                        { label: "S1", value: "S1" },
-                        { label: "S2", value: "S2" },
-                        { label: "Annuel (S1 & S2)", value: "Annuel" }
-                      ]}
-                    />
-                  </div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={labelStyle}>Année</label>
-                    <FilterSelect
-                      value={formData.year}
-                      onChange={val => setFormData({ ...formData, year: val })}
-                      options={[
-                        { label: "1ère année", value: "1ère année" },
-                        { label: "2ème année", value: "2ème année" }
-                      ]}
-                    />
-                  </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={labelStyle}>Niveau</label>
                     <FilterSelect
                       value={formData.diploma}
-                      onChange={val => setFormData({ ...formData, diploma: val, major: Object.keys(MODULES_DATA[val] || {})[0] || '' })}
+                      onChange={val => setFormData({
+                        ...formData,
+                        diploma: val,
+                        major: Object.keys(MODULES_DATA[val] || {})[0] || '',
+                        year: getStudyYearsForDiploma(val)[0],
+                        semester: 'S1'
+                      })}
                       options={diplomas.map(d => ({ label: d, value: d }))}
                     />
                   </div>
+                  {!hideYearChoice ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={labelStyle}>Année</label>
+                      <FilterSelect
+                        value={formData.year}
+                        onChange={val => setFormData({ ...formData, year: val })}
+                        options={formYears.map(year => ({ label: year, value: year }))}
+                      />
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={labelStyle}>Semestre</label>
+                      <FilterSelect
+                        value={formData.semester}
+                        onChange={val => setFormData({ ...formData, semester: val })}
+                        options={formSemesterOptions}
+                      />
+                    </div>
+                  )}
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={labelStyle}>Filière</label>
-                  <FilterSelect
-                    value={formData.major}
-                    onChange={val => setFormData({ ...formData, major: val })}
-                    options={Object.keys(MODULES_DATA[formData.diploma] || {}).map(m => ({ label: m, value: m }))}
-                  />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
+                  {!hideYearChoice && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={labelStyle}>Semestre</label>
+                      <FilterSelect
+                        value={formData.semester}
+                        onChange={val => setFormData({ ...formData, semester: val })}
+                        options={formSemesterOptions}
+                      />
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', gridColumn: hideYearChoice ? '1 / -1' : undefined }}>
+                    <label style={labelStyle}>Filière</label>
+                    <FilterSelect
+                      value={formData.major}
+                      onChange={val => setFormData({ ...formData, major: val })}
+                      options={Object.keys(MODULES_DATA[formData.diploma] || {}).map(m => ({ label: m, value: m }))}
+                    />
+                  </div>
                 </div>
                 <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
                   <button type="button" onClick={() => setIsModalOpen(false)} className="btn-modern" style={{ flex: 1 }}>Annuler</button>

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { FilterSelect } from '../components/ui/FilterSelect';
-import { FILIERES } from '../data/modules';
+import { FILIERES, getStudyYearsForDiploma } from '../data/modules';
 import { 
   ArrowLeft, 
   UserPlus, 
@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 
 const AddStudent = () => {
-  const { addStudent, modules: allModules } = useApp();
+  const { addStudent } = useApp();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     firstName: '', lastName: '', major: '', regNo: '',
@@ -25,11 +25,14 @@ const AddStudent = () => {
   });
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const allDiplomas = useMemo(() => Array.from(new Set(allModules.map(m => m.diploma))), [allModules]);
+  const allDiplomas = useMemo(() => Object.keys(FILIERES), []);
   const availableFilieres = useMemo(() => {
-    if (!formData.diploma) return [];
-    return Array.from(new Set(allModules.filter(m => m.diploma === formData.diploma).map(m => m.major)));
-  }, [allModules, formData.diploma]);
+    return FILIERES[formData.diploma] || [];
+  }, [formData.diploma]);
+  const availableYears = useMemo(
+    () => formData.diploma ? getStudyYearsForDiploma(formData.diploma) : [],
+    [formData.diploma]
+  );
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -90,11 +93,11 @@ const AddStudent = () => {
             <div className="form-grid">
               <div className="field-group">
                 <label className="field-label">Niveau de formation</label>
-                <FilterSelect className="input-premium" value={formData.diploma} onChange={val => setFormData({...formData, diploma: val, major: ''})} placeholder="Sélectionner..." options={[{ value: '', label: 'Sélectionner...' }, ...allDiplomas.map(d => ({ value: d, label: d }))]} />
+                <FilterSelect className="input-premium" value={formData.diploma} onChange={val => setFormData({...formData, diploma: val, major: '', year: ''})} placeholder="Sélectionner..." options={[{ value: '', label: 'Sélectionner...' }, ...allDiplomas.map(d => ({ value: d, label: d }))]} />
               </div>
               <div className="field-group">
                 <label className="field-label">Année d'étude</label>
-                <FilterSelect className="input-premium" value={formData.year} onChange={val => setFormData({...formData, year: val})} placeholder="Sélectionner..." options={[{ value: '', label: 'Sélectionner...' }, { value: '1ère année', label: '1ère année' }, { value: '2ème année', label: '2ème année' }]} />
+                <FilterSelect className="input-premium" value={formData.year} onChange={val => setFormData({...formData, year: val})} disabled={!formData.diploma} placeholder="Sélectionner..." options={[{ value: '', label: 'Sélectionner...' }, ...availableYears.map(year => ({ value: year, label: year }))]} />
               </div>
             </div>
 

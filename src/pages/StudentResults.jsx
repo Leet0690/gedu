@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { getStudentGradeModules, sanitizeGradeKey } from '../utils/gradeSync';
 import { isActiveStudent, isLaureatStudent } from '../utils/studentStatus';
+import { getDiplomaAbbreviation } from '../data/modules';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import {
@@ -202,7 +203,7 @@ const StudentResults = () => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '1px', background: 'var(--border-light)' }}>
           <Metric icon={CheckCircle} label="Modules validés" value={`${completedModules}/${moduleNames.length}`} />
           <Metric icon={CalendarCheck} label="Année d'étude" value={student.year} />
-          <Metric icon={Award} label="Qualification" value={student.diploma === 'Technicien Spécialisé' ? 'TS' : 'T'} />
+          <Metric icon={Award} label="Qualification" value={getDiplomaAbbreviation(student.diploma)} />
           {/* Feature 4: Class rank */}
           <Metric
             icon={Medal}

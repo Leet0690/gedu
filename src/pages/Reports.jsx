@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
-import { MODULES_DATA } from '../data/modules';
+import { MODULES_DATA, getStudyYearsForDiploma } from '../data/modules';
 import EmptyState from '../components/EmptyState';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import {
@@ -91,6 +91,7 @@ const Reports = () => {
     selectedDiploma ? Object.keys(MODULES_DATA[selectedDiploma] || {}) : [],
     [selectedDiploma]
   );
+  const availableStudyYears = useMemo(() => getStudyYearsForDiploma(selectedDiploma), [selectedDiploma]);
 
   const availableModulesList = useMemo(() => {
     if (!selectedDiploma || !selectedMajor || !selectedYear) return [];
@@ -664,7 +665,7 @@ const Reports = () => {
       <div className="glass-card" style={{ padding: 'var(--space-5)', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)', alignItems: 'flex-end' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <label style={labelStyle}>Niveau</label>
-          <FilterSelect value={selectedDiploma} onChange={val => setSelectedDiploma(val)} options={Object.keys(MODULES_DATA).map(d => ({ label: d, value: d }))} style={{ minWidth: '180px' }} />
+          <FilterSelect value={selectedDiploma} onChange={val => { setSelectedDiploma(val); setSelectedYear(getStudyYearsForDiploma(val)[0]); }} options={Object.keys(MODULES_DATA).map(d => ({ label: d, value: d }))} style={{ minWidth: '180px' }} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <label style={labelStyle}>Filière</label>
@@ -672,7 +673,7 @@ const Reports = () => {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <label style={labelStyle}>Année</label>
-          <FilterSelect value={selectedYear} onChange={val => setSelectedYear(val)} options={[{ label: "1ère année", value: "1ère année" }, { label: "2ème année", value: "2ème année" }]} />
+          <FilterSelect value={selectedYear} onChange={val => setSelectedYear(val)} options={availableStudyYears.map(year => ({ label: year, value: year }))} />
         </div>
         
       </div>

@@ -9,7 +9,18 @@ import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { logoBase64 } from '../utils/logoBase64';
 import { generateBulletinGlobal } from '../utils/pdfGenerator';
-import { FILIERES, MODULES_DATA, getModulesForStudent, getModulesForFiliere } from '../data/modules';
+import {
+  ALL_STUDY_YEARS,
+  FILIERES,
+  getClassCode,
+  getModulesForStudent,
+  getModulesForFiliere,
+  getNextStudyYear,
+  getStudyYearsForDiploma,
+  getStudyYearsForDiplomas,
+  getStudyYearsForMajor,
+  isKnownStudyYear
+} from '../data/modules';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
@@ -73,27 +84,7 @@ import {
 const labelStyle = { fontSize: 'var(--text-xs)', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', paddingLeft: '2px' };
 const selectStyle = { cursor: 'pointer', paddingRight: '36px' };
 
-const getGroupAbbreviation = (filiere, annee) => {
-  let diplomaAbbr = "";
-  let majorAbbr = "";
-  
-  for (const dip in MODULES_DATA) {
-    if (MODULES_DATA[dip][filiere]) {
-      diplomaAbbr = dip.includes('Spécialisé') ? "TS" : "T";
-      break;
-    }
-  }
-
-  if (filiere.includes('Développement')) majorAbbr = "DI";
-  else if (filiere.includes('Gestion Informatisée')) majorAbbr = "GI";
-  else if (filiere.includes('Logistique')) majorAbbr = "GTL";
-  else if (filiere.includes('Entreprises')) majorAbbr = "GE";
-  else majorAbbr = filiere.split(' ').map(w => w[0]).join('').toUpperCase();
-
-  const yearNum = annee.includes('1') ? "1" : "2";
-  
-  return diplomaAbbr + majorAbbr + yearNum;
-};
+const getGroupAbbreviation = (filiere, annee) => getClassCode('', filiere, annee);
 
 const DASH_DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 
@@ -105,7 +96,7 @@ const getTodayFrench = () => {
 const formatRelativeTime = (timestamp) => {
   const diff = Date.now() - timestamp;
   const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return 'À l['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']instant';
+  if (minutes < 1) return "À l'instant";
   if (minutes < 60) return `Il y a ${minutes} min`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `Il y a ${hours}h`;
@@ -640,9 +631,9 @@ const getHourColors = (hour) => {
 
 const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSemester, getScheduleModule }) => {
   const allFilieres = useMemo(() => Array.from(new Set(Object.values(FILIERES).flat())), []);
-  const allAnnees = ['1ère année', '2ème année'];
   const [selectedFiliere, setSelectedFiliere] = useState(allFilieres.includes('Développement Informatique') ? 'Développement Informatique' : allFilieres[0]);
-  const [selectedAnnee, setSelectedAnnee] = useState(allAnnees[0]);
+  const availableStudyYears = useMemo(() => getStudyYearsForMajor(selectedFiliere), [selectedFiliere]);
+  const [selectedAnnee, setSelectedAnnee] = useState(availableStudyYears[0]);
   const groupLabel = useMemo(() => getGroupAbbreviation(selectedFiliere, selectedAnnee), [selectedFiliere, selectedAnnee]);
   const filteredSessions = useMemo(
     () => realSchedules.filter(s => s.filiere === selectedFiliere && s.annee === selectedAnnee),
@@ -674,8 +665,8 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
             Emploi du temps
           </span>
           <div className="home-schedule-filters">
-            <FilterSelect className="home-filter-select home-filter-select-major" value={selectedFiliere} onChange={val => setSelectedFiliere(val)} options={allFilieres.map(f => ({ label: f, value: f }))} />
-            <FilterSelect className="home-filter-select home-filter-select-year" value={selectedAnnee} onChange={val => setSelectedAnnee(val)} options={allAnnees.map(a => ({ label: a, value: a }))} />
+            <FilterSelect className="home-filter-select home-filter-select-major" value={selectedFiliere} onChange={val => { setSelectedFiliere(val); setSelectedAnnee(getStudyYearsForMajor(val)[0]); }} options={allFilieres.map(f => ({ label: f, value: f }))} />
+            <FilterSelect className="home-filter-select home-filter-select-year" value={selectedAnnee} onChange={val => setSelectedAnnee(val)} options={availableStudyYears.map(a => ({ label: a, value: a }))} />
           </div>
         </div>
         <div className="home-schedule-actions">
@@ -705,7 +696,7 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
         <div className="home-schedule-grid-inverted">
           {/* Columns Header Row (Hours) */}
           <div className="home-schedule-header-row">
-            <div className="home-schedule-corner-inverted">Jour ['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']Heure</div>
+            <div className="home-schedule-corner-inverted">Jour / Heure</div>
             <div className="home-schedule-hours-row">
               {DASH_HOURS.map(hour => {
                 const colors = getHourColors(hour);
@@ -902,18 +893,18 @@ const AdminDashboard = () => {
 
   const activeStudents = useMemo(() => (students || []).filter(isActiveStudent), [students]);
   const promotionPreview = useMemo(() => {
-    const eligible = activeStudents.filter(s => s.year === '1\u00e8re ann\u00e9e' || s.year === '2\u00e8me ann\u00e9e');
+    const eligible = activeStudents.filter(s => isKnownStudyYear(s.diploma, s.year));
     // Improvement #7: Build breakdown by filière
     const filiereBreakdown = {};
     eligible.forEach(s => {
       const key = `${s.diploma || 'N/A'} - ${s.major || 'N/A'}`;
       if (!filiereBreakdown[key]) filiereBreakdown[key] = { promoted: 0, graduated: 0 };
-      if (s.year === '1\u00e8re ann\u00e9e') filiereBreakdown[key].promoted++;
+      if (getNextStudyYear(s.diploma, s.year)) filiereBreakdown[key].promoted++;
       else filiereBreakdown[key].graduated++;
     });
     return {
-      promoted: eligible.filter(s => s.year === '1\u00e8re ann\u00e9e').length,
-      graduated: eligible.filter(s => s.year === '2\u00e8me ann\u00e9e').length,
+      promoted: eligible.filter(s => getNextStudyYear(s.diploma, s.year)).length,
+      graduated: eligible.filter(s => !getNextStudyYear(s.diploma, s.year)).length,
       total: eligible.length,
       filiereBreakdown,
     };
@@ -921,12 +912,15 @@ const AdminDashboard = () => {
   const isYearFormatValid = useMemo(() => validateAcademicYearTransition(promotionForm.fromAcademicYear, promotionForm.toAcademicYear), [promotionForm]);
   const isAlreadyClosed = useMemo(() => hasExistingClosure(activeStudents, promotionForm.fromAcademicYear), [activeStudents, promotionForm.fromAcademicYear]);
 
-  const allDiplomas = useMemo(() => Array.from(new Set(allModules.map(m => m.diploma))), [allModules]);
-  const availableYears = useMemo(() => Array.from(new Set(allModules.map(m => m.year))), [allModules]);
+  const allDiplomas = useMemo(() => Object.keys(FILIERES), []);
+  const availableYears = useMemo(
+    () => diplomaFilter ? getStudyYearsForDiploma(diplomaFilter) : ALL_STUDY_YEARS,
+    [diplomaFilter]
+  );
   const availableMajors = useMemo(() => {
-    if (!diplomaFilter) return Array.from(new Set(allModules.map(m => m.major)));
-    return Array.from(new Set(allModules.filter(m => m.diploma === diplomaFilter).map(m => m.major)));
-  }, [allModules, diplomaFilter]);
+    if (!diplomaFilter) return Array.from(new Set(Object.values(FILIERES).flat()));
+    return FILIERES[diplomaFilter] || [];
+  }, [diplomaFilter]);
   const getStudentActiveModules = useCallback((student) => {
     const configuredModules = (allModules || [])
       .filter(m => m.diploma === student.diploma && m.major === student.major && m.year === student.year && [activeSemester, 'Annuel'].includes(m.semester || 'S1'))
@@ -940,12 +934,14 @@ const AdminDashboard = () => {
       const currentDiplomas = prev.diplomas || (prev.diploma ? [prev.diploma] : []);
       const isSelected = currentDiplomas.includes(dip);
       const newDiplomas = isSelected ? currentDiplomas.filter(d => d !== dip) : [...currentDiplomas, dip];
+      const allowedYears = getStudyYearsForDiplomas(newDiplomas);
+      const allowedGroups = new Set(newDiplomas.flatMap(diploma => FILIERES[diploma] || []));
       return {
         ...prev,
         diploma: undefined, 
         diplomas: newDiplomas,
-        groups: newDiplomas.length === 0 ? [] : prev.groups,
-        years: newDiplomas.includes('Licence Professionnelle') && newDiplomas.length === 1 ? ['1ère année'] : prev.years,
+        groups: (prev.groups || []).filter(group => allowedGroups.has(group)),
+        years: (prev.years || []).filter(year => allowedYears.includes(year)),
         subjects: newDiplomas.length === 0 ? [] : prev.subjects
       };
     });
@@ -1057,7 +1053,7 @@ const AdminDashboard = () => {
 
     const confirmed = await confirmAction({
       title: "Cl\u00f4turer l'ann\u00e9e scolaire ?",
-      message: `${promotionPreview.graduated} stagiaire(s) de 2\u00e8me ann\u00e9e deviendront laur\u00e9ats et ${promotionPreview.promoted} stagiaire(s) de 1\u00e8re ann\u00e9e passeront en 2\u00e8me ann\u00e9e. Cette action mettra \u00e0 jour les dossiers actifs.`,
+      message: `${promotionPreview.graduated} stagiaire(s) en fin de cycle deviendront lauréats et ${promotionPreview.promoted} stagiaire(s) passeront à l'année suivante. Cette action mettra à jour les dossiers actifs.`,
       type: 'warning'
     });
     if (!confirmed) return;
@@ -1103,11 +1099,11 @@ const AdminDashboard = () => {
   const exportCSV = () => {
     let data = tableData;
     if (data.length === 0) return showToast('Aucune donnée.', 'info');
-    const headers = activeTab === 'students' ? "\uFEFFNom,Prénom,Matricule,Niveau,Filière,Année,Statut['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']" : "\uFEFFNom,Module,Statut['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']";
+    const headers = activeTab === 'students' ? "\uFEFFNom,Prénom,Matricule,Niveau,Filière,Année,Statut\n" : "\uFEFFNom,Module,Statut\n";
     const rows = data.map(item => {
       if (activeTab === 'students') return `"${item.lastName}","${item.firstName}","${item.regNo}","${item.diploma || ''}","${item.major}","${item.year || ''}","ACTIF"`;
       return `"${item.name || ''}","${item.subject || ''}","ACTIF"`;
-    }).join('['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']');
+    }).join('\n');
     const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a'); link.href = URL.createObjectURL(blob);
     link.setAttribute('download', `IPFP_${activeTab}_${new Date().toISOString().split('T')[0]}.csv`);
@@ -1321,7 +1317,7 @@ const AdminDashboard = () => {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 150px' }}>
               <label style={labelStyle}>Niveau</label>
-              <FilterSelect style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }} value={diplomaFilter} onChange={(val) => { setDiplomaFilter(val); setCategoryFilter(''); }} placeholder="Tous niveaux" options={[{ value: '', label: 'Tous niveaux' }, ...allDiplomas.map(d => ({ value: d, label: d }))]} />
+              <FilterSelect style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }} value={diplomaFilter} onChange={(val) => { setDiplomaFilter(val); setCategoryFilter(''); setYearFilter(''); }} placeholder="Tous niveaux" options={[{ value: '', label: 'Tous niveaux' }, ...allDiplomas.map(d => ({ value: d, label: d }))]} />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 140px' }}>
@@ -1404,11 +1400,11 @@ const AdminDashboard = () => {
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                           <div style={fGroup}>
                             <label style={lbl}>Niveau</label>
-                            <FilterSelect value={editFormData.diploma || ''} onChange={val => setEditFormData({...editFormData, diploma: val, major: ''})} options={Object.keys(FILIERES).map(d => ({ value: d, label: d }))} />
+                            <FilterSelect value={editFormData.diploma || ''} onChange={val => setEditFormData({...editFormData, diploma: val, major: '', year: ''})} options={Object.keys(FILIERES).map(d => ({ value: d, label: d }))} />
                           </div>
                           <div style={fGroup}>
                             <label style={lbl}>Année</label>
-                            <FilterSelect value={editFormData.year || ''} onChange={val => setEditFormData({...editFormData, year: val})} options={[{ value: '1ère année', label: '1ère année' }, { value: '2ème année', label: '2ème année' }]} />
+                            <FilterSelect value={editFormData.year || ''} onChange={val => setEditFormData({...editFormData, year: val})} options={getStudyYearsForDiploma(editFormData.diploma).map(year => ({ value: year, label: year }))} />
                           </div>
                         </div>
                         <div style={fGroup}>
@@ -1439,7 +1435,7 @@ const AdminDashboard = () => {
                         <div style={fGroup}>
                           <label style={lbl}>Niveaux</label>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                            {['1ère année', '2ème année'].map(y => (
+                            {getStudyYearsForDiplomas(editFormData.diplomas || []).map(y => (
                               <SelectionTag key={y} active={(editFormData.years || []).includes(y)} onClick={() => toggleYearEdit(y)} label={y} />
                             ))}
                           </div>
@@ -1448,7 +1444,7 @@ const AdminDashboard = () => {
                         <div style={fGroup}>
                           <label style={lbl}>Filières</label>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxHeight: '120px', overflowY: 'auto', padding: '4px' }}>
-                            {Array.from(new Set(allModules.filter(m => (editFormData.diplomas || []).includes(m.diploma)).map(m => m.major))).map(f => (
+                            {Array.from(new Set((editFormData.diplomas || []).flatMap(diploma => FILIERES[diploma] || []))).map(f => (
                               <SelectionTag key={f} active={(editFormData.groups || []).includes(f)} onClick={() => toggleGroupEdit(f)} label={f} />
                             ))}
                           </div>

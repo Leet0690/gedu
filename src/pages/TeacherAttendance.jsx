@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
-import { MODULES_DATA } from '../data/modules';
+import { getClassCode } from '../data/modules';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import { DatePicker } from '../components/ui';
@@ -90,18 +90,7 @@ const formatHours = (h) => {
   const hrs = Math.floor(h), mins = Math.round((h - hrs) * 60);
   return mins > 0 ? `${hrs}h${mins}m` : `${hrs}h`;
 };
-const getGroupAbbreviation = (filiere, annee) => {
-  let diplomaAbbr = '', majorAbbr = '';
-  for (const dip in MODULES_DATA) {
-    if (MODULES_DATA[dip][filiere]) { diplomaAbbr = dip.includes('Spécialisé') ? 'TS' : 'T'; break; }
-  }
-  if (filiere.includes('Développement')) majorAbbr = 'DI';
-  else if (filiere.includes('Gestion Informatisée')) majorAbbr = 'GI';
-  else if (filiere.includes('Logistique')) majorAbbr = 'GTL';
-  else if (filiere.includes('Entreprises')) majorAbbr = 'GE';
-  else majorAbbr = filiere.split(' ').map(w => w[0]).join('').toUpperCase();
-  return diplomaAbbr + majorAbbr + (annee.includes('1') ? '1' : '2');
-};
+const getGroupAbbreviation = (filiere, annee) => getClassCode('', filiere, annee);
 
 const DAY_NAMES = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 const normalizeTimeSlot = (value = '') => (value || '').replace(/[^0-9]/g, '') || 'x';
@@ -225,11 +214,11 @@ const TeacherAttendance = () => {
 
   const exportDailyCSV = () => {
     if (!sessionRows.length) return showToast('Aucune donnée.', 'info');
-    const headers = "\uFEFFFormateur,Module,Horaire,Groupes,Date,Statut,Heures['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']";
+    const headers = "\uFEFFFormateur,Module,Horaire,Groupes,Date,Statut,Heures\n";
     const rows = sessionRows.map(row => {
       const r = getRecordForScheduledRow(teacherAttendance, row) || {};
       return `"${row.teacher.name}","${row.module}","${row.time}","${row.groups.join(', ')}","${selectedDate}","${r.status || 'non défini'}","${r.status === 'present' ? r.hours || 0 : 0}"`;
-    }).join('['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']');
+    }).join('\n');
     const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a'); link.href = URL.createObjectURL(blob);
     link.setAttribute('download', `Presences_Formateurs_${selectedDate}.csv`);
@@ -280,7 +269,7 @@ const TeacherAttendance = () => {
 
   const exportMonthlyCSV = () => {
     const dayHeaders = mDays.map(d => `${pad(d)}/${pad(mMonth + 1)}`).join(',');
-    const header = `\uFEFFFormateur,${dayHeaders},Jours Présents,Jours Absents,Heures['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']`;
+    const header = `\uFEFFFormateur,${dayHeaders},Jours Présents,Jours Absents,Heures\n`;
     const rows = mGridData.map(({ teacher, byDay, hoursByDay, counts }) => {
       const cells = mDays.map(d => {
         if (!byDay[d]) return '-';
@@ -288,7 +277,7 @@ const TeacherAttendance = () => {
         return byDay[d][0].toUpperCase();
       }).join(',');
       return `"${teacher.name}",${cells},${counts.present},${counts.absent},${counts.totalHours}`;
-    }).join('['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']');
+    }).join('\n');
     const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);

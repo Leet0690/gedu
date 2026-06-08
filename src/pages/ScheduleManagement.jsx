@@ -3,7 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
-import { FILIERES, MODULES_DATA, getModulesForFiliere } from '../data/modules';
+import {
+  FILIERES,
+  getClassCode,
+  getDiplomaForMajor,
+  getModulesForFiliere,
+  getStudyYearsForDiploma
+} from '../data/modules';
 import {
   CalendarDays, Plus, Trash2, Clock, User, MapPin,
   X, Layers, Users, Calendar, Edit
@@ -86,23 +92,7 @@ const getHourColors = (hour) => {
   };
 };
 
-const getGroupAbbreviation = (filiere, annee) => {
-  let diplomaAbbr = '';
-  for (const dip in MODULES_DATA) {
-    if (MODULES_DATA[dip][filiere]) {
-      diplomaAbbr = dip.includes('Spécialisé') ? 'TS' : 'T';
-      break;
-    }
-  }
-  let majorAbbr = '';
-  if (filiere.includes('Développement')) majorAbbr = 'DI';
-  else if (filiere.includes('Gestion Informatisée')) majorAbbr = 'GI';
-  else if (filiere.includes('Logistique')) majorAbbr = 'GTL';
-  else if (filiere.includes('Entreprises')) majorAbbr = 'GE';
-  else majorAbbr = filiere.split(' ').map(w => w[0]).join('').toUpperCase();
-  const yearNum = annee.includes('1') ? '1' : '2';
-  return diplomaAbbr + majorAbbr + yearNum;
-};
+const getGroupAbbreviation = (diploma, filiere, annee) => getClassCode(diploma, filiere, annee);
 
 const labelStyle = {
   fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)',
@@ -117,20 +107,22 @@ const ScheduleManagement = () => {
   } = useApp();
   const { showToast } = useToast();
 
-  const allFilieres = useMemo(() => Array.from(new Set(Object.values(FILIERES).flat())), []);
-  const allAnnees = ['1ère année', '2ème année'];
-
-  const [filiere, setFiliere] = useState(
-    allFilieres.includes('Développement Informatique') ? 'Développement Informatique' : allFilieres[0]
-  );
-  const [annee, setAnnee] = useState(allAnnees[0]);
+  const diplomas = useMemo(() => Object.keys(FILIERES), []);
+  const defaultDiploma = diplomas.includes('Technicien Spécialisé') ? 'Technicien Spécialisé' : diplomas[0];
+  const [diploma, setDiploma] = useState(defaultDiploma);
+  const availableFilieres = useMemo(() => FILIERES[diploma] || [], [diploma]);
+  const [filiere, setFiliere] = useState(() => {
+    const defaultFilieres = FILIERES[defaultDiploma] || [];
+    return defaultFilieres.includes('Développement Informatique') ? 'Développement Informatique' : defaultFilieres[0];
+  });
+  const availableStudyYears = useMemo(() => getStudyYearsForDiploma(diploma), [diploma]);
+  const [annee, setAnnee] = useState(availableStudyYears[0]);
   const semester = activeSemester;
 
-  const groupLabel = useMemo(() => getGroupAbbreviation(filiere, annee), [filiere, annee]);
+  const groupLabel = useMemo(() => getGroupAbbreviation(diploma, filiere, annee), [diploma, filiere, annee]);
   const modulesBySemester = useMemo(() => {
-    const configured = allModules.filter(m => m.major === filiere && m.year === annee);
+    const configured = allModules.filter(m => m.diploma === diploma && m.major === filiere && m.year === annee);
     if (configured.length === 0) {
-      const diploma = Object.keys(FILIERES).find(d => FILIERES[d].includes(filiere));
       const defaultModules = getModulesForFiliere(diploma, filiere, annee);
       return { S1: defaultModules, S2: defaultModules };
     }
@@ -138,10 +130,14 @@ const ScheduleManagement = () => {
       S1: configured.filter(m => ['S1', 'Annuel'].includes(m.semester || 'S1')).map(m => m.name),
       S2: configured.filter(m => ['S2', 'Annuel'].includes(m.semester || 'S1')).map(m => m.name)
     };
-  }, [filiere, annee, allModules]);
+  }, [diploma, filiere, annee, allModules]);
   const filteredSchedules = useMemo(
-    () => schedules.filter(s => s.filiere === filiere && s.annee === annee),
-    [schedules, filiere, annee]
+    () => schedules.filter(s =>
+      (s.diploma || getDiplomaForMajor(s.filiere)) === diploma &&
+      s.filiere === filiere &&
+      s.annee === annee
+    ),
+    [schedules, diploma, filiere, annee]
   );
   const activeDays = useMemo(
     () => DAYS.filter(day => filteredSchedules.some(s => s.day === day)).length,
@@ -189,6 +185,7 @@ const ScheduleManagement = () => {
       ...formData,
       module: formData.moduleS1 || formData.moduleS2 || formData.module,
       time: normalizedTime,
+      diploma,
       filiere,
       annee
     };
@@ -245,12 +242,25 @@ const ScheduleManagement = () => {
 
       {/* Filter + Stats Bar */}
       <div className="glass-card" style={{ padding: '16px 20px', marginBottom: 'var(--space-5)', display: 'flex', alignItems: 'end', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '0 1 220px' }}>
+          <label style={labelStyle}>Niveau</label>
+          <FilterSelect
+            value={diploma}
+            onChange={val => {
+              const nextFiliere = (FILIERES[val] || [])[0] || '';
+              setDiploma(val);
+              setFiliere(nextFiliere);
+              setAnnee(getStudyYearsForDiploma(val)[0]);
+            }}
+            options={diplomas.map(d => ({ label: d, value: d }))}
+          />
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 260px' }}>
           <label style={labelStyle}>Filière</label>
           <FilterSelect
             value={filiere}
-            onChange={val => setFiliere(val)}
-            options={allFilieres.map(f => ({ label: f, value: f }))}
+            onChange={val => { setFiliere(val); setAnnee(getStudyYearsForDiploma(diploma)[0]); }}
+            options={availableFilieres.map(f => ({ label: f, value: f }))}
           />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '0 1 180px' }}>
@@ -258,7 +268,7 @@ const ScheduleManagement = () => {
           <FilterSelect
             value={annee}
             onChange={val => setAnnee(val)}
-            options={allAnnees.map(a => ({ label: a, value: a }))}
+            options={availableStudyYears.map(a => ({ label: a, value: a }))}
           />
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -293,7 +303,7 @@ const ScheduleManagement = () => {
           <div className="home-schedule-grid-inverted" style={{ width: '100%' }}>
             {/* Columns Header Row (Hours) */}
             <div className="home-schedule-header-row">
-              <div className="home-schedule-corner-inverted">Jour ['1ère année', '2ème année', 'Semestre 1', 'Semestre 2', 'Semestre 3', 'Semestre 4']Heure</div>
+              <div className="home-schedule-corner-inverted">Jour / Heure</div>
               <div className="home-schedule-hours-row">
                 {HOURS.map(hour => {
                   const colors = getHourColors(hour);
@@ -528,7 +538,7 @@ const ScheduleManagement = () => {
               </div>
 
               <div className="badge-status primary" style={{ marginBottom: '24px', justifyContent: 'flex-start', padding: '12px 16px' }}>
-                <span style={{ fontSize: 'var(--text-sm)', fontWeight: '800' }}>{filiere} — {annee} — {semester}</span>
+                <span style={{ fontSize: 'var(--text-sm)', fontWeight: '800' }}>{diploma} — {filiere} — {annee} — {semester}</span>
               </div>
 
               <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
@@ -595,6 +605,7 @@ const ScheduleManagement = () => {
                   <div style={{ marginTop: '6px' }}>
                     {(() => {
                       const filtered = teachers.filter(t =>
+                        (!t.diplomas?.length || t.diplomas.includes(diploma)) &&
                         (t.groups || []).includes(filiere) && (t.years || []).includes(annee)
                       );
                       const options = [
@@ -612,7 +623,7 @@ const ScheduleManagement = () => {
                             const nextModuleS2 = teacherSubjects.find(subject => modulesBySemester.S2.includes(subject)) || '';
                             setFormData({ ...formData, teacherId: val, module: nextModuleS1, moduleS1: nextModuleS1, moduleS2: nextModuleS2 });
                           }}
-                          options={filtered.length > 0 ? options : [{ label: "Aucun formateur assigné à cette filière/année", value: "" }]}
+                          options={filtered.length > 0 ? options : [{ label: "Aucun formateur assigné à ce niveau/filière/année", value: "" }]}
                         />
                       );
                     })()}

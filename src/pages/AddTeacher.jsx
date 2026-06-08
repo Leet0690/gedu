@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
-import { FILIERES, MODULES_DATA } from '../data/modules';
+import { FILIERES, getStudyYearsForDiplomas } from '../data/modules';
 import { 
   ArrowLeft, 
   UserPlus, 
@@ -28,18 +28,21 @@ const AddTeacher = () => {
   const [isSuccess, setIsSuccess] = useState(false);
   const [moduleSearch, setModuleSearch] = useState('');
 
-  const allDiplomas = useMemo(() => Array.from(new Set(allModules.map(m => m.diploma))), [allModules]);
+  const allDiplomas = useMemo(() => Object.keys(FILIERES), []);
+  const availableYears = useMemo(() => getStudyYearsForDiplomas(formData.diplomas), [formData.diplomas]);
 
   const toggleDiploma = (dip) => {
     setFormData(prev => {
       const isSelected = prev.diplomas.includes(dip);
       const newDiplomas = isSelected ? prev.diplomas.filter(d => d !== dip) : [...prev.diplomas, dip];
+      const allowedYears = getStudyYearsForDiplomas(newDiplomas);
+      const allowedGroups = new Set(newDiplomas.flatMap(diploma => FILIERES[diploma] || []));
       return {
         ...prev,
         diplomas: newDiplomas,
-        groups: newDiplomas.length === 0 ? [] : prev.groups,
+        groups: prev.groups.filter(group => allowedGroups.has(group)),
         subjects: newDiplomas.length === 0 ? [] : prev.subjects,
-        years: newDiplomas.length === 0 ? [] : prev.years
+        years: prev.years.filter(year => allowedYears.includes(year))
       };
     });
   };
@@ -143,7 +146,7 @@ const AddTeacher = () => {
               <div className="field-group">
                 <label className="field-label">2. Niveaux d'enseignement</label>
                 <div className="choice-list">
-                  {['1ère année', '2ème année'].map(y => (
+                  {availableYears.map(y => (
                     <SelectionTag key={y} active={formData.years.includes(y)} onClick={() => toggleYear(y)} label={y} />
                   ))}
                 </div>
@@ -153,7 +156,7 @@ const AddTeacher = () => {
               <div className="field-group">
                 <label className="field-label">3. Filières assignées</label>
                 <div className="choice-list">
-                  {Array.from(new Set(allModules.filter(m => formData.diplomas.includes(m.diploma)).map(m => m.major))).map(f => (
+                  {Array.from(new Set(formData.diplomas.flatMap(diploma => FILIERES[diploma] || []))).map(f => (
                     <SelectionTag key={f} active={formData.groups.includes(f)} onClick={() => toggleGroup(f)} label={f} />
                   ))}
                   {formData.diplomas.length === 0 && <p style={{ fontSize: '12px', color: 'var(--text-faint)' }}>Sélectionnez un diplôme d'abord</p>}
