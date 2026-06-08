@@ -29,7 +29,7 @@ import {
   School,
   WifiOff,
   Wand2,
-  ArrowUp
+  
 } from 'lucide-react';
 
 const useOnlineStatus = () => {
