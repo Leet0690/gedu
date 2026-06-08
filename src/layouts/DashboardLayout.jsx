@@ -29,8 +29,12 @@ import {
   School,
   WifiOff,
   Wand2,
+<<<<<<< HEAD
   ArrowUp,
   GraduationCap
+=======
+  
+>>>>>>> 4061257ff9d461b0c9e2868ec1e40941f3c13e49
 } from 'lucide-react';
 
 const useOnlineStatus = () => {
