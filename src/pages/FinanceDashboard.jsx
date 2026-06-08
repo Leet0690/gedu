@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '../lib/cn';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { jsPDF } from 'jspdf';
@@ -959,7 +960,7 @@ const FinanceDashboard = () => {
         </div>
       </div>
 
-      <div className="finance-kpi-grid">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <StatCard title="Revenus Totaux" value={stats.revenue} icon={TrendingUp} tone="revenue" helper={`Encaissements · ${summaryMonthFilter}`} />
         <StatCard title="Total Charges" value={stats.expenses} icon={TrendingDown} tone="expense" helper="Salaires et autres charges" />
         <StatCard title="Bénéfice Net" value={stats.balance} icon={Wallet} tone="balance" helper={stats.balance >= 0 ? 'Solde positif' : 'Solde à surveiller'} />
@@ -1307,16 +1308,16 @@ const FinanceDashboard = () => {
               value={salaryStatusCounts.paid}
               subtitle={`${months[salaryFilter.month]} ${salaryFilter.year}`}
               icon={Check}
-              color="var(--success)"
-              bg="var(--success-bg)"
+              colorClass="text-green-600"
+              bgClass="bg-green-50 border-green-200"
             />
             <StatusCountCard
               title="Formateurs non réglés"
               value={salaryStatusCounts.unpaid}
               subtitle={`${months[salaryFilter.month]} ${salaryFilter.year}`}
               icon={RotateCcw}
-              color="#a16207"
-              bg="rgba(234,179,8,0.12)"
+              colorClass="text-amber-600"
+              bgClass="bg-amber-50 border-amber-200"
             />
             {salaryStatusCounts.unpaid > 0 && (
               <div className="glass-card" style={{ padding: '20px', borderLeft: '4px solid var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
@@ -2305,52 +2306,77 @@ const FinanceDashboard = () => {
   );
 };
 
-const StatCard = ({ title, value, icon: Icon, tone, helper }) => (
-  <div className={`finance-kpi-card finance-kpi-card-${tone}`}>
-    <div className="finance-kpi-card-orb" />
-    <div className="finance-kpi-card-header">
-      <span className="finance-kpi-icon">
-        <Icon size={18} />
-      </span>
-      <span className="finance-kpi-label">{title}</span>
+const STAT_TONE = {
+  revenue:  { color: 'text-green-600',  bg: 'bg-green-50',   border: 'border-green-200',   orb: 'bg-green-500/10' },
+  expense:  { color: 'text-red-500',    bg: 'bg-red-50',     border: 'border-red-200',     orb: 'bg-red-500/10' },
+  balance:  { color: 'text-violet-600', bg: 'bg-violet-50',  border: 'border-violet-200',  orb: 'bg-violet-500/10' },
+  recovery: { color: 'text-blue-600',   bg: 'bg-blue-50',    border: 'border-blue-200',    orb: 'bg-blue-500/10' },
+};
+
+const StatCard = ({ title, value, icon: Icon, tone, helper }) => {
+  const t = STAT_TONE[tone] || STAT_TONE.balance;
+  return (
+    <div className={cn(
+      'relative overflow-hidden rounded-2xl border bg-white shadow-sm',
+      'hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200',
+      'p-4 min-h-[132px] flex flex-col justify-between',
+      t.border,
+    )}>
+      <div className={cn('absolute -right-6 -top-8 w-24 h-24 rounded-full pointer-events-none', t.orb)} />
+      <div className="relative flex items-center gap-2.5 mb-3">
+        <span className={cn('inline-flex w-9 h-9 items-center justify-center rounded-xl border', t.bg, t.color, t.border)}>
+          <Icon size={16} />
+        </span>
+        <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider leading-tight">{title}</span>
+      </div>
+      <div>
+        <div className={cn('text-[clamp(1.55rem,2.2vw,2.05rem)] font-black tracking-tight leading-none', t.color)}>
+          {value.toLocaleString()}&thinsp;<span className="text-[0.48em] font-black opacity-70">DH</span>
+        </div>
+        <p className="mt-2 text-[11px] font-semibold text-slate-400">{helper}</p>
+      </div>
     </div>
-    <div className="finance-kpi-value">
-      {value.toLocaleString()} <span>DH</span>
-    </div>
-    <p className="finance-kpi-helper">{helper}</p>
-  </div>
-);
+  );
+};
 
 const RecoveryCard = ({ value, paid, total, month }) => (
-  <div className="finance-kpi-card finance-kpi-card-recovery">
-    <div className="finance-kpi-card-orb" />
-    <div className="finance-kpi-card-header">
-      <span className="finance-kpi-icon">
-        <TrendingUp size={18} />
+  <div className="relative overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 p-4 min-h-[132px] flex flex-col justify-between">
+    <div className="absolute -right-6 -top-8 w-24 h-24 rounded-full pointer-events-none bg-blue-500/10" />
+    <div className="relative flex items-center gap-2.5 mb-3">
+      <span className="inline-flex w-9 h-9 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-600">
+        <TrendingUp size={16} />
       </span>
-      <span className="finance-kpi-label">Taux de recouvrement</span>
+      <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider leading-tight">Taux de recouvrement</span>
     </div>
-    <div className="finance-kpi-value">
-      {value}<span>%</span>
+    <div>
+      <div className="text-[clamp(1.55rem,2.2vw,2.05rem)] font-black tracking-tight leading-none text-blue-600">
+        {value}<span className="text-[0.48em] font-black opacity-70">%</span>
+      </div>
+      <div className="relative h-2 mt-2.5 rounded-full bg-blue-100 overflow-hidden" aria-hidden="true">
+        <motion.div
+          className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-blue-500 to-blue-400"
+          style={{ boxShadow: '0 0 18px rgba(37,99,235,0.24)' }}
+          initial={{ width: 0 }}
+          animate={{ width: `${Math.min(Math.max(value, 0), 100)}%` }}
+          transition={{ duration: 0.7, ease: 'easeOut' }}
+        />
+      </div>
+      <p className="mt-2 text-[11px] font-semibold text-slate-400">{paid} / {total} stagiaires · {month}</p>
     </div>
-    <div className="finance-kpi-progress" aria-hidden="true">
-      <span style={{ width: `${Math.min(Math.max(value, 0), 100)}%` }} />
-    </div>
-    <p className="finance-kpi-helper">{paid} / {total} stagiaires · {month}</p>
   </div>
 );
 
-const StatusCountCard = ({ title, value, subtitle, icon: Icon, color, bg }) => (
-  <div className="glass-card finance-status-count-card" style={{ '--status-color': color, '--status-bg': bg }}>
+const StatusCountCard = ({ title, value, subtitle, icon: Icon, colorClass, bgClass }) => (
+  <div className={cn('rounded-2xl border p-5 bg-white shadow-sm flex items-center justify-between gap-4', bgClass)}>
     <div>
-      <p className="finance-status-count-title">
-        <Icon size={12} /> {title}
+      <p className={cn('flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider mb-1.5', colorClass)}>
+        <Icon size={11} /> {title}
       </p>
-      <p className="finance-status-count-value">{value.toLocaleString()}</p>
-      <p className="finance-status-count-subtitle">{subtitle}</p>
+      <p className={cn('text-2xl font-black tracking-tight', colorClass)}>{value.toLocaleString()}</p>
+      <p className="text-[11px] text-slate-400 font-semibold mt-0.5">{subtitle}</p>
     </div>
-    <div className="finance-status-count-icon">
-      <Icon size={15} />
+    <div className={cn('w-11 h-11 rounded-2xl flex items-center justify-center shrink-0', bgClass, colorClass)}>
+      <Icon size={18} />
     </div>
   </div>
 );
