@@ -169,7 +169,7 @@ const TodaySessionsWidget = ({ schedules, teachers, getScheduleModule, activeSem
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.45 }}
-      className="glass-card home-widget home-widget-tall"
+      className="glass-card home-widget home-widget-tall home-widget-sessions"
     >
       <div className="home-widget-header">
         <div className="home-widget-heading">
@@ -266,7 +266,7 @@ const ActivityFeedWidget = ({ notifications }) => {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.5 }}
-      className="glass-card home-widget home-widget-tall"
+      className="glass-card home-widget home-widget-tall home-widget-activity"
     >
       <div className="home-widget-header">
         <div className="home-widget-heading">
@@ -393,7 +393,7 @@ const PendingTasksWidget = ({ students, teachers, grades, teacherAttendance, all
 
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-      className="glass-card home-widget home-widget-tall">
+      className="glass-card home-widget home-widget-tall home-widget-tasks">
       <div className="home-widget-header">
         <div className="home-widget-heading">
           <div className="home-widget-icon home-tone-danger">
@@ -495,7 +495,7 @@ const GradesBreakdownWidget = ({ students, grades, allModules, activeSemester })
 
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
-      className="glass-card home-widget home-widget-tall">
+      className="glass-card home-widget home-widget-tall home-widget-grades">
       <div className="home-widget-header">
         <div className="home-widget-heading">
           <div className="home-widget-icon home-tone-warning">
@@ -657,7 +657,7 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="glass-card home-widget home-schedule-card">
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="glass-card home-widget home-schedule-card home-widget-schedule">
       {/* Header row */}
       <div className="home-schedule-header">
         <div className="home-schedule-title-group">
@@ -1281,6 +1281,24 @@ const AdminDashboard = () => {
 
       {isDashboard && (
         <div className="home-dashboard-stack">
+          <div className="home-premium-hero">
+            <div className="home-premium-hero-icon">
+              <BarChart3 size={24} />
+            </div>
+            <div className="home-premium-hero-copy">
+              <span className="home-premium-hero-eyebrow">Vue d'ensemble</span>
+              <h1>Tableau de bord</h1>
+              <p>Suivez l'activité académique, les présences et les actions prioritaires.</p>
+            </div>
+            <div className="home-premium-hero-badges">
+              <span><Calendar size={12} /> {currentMonthName}</span>
+              <span><Layers size={12} /> {activeSemester || 'Semestre actif'}</span>
+            </div>
+            <div className="home-premium-hero-orb" aria-hidden="true">
+              <GraduationCap size={58} />
+            </div>
+          </div>
+
           <div className="home-stats-grid">
             <StatCard delay={0.05} icon={UsersIcon} tone="primary" value={(students || []).length} label="Total Stagiaires" />
             <StatCard delay={0.1} icon={Presentation} tone="warning" value={(teachers || []).length} label="Total Formateurs" />
@@ -1775,14 +1793,20 @@ const StatCard = ({ delay, icon: Icon, tone = 'primary', value, label }) => (
     initial={{ opacity: 0, y: 12 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay }}
-    className={`home-stat-card home-tone-${tone}`}
+    whileHover={{ y: -5, scale: 1.02 }}
+    className={`finance-net-card finance-net-card-home-${tone} dashboard-premium-stat`}
   >
-    <div className="home-stat-icon">
-      <Icon size={21} />
+    <div className="finance-net-card-shine" aria-hidden="true" />
+    <div className="finance-net-card-icon-bg" aria-hidden="true">
+      <Icon size={54} strokeWidth={1.35} />
     </div>
-    <div className="home-stat-content">
-      <h3 className="home-stat-value">{value}</h3>
-      <p className="home-stat-label">{label}</p>
+    <div className="finance-net-card-top">
+      <span className="finance-net-card-kicker">Tableau de bord</span>
+      <span className="premium-metric-badge"><Icon size={11} /> Aperçu</span>
+    </div>
+    <div className="finance-net-card-content">
+      <h3>{label}</h3>
+      <p className="finance-net-card-amount">{value}</p>
     </div>
   </motion.div>
 );

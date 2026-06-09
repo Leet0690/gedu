@@ -30,12 +30,12 @@ const Login = () => {
   };
 
   return (
-    <div style={{
+    <div className="finance-admin-page" style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '24px', position: 'relative', overflow: 'hidden', background: 'var(--bg-page)',
+      padding: '24px', position: 'relative', overflow: 'hidden', borderRadius: '0px', width: '100%'
     }}>
-      <div style={{ position: 'absolute', top: '-20%', left: '-10%', width: '50%', height: '50%', background: 'rgba(176, 104, 185, 0.04)', filter: 'blur(100px)', borderRadius: '50%' }}></div>
-      <div style={{ position: 'absolute', bottom: '-20%', right: '-10%', width: '50%', height: '50%', background: 'rgba(254, 205, 8, 0.03)', filter: 'blur(100px)', borderRadius: '50%' }}></div>
+      <div style={{ position: 'absolute', top: '-20%', left: '-10%', width: '50%', height: '50%', background: 'rgba(176, 104, 185, 0.08)', filter: 'blur(100px)', borderRadius: '50%' }}></div>
+      <div style={{ position: 'absolute', bottom: '-20%', right: '-10%', width: '50%', height: '50%', background: 'rgba(254, 205, 8, 0.06)', filter: 'blur(100px)', borderRadius: '50%' }}></div>
 
       <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
         style={{ width: '100%', maxWidth: '380px', position: 'relative', zIndex: 10 }}>

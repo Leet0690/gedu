@@ -82,8 +82,8 @@ const NAV_CATEGORIES = [
     items: [
       { to: "/admin/students", icon: Users, label: "Stagiaires", color: "text-sky-500" },
       { to: "/admin/teachers", icon: Presentation, label: "Formateurs", color: "text-indigo-500" },
-      { to: "/admin/finance", icon: Wallet, label: "Finance", color: "text-green-600" },
       { to: "/admin/continuous", icon: GraduationCap, label: "Formations Continues", color: "text-purple-500" },
+      { to: "/admin/finance", icon: Wallet, label: "Finance", color: "text-green-600" },
     ]
   }
 ];
@@ -105,10 +105,10 @@ const SidebarCategory = ({ cat, isSidebarOpen, renderNavLink, location, isMobile
   }
 
   return (
-    <div className="mb-2">
+    <div className="premium-sidenav-category mb-2">
       <button
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between gap-3 px-3 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider transition-colors hover:text-slate-800"
+        className="premium-sidenav-category-trigger flex w-full items-center justify-between gap-3 px-3 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider transition-colors hover:text-slate-800"
       >
         <div className="flex items-center gap-3">
           <cat.icon className={`h-4 w-4 ${cat.color || 'text-slate-400'}`} strokeWidth={2} />
@@ -127,7 +127,7 @@ const SidebarCategory = ({ cat, isSidebarOpen, renderNavLink, location, isMobile
             transition={{ duration: 0.3, ease: 'easeInOut' }}
             className="overflow-hidden"
           >
-            <div className="mt-1 flex flex-col gap-1 ml-[18px] border-l-2 border-slate-100 pl-3 py-1">
+            <div className="premium-sidenav-category-items mt-1 flex flex-col gap-1 ml-[18px] border-l-2 border-slate-100 pl-3 py-1">
               {cat.items.map((item, i) => (
                 <motion.div
                   key={item.to}
@@ -208,18 +208,18 @@ export default function DashboardLayout({ children }) {
         key={item.to} 
         to={item.to}
         onClick={() => isMobile && setIsMobileMenuOpen(false)}
-        className={`group relative flex items-center rounded-full text-sm font-medium transition-all duration-200 ${
+        className={`premium-sidenav-link group relative flex items-center rounded-full text-sm font-medium transition-all duration-200 ${
           isCollapsed ? 'justify-center w-10 h-10 mx-auto' : 'gap-3 px-3 py-2 w-full'
         } ${
           isActive 
-            ? 'text-white' 
+            ? 'is-active text-white'
             : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
         }`}
       >
         {isActive && (
           <motion.div
             layoutId="activeNavBubble"
-            className="absolute inset-0 rounded-full bg-primary shadow-md shadow-primary/30"
+            className="premium-sidenav-active-bubble absolute inset-0 rounded-full bg-primary shadow-md shadow-primary/30"
             initial={false}
             transition={{ type: 'spring', stiffness: 350, damping: 30 }}
             style={{ zIndex: 0 }}
@@ -247,12 +247,12 @@ export default function DashboardLayout({ children }) {
   };
 
   return (
-    <div className="flex min-h-screen bg-transparent font-sans text-foreground">
+    <div className="premium-dashboard-layout flex min-h-screen bg-transparent font-sans text-foreground">
       
       {/* Desktop Sidebar (Simple) */}
       <motion.aside
         ref={sidebarRef}
-        className="desktop-sidebar border-r border-slate-200 bg-white"
+        className={`premium-sidenav desktop-sidebar border-r border-slate-200 bg-white ${isSidebarOpen ? 'is-open' : 'is-collapsed'}`}
         initial={false}
         animate={{ width: isSidebarOpen ? '260px' : '72px' }}
         transition={{ duration: 0.2 }}
@@ -263,39 +263,28 @@ export default function DashboardLayout({ children }) {
           zIndex: 40,
         }}
       >
-        <div className="flex h-[64px] items-center border-b border-slate-200 px-5" style={{ justifyContent: isSidebarOpen ? 'space-between' : 'center', padding: isSidebarOpen ? '0 20px' : '0' }}>
+        <div className="premium-sidenav-brand flex h-[64px] items-center border-b border-slate-200 px-5" style={{ justifyContent: isSidebarOpen ? 'space-between' : 'center', padding: isSidebarOpen ? '0 20px' : '0' }}>
           <Link to="/" className="flex items-center">
             <Logo size={isSidebarOpen ? 28 : 32} showText={isSidebarOpen} />
           </Link>
         </div>
 
-        <nav className={`no-scrollbar flex flex-1 flex-col gap-1 p-4 ${isSidebarOpen ? 'overflow-y-auto' : 'overflow-visible'}`}>
+        <nav className={`premium-sidenav-nav no-scrollbar flex flex-1 flex-col gap-1 p-4 ${isSidebarOpen ? 'overflow-y-auto' : 'overflow-visible'}`}>
           {NAV_CATEGORIES.map((cat, ci) => (
             <SidebarCategory key={ci} cat={cat} isSidebarOpen={isSidebarOpen} renderNavLink={renderNavLink} location={location} isMobile={false} />
           ))}
         </nav>
-
-        <div className="border-t border-slate-200 p-4 shrink-0">
-           <button 
-             onClick={logout} 
-             className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-red-500 transition-colors hover:bg-red-50 hover:text-red-700"
-             style={{ justifyContent: isSidebarOpen ? 'flex-start' : 'center' }}
-           >
-             <Power className="h-4 w-4" />
-             {isSidebarOpen && <span>Déconnexion</span>}
-           </button>
-        </div>
       </motion.aside>
 
       {/* Main Content Area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: '#faf8fc' }}>
+      <div className="premium-layout-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
         
         {/* Simple Flat Header */}
-        <header className="flex h-[64px] shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6" style={{ zIndex: 30 }}>
+        <header className="premium-topbar flex h-[64px] shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6" style={{ zIndex: 30 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             {/* Desktop toggler */}
             <button 
-              className="desktop-menu-btn"
+              className="premium-layout-toggle desktop-menu-btn"
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               aria-label={isSidebarOpen ? "Réduire le menu" : "Développer le menu"}
               style={{
@@ -312,7 +301,7 @@ export default function DashboardLayout({ children }) {
 
             {/* Mobile toggler */}
             <button 
-              className="mobile-menu-btn"
+              className="premium-layout-toggle mobile-menu-btn"
               onClick={() => setIsMobileMenuOpen(true)}
               aria-label="Ouvrir le menu mobile"
               style={{
@@ -352,11 +341,14 @@ export default function DashboardLayout({ children }) {
 
             {/* Semester Toggle Component */}
             {activeSemester && setActiveSemester && (
-              <SemesterToggle activeSemester={activeSemester} onChange={setActiveSemester} compact />
+              <div className="premium-topbar-semester">
+                <span className="premium-topbar-semester-label">Semestre actif</span>
+                <SemesterToggle activeSemester={activeSemester} onChange={setActiveSemester} compact />
+              </div>
             )}
 
             {/* User Profile Mini */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', paddingLeft: '16px', borderLeft: '1px solid var(--border)' }}>
+            <div className="premium-topbar-profile" style={{ display: 'flex', alignItems: 'center', gap: '10px', paddingLeft: '16px', borderLeft: '1px solid var(--border)' }}>
               <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', maxWidth: '180px', alignItems: 'center' }}>
                 <span style={{ 
                   fontSize: '10.5px', 
@@ -383,12 +375,46 @@ export default function DashboardLayout({ children }) {
               }}>
                 <School size={18} />
               </div>
+
+              {/* Premium Logout Button */}
+              <button 
+                onClick={logout} 
+                style={{ 
+                  marginLeft: '12px',
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, rgba(239,68,68,0.15) 0%, rgba(220,38,38,0.05) 100%)',
+                  border: '1px solid rgba(239,68,68,0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#ef4444',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: '0 4px 12px rgba(239,68,68,0.08)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(239,68,68,0.25) 0%, rgba(220,38,38,0.15) 100%)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(239,68,68,0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(239,68,68,0.15) 0%, rgba(220,38,38,0.05) 100%)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(239,68,68,0.08)';
+                }}
+                data-tooltip="Se déconnecter"
+                aria-label="Se déconnecter"
+              >
+                <Power size={18} />
+              </button>
             </div>
           </div>
         </header>
 
         {/* Content Scroll Area */}
-        <main ref={scrollRef} onScroll={handleMainScroll} style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '24px' }}>
+        <main className="premium-main-scroll" ref={scrollRef} onScroll={handleMainScroll} style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '24px' }}>
           <div className="max-w-container" style={{ 
             padding: 0, 
             maxWidth: isSidebarOpen ? '1200px' : '100%', 
@@ -402,7 +428,7 @@ export default function DashboardLayout({ children }) {
               {children}
             </motion.div>
             
-            <footer style={{ textAlign: 'center', padding: '48px 0 24px', marginTop: '40px' }}>
+            <footer className="premium-app-footer" style={{ textAlign: 'center', padding: '48px 0 24px', marginTop: '40px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '8px' }}>
                 <School size={14} style={{ color: 'var(--primary)' }} />
                 <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-tertiary)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
@@ -456,9 +482,9 @@ export default function DashboardLayout({ children }) {
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-y-0 left-0 z-[101] flex w-[280px] flex-col border-r border-slate-200 bg-white shadow-xl"
+            className="premium-sidenav premium-mobile-sidenav fixed inset-y-0 left-0 z-[101] flex w-[280px] flex-col border-r border-slate-200 bg-white shadow-xl"
           >
-            <div className="flex h-[64px] shrink-0 items-center justify-between border-b border-slate-200 px-5">
+            <div className="premium-sidenav-brand flex h-[64px] shrink-0 items-center justify-between border-b border-slate-200 px-5">
                <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center">
                  <Logo size={28} showText={true} />
               </Link>
@@ -466,20 +492,11 @@ export default function DashboardLayout({ children }) {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <nav className="no-scrollbar flex flex-1 flex-col gap-1 overflow-y-auto p-4">
+            <nav className="premium-sidenav-nav no-scrollbar flex flex-1 flex-col gap-1 overflow-y-auto p-4">
               {NAV_CATEGORIES.map((cat, ci) => (
                 <SidebarCategory key={ci} cat={cat} isSidebarOpen={true} renderNavLink={(item) => renderNavLink(item, true)} location={location} isMobile={true} />
               ))}
             </nav>
-            <div className="border-t border-slate-200 p-4 shrink-0">
-              <button 
-                onClick={() => { logout(); setIsMobileMenuOpen(false); }} 
-                className="flex w-full items-center justify-center gap-2 rounded-md bg-red-50 px-4 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 hover:text-red-700"
-              >
-                <Power className="h-4 w-4" />
-                Déconnexion
-              </button>
-            </div>
           </motion.div>
         )}
       </AnimatePresence>

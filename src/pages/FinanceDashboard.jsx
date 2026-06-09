@@ -897,28 +897,73 @@ const FinanceDashboard = () => {
 
   if (!isDirectorAuth) {
     return (
-      <div className="flex-center finance-admin-page" style={{ minHeight: 'calc(100vh - 150px)', width: '100%' }}>
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="glass-premium" style={{ padding: 'var(--space-10)', maxWidth: '420px', width: '100%', textAlign: 'center' }}>
-          <div style={{ width: '72px', height: '72px', background: 'var(--primary-ultra-light)', borderRadius: 'var(--radius-3xl)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto var(--space-6)', color: 'var(--primary)' }}>
-            <Lock size={32} />
-          </div>
-          <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: '900', marginBottom: 'var(--space-2)' }}>Espace Direction</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-8)' }}>Accès restreint à la gestion financière de l'IPFP.</p>
-          <form onSubmit={handleLogin}>
-            <div style={{ position: 'relative', marginBottom: 'var(--space-4)' }}>
-              <input type={showPassword ? 'text' : 'password'} className="input-premium" placeholder="Mot de passe confidentiel" style={{ width: '100%', textAlign: 'center', padding: '14px', paddingRight: '48px' }} value={password} onChange={(e) => setPassword(e.target.value)} autoFocus />
-              <button type="button" onClick={() => setShowPassword(!showPassword)}
-                style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', display: 'flex' }}>
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+      <div className="finance-admin-page" style={{
+        minHeight: 'calc(100vh - 150px)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '24px', position: 'relative', overflow: 'hidden', background: 'var(--bg-page)', borderRadius: '24px'
+      }}>
+        <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '40%', height: '40%', background: 'rgba(176, 104, 185, 0.04)', filter: 'blur(100px)', borderRadius: '50%' }}></div>
+        <div style={{ position: 'absolute', bottom: '-10%', right: '-10%', width: '40%', height: '40%', background: 'rgba(254, 205, 8, 0.03)', filter: 'blur(100px)', borderRadius: '50%' }}></div>
+
+        <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          style={{ width: '100%', maxWidth: '380px', position: 'relative', zIndex: 10 }}>
+          
+          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+            <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
+              <div style={{ 
+                width: '56px', height: '56px', 
+                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(234, 179, 8, 0.15) 100%)', 
+                border: '1px solid rgba(139, 92, 246, 0.25)',
+                borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                color: '#8b5cf6'
+              }}>
+                <Lock size={24} />
+              </div>
             </div>
-            <button type="submit" className="btn-modern primary" style={{ width: '100%', justifyContent: 'center', padding: '14px' }}>
-              Déverrouiller <ArrowRight size={18} style={{ marginLeft: '8px' }} />
-            </button>
-            <button type="button" onClick={logout} className="btn-modern" style={{ width: '100%', justifyContent: 'center', padding: '14px', marginTop: '12px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+            <h1 style={{ fontSize: 'var(--text-xl)', fontWeight: '800', letterSpacing: '-0.02em', color: 'var(--text-primary)', marginBottom: '4px' }}>
+              ESPACE DIRECTION
+            </h1>
+            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', fontWeight: '400' }}>
+              Accès restreint à la gestion financière de l'IPFP
+            </p>
+          </div>
+
+          <div className="glass-premium" style={{ padding: '28px', borderRadius: '24px' }}>
+            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', paddingLeft: '2px' }}>
+                  Mot de passe
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Lock size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)' }} />
+                  <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
+                    className="input-premium" style={{ width: '100%', paddingLeft: '42px', paddingRight: '44px', paddingTop: '12px', paddingBottom: '12px' }}
+                    placeholder="••••••••" required autoFocus />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)}
+                    style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', display: 'flex' }}>
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              <button type="submit" className="btn-modern primary"
+                style={{ width: '100%', justifyContent: 'center', padding: '12px', borderRadius: 'var(--radius-lg)', fontSize: 'var(--text-sm)', fontWeight: '700', letterSpacing: '0.02em' }}>
+                Déverrouiller <ArrowRight size={16} style={{ marginLeft: '6px' }} />
+              </button>
+            </form>
+          </div>
+
+          <div style={{ textAlign: 'center', marginTop: '24px' }}>
+            <button type="button" onClick={logout} 
+              style={{ 
+                background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: 'var(--text-xs)', 
+                fontWeight: '600', cursor: 'pointer', textDecoration: 'underline', transition: 'color 0.2s' 
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
+              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+            >
               Se déconnecter de l'application
             </button>
-          </form>
+          </div>
         </motion.div>
       </div>
     );
@@ -926,7 +971,7 @@ const FinanceDashboard = () => {
 
   return (
     <div className="section-padding finance-admin-page">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-8)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-5)' }}>
         <div>
           <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: '900', color: 'var(--text-primary)' }}>Gestion Financière</h1>
           <p style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Tableau de bord des flux et de la trésorerie</p>
@@ -954,11 +999,10 @@ const FinanceDashboard = () => {
           >
             <Lock size={16} style={{ marginRight: '8px' }} /> Verrouiller
           </button>
-          <button onClick={logout} className="btn-modern" style={{ background: 'var(--danger-ultra-light)', color: 'var(--danger)', border: '1px solid var(--danger-bg)' }}>
-            <RotateCcw size={16} style={{ marginRight: '8px' }} /> Déconnexion
-          </button>
         </div>
       </div>
+
+      <hr style={{ border: 'none', borderTop: '1px solid var(--border)', marginBottom: 'var(--space-6)', opacity: 0.6 }} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <StatCard title="Revenus Totaux" value={stats.revenue} icon={TrendingUp} tone="revenue" helper={`Encaissements · ${summaryMonthFilter}`} />

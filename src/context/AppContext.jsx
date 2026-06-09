@@ -1283,6 +1283,10 @@ export const AppProvider = ({ children }) => {
     const docRef = await addDoc(collection(db, 'ctSessions'), { ...data, createdAt: serverTimestamp() });
     setCtSessions(prev => [{ id: docRef.id, ...data }, ...prev]);
   };
+  const updateCtSession = async (id, data) => {
+    await updateDoc(doc(db, 'ctSessions', id), data);
+    setCtSessions(prev => prev.map(item => item.id === id ? { ...item, ...data } : item));
+  };
   const deleteCtSession = async (id) => {
     await deleteDoc(doc(db, 'ctSessions', id));
     setCtSessions(prev => prev.filter(item => item.id !== id));
@@ -1300,7 +1304,7 @@ export const AppProvider = ({ children }) => {
       modules, addModule, updateModule, deleteModule,
       continuousTrainings, addContinuousTraining, updateContinuousTraining, deleteContinuousTraining,
       ctStudents, addCtStudent, updateCtStudent, deleteCtStudent,
-      ctSessions, addCtSession, deleteCtSession,
+      ctSessions, addCtSession, updateCtSession, deleteCtSession,
       accessLogs, logAppAccess, loadAccessLogs,
       activeSemester, setActiveSemester, getActiveScheduleModule,
       confirmAction, notifications, markNotificationAsRead, clearNotifications
