@@ -144,6 +144,26 @@ const TeacherPortal = () => {
     }
   }, [teacher, selectedDate, accessMode, loadTeacherAttendanceForDate]);
 
+  // Sync completedSessionIds with DB teacherAttendance records
+  useEffect(() => {
+    if (!teacher || todaysSessions.length === 0 || accessMode !== 'attendance') return;
+    const completed = new Set();
+    todaysSessions.forEach(session => {
+      const safeModule = (getActiveScheduleModule(session) || 'global').replace(/[^a-zA-Z0-9]/g, '_');
+      const safeTime = (session.time || '').replace(/[^0-9]/g, '') || 'x';
+      const docId = `${teacher.id}_${safeModule}_${safeTime}_${selectedDate}`;
+      const record = teacherAttendance.find(a => a.id === docId);
+      if (record && (record.status === 'present' || record.status === 'absent')) {
+        completed.add(session.id);
+      }
+    });
+    setCompletedSessionIds(prev => {
+      const isIdentical = prev.size === completed.size && [...completed].every(id => prev.has(id));
+      if (isIdentical) return prev;
+      return completed;
+    });
+  }, [teacher, todaysSessions, teacherAttendance, selectedDate, accessMode, getActiveScheduleModule]);
+
   // Check if attendance was already submitted today
   const alreadyDoneToday = useMemo(() => {
     if (!teacher || todaysSessions.length === 0 || accessMode !== 'attendance') return false;
@@ -442,8 +462,10 @@ const TeacherPortal = () => {
       setShowUnmarkedWarning(true);
       return;
     }
-    // Mark this session as completed
-    setCompletedSessionIds(prev => new Set([...prev, currentSession.id]));
+    // Mark this session as completed locally
+    const nextCompleted = new Set(completedSessionIds);
+    nextCompleted.add(currentSession.id);
+    setCompletedSessionIds(nextCompleted);
 
     // Build the docId that updateTeacherAttendance would produce
     const safeModule = (selectedSubject || 'global').replace(/[^a-zA-Z0-9]/g, '_');
@@ -464,8 +486,8 @@ const TeacherPortal = () => {
     }
     showToast(`Séance "${selectedSubject}" validée.`, 'success');
 
-    // Move to next uncompleted session
-    const nextSession = todaysSessions.find(s => s.id !== currentSession.id && !completedSessionIds.has(s.id));
+    // Move to next uncompleted session using updated set
+    const nextSession = todaysSessions.find(s => s.id !== currentSession.id && !nextCompleted.has(s.id));
     if (nextSession) {
       setSelectedSessionId(nextSession.id);
     }
@@ -488,11 +510,13 @@ const TeacherPortal = () => {
       0, sessionModule, currentSession.time
     );
 
-    setCompletedSessionIds(prev => new Set([...prev, currentSession.id]));
+    const nextCompleted = new Set(completedSessionIds);
+    nextCompleted.add(currentSession.id);
+    setCompletedSessionIds(nextCompleted);
     showToast(`Absence déclarée pour "${sessionModule}".`, 'info');
 
-    // Move to next uncompleted session
-    const nextSession = todaysSessions.find(s => s.id !== currentSession.id && !completedSessionIds.has(s.id));
+    // Move to next uncompleted session using updated set
+    const nextSession = todaysSessions.find(s => s.id !== currentSession.id && !nextCompleted.has(s.id));
     if (nextSession) {
       setSelectedSessionId(nextSession.id);
     }
@@ -765,7 +789,7 @@ const TeacherPortal = () => {
                 </button>
                 <button onClick={handleValidateSession} disabled={!allAttended} className={`btn-modern ${allAttended ? 'primary' : 'secondary'}`} style={{ padding: '10px 20px', opacity: allAttended ? 1 : 0.5, cursor: allAttended ? 'pointer' : 'not-allowed' }}>
                   <CheckCircle2 size={16} style={{ marginRight: '6px' }} />
-                  Valider la séance ({completedSessionIds.size}/{todaysSessions.length})
+                  Valider la séance ({completedSessionIds.size + 1}/{todaysSessions.length})
                 </button>
               </>
             )}
