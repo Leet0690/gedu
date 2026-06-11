@@ -83,8 +83,8 @@ const PWAUpdatePrompt = () => {
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(0, 0, 0, 0.6)',
-          backdropFilter: 'blur(8px)',
+          background: 'rgba(15, 10, 25, 0.45)',
+          backdropFilter: 'blur(10px)',
           zIndex: 99999,
           display: 'flex',
           alignItems: 'center',
@@ -92,28 +92,48 @@ const PWAUpdatePrompt = () => {
           padding: '24px',
         }}>
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            initial={{ opacity: 0, scale: 0.93, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 26 }}
+            exit={{ opacity: 0, scale: 0.93, y: 15 }}
+            transition={{ type: 'spring', stiffness: 350, damping: 28 }}
             role="status"
             aria-live="polite"
             className="app-modal-surface app-update-modal"
             style={{
-              background: '#ffffff',
-              border: '1px solid rgba(176,104,185,0.3)',
-              borderRadius: '24px',
-              boxShadow: '0 25px 60px rgba(0,0,0,0.35)',
+              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(250, 248, 255, 0.85))',
+              border: '1px solid rgba(124, 58, 237, 0.16)',
+              borderRadius: '28px',
+              boxShadow: '0 32px 70px rgba(76, 29, 149, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(20px)',
               padding: '40px 32px',
-              maxWidth: '420px',
+              maxWidth: '430px',
               width: '100%',
               textAlign: 'center',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: '28px',
+              gap: '24px',
             }}
           >
+            <span 
+              style={{ 
+                color: 'var(--primary)', 
+                fontWeight: '900', 
+                fontSize: '10px', 
+                background: 'rgba(124, 58, 237, 0.08)',
+                padding: '5px 14px',
+                borderRadius: '100px',
+                border: '1px solid rgba(124, 58, 237, 0.12)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em'
+              }}
+            >
+              <Sparkles size={11} /> Mise à jour PWA
+            </span>
+
             <div style={{
               position: 'relative',
               width: '110px',
@@ -130,24 +150,22 @@ const PWAUpdatePrompt = () => {
                 right: 0,
                 bottom: 0,
                 borderRadius: '50%',
-                border: '2px solid var(--primary-light)',
-                opacity: 0.6,
-                animation: 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite',
+                border: '2.5px solid rgba(124, 58, 237, 0.35)',
+                animation: 'update-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite',
               }} />
               {/* Center counter circle */}
               <div style={{
                 width: '90px',
                 height: '90px',
                 borderRadius: '50%',
-                background: 'var(--primary-ultra-light)',
-                border: '3px solid var(--primary)',
+                background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '36px',
-                fontWeight: '900',
-                color: 'var(--primary)',
-                boxShadow: '0 10px 25px rgba(176, 104, 185, 0.15)',
+                fontSize: '38px',
+                fontWeight: '950',
+                color: '#ffffff',
+                boxShadow: '0 12px 30px rgba(124, 58, 237, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.25)',
                 zIndex: 2,
               }}>
                 {secondsLeft}
@@ -156,21 +174,22 @@ const PWAUpdatePrompt = () => {
 
             <div>
               <h2 style={{
-                fontSize: '22px',
-                fontWeight: '800',
-                color: '#111827',
-                margin: '0 0 10px 0',
-                letterSpacing: '-0.01em',
+                fontSize: '21px',
+                fontWeight: '950',
+                color: 'var(--text-primary)',
+                margin: '0 0 8px 0',
+                letterSpacing: '-0.02em',
               }}>
-                Nouvelle version disponible !
+                Nouvelle version en ligne
               </h2>
               <p style={{
-                fontSize: '14px',
-                color: '#4b5563',
-                lineHeight: '1.5',
+                fontSize: '13.5px',
+                color: 'var(--text-secondary)',
+                lineHeight: '1.55',
                 margin: 0,
+                fontWeight: '600'
               }}>
-                Une mise à jour de l'application a été déployée. Pour éviter tout dysfonctionnement, la page s'actualisera automatiquement.
+                Une mise à jour importante est disponible. L'application va s'actualiser automatiquement afin de charger la dernière version.
               </p>
             </div>
 
@@ -182,19 +201,21 @@ const PWAUpdatePrompt = () => {
                 width: '100%',
                 padding: '14px 28px',
                 borderRadius: '16px',
-                fontSize: '15px',
-                fontWeight: '800',
+                fontSize: '14px',
+                fontWeight: '850',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
                 cursor: 'pointer',
-                boxShadow: '0 8px 20px rgba(176, 104, 185, 0.25)',
-                transition: 'transform 0.12s, box-shadow 0.12s',
+                boxShadow: '0 8px 24px rgba(124, 58, 237, 0.22)',
+                background: 'linear-gradient(135deg, var(--primary), var(--primary-light))',
+                color: '#ffffff',
+                border: 'none',
               }}
             >
-              <RefreshCw size={16} />
-              Actualiser maintenant
+              <RefreshCw size={14} />
+              Actualiser immédiatement
             </button>
           </motion.div>
         </div>

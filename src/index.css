@@ -230,68 +230,99 @@ h1, h2, h3, h4, h5, h6 {
 .app-loader-shell {
   min-height: 100vh;
   width: 100%;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background:
-    radial-gradient(ellipse 56% 42% at 50% 45%, rgba(176, 104, 185, 0.08), transparent 72%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(250, 248, 252, 0.96));
+    radial-gradient(circle at 50% 50%, rgba(124, 58, 237, 0.05), transparent 60%),
+    radial-gradient(circle at 20% 20%, rgba(244, 114, 182, 0.04), transparent 40%),
+    linear-gradient(180deg, #fbfaff, #f5f3ff);
+  position: relative;
+  overflow: hidden;
+}
+
+.app-loader-shell::before,
+.app-loader-shell::after {
+  content: '';
+  position: absolute;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.22;
+  pointer-events: none;
+}
+.app-loader-shell::before {
+  background: linear-gradient(135deg, #a855f7, #6366f1);
+  top: 15%;
+  left: 20%;
+  animation: float-orb 9s ease-in-out infinite alternate;
+}
+.app-loader-shell::after {
+  background: linear-gradient(135deg, #ec4899, #f43f5e);
+  bottom: 15%;
+  right: 20%;
+  animation: float-orb 11s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes float-orb {
+  0% { transform: translateY(0) scale(1); }
+  100% { transform: translateY(-30px) scale(1.15); }
 }
 
 .app-loader {
   position: relative;
-  width: 96px;
-  height: 96px;
-  display: grid;
-  place-items: center;
-  color: var(--primary);
+  width: 110px;
+  height: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   isolation: isolate;
-}
-
-.app-loader::before {
-  content: '';
-  position: absolute;
-  inset: 14px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(176, 104, 185, 0.12);
-  box-shadow: var(--shadow-lg), var(--shadow-glow);
 }
 
 .app-loader-ring {
   position: absolute;
   border-radius: 50%;
-  border: 3px solid transparent;
-  filter: drop-shadow(0 8px 16px rgba(176, 104, 185, 0.12));
+  border: 2.5px solid transparent;
 }
 
 .app-loader-ring-primary {
-  width: 88px;
-  height: 88px;
-  border-top-color: var(--primary);
-  border-right-color: rgba(176, 104, 185, 0.22);
-  animation: spin 900ms linear infinite;
+  width: 102px;
+  height: 102px;
+  border-top-color: #7c3aed;
+  border-left-color: rgba(124, 58, 237, 0.15);
+  border-right-color: rgba(124, 58, 237, 0.15);
+  filter: drop-shadow(0 4px 10px rgba(124, 58, 237, 0.25));
+  animation: spin 1.2s cubic-bezier(0.5, 0.1, 0.1, 0.9) infinite;
 }
 
 .app-loader-ring-secondary {
-  width: 62px;
-  height: 62px;
-  border-bottom-color: var(--secondary);
-  border-left-color: rgba(254, 205, 8, 0.28);
-  animation: spin-reverse 900ms linear infinite;
+  width: 78px;
+  height: 78px;
+  border-bottom-color: #ec4899;
+  border-left-color: rgba(236, 72, 153, 0.15);
+  border-right-color: rgba(236, 72, 153, 0.15);
+  filter: drop-shadow(0 4px 10px rgba(236, 72, 153, 0.2));
+  animation: spin-reverse 1s cubic-bezier(0.5, 0.1, 0.1, 0.9) infinite;
 }
 
 .app-loader-core {
   position: relative;
   z-index: 1;
-  width: 42px;
-  height: 42px;
-  display: grid;
-  place-items: center;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 50%;
-  background: linear-gradient(135deg, #ffffff, rgba(249, 240, 251, 0.95));
-  border: 1px solid rgba(176, 104, 185, 0.14);
-  box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  animation: loader-core-pulse 1600ms ease-in-out infinite;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(124, 58, 237, 0.16);
+  backdrop-filter: blur(8px);
+  box-shadow: 
+    0 8px 20px rgba(124, 58, 237, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  color: #7c3aed;
+  animation: loader-core-pulse 1.8s ease-in-out infinite;
 }
 
 .page-shell {
@@ -2838,6 +2869,11 @@ input.input-premium[type="date"]::-webkit-datetime-edit {
 @keyframes pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50%       { opacity: 0.4; transform: scale(0.75); }
+}
+
+@keyframes update-ping {
+  0% { transform: scale(0.9); opacity: 0.95; }
+  100% { transform: scale(1.45); opacity: 0; }
 }
 
 /* ── Pagination ── */
