@@ -729,11 +729,21 @@ const FinanceDashboard = () => {
     setTeachersPage(prev => Math.min(prev, Math.max(1, totalTeachersPages)));
   }, [totalTeachersPages]);
 
+  const filteredSalaries = useMemo(() => {
+    const targetMonth = months[salaryFilter.month];
+    const targetYear = salaryFilter.year.toString();
+    return (salaries || []).filter(s => {
+      const sMonth = s.month;
+      const sYear = s.year ? s.year.toString() : '';
+      return sMonth === targetMonth && sYear === targetYear;
+    });
+  }, [salaries, salaryFilter, months]);
+
   const paginatedSalaries = useMemo(() => {
-    return salaries.slice((salariesPage - 1) * itemsPerPage, salariesPage * itemsPerPage);
-  }, [salaries, salariesPage, itemsPerPage]);
+    return filteredSalaries.slice((salariesPage - 1) * itemsPerPage, salariesPage * itemsPerPage);
+  }, [filteredSalaries, salariesPage, itemsPerPage]);
   
-  const totalSalariesPages = Math.ceil(salaries.length / itemsPerPage);
+  const totalSalariesPages = Math.ceil(filteredSalaries.length / itemsPerPage);
 
   React.useEffect(() => {
     setSalariesPage(prev => Math.min(prev, Math.max(1, totalSalariesPages)));
@@ -1386,6 +1396,7 @@ const FinanceDashboard = () => {
                 onChange={(val) => {
                   setSalaryFilter({...salaryFilter, month: parseInt(val)});
                   setTeachersPage(1);
+                  setSalariesPage(1);
                 }}
                 options={months.map((m, i) => ({ value: i.toString(), label: m }))}
               />
@@ -1395,6 +1406,7 @@ const FinanceDashboard = () => {
               onChange={(val) => {
                 setSalaryFilter({...salaryFilter, year: parseInt(val)});
                 setTeachersPage(1);
+                setSalariesPage(1);
               }}
               options={availableYears.map(y => ({ value: y.toString(), label: y.toString() }))}
             />
@@ -1682,7 +1694,7 @@ const FinanceDashboard = () => {
             <Pagination
               currentPage={salariesPage}
               totalPages={totalSalariesPages}
-              totalItems={salaries.length}
+              totalItems={filteredSalaries.length}
               itemsPerPage={itemsPerPage}
               onPageChange={setSalariesPage}
             />

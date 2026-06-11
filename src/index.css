@@ -1901,6 +1901,10 @@ input.input-premium[type="date"]::-webkit-datetime-edit {
   cursor: pointer;
 }
 
+.home-filter-select-level {
+  max-width: 180px;
+}
+
 .home-filter-select-major {
   max-width: 200px;
 }
@@ -2281,6 +2285,17 @@ input.input-premium[type="date"]::-webkit-datetime-edit {
   border-width: 5px;
   border-style: solid;
   border-color: transparent transparent var(--event-color) transparent;
+}
+
+.schedule-tooltip.tooltip-above {
+  top: auto;
+  bottom: 110%;
+}
+
+.schedule-tooltip.tooltip-above::after {
+  bottom: auto;
+  top: 100%;
+  border-color: var(--event-color) transparent transparent transparent;
 }
 
 .home-schedule-event:hover .schedule-tooltip {
@@ -6776,6 +6791,7 @@ body:has(.app-modal-overlay) .app-modal-overlay {
     flex-wrap: wrap;
   }
 
+  .home-dashboard-page .home-filter-select-level,
   .home-dashboard-page .home-filter-select-major,
   .home-dashboard-page .home-filter-select-year {
     width: 100%;

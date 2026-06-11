@@ -19,7 +19,8 @@ import {
   getStudyYearsForDiploma,
   getStudyYearsForDiplomas,
   getStudyYearsForMajor,
-  isKnownStudyYear
+  isKnownStudyYear,
+  getDiplomaForMajor
 } from '../data/modules';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import { TableSkeleton } from '../components/Skeleton';
@@ -630,14 +631,27 @@ const getHourColors = (hour) => {
 };
 
 const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSemester, getScheduleModule }) => {
-  const allFilieres = useMemo(() => Array.from(new Set(Object.values(FILIERES).flat())), []);
-  const [selectedFiliere, setSelectedFiliere] = useState(allFilieres.includes('Développement Informatique') ? 'Développement Informatique' : allFilieres[0]);
-  const availableStudyYears = useMemo(() => getStudyYearsForMajor(selectedFiliere), [selectedFiliere]);
+  const diplomas = useMemo(() => Object.keys(FILIERES), []);
+  const defaultDiploma = diplomas.includes('Technicien Spécialisé') ? 'Technicien Spécialisé' : diplomas[0];
+  const [selectedDiploma, setSelectedDiploma] = useState(defaultDiploma);
+
+  const availableFilieres = useMemo(() => FILIERES[selectedDiploma] || [], [selectedDiploma]);
+  const [selectedFiliere, setSelectedFiliere] = useState(() => {
+    const defaultFilieres = FILIERES[defaultDiploma] || [];
+    return defaultFilieres.includes('Développement Informatique') ? 'Développement Informatique' : defaultFilieres[0];
+  });
+
+  const availableStudyYears = useMemo(() => getStudyYearsForDiploma(selectedDiploma), [selectedDiploma]);
   const [selectedAnnee, setSelectedAnnee] = useState(availableStudyYears[0]);
+
   const groupLabel = useMemo(() => getGroupAbbreviation(selectedFiliere, selectedAnnee), [selectedFiliere, selectedAnnee]);
   const filteredSessions = useMemo(
-    () => realSchedules.filter(s => s.filiere === selectedFiliere && s.annee === selectedAnnee),
-    [realSchedules, selectedFiliere, selectedAnnee]
+    () => realSchedules.filter(s => 
+      (s.diploma || getDiplomaForMajor(s.filiere)) === selectedDiploma &&
+      s.filiere === selectedFiliere &&
+      s.annee === selectedAnnee
+    ),
+    [realSchedules, selectedDiploma, selectedFiliere, selectedAnnee]
   );
 
   const today = getTodayFrench();
@@ -665,8 +679,32 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
             Emploi du temps
           </span>
           <div className="home-schedule-filters">
-            <FilterSelect className="home-filter-select home-filter-select-major" value={selectedFiliere} onChange={val => { setSelectedFiliere(val); setSelectedAnnee(getStudyYearsForMajor(val)[0]); }} options={allFilieres.map(f => ({ label: f, value: f }))} />
-            <FilterSelect className="home-filter-select home-filter-select-year" value={selectedAnnee} onChange={val => setSelectedAnnee(val)} options={availableStudyYears.map(a => ({ label: a, value: a }))} />
+            <FilterSelect 
+              className="home-filter-select home-filter-select-level" 
+              value={selectedDiploma} 
+              onChange={val => { 
+                const nextFiliere = (FILIERES[val] || [])[0] || '';
+                setSelectedDiploma(val); 
+                setSelectedFiliere(nextFiliere);
+                setSelectedAnnee(getStudyYearsForDiploma(val)[0]);
+              }} 
+              options={diplomas.map(d => ({ label: d, value: d }))} 
+            />
+            <FilterSelect 
+              className="home-filter-select home-filter-select-major" 
+              value={selectedFiliere} 
+              onChange={val => { 
+                setSelectedFiliere(val); 
+                setSelectedAnnee(getStudyYearsForDiploma(selectedDiploma)[0]); 
+              }} 
+              options={availableFilieres.map(f => ({ label: f, value: f }))} 
+            />
+            <FilterSelect 
+              className="home-filter-select home-filter-select-year" 
+              value={selectedAnnee} 
+              onChange={val => setSelectedAnnee(val)} 
+              options={availableStudyYears.map(a => ({ label: a, value: a }))} 
+            />
           </div>
         </div>
         <div className="home-schedule-actions">
@@ -825,7 +863,7 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
                           )}
 
                           {/* Hover Tooltip */}
-                          <div className="schedule-tooltip">
+                          <div className={`schedule-tooltip ${['Vendredi', 'Samedi', 'Dimanche'].includes(day) ? 'tooltip-above' : ''}`}>
                             <div style={{ fontWeight: '800', fontSize: '10px', marginBottom: '4px', borderBottom: '1px solid var(--event-border)', paddingBottom: '3px', color: 'var(--event-color)' }}>
                               {moduleName || 'Module non défini'}
                             </div>

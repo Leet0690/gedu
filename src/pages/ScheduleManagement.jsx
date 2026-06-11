@@ -495,7 +495,7 @@ const ScheduleManagement = () => {
                             </div>
 
                             {/* Hover Tooltip */}
-                            <div className="schedule-tooltip">
+                            <div className={`schedule-tooltip ${['Vendredi', 'Samedi', 'Dimanche'].includes(day) ? 'tooltip-above' : ''}`}>
                               <div style={{ fontWeight: '800', fontSize: '10px', marginBottom: '4px', borderBottom: '1px solid var(--event-border)', paddingBottom: '3px', color: 'var(--event-color)' }}>
                                 {displayedModule || 'Module non défini'}
                               </div>
