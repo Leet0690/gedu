@@ -1481,10 +1481,21 @@ const AdminDashboard = () => {
       {/* Modal Section */}
       <AnimatePresence>
         {modalMode && (
-          <div className="app-modal-overlay" style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+          <div className="app-modal-overlay" style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
             <motion.div className="app-modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(4px)' }} onClick={closeModal}></motion.div>
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="glass-premium directory-premium-dialog app-modal-surface"
-              style={{ width: '100%', maxWidth: (modalMode === 'add-student' || modalMode === 'add-teacher') ? '480px' : '500px', padding: '24px', borderRadius: 'var(--radius-3xl)', position: 'relative', zIndex: 101, boxShadow: 'var(--shadow-xl)', maxHeight: '90vh', overflowY: 'auto' }}>
+              style={{
+                width: '100%',
+                maxWidth: modalMode === 'add-teacher' || (modalMode === 'edit' && activeTab === 'teachers') ? '580px' :
+                          modalMode === 'add-student' || (modalMode === 'edit' && activeTab === 'students') ? '540px' : '500px',
+                padding: '20px',
+                borderRadius: 'var(--radius-3xl)',
+                position: 'relative',
+                zIndex: 101,
+                boxShadow: 'var(--shadow-xl)',
+                maxHeight: '92vh',
+                overflowY: 'auto'
+              }}>
               
               <button onClick={closeModal} className="close-button" aria-label="Fermer la fenêtre" title="Fermer" style={{ position: 'absolute', right: '20px', top: '20px' }}>
                 <X size={20} />
@@ -1492,14 +1503,14 @@ const AdminDashboard = () => {
 
               {modalMode === 'edit' && selectedItem && (
                 <form onSubmit={handleUpdate}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                     <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900' }}>Modifier {activeTab === 'students' ? 'le stagiaire' : 'le formateur'}</h2>
                     {saveSuccess && <motion.span initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} style={{ color: 'var(--success)', fontSize: '13px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <CheckCircle2 size={16} /> Enregistré
                     </motion.span>}
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                     {activeTab === 'students' ? (
                       <>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -1522,13 +1533,15 @@ const AdminDashboard = () => {
                             <FilterSelect value={editFormData.year || ''} onChange={val => setEditFormData({...editFormData, year: val})} options={getStudyYearsForDiploma(editFormData.diploma).map(year => ({ value: year, label: year }))} />
                           </div>
                         </div>
-                        <div style={fGroup}>
-                          <label style={lbl}>Filière</label>
-                          <FilterSelect value={editFormData.major || ''} onChange={val => setEditFormData({...editFormData, major: val})} options={(FILIERES[editFormData.diploma] || []).map(f => ({ value: f, label: f }))} />
-                        </div>
-                        <div style={fGroup}>
-                          <label style={lbl}>Matricule</label>
-                          <input className="input-premium" value={editFormData.regNo || ''} onChange={e => setEditFormData({...editFormData, regNo: e.target.value})} />
+                        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px' }}>
+                          <div style={fGroup}>
+                            <label style={lbl}>Filière</label>
+                            <FilterSelect value={editFormData.major || ''} onChange={val => setEditFormData({...editFormData, major: val})} options={(FILIERES[editFormData.diploma] || []).map(f => ({ value: f, label: f }))} />
+                          </div>
+                          <div style={fGroup}>
+                            <label style={lbl}>Matricule</label>
+                            <input className="input-premium" value={editFormData.regNo || ''} onChange={e => setEditFormData({...editFormData, regNo: e.target.value})} />
+                          </div>
                         </div>
                       </>
                     ) : (
@@ -1544,27 +1557,29 @@ const AdminDashboard = () => {
                           </div>
                         </div>
                         
-                        <div style={fGroup}>
-                          <label style={lbl}>Diplômes assignés</label>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                            {allDiplomas.map(dip => (
-                              <SelectionTag key={dip} active={(editFormData.diplomas || []).includes(dip)} onClick={() => toggleDiplomaEdit(dip)} label={dip} />
-                            ))}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px' }}>
+                          <div style={fGroup}>
+                            <label style={lbl}>Diplômes assignés</label>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                              {allDiplomas.map(dip => (
+                                <SelectionTag key={dip} active={(editFormData.diplomas || []).includes(dip)} onClick={() => toggleDiplomaEdit(dip)} label={dip} />
+                              ))}
+                            </div>
                           </div>
-                        </div>
 
-                        <div style={fGroup}>
-                          <label style={lbl}>Niveaux</label>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                            {getStudyYearsForDiplomas(editFormData.diplomas || []).map(y => (
-                              <SelectionTag key={y} active={(editFormData.years || []).includes(y)} onClick={() => toggleYearEdit(y)} label={y} />
-                            ))}
+                          <div style={fGroup}>
+                            <label style={lbl}>Niveaux</label>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                              {getStudyYearsForDiplomas(editFormData.diplomas || []).map(y => (
+                                <SelectionTag key={y} active={(editFormData.years || []).includes(y)} onClick={() => toggleYearEdit(y)} label={y} />
+                              ))}
+                            </div>
                           </div>
                         </div>
 
                         <div style={fGroup}>
                           <label style={lbl}>Filières</label>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxHeight: '120px', overflowY: 'auto', padding: '4px' }}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxHeight: '75px', overflowY: 'auto', padding: '2px', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-lg)', background: 'var(--bg-subtle)' }}>
                             {Array.from(new Set((editFormData.diplomas || []).flatMap(diploma => FILIERES[diploma] || []))).map(f => (
                               <SelectionTag key={f} active={(editFormData.groups || []).includes(f)} onClick={() => toggleGroupEdit(f)} label={f} />
                             ))}
@@ -1574,9 +1589,9 @@ const AdminDashboard = () => {
                         <div style={fGroup}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <label style={lbl}>Modules ({ (editFormData.subjects || []).length })</label>
-                            <input className="input-premium" style={{ height: '28px', fontSize: '11px', width: '150px' }} placeholder="Filtrer..." value={editModuleSearch} onChange={e => setEditModuleSearch(e.target.value)} />
+                            <input className="input-premium" style={{ height: '26px', fontSize: '11px', width: '130px' }} placeholder="Filtrer..." value={editModuleSearch} onChange={e => setEditModuleSearch(e.target.value)} />
                           </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '200px', overflowY: 'auto', background: 'var(--bg-subtle)', padding: '8px', borderRadius: 'var(--radius-xl)' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '120px', overflowY: 'auto', background: 'var(--bg-subtle)', padding: '6px', borderRadius: 'var(--radius-xl)' }}>
                             {(editFormData.years || []).map(year => (
                               <div key={year}>
                                 <p style={{ fontSize: '10px', fontWeight: '800', color: 'var(--primary)', marginBottom: '4px' }}>{year}</p>
@@ -1589,7 +1604,7 @@ const AdminDashboard = () => {
                                   const filtered = editModuleSearch ? modules.filter(m => m.toLowerCase().includes(editModuleSearch.toLowerCase())) : modules;
                                   if (filtered.length === 0) return null;
                                   return (
-                                    <div key={filiere} style={{ marginBottom: '8px' }}>
+                                    <div key={filiere} style={{ marginBottom: '6px' }}>
                                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <p style={{ fontSize: '9px', fontWeight: '700', color: 'var(--text-muted)' }}>{filiere}</p>
                                         <button type="button" onClick={() => toggleFiliereAllEdit(year, filiere, filtered)} style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontSize: '9px', fontWeight: '800', cursor: 'pointer' }}>
@@ -1616,7 +1631,7 @@ const AdminDashboard = () => {
                     )}
                   </div>
 
-                  <div style={{ display: 'flex', gap: '12px', marginTop: '32px' }}>
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
                     <button type="submit" disabled={isSaving} className="btn-modern primary" style={{ flex: 1, justifyContent: 'center' }}>
                       {isSaving ? 'Enregistrement...' : 'Enregistrer les modifications'}
                     </button>
@@ -1692,10 +1707,10 @@ const AdminDashboard = () => {
 
               {modalMode === 'add-student' && (
                 <form onSubmit={handleAddStudentSubmit}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                     <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900' }}>Inscription Stagiaire</h2>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                       <div style={fGroup}>
                         <label style={lbl}>Nom</label>
@@ -1716,16 +1731,18 @@ const AdminDashboard = () => {
                         <FilterSelect value={addStudentForm.year} onChange={val => setAddStudentForm({...addStudentForm, year: val})} disabled={!addStudentForm.diploma} options={[{ value: '', label: 'Sélectionner...' }, ...getStudyYearsForDiploma(addStudentForm.diploma).map(year => ({ value: year, label: year }))]} />
                       </div>
                     </div>
-                    <div style={fGroup}>
-                      <label style={lbl}>Filière</label>
-                      <FilterSelect value={addStudentForm.major} onChange={val => setAddStudentForm({...addStudentForm, major: val})} disabled={!addStudentForm.diploma} options={[{ value: '', label: 'Choisir la filière' }, ...(FILIERES[addStudentForm.diploma] || []).map(f => ({ value: f, label: f }))]} />
-                    </div>
-                    <div style={fGroup}>
-                      <label style={lbl}>Matricule</label>
-                      <input required className="input-premium" style={{ fontFamily: 'monospace' }} placeholder="IPFP-XXXX-XXXX" value={addStudentForm.regNo} onChange={e => setAddStudentForm({...addStudentForm, regNo: e.target.value})} />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px' }}>
+                      <div style={fGroup}>
+                        <label style={lbl}>Filière</label>
+                        <FilterSelect value={addStudentForm.major} onChange={val => setAddStudentForm({...addStudentForm, major: val})} disabled={!addStudentForm.diploma} options={[{ value: '', label: 'Choisir...' }, ...(FILIERES[addStudentForm.diploma] || []).map(f => ({ value: f, label: f }))]} />
+                      </div>
+                      <div style={fGroup}>
+                        <label style={lbl}>Matricule</label>
+                        <input required className="input-premium" style={{ fontFamily: 'monospace' }} placeholder="IPFP-XXXX" value={addStudentForm.regNo} onChange={e => setAddStudentForm({...addStudentForm, regNo: e.target.value})} />
+                      </div>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
                     <button type="submit" className="btn-modern primary" style={{ flex: 1, justifyContent: 'center' }}>
                       Inscrire le stagiaire
                     </button>
@@ -1735,10 +1752,10 @@ const AdminDashboard = () => {
 
               {modalMode === 'add-teacher' && (
                 <form onSubmit={handleAddTeacherSubmit}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                     <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900' }}>Nouveau Formateur</h2>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
                       <div style={fGroup}>
                         <label style={lbl}>Nom Complet</label>
@@ -1750,27 +1767,29 @@ const AdminDashboard = () => {
                       </div>
                     </div>
                     
-                    <div style={fGroup}>
-                      <label style={lbl}>Diplômes assignés</label>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                        {allDiplomas.map(dip => (
-                          <SelectionTag key={dip} active={(addTeacherForm.diplomas || []).includes(dip)} onClick={() => toggleAddTeacherDiploma(dip)} label={dip} />
-                        ))}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px' }}>
+                      <div style={fGroup}>
+                        <label style={lbl}>Diplômes assignés</label>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                          {allDiplomas.map(dip => (
+                            <SelectionTag key={dip} active={(addTeacherForm.diplomas || []).includes(dip)} onClick={() => toggleAddTeacherDiploma(dip)} label={dip} />
+                          ))}
+                        </div>
                       </div>
-                    </div>
 
-                    <div style={fGroup}>
-                      <label style={lbl}>Niveaux d'enseignement</label>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                        {getStudyYearsForDiplomas(addTeacherForm.diplomas || []).map(y => (
-                          <SelectionTag key={y} active={(addTeacherForm.years || []).includes(y)} onClick={() => toggleAddTeacherYear(y)} label={y} />
-                        ))}
+                      <div style={fGroup}>
+                        <label style={lbl}>Niveaux d'enseignement</label>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                          {getStudyYearsForDiplomas(addTeacherForm.diplomas || []).map(y => (
+                            <SelectionTag key={y} active={(addTeacherForm.years || []).includes(y)} onClick={() => toggleAddTeacherYear(y)} label={y} />
+                          ))}
+                        </div>
                       </div>
                     </div>
 
                     <div style={fGroup}>
                       <label style={lbl}>Filières assignées</label>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxHeight: '90px', overflowY: 'auto', padding: '2px' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxHeight: '75px', overflowY: 'auto', padding: '2px', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-lg)', background: 'var(--bg-subtle)' }}>
                         {Array.from(new Set((addTeacherForm.diplomas || []).flatMap(diploma => FILIERES[diploma] || []))).map(f => (
                           <SelectionTag key={f} active={(addTeacherForm.groups || []).includes(f)} onClick={() => toggleAddTeacherGroup(f)} label={f} />
                         ))}
@@ -1782,7 +1801,7 @@ const AdminDashboard = () => {
                         <label style={lbl}>Modules ({ (addTeacherForm.subjects || []).length })</label>
                         <input className="input-premium" style={{ height: '26px', fontSize: '11px', width: '130px' }} placeholder="Filtrer..." value={addTeacherModuleSearch} onChange={e => setAddTeacherModuleSearch(e.target.value)} />
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '160px', overflowY: 'auto', background: 'var(--bg-subtle)', padding: '6px', borderRadius: 'var(--radius-xl)' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '120px', overflowY: 'auto', background: 'var(--bg-subtle)', padding: '6px', borderRadius: 'var(--radius-xl)' }}>
                         {(addTeacherForm.years || []).sort().map(year => (
                           <div key={year}>
                             <p style={{ fontSize: '10px', fontWeight: '800', color: 'var(--primary)', marginBottom: '4px' }}>{year}</p>
@@ -1819,7 +1838,7 @@ const AdminDashboard = () => {
                       </div>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
                     <button type="submit" className="btn-modern primary" style={{ flex: 1, justifyContent: 'center' }}>
                       Enregistrer le formateur
                     </button>
@@ -2068,7 +2087,7 @@ const InfoBox = ({ label, value, icon: Icon, valueColor = 'var(--text-secondary)
 
 const SelectionTag = ({ active, label, onClick }) => (
   <button type="button" onClick={onClick} style={{
-    padding: '8px 14px', borderRadius: 'var(--radius-pill)', fontSize: '10px', fontWeight: '800', transition: 'all 0.2s', cursor: 'pointer',
+    padding: '4px 10px', borderRadius: 'var(--radius-pill)', fontSize: '10px', fontWeight: '800', transition: 'all 0.2s', cursor: 'pointer',
     background: active ? 'var(--primary)' : 'var(--bg-subtle)',
     color: active ? 'white' : 'var(--text-muted)',
     border: `1px solid ${active ? 'var(--primary)' : 'var(--border-light)'}`,
