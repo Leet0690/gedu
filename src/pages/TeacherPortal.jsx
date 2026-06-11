@@ -27,7 +27,8 @@ import {
   Award,
   ArrowRight,
   RefreshCw,
-  Heart
+  Heart,
+  SlidersHorizontal
 } from 'lucide-react';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import { isActiveStudent } from '../utils/studentStatus';
@@ -399,38 +400,38 @@ const TeacherPortal = () => {
       }
     });
     return (
-      <div className="flex-center" style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #f0f4ff 0%, #f8f0fa 100%)', padding: '24px' }}>
-        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 220, damping: 22 }} style={{ padding: '48px 32px', textAlign: 'center', maxWidth: '420px', width: '100%', background: 'white', borderRadius: '28px', boxShadow: '0 16px 48px rgba(0,0,0,0.06)' }}>
-          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.15, type: 'spring', stiffness: 300 }} style={{ width: '88px', height: '88px', background: 'linear-gradient(135deg, #6366f1, #818cf8)', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', boxShadow: '0 12px 36px rgba(99,102,241,0.3)' }}>
+      <div className="flex-center" style={{ minHeight: '100vh', padding: '24px', position: 'relative' }}>
+        <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 20 }} className="glass-premium" style={{ padding: '48px 36px', textAlign: 'center', maxWidth: '440px', width: '100%', borderRadius: 'var(--radius-3xl)', boxShadow: 'var(--shadow-xl)', border: '1px solid rgba(176, 104, 185, 0.15)' }}>
+          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.15, type: 'spring', stiffness: 300 }} style={{ width: '88px', height: '88px', background: 'linear-gradient(135deg, var(--primary), var(--primary-light))', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', boxShadow: 'var(--shadow-glow)' }}>
             <CheckCircle2 size={44} />
           </motion.div>
-          <h1 style={{ fontSize: '24px', fontWeight: '900', marginBottom: '10px', color: 'var(--text-primary)' }}>Présence déjà enregistrée</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '15px', lineHeight: '1.7', marginBottom: '24px' }}>
+          <h1 style={{ fontSize: 'var(--text-xl)', fontWeight: '900', marginBottom: '10px', color: 'var(--text-primary)' }}>Présence déjà enregistrée</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', lineHeight: '1.7', marginBottom: '24px' }}>
             L'appel pour le <strong>{new Date(selectedDate).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</strong> a déjà été validé.
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
-            <div style={{ padding: '12px 16px', background: 'var(--bg-subtle)', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>📚 Séances totales</span>
-              <span style={{ fontSize: '15px', fontWeight: '900', color: 'var(--primary)' }}>{todaysSessions.length}</span>
+            <div style={{ padding: '12px 16px', background: 'rgba(255, 255, 255, 0.5)', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-lg)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)' }}>📚 Séances totales</span>
+              <span style={{ fontSize: '14px', fontWeight: '900', color: 'var(--primary)' }}>{todaysSessions.length}</span>
             </div>
             {donePresent > 0 && (
-              <div style={{ padding: '12px 16px', background: 'rgba(22,163,74,0.06)', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '13px', fontWeight: '700', color: '#15803d' }}>✅ Séances présent</span>
-                <span style={{ fontSize: '15px', fontWeight: '900', color: '#16a34a' }}>{donePresent}</span>
+              <div style={{ padding: '12px 16px', background: 'rgba(22,163,74,0.05)', border: '1px solid rgba(22,163,74,0.15)', borderRadius: 'var(--radius-lg)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '12px', fontWeight: '800', color: '#15803d' }}>✅ Séances présent</span>
+                <span style={{ fontSize: '14px', fontWeight: '900', color: '#16a34a' }}>{donePresent}</span>
               </div>
             )}
             {doneAbsent > 0 && (
-              <div style={{ padding: '12px 16px', background: 'rgba(220,38,38,0.06)', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '13px', fontWeight: '700', color: '#dc2626' }}>❌ Séances absent</span>
-                <span style={{ fontSize: '15px', fontWeight: '900', color: '#dc2626' }}>{doneAbsent}</span>
+              <div style={{ padding: '12px 16px', background: 'rgba(220,38,38,0.05)', border: '1px solid rgba(220,38,38,0.12)', borderRadius: 'var(--radius-lg)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '12px', fontWeight: '800', color: '#dc2626' }}>❌ Séances absent</span>
+                <span style={{ fontSize: '14px', fontWeight: '900', color: '#dc2626' }}>{doneAbsent}</span>
               </div>
             )}
-            <div style={{ padding: '12px 16px', background: 'var(--bg-subtle)', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>⏰ Heures de vacation</span>
-              <span style={{ fontSize: '15px', fontWeight: '900', color: '#16a34a' }}>{formatHours(totalH)}</span>
+            <div style={{ padding: '12px 16px', background: 'rgba(255, 255, 255, 0.5)', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-lg)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)' }}>⏰ Heures de vacation</span>
+              <span style={{ fontSize: '14px', fontWeight: '900', color: '#16a34a' }}>{formatHours(totalH)}</span>
             </div>
           </div>
-          <p style={{ fontSize: '12px', color: 'var(--text-faint)', fontWeight: '600' }}>Si vous pensez qu'il y a une erreur, veuillez contacter l'administration.</p>
+          <p style={{ fontSize: '11px', color: 'var(--text-faint)', fontWeight: '600' }}>Si vous pensez qu'il y a une erreur, veuillez contacter l'administration.</p>
         </motion.div>
       </div>
     );
@@ -559,6 +560,7 @@ const TeacherPortal = () => {
       await batchUpdateGrades(updates);
     }
 
+    showToast("Notes enregistrées avec succès.", 'success');
     setSuccess(true);
     setTimeout(() => setSuccess(false), 2500);
   };
@@ -623,23 +625,23 @@ const TeacherPortal = () => {
     if (finishedPresent > 0) summaryParts.push(`${finishedPresent} présente(s)`);
     if (finishedAbsent > 0) summaryParts.push(`${finishedAbsent} absente(s)`);
     return (
-      <div className="flex-center" style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #f8f0fa 0%, #e8f5e9 100%)' }}>
-        <motion.div initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 20 }} style={{ padding: '48px 36px', textAlign: 'center', maxWidth: '420px', width: '100%', background: 'white', borderRadius: '28px', boxShadow: '0 20px 60px rgba(0,0,0,0.08)' }}>
+      <div className="flex-center" style={{ minHeight: '100vh', padding: '24px' }}>
+        <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 20 }} className="glass-premium" style={{ padding: '48px 36px', textAlign: 'center', maxWidth: '440px', width: '100%', borderRadius: 'var(--radius-3xl)', boxShadow: 'var(--shadow-xl)', border: '1px solid rgba(176, 104, 185, 0.15)' }}>
           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.08, type: 'spring', stiffness: 300 }} style={{ width: '96px', height: '96px', background: 'linear-gradient(135deg, #16a34a, #22c55e)', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 28px', boxShadow: '0 12px 40px rgba(22, 163, 74, 0.35)' }}>
             <Heart size={48} />
           </motion.div>
-          <motion.h1 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.12 }} style={{ fontSize: '26px', fontWeight: '900', marginBottom: '12px', color: 'var(--text-primary)' }}>Merci, {teacher.name.split(' ')[0]} !</motion.h1>
-          <motion.p initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.16 }} style={{ color: 'var(--text-muted)', fontSize: '15px', lineHeight: '1.7', marginBottom: '28px' }}>
+          <motion.h1 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.12 }} style={{ fontSize: 'var(--text-xl)', fontWeight: '900', marginBottom: '12px', color: 'var(--text-primary)' }}>Merci, {teacher.name.split(' ')[0]} !</motion.h1>
+          <motion.p initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.16 }} style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', lineHeight: '1.7', marginBottom: '28px' }}>
             Votre journée a été enregistrée avec succès.<br/>
             <strong>{todaysSessions.length} séance(s)</strong> ({summaryParts.join(', ')}) — <strong>{formatHours(totalDuration)}</strong> de vacation transmise(s).
           </motion.p>
           <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {finishedAbsent > 0 && (
-              <div style={{ padding: '12px 16px', background: 'rgba(220,38,38,0.06)', borderRadius: '14px', fontSize: '13px', color: '#dc2626', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+              <div style={{ padding: '12px 16px', background: 'rgba(220,38,38,0.05)', border: '1px solid rgba(220,38,38,0.12)', borderRadius: '14px', fontSize: '13px', color: '#dc2626', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
                 <CalendarX size={16} /> {finishedAbsent} séance(s) déclarée(s) absente(s)
               </div>
             )}
-            <div style={{ padding: '14px 20px', background: 'var(--bg-subtle)', borderRadius: '14px', fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+            <div style={{ padding: '14px 20px', background: 'rgba(255, 255, 255, 0.5)', border: '1px solid var(--border-light)', borderRadius: '14px', fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '650' }}>
               📅 {new Date(selectedDate).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             </div>
             <button onClick={() => window.close()} className="btn-modern primary" style={{ width: '100%', justifyContent: 'center', padding: '14px', borderRadius: '14px' }}>Fermer la page <ArrowRight size={18} style={{ marginLeft: '8px' }} /></button>
@@ -672,10 +674,39 @@ const TeacherPortal = () => {
           </div>
         </motion.div>
       )}
+
+      {/* Main Header */}
+      <motion.div className="grade-premium-header" initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 'var(--space-6)', minHeight: 'auto', padding: '28px 32px' }}>
+        <div className="grade-premium-header-icon" style={{ background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.4)' }}>
+          <Presentation size={24} style={{ color: 'white' }} />
+        </div>
+        <div className="grade-premium-header-copy" style={{ flex: 1 }}>
+          <span className="grade-premium-eyebrow" style={{ color: 'rgba(255, 255, 255, 0.8)', fontWeight: '800' }}>ESPACE ENSEIGNANT</span>
+          <h1>
+            {teacher.name}
+            <span style={{ fontSize: '11px', fontWeight: '850', padding: '3px 10px', borderRadius: '8px', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.35)', backdropFilter: 'blur(8px)' }}>
+              Session Active
+            </span>
+          </h1>
+          <p style={{ color: 'rgba(255, 255, 255, 0.85)' }}>Suivi des présences journalières et saisie des évaluations académiques.</p>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '12px', zIndex: 10 }}>
+          {accessMode === 'full' && (
+            <div className="modern-tabs-container" style={{ background: 'rgba(255, 255, 255, 0.15)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255, 255, 255, 0.1)', padding: '4px', borderRadius: 'var(--radius-xl)' }}>
+              <button onClick={() => setActiveTab('attendance')} className={`modern-tab ${activeTab === 'attendance' ? 'active' : ''}`} style={{ color: activeTab === 'attendance' ? 'var(--primary)' : 'white', fontWeight: '800', padding: '8px 20px', borderRadius: 'var(--radius-lg)' }}>Présences</button>
+              <button onClick={() => setActiveTab('grades')} className={`modern-tab ${activeTab === 'grades' ? 'active' : ''}`} style={{ color: activeTab === 'grades' ? 'var(--primary)' : 'white', fontWeight: '800', padding: '8px 20px', borderRadius: 'var(--radius-lg)' }}>Notes</button>
+            </div>
+          )}
+        </div>
+        <div className="grade-premium-header-orb" aria-hidden="true" style={{ color: 'rgba(255, 255, 255, 0.08)' }}>
+          <Award size={130} />
+        </div>
+      </motion.div>
+
       {/* Session Context Bar */}
       {activeTab === 'attendance' && todaysSessions.length > 0 && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-          className="glass-card" style={{ padding: 'var(--space-4) var(--space-6)', marginBottom: 'var(--space-6)', background: 'var(--primary-ultra-light)', border: '1px solid var(--primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '20px' }}>
+          className="glass-card" style={{ padding: 'var(--space-4) var(--space-6)', marginBottom: 'var(--space-6)', border: '1px solid rgba(176, 104, 185, 0.15)', background: 'rgba(255, 255, 255, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '20px' }}>
           
           {currentSession ? (
             <div style={{ display: 'flex', gap: 'var(--space-8)', flexWrap: 'wrap' }}>
@@ -686,10 +717,12 @@ const TeacherPortal = () => {
             </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--primary)' }}>
-              <Presentation size={24} />
+              <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'var(--primary-ultra-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Presentation size={20} />
+              </div>
               <div>
-                <p style={{ fontSize: '14px', fontWeight: '800' }}>Sélectionnez votre séance</p>
-                <p style={{ fontSize: '11px', fontWeight: '600', opacity: 0.8 }}>{todaysSessions.length} séance(s) prévue(s) aujourd'hui</p>
+                <p style={{ fontSize: '13px', fontWeight: '850', color: 'var(--text-primary)', margin: 0 }}>Sélectionnez votre séance</p>
+                <p style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', margin: '2px 0 0' }}>{todaysSessions.length} séance(s) prévue(s) aujourd'hui</p>
               </div>
             </div>
           )}
@@ -711,69 +744,80 @@ const TeacherPortal = () => {
         </motion.div>
       )}
 
-      {/* Main Header */}
-      <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}
-        className="glass-card" style={{ padding: 'var(--space-6)', marginBottom: 'var(--space-6)', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '20px' }}>
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
-          <div style={{ width: '52px', height: '52px', borderRadius: 'var(--radius-xl)', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-glow)' }}>
-            <Presentation size={28} />
+      {/* Header controls for Attendance */}
+      {activeTab === 'attendance' && currentSession && (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+          className="glass-card" style={{ padding: '16px 24px', marginBottom: 'var(--space-6)', border: '1px solid rgba(176, 104, 185, 0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', background: 'rgba(255,255,255,0.8)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ padding: '6px 14px', fontSize: '12px', fontWeight: '800', color: '#6d28d9', background: 'rgba(124, 58, 237, 0.08)', borderRadius: 'var(--radius-pill)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <Users size={13} /> {relevantStudents.length} Stagiaires
+            </span>
+            <span style={{ padding: '6px 14px', fontSize: '12px', fontWeight: '800', color: allAttended ? 'var(--success)' : 'var(--warning)', background: allAttended ? 'rgba(22, 163, 74, 0.08)' : 'rgba(217, 119, 6, 0.08)', borderRadius: 'var(--radius-pill)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              {allAttended ? <CheckCircle2 size={13} /> : <AlertTriangle size={13} />}
+              {allAttended ? 'Appel complet' : `${unmarkedStudents.length} non pointé(s)`}
+            </span>
           </div>
-          <div>
-            <h1 style={{ fontSize: 'var(--text-xl)', fontWeight: '900', color: 'var(--text-primary)' }}>{teacher.name}</h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
-              <Wifi size={10} style={{ color: 'var(--success)' }} />
-              <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--success)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Session Active</span>
-            </div>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            {!completedSessionIds.has(currentSession.id) && (
+              <>
+                <button onClick={handleDeclareAbsent} className="btn-modern" style={{ padding: '10px 18px', background: 'rgba(220,38,38,0.05)', color: '#dc2626', border: '1px solid rgba(220, 38, 38, 0.18)', borderRadius: 'var(--radius-lg)', fontSize: '12px', fontWeight: '800' }}>
+                  <CalendarX size={15} style={{ marginRight: '6px' }} /> Déclarer mon absence
+                </button>
+                <button onClick={handleValidateSession} disabled={!allAttended} className={`btn-modern ${allAttended ? 'primary' : 'secondary'}`} style={{ padding: '10px 20px', opacity: allAttended ? 1 : 0.5, cursor: allAttended ? 'pointer' : 'not-allowed' }}>
+                  <CheckCircle2 size={16} style={{ marginRight: '6px' }} />
+                  Valider la séance ({completedSessionIds.size}/{todaysSessions.length})
+                </button>
+              </>
+            )}
+            {completedSessionIds.has(currentSession.id) && (
+              <span style={{ padding: '10px 20px', fontSize: '12px', fontWeight: '800', color: '#15803d', background: 'rgba(22,163,74,0.08)', borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid rgba(22,163,74,0.2)' }}>
+                <CheckCircle2 size={15} /> Séance validée
+              </span>
+            )}
+            {allSessionsCompleted && (
+              <button onClick={handleFinalValidation} className="btn-modern primary" style={{ padding: '10px 20px', background: 'linear-gradient(135deg, #16a34a, #22c55e)' }}>
+                <Award size={18} style={{ marginRight: '8px' }} /> Finaliser la journée
+              </button>
+            )}
           </div>
-        </div>
+        </motion.div>
+      )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '12px' }}>
-          {accessMode === 'full' && (
-            <div className="modern-tabs-container">
-              <button onClick={() => setActiveTab('attendance')} className={`modern-tab ${activeTab === 'attendance' ? 'active' : ''}`}>Présences</button>
-              <button onClick={() => setActiveTab('grades')} className={`modern-tab ${activeTab === 'grades' ? 'active' : ''}`}>Notes</button>
-            </div>
-          )}
-          
-          {activeTab === 'grades' ? (
-            <button onClick={handleSaveGrades} className="btn-modern primary" style={{ padding: '12px 24px' }}>
-              <CloudUpload size={18} style={{ marginRight: '8px' }} /> Enregistrer les notes
+      {/* Header controls for Grades */}
+      {activeTab === 'grades' && relevantStudents.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+          className="glass-card" style={{ padding: '16px 24px', marginBottom: 'var(--space-6)', border: '1px solid rgba(176, 104, 185, 0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', background: 'rgba(255,255,255,0.8)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ padding: '6px 14px', fontSize: '12px', fontWeight: '800', color: '#6d28d9', background: 'rgba(124, 58, 237, 0.08)', borderRadius: 'var(--radius-pill)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <Award size={13} /> Saisie de Notes
+            </span>
+            {selectedSubject && (
+              <span style={{ padding: '6px 14px', fontSize: '12px', fontWeight: '800', color: 'var(--primary)', background: 'var(--primary-ultra-light)', borderRadius: 'var(--radius-pill)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <BookOpen size={13} /> {selectedSubject}
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <button onClick={handleSaveGrades} className="btn-modern primary" style={{ padding: '10px 22px' }}>
+              <CloudUpload size={16} style={{ marginRight: '8px' }} /> Enregistrer les notes
             </button>
-          ) : (
-            todaysSessions.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
-                {currentSession && !completedSessionIds.has(currentSession.id) && (
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                    <button onClick={handleDeclareAbsent} className="btn-modern" style={{ padding: '10px 18px', background: 'rgba(220,38,38,0.08)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 'var(--radius-xl)', fontSize: '12px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <CalendarX size={15} /> Absent pour cette séance
-                    </button>
-                    <button onClick={handleValidateSession} disabled={!allAttended} className={`btn-modern ${allAttended ? 'primary' : 'secondary'}`} style={{ padding: '10px 20px', opacity: allAttended ? 1 : 0.5, cursor: allAttended ? 'pointer' : 'not-allowed' }}>
-                      <CheckCircle2 size={16} style={{ marginRight: '6px' }} />
-                      Valider cette séance ({completedSessionIds.size}/{todaysSessions.length})
-                    </button>
-                  </div>
-                )}
-                {currentSession && completedSessionIds.has(currentSession.id) && (
-                  <span style={{ padding: '10px 20px', fontSize: '12px', fontWeight: '800', color: '#15803d', background: 'rgba(22,163,74,0.08)', borderRadius: 'var(--radius-xl)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <CheckCircle2 size={15} /> Séance traitée
-                  </span>
-                )}
-                {allSessionsCompleted && (
-                  <motion.button initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} onClick={handleFinalValidation} className="btn-modern primary" style={{ padding: '12px 24px', background: 'linear-gradient(135deg, #16a34a, #22c55e)', border: 'none' }}>
-                    <Award size={18} style={{ marginRight: '8px' }} /> Finaliser la journée ({todaysSessions.length}/{todaysSessions.length})
-                  </motion.button>
-                )}
-              </div>
-            )
-          )}
-        </div>
-      </motion.div>
+          </div>
+        </motion.div>
+      )}
 
-      {/* Controls Bar */}
+      {/* Controls Bar for Grades Filters */}
       {activeTab === 'grades' && (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
-          className="glass-card" style={{ padding: 'var(--space-5)', marginBottom: 'var(--space-6)' }}>
+          className="glass-card" style={{ padding: 'var(--space-5)', marginBottom: 'var(--space-6)', border: '1px solid rgba(176, 104, 185, 0.15)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
+            <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'var(--primary-ultra-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <SlidersHorizontal size={15} />
+            </div>
+            <div>
+              <h2 style={{ fontSize: '13px', fontWeight: '850', color: 'var(--text-primary)', margin: 0 }}>Filtres d'évaluation</h2>
+              <p style={{ fontSize: '10px', color: 'var(--text-muted)', margin: '2px 0 0' }}>Ciblez un groupe et un module pour saisir les notes.</p>
+            </div>
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-4)' }}>
             <div style={fGroup}><label style={lbl}>Niveau</label><FilterSelect value={selectedDiploma} onChange={setSelectedDiploma} options={availableDiplomas.map(d => ({ label: d, value: d }))} /></div>
             <div style={fGroup}><label style={lbl}>Année</label><FilterSelect value={filterYear} onChange={setFilterYear} options={availableYears.map(y => ({ label: y, value: y }))} /></div>
@@ -788,7 +832,7 @@ const TeacherPortal = () => {
         {showUnmarkedWarning && !allAttended && activeTab === 'attendance' && (
           <motion.div
             initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-            style={{ marginBottom: 'var(--space-4)', padding: '16px 20px', borderRadius: 'var(--radius-xl)', background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.25)', display: 'flex', flexDirection: 'column', gap: '12px' }}
+            style={{ marginBottom: 'var(--space-4)', padding: '16px 20px', borderRadius: 'var(--radius-xl)', background: 'rgba(220,38,38,0.05)', border: '1px solid rgba(220,38,38,0.18)', display: 'flex', flexDirection: 'column', gap: '12px' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -803,7 +847,7 @@ const TeacherPortal = () => {
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {unmarkedStudents.map(s => (
-                <span key={s.id} style={{ fontSize: '11px', fontWeight: '700', padding: '3px 10px', borderRadius: 'var(--radius-pill)', background: 'rgba(220,38,38,0.10)', border: '1px solid rgba(220,38,38,0.20)', color: '#dc2626' }}>
+                <span key={s.id} style={{ fontSize: '11px', fontWeight: '800', padding: '4px 12px', borderRadius: 'var(--radius-pill)', background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.15)', color: '#dc2626' }}>
                   {s.lastName} {s.firstName}
                 </span>
               ))}
@@ -813,7 +857,7 @@ const TeacherPortal = () => {
       </AnimatePresence>
 
       {/* Main Table */}
-      <div className="glass-card" style={{ overflow: 'hidden' }}>
+      <div className="glass-card grade-premium-table-shell" style={{ border: '1px solid rgba(176, 104, 185, 0.15)', background: 'rgba(255,255,255,0.9)', overflow: 'hidden' }}>
         {activeTab === 'attendance' && !currentSession ? (
           <EmptyState title="Séance non sélectionnée" message={todaysSessions.length > 0 ? "Choisissez une séance dans la barre supérieure pour commencer l'appel." : `Aucune séance n'est planifiée pour vous ce ${dayOfWeek}.`} icon="calendar" />
         ) : relevantStudents.length === 0 ? (
@@ -822,16 +866,17 @@ const TeacherPortal = () => {
           <EmptyState title="Module manquant" message="Sélectionnez un module pour afficher la liste." icon="book-open" />
         ) : activeTab === 'grades' ? (
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', minWidth: '900px' }}>
+            <table className="grade-premium-table" style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', minWidth: '900px' }}>
               <thead>
-                <tr style={{ background: 'var(--bg-subtle)' }}>
-                  <th style={th}>Stagiaire</th>
-                  <th style={thCenter}>C1</th>
-                  <th style={thCenter}>C2</th>
-                  <th style={thCenter}>C3</th>
-                  <th style={{ ...thCenter, background: 'rgba(0,0,0,0.02)' }}>Moy CC</th>
-                  <th style={thCenter}>EFCFP</th>
-                  <th style={thCenter}>EFCFT</th>
+                <tr>
+                  <th style={{ ...thStyle, width: '40px', textAlign: 'center' }}>#</th>
+                  <th style={thStyle}>Stagiaire</th>
+                  <th style={{ ...thStyle, textAlign: 'center' }}>C1</th>
+                  <th style={{ ...thStyle, textAlign: 'center' }}>C2</th>
+                  <th style={{ ...thStyle, textAlign: 'center' }}>C3</th>
+                  <th style={{ ...thStyle, textAlign: 'center', background: 'rgba(124, 58, 237, 0.05)', color: '#6d28d9', fontWeight: '900' }}>Moy CC</th>
+                  <th style={{ ...thStyle, textAlign: 'center' }}>EFCFP</th>
+                  <th style={{ ...thStyle, textAlign: 'center' }}>EFCFT</th>
                 </tr>
               </thead>
               <tbody>
@@ -839,17 +884,20 @@ const TeacherPortal = () => {
                   const g = localGrades[s.id] || { c1: '', c2: '', c3: '', efcfp: '', efcft: '' };
                   const moyCC = calcMoyenneCC(g);
                   return (
-                    <tr key={s.id} style={{ borderBottom: '1px solid var(--border-light)', background: idx % 2 === 0 ? 'white' : 'var(--bg-subtle)' }}>
-                      <td style={td}>
-                        <p style={{ fontSize: '13px', fontWeight: '800' }}>{s.lastName} {s.firstName}</p>
-                        <p style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{s.regNo} · {s.year}</p>
+                    <tr key={s.id} className="grade-premium-table-row" style={{ background: idx % 2 === 0 ? 'white' : 'var(--bg-subtle)' }}>
+                      <td style={{ ...tdStyle, textAlign: 'center' }}>
+                        <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-faint)' }}>{idx + 1}</span>
                       </td>
-                      <td style={tdCenter}><GradeInput value={g.c1} onChange={(v) => handleGradeChange(s.id, 'c1', v)} /></td>
-                      <td style={tdCenter}><GradeInput value={g.c2} onChange={(v) => handleGradeChange(s.id, 'c2', v)} /></td>
-                      <td style={tdCenter}><GradeInput value={g.c3 || ''} onChange={(v) => handleGradeChange(s.id, 'c3', v)} placeholder="opt." /></td>
-                      <td style={{ ...tdCenter, background: 'rgba(0,0,0,0.01)' }}><span style={{ fontWeight: '800' }}>{moyCC !== null ? moyCC.toFixed(2) : '—'}</span></td>
-                      <td style={tdCenter}><GradeInput value={g.efcfp} onChange={(v) => handleGradeChange(s.id, 'efcfp', v)} /></td>
-                      <td style={tdCenter}><GradeInput value={g.efcft} onChange={(v) => handleGradeChange(s.id, 'efcft', v)} /></td>
+                      <td style={tdStyle}>
+                        <p style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>{s.lastName} {s.firstName}</p>
+                        <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>Matricule: {s.regNo} · {s.year}</p>
+                      </td>
+                      <td style={{ ...tdStyle, textAlign: 'center' }}><GradeInput value={g.c1} onChange={(v) => handleGradeChange(s.id, 'c1', v)} /></td>
+                      <td style={{ ...tdStyle, textAlign: 'center' }}><GradeInput value={g.c2} onChange={(v) => handleGradeChange(s.id, 'c2', v)} /></td>
+                      <td style={{ ...tdStyle, textAlign: 'center' }}><GradeInput value={g.c3 || ''} onChange={(v) => handleGradeChange(s.id, 'c3', v)} placeholder="opt." /></td>
+                      <td style={{ ...tdStyle, textAlign: 'center', background: 'rgba(124, 58, 237, 0.025)' }}><span style={{ fontWeight: '900', color: 'var(--primary)', fontSize: '14px' }}>{moyCC !== null ? moyCC.toFixed(2) : '—'}</span></td>
+                      <td style={{ ...tdStyle, textAlign: 'center' }}><GradeInput value={g.efcfp} onChange={(v) => handleGradeChange(s.id, 'efcfp', v)} /></td>
+                      <td style={{ ...tdStyle, textAlign: 'center' }}><GradeInput value={g.efcft} onChange={(v) => handleGradeChange(s.id, 'efcft', v)} /></td>
                     </tr>
                   );
                 })}
@@ -858,12 +906,13 @@ const TeacherPortal = () => {
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', minWidth: '750px' }}>
+            <table className="grade-premium-table" style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', minWidth: '750px' }}>
               <thead>
-                <tr style={{ background: 'var(--bg-subtle)' }}>
-                  <th style={th}>Stagiaire</th>
-                  <th style={{ ...th, textAlign: 'center', width: '260px' }}>Appel</th>
-                  <th style={th}>Commentaire</th>
+                <tr>
+                  <th style={{ ...thStyle, width: '40px', textAlign: 'center' }}>#</th>
+                  <th style={thStyle}>Stagiaire</th>
+                  <th style={{ ...thStyle, textAlign: 'center', width: '260px' }}>Appel</th>
+                  <th style={thStyle}>Commentaire / Note d'observation</th>
                 </tr>
               </thead>
               <tbody>
@@ -875,20 +924,27 @@ const TeacherPortal = () => {
                   const isUnmarked = showUnmarkedWarning && !['present', 'absent'].includes(status);
                   const isFirstUnmarked = isUnmarked && !firstUnmarkedAssigned && (firstUnmarkedAssigned = true);
                   return (
-                    <tr key={s.id} ref={isFirstUnmarked ? firstUnmarkedRef : null} style={{ borderBottom: '1px solid var(--border-light)', background: isUnmarked ? 'rgba(220,38,38,0.06)' : (idx % 2 === 0 ? 'white' : 'var(--bg-subtle)'), borderLeft: isUnmarked ? '3px solid rgba(220,38,38,0.5)' : '3px solid transparent', transition: 'background 0.25s, border-color 0.25s' }}>
-                      <td style={td}>
-                        <p style={{ fontSize: '13px', fontWeight: '800', color: isUnmarked ? '#dc2626' : 'var(--text-primary)' }}>{s.lastName} {s.firstName}</p>
-                        <p style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Matricule: {s.regNo}</p>
+                    <tr key={s.id} ref={isFirstUnmarked ? firstUnmarkedRef : null} className="grade-premium-table-row" style={{ background: isUnmarked ? 'rgba(220,38,38,0.05)' : (idx % 2 === 0 ? 'white' : 'var(--bg-subtle)'), borderLeft: isUnmarked ? '3px solid rgba(220,38,38,0.5)' : '3px solid transparent' }}>
+                      <td style={{ ...tdStyle, textAlign: 'center' }}>
+                        <span style={{ fontSize: '11px', fontWeight: '800', color: isUnmarked ? '#dc2626' : 'var(--text-faint)' }}>{idx + 1}</span>
                       </td>
-                      <td style={tdCenter}>
-                        <div style={{ display: 'inline-flex', background: 'var(--bg-page)', borderRadius: 'var(--radius-xl)', padding: '4px', alignItems: 'center' }}>
-                          <StatusBtn active={status === 'present'} color="var(--success)" onClick={() => handleAttendanceChange(s.id, 'present')}>Présent</StatusBtn>
-                          <StatusBtn active={status === 'absent'} color="var(--danger)" onClick={() => handleAttendanceChange(s.id, 'absent')}>Absent</StatusBtn>
-                          {status && <button onClick={() => handleClearAttendance(s.id)} style={{ marginLeft: '2px', padding: '4px 6px', border: 'none', borderRadius: 'var(--radius-md)', background: 'transparent', cursor: 'pointer', color: 'var(--text-faint)', display: 'flex', alignItems: 'center' }} title="Effacer"><X size={13} /></button>}
+                      <td style={tdStyle}>
+                        <p style={{ fontSize: '13px', fontWeight: '800', color: isUnmarked ? '#dc2626' : 'var(--text-primary)' }}>{s.lastName} {s.firstName}</p>
+                        <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>Matricule: {s.regNo}</p>
+                      </td>
+                      <td style={{ ...tdStyle, textAlign: 'center' }}>
+                        <div style={{ display: 'inline-flex', background: 'rgba(0,0,0,0.03)', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-xl)', padding: '4px', alignItems: 'center' }}>
+                          <StatusBtn active={status === 'present'} color="#16a34a" onClick={() => handleAttendanceChange(s.id, 'present')}>Présent</StatusBtn>
+                          <StatusBtn active={status === 'absent'} color="#dc2626" onClick={() => handleAttendanceChange(s.id, 'absent')}>Absent</StatusBtn>
+                          {status && (
+                            <button onClick={() => handleClearAttendance(s.id)} style={{ marginLeft: '4px', padding: '4px', border: 'none', borderRadius: '50%', background: 'rgba(0,0,0,0.04)', cursor: 'pointer', color: 'var(--text-faint)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px' }} title="Effacer">
+                              <X size={10} />
+                            </button>
+                          )}
                         </div>
                       </td>
-                      <td style={td}>
-                        <input type="text" className="input-premium" placeholder="Note..." style={{ width: '100%', fontSize: '12px', background: 'transparent', border: '1px solid transparent' }} value={comment} onChange={(e) => handleAttendanceComment(s.id, e.target.value)} />
+                      <td style={tdStyle}>
+                        <input type="text" className="input-premium" placeholder="Écrire une observation..." style={{ width: '100%', fontSize: '12px', background: 'rgba(255, 255, 255, 0.6)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-md)', padding: '6px 10px' }} value={comment} onChange={(e) => handleAttendanceComment(s.id, e.target.value)} />
                       </td>
                     </tr>
                   );
@@ -904,16 +960,34 @@ const TeacherPortal = () => {
 
 const SessionStat = ({ label, value, icon: Icon }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-    <div style={{ padding: '6px', background: 'white', borderRadius: 'var(--radius-lg)', color: 'var(--primary)', boxShadow: 'var(--shadow-xs)' }}><Icon size={14} /></div>
+    <div style={{ padding: '8px', background: 'var(--primary-ultra-light)', borderRadius: 'var(--radius-lg)', color: 'var(--primary)', boxShadow: 'var(--shadow-xs)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon size={15} /></div>
     <div>
-      <p style={{ fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</p>
-      <p style={{ fontSize: '13px', fontWeight: '900', color: 'var(--text-primary)' }}>{value}</p>
+      <p style={{ fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>{label}</p>
+      <p style={{ fontSize: '13px', fontWeight: '900', color: 'var(--text-primary)', margin: '2px 0 0' }}>{value}</p>
     </div>
   </div>
 );
 
 const StatusBtn = ({ active, color, children, onClick }) => (
-  <button onClick={onClick} style={{ padding: '6px 14px', border: 'none', borderRadius: 'var(--radius-lg)', fontSize: '11px', fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s', background: active ? color : 'transparent', color: active ? 'white' : 'var(--text-muted)' }}>{children}</button>
+  <motion.button 
+    whileHover={{ scale: 1.02 }}
+    whileTap={{ scale: 0.98 }}
+    onClick={onClick} 
+    style={{ 
+      padding: '6px 16px', 
+      border: 'none', 
+      borderRadius: 'var(--radius-lg)', 
+      fontSize: '11px', 
+      fontWeight: '800', 
+      cursor: 'pointer', 
+      transition: 'background 0.2s, color 0.2s, box-shadow 0.2s', 
+      background: active ? color : 'transparent', 
+      color: active ? 'white' : 'var(--text-muted)',
+      boxShadow: active ? '0 4px 12px ' + color + '30' : 'none'
+    }}
+  >
+    {children}
+  </motion.button>
 );
 
 const formatHours = (h) => {
@@ -924,9 +998,7 @@ const formatHours = (h) => {
 
 const fGroup = { display: 'flex', flexDirection: 'column', gap: '6px' };
 const lbl = { fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' };
-const th = { padding: '16px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' };
-const thCenter = { ...th, textAlign: 'center' };
-const td = { padding: '16px' };
-const tdCenter = { ...td, textAlign: 'center' };
+const thStyle = { padding: '16px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid var(--border-light)' };
+const tdStyle = { padding: '16px', borderBottom: '1px solid var(--border-light)' };
 
 export default TeacherPortal;

@@ -184,17 +184,19 @@ const StudentResults = () => {
     <div className="max-w-container section-padding">
 
       {/* Profile Header */}
-      <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="glass-card" style={{ borderRadius: 'var(--radius-3xl)', overflow: 'hidden', marginBottom: 'var(--space-8)', boxShadow: 'var(--shadow-lg)' }}>
-        <div style={{ background: 'var(--text-primary)', padding: 'clamp(32px, 5vw, 48px)', color: 'white', position: 'relative' }}>
-          <div style={{ position: 'absolute', right: '-32px', bottom: '-32px', opacity: 0.05 }}><GraduationCap size={240} /></div>
+      <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="glass-card" style={{ borderRadius: 'var(--radius-3xl)', overflow: 'hidden', marginBottom: 'var(--space-8)', border: '1px solid rgba(176, 104, 185, 0.18)', boxShadow: 'var(--shadow-lg)' }}>
+        <div style={{ background: 'linear-gradient(135deg, #1b1625 0%, #312543 100%)', padding: 'clamp(32px, 5vw, 48px)', color: 'white', position: 'relative' }}>
+          <div style={{ position: 'absolute', right: '-12px', bottom: '-24px', opacity: 0.06, color: 'var(--primary)', transform: 'rotate(-10deg)', pointerEvents: 'none' }}>
+            <GraduationCap size={240} />
+          </div>
           <div style={{ position: 'relative', zIndex: 2 }}>
-            <div className="badge-status primary" style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--primary-light)', padding: '6px 16px', marginBottom: '20px' }}>
+            <div className="badge-status primary" style={{ background: 'rgba(255, 255, 255, 0.12)', color: 'var(--primary-light)', padding: '6px 16px', marginBottom: '20px', border: '1px solid rgba(255,255,255,0.1)' }}>
               <span style={{ fontSize: '11px', fontWeight: '800' }}>{student.major}</span>
             </div>
-            <h1 style={{ fontSize: 'clamp(1.8rem, 5vw, 3rem)', fontWeight: '900', letterSpacing: '-0.04em', lineHeight: 1.1, textTransform: 'uppercase' }}>
+            <h1 style={{ fontSize: 'clamp(1.8rem, 5vw, 3rem)', fontWeight: '950', letterSpacing: '-0.04em', lineHeight: 1.1, textTransform: 'uppercase', color: 'white' }}>
               <span style={{ color: 'var(--primary-light)' }}>{student.lastName}</span> <span style={{ color: '#e4b8ed' }}>{student.firstName}</span>
             </h1>
-            <p style={{ fontSize: '11px', fontWeight: '800', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '12px' }}>
+            <p style={{ fontSize: '11px', fontWeight: '800', color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.12em', marginTop: '12px' }}>
               Matricule: {student.regNo} · {student.diploma} · {student.year}
             </p>
           </div>
@@ -219,80 +221,80 @@ const StudentResults = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
           <h3 style={{ fontSize: '11px', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Relevé de Notes Détaillé</h3>
           <div style={{ height: '1px', flex: 1, background: 'var(--border-light)' }} />
-          <div className="badge-status" style={{ background: 'var(--bg-subtle)', color: 'var(--text-muted)' }}>{moduleNames.length} Modules</div>
+          <div className="badge-status" style={{ background: 'rgba(176, 104, 185, 0.08)', color: 'var(--primary)' }}>{moduleNames.length} Modules</div>
         </div>
 
-        <div className="glass-card" style={{ overflow: 'hidden' }}>
+        <div className="glass-card grade-premium-table-shell" style={{ border: '1px solid rgba(176, 104, 185, 0.15)', background: 'rgba(255, 255, 255, 0.9)', overflow: 'hidden' }}>
           {moduleNames.length === 0 ? (
             <EmptyState title="Aucune donnée" message="Les modules ne sont pas encore configurés pour votre filière." icon="book-open" />
           ) : (
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', minWidth: '860px' }}>
+              <table className="grade-premium-table" style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', minWidth: '860px' }}>
                 <thead>
-                  <tr style={{ background: 'var(--bg-subtle)' }}>
-                    <th style={{ ...th, width: '40px', textAlign: 'center' }}>#</th>
-                    <th style={th}>Libellé du Module</th>
-                    <th style={thCenter}>C1</th>
-                    <th style={thCenter}>C2</th>
-                    <th style={thCenter}>C3</th>
-                    <th style={{ ...thCenter, background: 'rgba(0,0,0,0.02)' }}>Moy CC</th>
-                    <th style={thCenter}>EFC FP</th>
-                    <th style={thCenter}>EFC FT</th>
-                    <th style={thCenter}>Note finale</th>
+                  <tr>
+                    <th style={{ ...thStyle, width: '40px', textAlign: 'center' }}>#</th>
+                    <th style={thStyle}>Libellé du Module</th>
+                    <th style={{ ...thStyle, textAlign: 'center' }}>C1</th>
+                    <th style={{ ...thStyle, textAlign: 'center' }}>C2</th>
+                    <th style={{ ...thStyle, textAlign: 'center' }}>C3</th>
+                    <th style={{ ...thStyle, textAlign: 'center', background: 'rgba(124, 58, 237, 0.05)', color: '#6d28d9', fontWeight: '900' }}>Moy CC</th>
+                    <th style={{ ...thStyle, textAlign: 'center' }}>EFC FP</th>
+                    <th style={{ ...thStyle, textAlign: 'center' }}>EFC FT</th>
+                    <th style={{ ...thStyle, textAlign: 'center' }}>Note finale</th>
                     {/* Feature 1: pass/fail column */}
-                    <th style={thCenter}>Résultat</th>
+                    <th style={{ ...thStyle, textAlign: 'center' }}>Résultat</th>
                   </tr>
                 </thead>
                 <tbody>
                   {moduleScores.map(({ mod, g, cc, score, hasGrades, passed }, idx) => (
-                    <tr key={mod.name} style={{ borderBottom: '1px solid var(--border-light)', background: idx % 2 === 0 ? 'white' : 'var(--bg-subtle)' }}>
-                      <td style={{ ...td, textAlign: 'center' }}>
+                    <tr key={mod.name} className="grade-premium-table-row" style={{ background: idx % 2 === 0 ? 'white' : 'var(--bg-subtle)' }}>
+                      <td style={{ ...tdStyle, textAlign: 'center' }}>
                         <span style={{ color: 'var(--text-faint)', fontWeight: '800', fontSize: '11px' }}>{idx + 1}</span>
                       </td>
-                      <td style={td}>
+                      <td style={tdStyle}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <div style={{ width: '30px', height: '30px', borderRadius: 'var(--radius-lg)', background: 'var(--primary-ultra-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            <BookOpen size={13} />
+                          <div style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-lg)', background: 'var(--primary-ultra-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <BookOpen size={14} />
                           </div>
                           <div>
-                            <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>{mod.name}</span>
+                            <span style={{ fontSize: '13px', fontWeight: '750', color: 'var(--text-primary)' }}>{mod.name}</span>
                             {mod.coefficient && (
-                              <span style={{ display: 'block', fontSize: '10px', color: 'var(--text-faint)', marginTop: '1px' }}>Coeff. {mod.coefficient}</span>
+                              <span style={{ display: 'block', fontSize: '10px', color: 'var(--text-faint)', marginTop: '2px' }}>Coeff. {mod.coefficient}</span>
                             )}
                           </div>
                         </div>
                       </td>
                       {/* Feature 1: color-coded grade cells */}
-                      <td style={tdCenter}><Grade val={g.c1} /></td>
-                      <td style={tdCenter}><Grade val={g.c2} /></td>
-                      <td style={tdCenter}><Grade val={g.c3} /></td>
-                      <td style={{ ...tdCenter, background: 'rgba(0,0,0,0.01)' }}>
+                      <td style={{ ...tdStyle, textAlign: 'center' }}><Grade val={g.c1} /></td>
+                      <td style={{ ...tdStyle, textAlign: 'center' }}><Grade val={g.c2} /></td>
+                      <td style={{ ...tdStyle, textAlign: 'center' }}><Grade val={g.c3} /></td>
+                      <td style={{ ...tdStyle, textAlign: 'center', background: 'rgba(124, 58, 237, 0.025)' }}>
                         {cc !== null ? (
                           <span style={{ fontWeight: '900', color: gradeColor(cc), fontSize: '13px' }}>{cc.toFixed(2)}</span>
                         ) : <span style={{ color: 'var(--text-faint)' }}>—</span>}
                       </td>
-                      <td style={tdCenter}><Grade val={g.efcfp} /></td>
-                      <td style={tdCenter}><Grade val={g.efcft} /></td>
-                      <td style={tdCenter}>
+                      <td style={{ ...tdStyle, textAlign: 'center' }}><Grade val={g.efcfp} /></td>
+                      <td style={{ ...tdStyle, textAlign: 'center' }}><Grade val={g.efcft} /></td>
+                      <td style={{ ...tdStyle, textAlign: 'center' }}>
                         {score !== null ? (
-                          <span style={{ fontWeight: '900', fontSize: '14px', color: gradeColor(score) }}>{score.toFixed(2)}</span>
+                          <span style={{ fontWeight: '950', fontSize: '14px', color: gradeColor(score) }}>{score.toFixed(2)}</span>
                         ) : <span style={{ color: 'var(--text-faint)', fontSize: '13px' }}>—</span>}
                       </td>
-                      <td style={tdCenter}>
+                      <td style={{ ...tdStyle, textAlign: 'center' }}>
                         {hasGrades ? (
                           <span style={{
-                            display: 'inline-flex', alignItems: 'center', gap: '4px',
-                            padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '800',
-                            background: passed ? 'rgba(22,163,74,0.08)' : 'rgba(220,38,38,0.07)',
-                            color: passed ? '#16a34a' : '#dc2626',
-                            border: `1px solid ${passed ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.15)'}`,
+                            display: 'inline-flex', alignItems: 'center', gap: '5px',
+                            padding: '4px 12px', borderRadius: 'var(--radius-pill)', fontSize: '10px', fontWeight: '800',
+                            background: passed ? 'rgba(22, 163, 74, 0.06)' : 'rgba(220, 38, 38, 0.06)',
+                            color: passed ? 'var(--success)' : 'var(--danger)',
+                            border: `1px solid ${passed ? 'rgba(22, 163, 74, 0.18)' : 'rgba(220, 38, 38, 0.15)'}`,
                             whiteSpace: 'nowrap',
                           }}>
-                            {passed ? <CheckCircle size={9} /> : <TrendingDown size={9} />}
+                            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: passed ? 'var(--success)' : 'var(--danger)' }} />
                             {passed ? 'Validé' : 'Non validé'}
                           </span>
                         ) : (
-                          <span style={{ fontSize: '11px', color: 'var(--text-faint)' }}>—</span>
+                          <span style={{ fontSize: '11px', color: 'var(--text-faint)' }}>En cours</span>
                         )}
                       </td>
                     </tr>
@@ -306,31 +308,40 @@ const StudentResults = () => {
 
       {/* Feature 5: Performance bar chart */}
       {chartData.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="glass-card" style={{ padding: '28px', marginBottom: 'var(--space-8)' }}>
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="glass-card" style={{ padding: '28px', marginBottom: 'var(--space-8)', border: '1px solid rgba(176, 104, 185, 0.15)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-            <div style={{ width: '30px', height: '30px', borderRadius: '9px', background: 'var(--primary-ultra-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <BarChart3 size={15} style={{ color: 'var(--primary)' }} />
+            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--primary-ultra-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <BarChart3 size={16} style={{ color: 'var(--primary)' }} />
             </div>
             <div>
-              <h3 style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>Performance par Module</h3>
-              <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '1px' }}>Note finale (/20) — Rouge si non validé, vert si validé</p>
+              <h3 style={{ fontSize: '13px', fontWeight: '850', color: 'var(--text-primary)', margin: 0 }}>Performance par Module</h3>
+              <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>Note finale (/20) — Rouge si non validé, vert si validé</p>
             </div>
           </div>
           <div style={{ height: `${Math.max(200, chartData.length * 36)}px` }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 30, top: 4, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(0,0,0,0.05)" />
-                <XAxis type="number" domain={[0, 20]} axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 600, fill: 'var(--text-faint)' }} tickCount={5} />
+                <XAxis type="number" domain={[0, 20]} axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: 'var(--text-faint)' }} tickCount={5} />
                 <YAxis
                   dataKey="name" type="category" axisLine={false} tickLine={false}
-                  width={150} tick={{ fontSize: 11, fontWeight: 700, fill: 'var(--text-primary)' }}
+                  width={150} tick={{ fontSize: 11, fontWeight: 750, fill: 'var(--text-primary)' }}
                 />
                 <Tooltip
-                  cursor={{ fill: 'rgba(0,0,0,0.03)' }}
-                  contentStyle={{ border: 'none', borderRadius: '12px', boxShadow: 'var(--shadow-md)', fontSize: '12px' }}
+                  cursor={{ fill: 'rgba(176,104,185,0.03)' }}
+                  contentStyle={{
+                    background: 'rgba(255, 255, 255, 0.96)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(176, 104, 185, 0.2)',
+                    borderRadius: '12px',
+                    boxShadow: 'var(--shadow-md)',
+                    fontSize: '12px',
+                    fontFamily: 'var(--font-sans)',
+                    fontWeight: '700'
+                  }}
                   formatter={(v, _, p) => [v + '/20', p.payload.fullName]}
                 />
-                <Bar dataKey="score" radius={[0, 8, 8, 0]} barSize={20}>
+                <Bar dataKey="score" radius={[0, 8, 8, 0]} barSize={18}>
                   {chartData.map((entry, i) => (
                     <Cell
                       key={i}
@@ -341,11 +352,11 @@ const StudentResults = () => {
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginTop: '12px' }}>
+          <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginTop: '16px' }}>
             {[['≥ 14 — Bien', '#16a34a'], ['10–14 — Passable', '#d97706'], ['< 10 — Non validé', '#dc2626']].map(([label, color]) => (
-              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <div style={{ width: '10px', height: '10px', borderRadius: '3px', background: color }} />
-                <span style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-muted)' }}>{label}</span>
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: color }} />
+                <span style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)' }}>{label}</span>
               </div>
             ))}
           </div>
@@ -354,17 +365,20 @@ const StudentResults = () => {
 
       {/* Summary card */}
       {cnt === moduleNames.length && moduleNames.length > 0 && (
-        <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="glass-premium" style={{ padding: '40px', textAlign: 'center', border: '1px solid var(--primary-light)' }}>
-          <p style={{ fontSize: '11px', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '12px' }}>Résultat Global de l'Année</p>
-          <h2 style={{ fontSize: '48px', fontWeight: '900', color: gradeColor(generalAvgNum), letterSpacing: '-0.04em', lineHeight: 1 }}>
-            {generalAvg}<span style={{ fontSize: '18px', color: 'var(--text-faint)', fontWeight: '600' }}> / 20</span>
+        <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="glass-premium" style={{ padding: '48px 32px', textAlign: 'center', border: '1px solid rgba(176, 104, 185, 0.22)', borderRadius: 'var(--radius-3xl)', boxShadow: 'var(--shadow-lg)', background: 'linear-gradient(180deg, rgba(255,255,255,0.96), rgba(249,240,251,0.85))', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: '-60px', left: '-60px', width: '150px', height: '150px', borderRadius: '50%', background: parseFloat(generalAvg) >= 10 ? 'rgba(22, 163, 74, 0.05)' : 'rgba(220, 38, 38, 0.05)', filter: 'blur(30px)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', bottom: '-60px', right: '-60px', width: '150px', height: '150px', borderRadius: '50%', background: 'rgba(176, 104, 185, 0.05)', filter: 'blur(30px)', pointerEvents: 'none' }} />
+          
+          <p style={{ fontSize: '10px', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '12px' }}>Résultat Global de l'Année</p>
+          <h2 style={{ fontSize: '56px', fontWeight: '950', color: gradeColor(generalAvgNum), letterSpacing: '-0.04em', lineHeight: 1, margin: 0 }}>
+            {generalAvg}<span style={{ fontSize: '18px', color: 'var(--text-faint)', fontWeight: '700' }}> / 20</span>
           </h2>
           {classRank.rank && (
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600', marginTop: '10px' }}>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '750', marginTop: '12px' }}>
               Classé <strong style={{ color: 'var(--text-primary)' }}>{rankLabel}</strong> dans la promotion
             </p>
           )}
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 24px', borderRadius: 'var(--radius-pill)', marginTop: '20px', background: parseFloat(generalAvg) >= 10 ? 'var(--success-ultra-light)' : 'var(--danger-ultra-light)', color: parseFloat(generalAvg) >= 10 ? 'var(--success)' : 'var(--danger)', fontWeight: '900', fontSize: '14px', textTransform: 'uppercase' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 24px', borderRadius: 'var(--radius-pill)', marginTop: '24px', background: parseFloat(generalAvg) >= 10 ? 'rgba(22, 163, 74, 0.08)' : 'rgba(220, 38, 38, 0.08)', color: parseFloat(generalAvg) >= 10 ? 'var(--success)' : 'var(--danger)', border: `1px solid ${parseFloat(generalAvg) >= 10 ? 'rgba(22, 163, 74, 0.2)' : 'rgba(220, 38, 38, 0.15)'}`, fontWeight: '900', fontSize: '14px', textTransform: 'uppercase', boxShadow: 'var(--shadow-xs)' }}>
             {parseFloat(generalAvg) >= 10 ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
             {parseFloat(generalAvg) >= 10 ? 'Admis' : 'Non admis'}
           </div>
@@ -372,25 +386,23 @@ const StudentResults = () => {
       )}
 
       <div style={{ textAlign: 'center', marginTop: 'var(--space-12)', opacity: 0.4 }}>
-        <p style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Document généré par le système LUX-CORE · IPFP</p>
+        <p style={{ fontSize: '10px', fontWeight: '850', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Document généré par le système LUX-CORE · IPFP</p>
       </div>
     </div>
   );
 };
 
 const Metric = ({ icon: Icon, label, value, color }) => (
-  <div style={{ background: 'white', padding: '22px 16px', textAlign: 'center' }}>
-    <div style={{ width: '34px', height: '34px', borderRadius: 'var(--radius-xl)', background: 'var(--bg-subtle)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px' }}>
+  <div style={{ background: 'rgba(255, 255, 255, 0.65)', backdropFilter: 'blur(8px)', padding: '24px 16px', textAlign: 'center', transition: 'all 0.2s' }}>
+    <div style={{ width: '36px', height: '36px', borderRadius: 'var(--radius-xl)', background: 'var(--primary-ultra-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', boxShadow: 'var(--shadow-xs)' }}>
       <Icon size={16} />
     </div>
-    <p style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-faint)', textTransform: 'uppercase', marginBottom: '4px' }}>{label}</p>
-    <p style={{ fontSize: '17px', fontWeight: '900', color: color || 'var(--text-primary)' }}>{value}</p>
+    <p style={{ fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>{label}</p>
+    <p style={{ fontSize: '18px', fontWeight: '900', color: color || 'var(--text-primary)', margin: 0 }}>{value}</p>
   </div>
 );
 
-const th = { padding: '14px 16px', fontSize: '10px', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' };
-const thCenter = { ...th, textAlign: 'center' };
-const td = { padding: '14px 16px' };
-const tdCenter = { ...td, textAlign: 'center' };
+const thStyle = { padding: '16px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid var(--border-light)' };
+const tdStyle = { padding: '16px', borderBottom: '1px solid var(--border-light)' };
 
 export default StudentResults;
