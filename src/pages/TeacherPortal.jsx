@@ -31,8 +31,9 @@ import {
 } from 'lucide-react';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import { isActiveStudent } from '../utils/studentStatus';
+import { makeStudentAttendanceDocId } from '../utils/attendanceKeys';
 
-const APP_VERSION = '2.5.0';
+const APP_VERSION = '2.5.1';
 const VERSION_KEY = 'ipfp_app_version';
 
 const readStoredAppVersion = () => {
@@ -309,11 +310,11 @@ const TeacherPortal = () => {
   const allAttended = useMemo(() => {
     if (!currentSession || !relevantStudents || relevantStudents.length === 0 || !selectedSubject) return false;
     return relevantStudents.every(s => {
-      const docId = `${s.id}_${selectedSubject.replace(/[^a-zA-Z0-9]/g, '_')}_${selectedDate}`;
+      const docId = makeStudentAttendanceDocId(s.id, selectedSubject, selectedDate, currentSession.time);
       const record = studentAttendance.find(a => a.id === docId);
       return record && ['present', 'absent'].includes(record.status);
     });
-  }, [relevantStudents, selectedSubject, selectedDate, studentAttendance]);
+  }, [currentSession, relevantStudents, selectedSubject, selectedDate, studentAttendance]);
 
   // Track if ALL sessions for the day are completed
   const allSessionsCompleted = useMemo(() => {
@@ -322,13 +323,13 @@ const TeacherPortal = () => {
   }, [todaysSessions, completedSessionIds]);
 
   const unmarkedStudents = useMemo(() => {
-    if (!selectedSubject || !relevantStudents.length) return [];
+    if (!currentSession || !selectedSubject || !relevantStudents.length) return [];
     return relevantStudents.filter(s => {
-      const docId = `${s.id}_${selectedSubject.replace(/[^a-zA-Z0-9]/g, '_')}_${selectedDate}`;
+      const docId = makeStudentAttendanceDocId(s.id, selectedSubject, selectedDate, currentSession.time);
       const record = studentAttendance.find(a => a.id === docId);
       return !record || !['present', 'absent'].includes(record.status);
     });
-  }, [relevantStudents, selectedSubject, selectedDate, studentAttendance]);
+  }, [currentSession, relevantStudents, selectedSubject, selectedDate, studentAttendance]);
 
   useEffect(() => {
     if (allAttended) setShowUnmarkedWarning(false);
@@ -563,39 +564,24 @@ const TeacherPortal = () => {
   };
 
   const handleAttendanceChange = async (studentId, status) => {
-    if (!selectedSubject) return;
-    const safeModule = selectedSubject.replace(/[^a-zA-Z0-9]/g, '_');
-    const docId = `${studentId}_${safeModule}_${selectedDate}`;
+    if (!selectedSubject || !currentSession) return;
+    const docId = makeStudentAttendanceDocId(studentId, selectedSubject, selectedDate, currentSession.time);
     const record = studentAttendance.find(a => a.id === docId);
-    await updateStudentAttendance(studentId, selectedSubject, selectedDate, status, record?.comment || '', teacher.id);
-
-    const unmarkedStudents = relevantStudents.filter(s => {
-      if (s.id === studentId) return false;
-      const sDocId = `${s.id}_${safeModule}_${selectedDate}`;
-      const sRecord = studentAttendance.find(a => a.id === sDocId);
-      return !sRecord?.status;
-    });
-    if (unmarkedStudents.length > 0) {
-      await Promise.all(
-        unmarkedStudents.map(s =>
-          updateStudentAttendance(s.id, selectedSubject, selectedDate, 'absent', '', teacher.id)
-        )
-      );
-    }
+    await updateStudentAttendance(studentId, selectedSubject, selectedDate, status, record?.comment || '', teacher.id, currentSession.time);
   };
 
   const handleClearAttendance = async (studentId) => {
-    if (!selectedSubject) return;
-    const docId = `${studentId}_${selectedSubject.replace(/[^a-zA-Z0-9]/g, '_')}_${selectedDate}`;
+    if (!selectedSubject || !currentSession) return;
+    const docId = makeStudentAttendanceDocId(studentId, selectedSubject, selectedDate, currentSession.time);
     const record = studentAttendance.find(a => a.id === docId);
-    await updateStudentAttendance(studentId, selectedSubject, selectedDate, '', record?.comment || '', teacher.id);
+    await updateStudentAttendance(studentId, selectedSubject, selectedDate, '', record?.comment || '', teacher.id, currentSession.time);
   };
 
   const handleAttendanceComment = async (studentId, comment) => {
-    if (!selectedSubject) return;
-    const docId = `${studentId}_${selectedSubject.replace(/[^a-zA-Z0-9]/g, '_')}_${selectedDate}`;
+    if (!selectedSubject || !currentSession) return;
+    const docId = makeStudentAttendanceDocId(studentId, selectedSubject, selectedDate, currentSession.time);
     let record = studentAttendance.find(a => a.id === docId);
-    await updateStudentAttendance(studentId, selectedSubject, selectedDate, record?.status || 'present', comment, teacher.id);
+    await updateStudentAttendance(studentId, selectedSubject, selectedDate, record?.status || 'present', comment, teacher.id, currentSession.time);
   };
 
   const calcMoyenneCC = (g) => {
@@ -639,15 +625,15 @@ const TeacherPortal = () => {
     return (
       <div className="flex-center" style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #f8f0fa 0%, #e8f5e9 100%)' }}>
         <motion.div initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 20 }} style={{ padding: '48px 36px', textAlign: 'center', maxWidth: '420px', width: '100%', background: 'white', borderRadius: '28px', boxShadow: '0 20px 60px rgba(0,0,0,0.08)' }}>
-          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: 'spring', stiffness: 300 }} style={{ width: '96px', height: '96px', background: 'linear-gradient(135deg, #16a34a, #22c55e)', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 28px', boxShadow: '0 12px 40px rgba(22, 163, 74, 0.35)' }}>
+          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.08, type: 'spring', stiffness: 300 }} style={{ width: '96px', height: '96px', background: 'linear-gradient(135deg, #16a34a, #22c55e)', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 28px', boxShadow: '0 12px 40px rgba(22, 163, 74, 0.35)' }}>
             <Heart size={48} />
           </motion.div>
-          <motion.h1 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.35 }} style={{ fontSize: '26px', fontWeight: '900', marginBottom: '12px', color: 'var(--text-primary)' }}>Merci, {teacher.name.split(' ')[0]} !</motion.h1>
-          <motion.p initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.45 }} style={{ color: 'var(--text-muted)', fontSize: '15px', lineHeight: '1.7', marginBottom: '28px' }}>
+          <motion.h1 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.12 }} style={{ fontSize: '26px', fontWeight: '900', marginBottom: '12px', color: 'var(--text-primary)' }}>Merci, {teacher.name.split(' ')[0]} !</motion.h1>
+          <motion.p initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.16 }} style={{ color: 'var(--text-muted)', fontSize: '15px', lineHeight: '1.7', marginBottom: '28px' }}>
             Votre journée a été enregistrée avec succès.<br/>
             <strong>{todaysSessions.length} séance(s)</strong> ({summaryParts.join(', ')}) — <strong>{formatHours(totalDuration)}</strong> de vacation transmise(s).
           </motion.p>
-          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.55 }} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {finishedAbsent > 0 && (
               <div style={{ padding: '12px 16px', background: 'rgba(220,38,38,0.06)', borderRadius: '14px', fontSize: '13px', color: '#dc2626', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
                 <CalendarX size={16} /> {finishedAbsent} séance(s) déclarée(s) absente(s)
@@ -882,7 +868,7 @@ const TeacherPortal = () => {
               </thead>
               <tbody>
                 {(() => { let firstUnmarkedAssigned = false; return relevantStudents.map((s, idx) => {
-                  const docId = `${s.id}_${selectedSubject.replace(/[^a-zA-Z0-9]/g, '_')}_${selectedDate}`;
+                  const docId = makeStudentAttendanceDocId(s.id, selectedSubject, selectedDate, currentSession?.time);
                   const record = studentAttendance.find(a => a.id === docId);
                   const status = record?.status || '';
                   const comment = record?.comment || '';

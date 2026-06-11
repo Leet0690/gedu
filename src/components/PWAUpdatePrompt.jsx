@@ -77,7 +77,7 @@ const PWAUpdatePrompt = () => {
   return (
     <AnimatePresence>
       {showUpdateNotice && (
-        <div style={{
+        <div className="app-modal-overlay app-update-modal-overlay" style={{
           position: 'fixed',
           top: 0,
           left: 0,
@@ -98,6 +98,7 @@ const PWAUpdatePrompt = () => {
             transition={{ type: 'spring', stiffness: 300, damping: 26 }}
             role="status"
             aria-live="polite"
+            className="app-modal-surface app-update-modal"
             style={{
               background: '#ffffff',
               border: '1px solid rgba(176,104,185,0.3)',
@@ -189,7 +190,7 @@ const PWAUpdatePrompt = () => {
                 gap: '8px',
                 cursor: 'pointer',
                 boxShadow: '0 8px 20px rgba(176, 104, 185, 0.25)',
-                transition: 'transform 0.2s, box-shadow 0.2s',
+                transition: 'transform 0.12s, box-shadow 0.12s',
               }}
             >
               <RefreshCw size={16} />

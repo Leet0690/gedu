@@ -315,7 +315,7 @@ function FormationsTab({ trainings, ctStudents, onAdd, onEdit, onDelete }) {
                         className={cn('absolute inset-y-0 left-0 rounded-full', barColor)}
                         initial={{ width: 0 }}
                         animate={{ width: `${paidPct}%` }}
-                        transition={{ duration: 0.6, ease: 'easeOut' }}
+                        transition={{ duration: 0.24, ease: 'easeOut' }}
                       />
                     </div>
                     <div className="flex items-center justify-between text-[11px]">
@@ -770,7 +770,7 @@ function SalairesTab({ trainings, ctStudents }) {
             key={k.label}
             className={`finance-net-card finance-net-card-${k.tone} continuous-salary-kpi-card`}
             whileHover={{ y: -5, scale: 1.02 }}
-            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
           >
             <div className="finance-net-card-shine" aria-hidden="true" />
             <div className="finance-net-card-icon-bg" aria-hidden="true">
@@ -1104,7 +1104,7 @@ export default function ContinuousTrainings() {
 
       {/* Content */}
       <AnimatePresence mode="wait">
-        <motion.div className="continuous-premium-content" key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
+        <motion.div className="continuous-premium-content" key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }}>
           {activeTab === 'formations' && <FormationsTab trainings={continuousTrainings} ctStudents={ctStudents} onAdd={openAddTraining} onEdit={openEditTraining} onDelete={handleDeleteTraining} />}
           {activeTab === 'etudiants'  && <EtudiantsTab  trainings={continuousTrainings} ctStudents={ctStudents} onAddStudent={openAddStudent} onEditStudent={openEditStudent} onDeleteStudent={handleDeleteStudent} onGeneratePDF={generateReceipt} />}
           {activeTab === 'planning'   && <PlanningTab   sessions={ctSessions} trainings={continuousTrainings} onAddSession={openAddSession} onDeleteSession={handleDeleteSession} />}

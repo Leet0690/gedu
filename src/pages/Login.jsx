@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import Logo from '../components/Logo';
-import { Lock, ArrowRight, CircleAlert, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Lock, ArrowRight, CircleAlert, Loader2, Eye, EyeOff, ShieldCheck, Sparkles, GraduationCap } from 'lucide-react';
 
 const Login = () => {
   const [password, setPassword] = useState('');
@@ -30,42 +30,51 @@ const Login = () => {
   };
 
   return (
-    <div className="finance-admin-page" style={{
-      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '24px', position: 'relative', overflow: 'hidden', borderRadius: '0px', width: '100%'
-    }}>
-      <div style={{ position: 'absolute', top: '-20%', left: '-10%', width: '50%', height: '50%', background: 'rgba(176, 104, 185, 0.08)', filter: 'blur(100px)', borderRadius: '50%' }}></div>
-      <div style={{ position: 'absolute', bottom: '-20%', right: '-10%', width: '50%', height: '50%', background: 'rgba(254, 205, 8, 0.06)', filter: 'blur(100px)', borderRadius: '50%' }}></div>
+    <div className="login-premium-page">
+      <div className="login-premium-orb login-premium-orb-one" aria-hidden="true" />
+      <div className="login-premium-orb login-premium-orb-two" aria-hidden="true" />
+      <div className="login-premium-grid" aria-hidden="true" />
 
-      <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        style={{ width: '100%', maxWidth: '380px', position: 'relative', zIndex: 10 }}>
-        
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
-            <Logo size={56} showText={false} />
+      <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+        className="login-premium-shell">
+
+        <section className="login-premium-brand">
+          <div className="login-premium-brand-logo">
+            <Logo size={58} showText={false} />
           </div>
-          <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: '800', letterSpacing: '-0.02em', color: 'var(--text-primary)', marginBottom: '4px' }}>
-            IPFP MANAGER
-          </h1>
-          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', fontWeight: '400' }}>
-            Connectez-vous à votre Espace Direction
-          </p>
-        </div>
+          <div className="login-premium-brand-copy">
+            <span className="login-premium-eyebrow"><Sparkles size={12} /> Plateforme de gestion</span>
+            <h1>IPFP<br />Manager</h1>
+            <p>Un espace unifié pour piloter les formations, les présences et les résultats académiques.</p>
+          </div>
+          <div className="login-premium-feature-list">
+            <span><ShieldCheck size={15} /> Accès Direction sécurisé</span>
+            <span><GraduationCap size={15} /> Pilotage académique centralisé</span>
+          </div>
+          <div className="login-premium-brand-orb" aria-hidden="true"><GraduationCap size={180} /></div>
+        </section>
 
-        {/* Card */}
-        <div className="glass-premium" style={{ padding: '28px', borderRadius: '24px' }}>
+        <section className="glass-premium login-premium-card">
+          <div className="login-premium-card-heading">
+            <span className="login-premium-card-icon"><Lock size={18} /></span>
+            <div>
+              <span className="login-premium-card-eyebrow">Espace Direction</span>
+              <h2>Bienvenue</h2>
+              <p>Connectez-vous pour accéder au tableau de bord.</p>
+            </div>
+          </div>
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', paddingLeft: '2px' }}>
+              <label className="login-premium-label">
                 Mot de passe
               </label>
-              <div style={{ position: 'relative' }}>
-                <Lock size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)' }} />
+              <div className="login-premium-input-wrap">
+                <Lock size={16} className="login-premium-input-icon" />
                 <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
-                  className="input-premium" style={{ width: '100%', paddingLeft: '42px', paddingRight: '44px', paddingTop: '12px', paddingBottom: '12px', opacity: loading ? 0.6 : 1 }}
+                  className="input-premium login-premium-input" style={{ opacity: loading ? 0.6 : 1 }}
                   placeholder="••••••••" required autoComplete="current-password" disabled={loading} />
                 <button type="button" onClick={() => setShowPassword(!showPassword)}
-                  style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', display: 'flex' }}>
+                  className="login-premium-visibility" aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}>
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
@@ -83,9 +92,10 @@ const Login = () => {
               {loading ? <><Loader2 size={16} className="spinner" style={{ marginRight: '8px' }} />Connexion...</> : <>Se connecter <ArrowRight size={16} style={{ marginLeft: '6px' }} /></>}
             </button>
           </form>
-        </div>
+          <p className="login-premium-security"><ShieldCheck size={12} /> Connexion sécurisée et accès restreint</p>
+        </section>
 
-        <p style={{ textAlign: 'center', fontSize: '10px', fontWeight: '600', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '28px', lineHeight: '1.6' }}>
+        <p className="login-premium-footer">
           Institut Polytechnique de la Formation Professionnelle
         </p>
       </motion.div>

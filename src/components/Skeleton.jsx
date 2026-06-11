@@ -5,7 +5,7 @@ export const Skeleton = ({ width, height, borderRadius = 'var(--radius-md)', mar
   return (
     <motion.div
       animate={{ opacity: [0.4, 0.7, 0.4] }}
-      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+      transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut" }}
       style={{
         width: width || '100%',
         height: height || '20px',

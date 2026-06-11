@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/cn';
 import { useApp } from '../context/AppContext';
@@ -41,6 +42,10 @@ import {
   AlertTriangle,
   Table2
 } from 'lucide-react';
+
+const FinanceModalPortal = ({ children }) => (
+  typeof document === 'undefined' ? null : createPortal(children, document.body)
+);
 
 const calcDuration = (timeStr) => {
   if (!timeStr) return 0;
@@ -226,9 +231,34 @@ const getTeacherMonthlyHours = (attendance, teacherId, month, year, schedules = 
 
 const EXPENSE_CATEGORIES = ['Loyer', 'Matériel', 'Fournitures', 'Services', 'Entretien', 'Communication', 'Transport', 'Autre'];
 
+const GlobalStatCard = ({ title, amount, tone, icon: Icon, month, helper, delay = 0 }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 18, scale: 0.98 }}
+    animate={{ opacity: 1, y: 0, scale: 1 }}
+    whileHover={{ y: -6, scale: 1.025 }}
+    transition={{ duration: 0.32, delay, ease: [0.22, 1, 0.36, 1] }}
+    className={`finance-net-card finance-net-card-${tone}`}
+  >
+    <div className="finance-net-card-shine" aria-hidden="true" />
+    <div className="finance-net-card-icon-bg" aria-hidden="true">
+      <Icon size={54} strokeWidth={1.35} />
+    </div>
+    <div className="finance-net-card-top">
+      <span className="finance-net-card-kicker">Résultat net</span>
+      <span className="finance-net-month-badge"><CalendarDays size={12} />{month}</span>
+    </div>
+    <div className="finance-net-card-content">
+      <h3>{title}</h3>
+      <p className="finance-net-card-amount">{formatMoney(amount)}<span>DH</span></p>
+      <p className="finance-net-card-helper">{helper}</p>
+    </div>
+  </motion.div>
+);
+
 const FinanceDashboard = () => {
   const { 
     students, teachers, payments, salaries, expenses, loading,
+    continuousTrainings = [], ctStudents = [],
     addPayment, updatePayment, deletePayment, addSalary, deleteSalary, updateTeacher,
     addExpense, deleteExpense,
     teacherAttendance, loadFinancialData, loadTeacherAttendanceForMonth,
@@ -736,6 +766,10 @@ const FinanceDashboard = () => {
   const stats = useMemo(() => {
     const selectedMonth = summaryMonthFilter || currentMonthName;
     const isSelectedMonth = (month) => (month || '').toLowerCase() === selectedMonth.toLowerCase();
+    const getMonthFromDate = (date) => {
+      const monthIndex = Number(String(date || '').split('-')[1]) - 1;
+      return months[monthIndex] || '';
+    };
     const monthPayments = payments.filter(p => isSelectedMonth(p.month));
     const totalRevenue = monthPayments.reduce((acc, p) => acc + getPaymentTotal(p), 0);
     const totalSalaries = salaries
@@ -749,6 +783,23 @@ const FinanceDashboard = () => {
     const paidStudentIds = new Set(monthPayments.map(p => p.studentId).filter(id => activeStudentIds.has(id)));
     const totalStudents = activeStudents.length;
     const tauxRecouvrement = totalStudents > 0 ? Math.round((paidStudentIds.size / totalStudents) * 100) : 0;
+    const continuousTotals = continuousTrainings.reduce((totals, training) => {
+      const trainingRevenue = ctStudents
+        .filter(student => student?.trainingId === training?.id)
+        .reduce((sum, student) => {
+          const monthlyPayments = (student?.payments || []).filter(payment =>
+            isSelectedMonth(payment?.month || getMonthFromDate(payment?.date))
+          );
+          return sum + monthlyPayments.reduce((paymentSum, payment) => paymentSum + Number(payment?.amount || 0), 0);
+        }, 0);
+      const teacherShare = Math.round(trainingRevenue * Number(training?.teacherPct || 0) / 100);
+      return {
+        revenue: totals.revenue + trainingRevenue,
+        salaries: totals.salaries + teacherShare
+      };
+    }, { revenue: 0, salaries: 0 });
+    const globalCtNet = continuousTotals.revenue - continuousTotals.salaries;
+    const globalDipNet = totalRevenue - totalExpenses;
     return {
       revenue: totalRevenue,
       expenses: totalExpenses,
@@ -758,9 +809,15 @@ const FinanceDashboard = () => {
       pendingSalaries: calculatedSalaries.filter(s => !s.isPaid).reduce((acc, s) => acc + s.total, 0),
       tauxRecouvrement,
       paidStudents: paidStudentIds.size,
-      totalStudents
+      totalStudents,
+      globalCtNet,
+      globalDipNet,
+      globalTotalNet: globalCtNet + globalDipNet
     };
-  }, [payments, salaries, expenses, calculatedSalaries, summaryMonthFilter, currentMonthName, activeStudents]);
+  }, [
+    payments, salaries, expenses, calculatedSalaries, summaryMonthFilter, currentMonthName,
+    activeStudents, continuousTrainings, ctStudents, months
+  ]);
 
   const monthlyTrendData = useMemo(() => {
     return months.map(month => {
@@ -897,17 +954,17 @@ const FinanceDashboard = () => {
 
   if (!isDirectorAuth) {
     return (
-      <div className="finance-admin-page" style={{
+      <div className="finance-admin-page finance-access-premium-page" style={{
         minHeight: 'calc(100vh - 150px)', display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: '24px', position: 'relative', overflow: 'hidden', background: 'var(--bg-page)', borderRadius: '24px'
       }}>
         <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '40%', height: '40%', background: 'rgba(176, 104, 185, 0.04)', filter: 'blur(100px)', borderRadius: '50%' }}></div>
         <div style={{ position: 'absolute', bottom: '-10%', right: '-10%', width: '40%', height: '40%', background: 'rgba(254, 205, 8, 0.03)', filter: 'blur(100px)', borderRadius: '50%' }}></div>
 
-        <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          style={{ width: '100%', maxWidth: '380px', position: 'relative', zIndex: 10 }}>
+        <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+          className="finance-access-premium-shell" style={{ width: '100%', maxWidth: '380px', position: 'relative', zIndex: 10 }}>
           
-          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div className="finance-access-premium-heading" style={{ textAlign: 'center', marginBottom: '32px' }}>
             <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
               <div style={{ 
                 width: '56px', height: '56px', 
@@ -927,7 +984,7 @@ const FinanceDashboard = () => {
             </p>
           </div>
 
-          <div className="glass-premium" style={{ padding: '28px', borderRadius: '24px' }}>
+          <div className="glass-premium finance-access-premium-card" style={{ padding: '28px', borderRadius: '24px' }}>
             <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', paddingLeft: '2px' }}>
@@ -971,10 +1028,14 @@ const FinanceDashboard = () => {
 
   return (
     <div className="section-padding finance-admin-page">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-5)' }}>
-        <div>
-          <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: '900', color: 'var(--text-primary)' }}>Gestion Financière</h1>
-          <p style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Tableau de bord des flux et de la trésorerie</p>
+      <div className="finance-premium-header">
+        <div className="finance-premium-header-icon">
+          <Wallet size={24} />
+        </div>
+        <div className="finance-premium-header-copy">
+          <span className="finance-premium-eyebrow">Pilotage financier</span>
+          <h1>Gestion Financière</h1>
+          <p>Tableau de bord des flux, charges et résultats nets</p>
         </div>
         <div className="finance-header-actions">
           <div className="finance-month-compact" data-tooltip="Indicateurs du mois" aria-label="Indicateurs du mois">
@@ -1000,14 +1061,48 @@ const FinanceDashboard = () => {
             <Lock size={16} style={{ marginRight: '8px' }} /> Verrouiller
           </button>
         </div>
+        <div className="finance-premium-header-orb" aria-hidden="true">
+          <BarChart3 size={112} />
+        </div>
       </div>
 
-      <hr style={{ border: 'none', borderTop: '1px solid var(--border)', marginBottom: 'var(--space-6)', opacity: 0.6 }} />
+      <div className="finance-net-grid" aria-label={`Gains nets pour ${summaryMonthFilter}`}>
+        <GlobalStatCard
+          title="Formation continue"
+          amount={stats.globalCtNet}
+          icon={Receipt}
+          tone="continuous"
+          month={summaryMonthFilter}
+          helper="Encaissements moins part formateurs"
+        />
+        <GlobalStatCard
+          title="Formations diplômantes"
+          amount={stats.globalDipNet}
+          icon={BarChart3}
+          tone="diploma"
+          month={summaryMonthFilter}
+          helper="Encaissements moins salaires et charges"
+          delay={0.04}
+        />
+        <GlobalStatCard
+          title="Bénéfice total"
+          amount={stats.globalTotalNet}
+          icon={TrendingUp}
+          tone="total"
+          month={summaryMonthFilter}
+          helper="Formation continue + diplômante"
+          delay={0.08}
+        />
+      </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <StatCard title="Revenus Totaux" value={stats.revenue} icon={TrendingUp} tone="revenue" helper={`Encaissements · ${summaryMonthFilter}`} />
-        <StatCard title="Total Charges" value={stats.expenses} icon={TrendingDown} tone="expense" helper="Salaires et autres charges" />
-        <StatCard title="Bénéfice Net" value={stats.balance} icon={Wallet} tone="balance" helper={stats.balance >= 0 ? 'Solde positif' : 'Solde à surveiller'} />
+      <div className="finance-section-divider">
+        <span>Gestion financière des formations diplômantes</span>
+      </div>
+
+      <div className="finance-summary-grid">
+        <StatCard title="Revenus Totaux" value={stats.revenue} icon={TrendingUp} tone="revenue" month={summaryMonthFilter} helper="Encaissements du mois" />
+        <StatCard title="Total Charges" value={stats.expenses} icon={TrendingDown} tone="expense" month={summaryMonthFilter} helper="Salaires et autres charges" />
+        <StatCard title="Bénéfice Net" value={stats.balance} icon={Wallet} tone="balance" month={summaryMonthFilter} helper={stats.balance >= 0 ? 'Solde positif' : 'Solde à surveiller'} />
         <RecoveryCard
           value={stats.tauxRecouvrement}
           paid={stats.paidStudents}
@@ -1016,7 +1111,7 @@ const FinanceDashboard = () => {
         />
       </div>
 
-      <div className="modern-tabs-container" style={{ marginBottom: 'var(--space-6)' }}>
+      <div className="modern-tabs-container finance-premium-tabs" style={{ marginBottom: 'var(--space-6)' }}>
         <button onClick={() => setActiveTab('payments')} className={`modern-tab ${activeTab === 'payments' ? 'active' : ''}`}>
           Paiements
           {overdueStudents.length > 0 && (
@@ -1041,7 +1136,7 @@ const FinanceDashboard = () => {
       </div>
 
       {activeTab === 'payments' && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <motion.div className="finance-tab-panel" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <div className="finance-payment-filter-toolbar">
           <div className="glass-card finance-filter-card">
             <div className="finance-filter-row finance-filter-row-primary">
@@ -1281,7 +1376,7 @@ const FinanceDashboard = () => {
       )}
 
       {activeTab === 'salaries' && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <motion.div className="finance-tab-panel" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <div className="glass-card finance-filter-card">
             <div className="finance-filter-row finance-filter-row-primary">
               <CalendarDays size={16} className="finance-filter-leading-icon" />
@@ -1370,7 +1465,7 @@ const FinanceDashboard = () => {
                   <p style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>Valider tous les salaires calculés</p>
                 </div>
                 <button
-                  className="btn-modern primary"
+                  className="btn-modern primary finance-settle-all-button"
                   style={{ whiteSpace: 'nowrap', fontSize: '12px', padding: '8px 14px' }}
                   onClick={async () => {
                     const unpaid = filteredTeachers.filter(t => !t.isPaid && t.total > 0);
@@ -1596,7 +1691,7 @@ const FinanceDashboard = () => {
       )}
 
       {activeTab === 'expenses' && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <motion.div className="finance-tab-panel" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <div className="finance-expense-filter-toolbar">
           <div className="glass-card finance-filter-card">
             <div className="finance-filter-row finance-filter-row-primary">
@@ -1653,7 +1748,7 @@ const FinanceDashboard = () => {
                   {filteredExpensesTotal.toLocaleString()} DH
                 </p>
               </div>
-              <button onClick={() => setShowExpenseModal(true)} className="btn-modern primary">
+              <button onClick={() => setShowExpenseModal(true)} className="btn-modern primary finance-expense-add-button">
                 <Plus size={16} style={{ marginRight: '8px' }} /> Ajouter
               </button>
             </div>
@@ -1745,7 +1840,7 @@ const FinanceDashboard = () => {
       )}
 
       {activeTab === 'stats' && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-6)' }}>
+        <motion.div className="finance-tab-panel" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-6)' }}>
           <div className="glass-card" style={{ padding: 'var(--space-6)', gridColumn: '1 / -1', overflowX: 'auto' }}>
             <div className="finance-section-toolbar">
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1907,7 +2002,7 @@ const FinanceDashboard = () => {
       )}
 
       {activeTab === 'annual' && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <motion.div className="finance-tab-panel" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <div className="glass-card" style={{ padding: 'var(--space-6)', marginBottom: 'var(--space-6)' }}>
             <div className="finance-section-toolbar finance-annual-toolbar">
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -2076,11 +2171,12 @@ const FinanceDashboard = () => {
         </motion.div>
       )}
 
+      <FinanceModalPortal>
       <AnimatePresence>
         {showExpenseModal && (
-          <div className="finance-payment-modal-overlay">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(6px)' }} onClick={() => setShowExpenseModal(false)} />
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="glass-premium" style={{ position: 'relative', width: '100%', maxWidth: '520px', padding: '32px', borderRadius: 'var(--radius-3xl)', boxShadow: 'var(--shadow-xl)' }}>
+          <div className="finance-payment-modal-overlay finance-admin-page finance-modal-portal-scope app-modal-overlay">
+            <motion.div className="app-modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(6px)' }} onClick={() => setShowExpenseModal(false)} />
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="glass-premium finance-expense-modal app-modal-surface" style={{ position: 'relative', width: '100%', maxWidth: '520px', padding: '32px', borderRadius: 'var(--radius-3xl)', boxShadow: 'var(--shadow-xl)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-lg)', background: 'rgba(220,38,38,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -2156,12 +2252,14 @@ const FinanceDashboard = () => {
           </div>
         )}
       </AnimatePresence>
+      </FinanceModalPortal>
 
+      <FinanceModalPortal>
       <AnimatePresence>
         {showPaymentModal && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(6px)' }} onClick={() => setShowPaymentModal(false)} />
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="glass-premium finance-payment-modal">
+          <div className="finance-payment-modal-overlay finance-admin-page finance-modal-portal-scope app-modal-overlay">
+            <motion.div className="app-modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(6px)' }} onClick={() => setShowPaymentModal(false)} />
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="glass-premium finance-payment-modal app-modal-surface">
               <div className="finance-payment-modal-header">
                 <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900' }}>{editingPayment ? 'Modifier le paiement' : 'Enregistrer un Paiement'}</h2>
                 <button onClick={() => { setShowPaymentModal(false); setEditingPayment(null); }} className="close-button" aria-label="Fermer la fenêtre"><X size={20} /></button>
@@ -2298,7 +2396,7 @@ const FinanceDashboard = () => {
                     <span style={{ fontSize: '16px', fontWeight: '900', color: 'var(--success)' }}>{formatMoney(paymentGrandTotal)} DH</span>
                   </div>
                 </div>
-                <button className="btn-modern primary" style={{ width: '100%', padding: '14px', justifyContent: 'center' }}
+                <button className="btn-modern primary finance-payment-submit-button" style={{ width: '100%', padding: '14px', justifyContent: 'center' }}
                   onClick={async () => {
                     if (!paymentData.studentId || paymentGrandTotal <= 0) return showToast('Stagiaire et montant requis', 'warning');
                     const fees = PAYMENT_FEE_FIELDS
@@ -2346,68 +2444,60 @@ const FinanceDashboard = () => {
           </div>
         )}
       </AnimatePresence>
+      </FinanceModalPortal>
     </div>
   );
 };
 
-const STAT_TONE = {
-  revenue:  { color: 'text-green-600',  bg: 'bg-green-50',   border: 'border-green-200',   orb: 'bg-green-500/10' },
-  expense:  { color: 'text-red-500',    bg: 'bg-red-50',     border: 'border-red-200',     orb: 'bg-red-500/10' },
-  balance:  { color: 'text-violet-600', bg: 'bg-violet-50',  border: 'border-violet-200',  orb: 'bg-violet-500/10' },
-  recovery: { color: 'text-blue-600',   bg: 'bg-blue-50',    border: 'border-blue-200',    orb: 'bg-blue-500/10' },
-};
-
-const StatCard = ({ title, value, icon: Icon, tone, helper }) => {
-  const t = STAT_TONE[tone] || STAT_TONE.balance;
-  return (
-    <div className={cn(
-      'relative overflow-hidden rounded-2xl border bg-white shadow-sm',
-      'hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200',
-      'p-4 min-h-[132px] flex flex-col justify-between',
-      t.border,
-    )}>
-      <div className={cn('absolute -right-6 -top-8 w-24 h-24 rounded-full pointer-events-none', t.orb)} />
-      <div className="relative flex items-center gap-2.5 mb-3">
-        <span className={cn('inline-flex w-9 h-9 items-center justify-center rounded-xl border', t.bg, t.color, t.border)}>
-          <Icon size={16} />
-        </span>
-        <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider leading-tight">{title}</span>
-      </div>
-      <div>
-        <div className={cn('text-[clamp(1.55rem,2.2vw,2.05rem)] font-black tracking-tight leading-none', t.color)}>
-          {value.toLocaleString()}&thinsp;<span className="text-[0.48em] font-black opacity-70">DH</span>
-        </div>
-        <p className="mt-2 text-[11px] font-semibold text-slate-400">{helper}</p>
-      </div>
+const StatCard = ({ title, value, icon: Icon, tone, helper, month }) => (
+  <motion.div
+    className={`finance-net-card finance-net-card-${tone} finance-summary-card`}
+    whileHover={{ y: -5, scale: 1.02 }}
+    transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+  >
+    <div className="finance-net-card-shine" aria-hidden="true" />
+    <div className="finance-net-card-icon-bg" aria-hidden="true">
+      <Icon size={48} strokeWidth={1.35} />
     </div>
-  );
-};
+    <div className="finance-net-card-top">
+      <span className="finance-net-card-kicker">Indicateur</span>
+      <span className="finance-net-month-badge"><CalendarDays size={11} />{month}</span>
+    </div>
+    <div className="finance-net-card-content">
+      <h3>{title}</h3>
+      <p className="finance-net-card-amount">{formatMoney(value)}<span>DH</span></p>
+      <p className="finance-net-card-helper">{helper}</p>
+    </div>
+  </motion.div>
+);
 
 const RecoveryCard = ({ value, paid, total, month }) => (
-  <div className="relative overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 p-4 min-h-[132px] flex flex-col justify-between">
-    <div className="absolute -right-6 -top-8 w-24 h-24 rounded-full pointer-events-none bg-blue-500/10" />
-    <div className="relative flex items-center gap-2.5 mb-3">
-      <span className="inline-flex w-9 h-9 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-600">
-        <TrendingUp size={16} />
-      </span>
-      <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider leading-tight">Taux de recouvrement</span>
+  <motion.div
+    className="finance-net-card finance-net-card-recovery finance-summary-card"
+    whileHover={{ y: -5, scale: 1.02 }}
+    transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+  >
+    <div className="finance-net-card-shine" aria-hidden="true" />
+    <div className="finance-net-card-icon-bg" aria-hidden="true">
+      <TrendingUp size={48} strokeWidth={1.35} />
     </div>
-    <div>
-      <div className="text-[clamp(1.55rem,2.2vw,2.05rem)] font-black tracking-tight leading-none text-blue-600">
-        {value}<span className="text-[0.48em] font-black opacity-70">%</span>
-      </div>
-      <div className="relative h-2 mt-2.5 rounded-full bg-blue-100 overflow-hidden" aria-hidden="true">
-        <motion.div
-          className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-blue-500 to-blue-400"
-          style={{ boxShadow: '0 0 18px rgba(37,99,235,0.24)' }}
+    <div className="finance-net-card-top">
+      <span className="finance-net-card-kicker">Indicateur</span>
+      <span className="finance-net-month-badge"><CalendarDays size={11} />{month}</span>
+    </div>
+    <div className="finance-net-card-content">
+      <h3>Taux de recouvrement</h3>
+      <p className="finance-net-card-amount">{value}<span>%</span></p>
+      <div className="finance-summary-progress" aria-hidden="true">
+        <motion.span
           initial={{ width: 0 }}
           animate={{ width: `${Math.min(Math.max(value, 0), 100)}%` }}
-          transition={{ duration: 0.7, ease: 'easeOut' }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
         />
       </div>
-      <p className="mt-2 text-[11px] font-semibold text-slate-400">{paid} / {total} stagiaires · {month}</p>
+      <p className="finance-net-card-helper">{paid} / {total} stagiaires</p>
     </div>
-  </div>
+  </motion.div>
 );
 
 const StatusCountCard = ({ title, value, subtitle, icon: Icon, colorClass, bgClass }) => (

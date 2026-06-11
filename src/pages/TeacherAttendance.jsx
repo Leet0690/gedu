@@ -289,19 +289,20 @@ const TeacherAttendance = () => {
   const nextMonth = () => { if (mMonth === 11) { setMMonth(0); setMYear(y => y + 1); } else setMMonth(m => m + 1); };
 
   return (
-    <div className="max-w-container section-padding">
+    <div className="max-w-container section-padding attendance-premium-page attendance-premium-teachers">
       {/* Page header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
-        <div>
-          <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: '900', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-            <UserCheck size={28} style={{ color: 'var(--primary)' }} /> Présences Formateurs
-          </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)' }}>Suivi des vacations et pointage des séances de cours.</p>
+      <div className="attendance-premium-header">
+        <div className="attendance-premium-header-icon"><UserCheck size={24} /></div>
+        <div className="attendance-premium-header-copy">
+          <span className="attendance-premium-eyebrow">Suivi des vacations</span>
+          <h1>Présences Formateurs</h1>
+          <p>Suivi des vacations et pointage des séances de cours.</p>
         </div>
+        <div className="attendance-premium-header-orb" aria-hidden="true"><GraduationCap size={112} /></div>
       </div>
 
       {/* Tab switcher */}
-      <div style={{ display: 'flex', gap: '4px', padding: '4px', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-xl)', marginBottom: 'var(--space-6)', width: 'fit-content' }}>
+      <div className="attendance-premium-tabs" style={{ display: 'flex', gap: '4px', padding: '4px', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-xl)', marginBottom: 'var(--space-6)', width: 'fit-content' }}>
         {[
           { key: 'daily',   label: 'Appel Quotidien', icon: UserCheck },
           { key: 'monthly', label: 'Vue Mensuelle',    icon: CalendarRange },
@@ -322,7 +323,7 @@ const TeacherAttendance = () => {
       {/* ════ DAILY VIEW ════ */}
       {view === 'daily' && (
         <>
-          <div className="glass-card" style={{ padding: 'var(--space-5)', marginBottom: 'var(--space-6)' }}>
+          <div className="glass-card attendance-premium-filter-card" style={{ padding: 'var(--space-5)', marginBottom: 'var(--space-6)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-4)' }}>
               <div style={fGroup}>
                 <label style={labelStyle}>Date d'appel</label>
@@ -356,7 +357,7 @@ const TeacherAttendance = () => {
             </motion.div>
           )}
 
-          <div className="glass-card" style={{ overflow: 'hidden' }}>
+          <div className="glass-card attendance-premium-table-shell" style={{ overflow: 'hidden' }}>
             {loading ? <TableSkeleton rows={8} /> : (
               sessionRows.length === 0 ? (
                 <EmptyState title="Aucune séance" message={`Aucun cours n'est programmé dans l'emploi du temps pour ce ${dayOfWeek}.`} icon="calendar" />
@@ -449,7 +450,7 @@ const TeacherAttendance = () => {
       {/* ════ MONTHLY VIEW ════ */}
       {view === 'monthly' && (
         <>
-          <div className="glass-card" style={{ padding: '20px', marginBottom: 'var(--space-5)' }}>
+          <div className="glass-card attendance-premium-filter-card" style={{ padding: '20px', marginBottom: 'var(--space-5)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', alignItems: 'end' }}>
               <div>
                 <label style={labelStyle}>Mois</label>
@@ -512,7 +513,7 @@ const TeacherAttendance = () => {
           </div>
 
           {/* Monthly grid */}
-          <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div className="glass-card attendance-premium-table-shell" style={{ padding: 0, overflow: 'hidden' }}>
             {mFilteredTeachers.length === 0 ? (
               <div style={{ padding: '64px', textAlign: 'center' }}>
                 <GraduationCap size={40} style={{ color: 'var(--text-faint)', margin: '0 auto 16px', display: 'block' }} />
@@ -581,7 +582,7 @@ const StatusBtnDaily = ({ active, color, children, onClick }) => (
 );
 
 const MiniStat = ({ label, value }) => (
-  <div style={{ padding: '12px 20px', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-xl)', minWidth: '100px', textAlign: 'center' }}>
+  <div className="attendance-premium-mini-stat" style={{ padding: '12px 20px', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-xl)', minWidth: '100px', textAlign: 'center' }}>
     <p style={{ fontSize: 'var(--text-xl)', fontWeight: '900', lineHeight: 1 }}>{value}</p>
     <p style={{ fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: '4px' }}>{label}</p>
   </div>

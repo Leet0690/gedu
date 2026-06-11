@@ -52,7 +52,9 @@ import {
   Info,
   Filter,
   X,
-  Copy
+  Copy,
+  SlidersHorizontal,
+  PenTool
 } from 'lucide-react';
 
 /* ── Styles & Constants ── */
@@ -78,7 +80,7 @@ const GradeInput = ({ value, onChange, placeholder = '—' }) => {
 };
 
 const MiniStat = ({ label, value, icon: Icon }) => (
-  <div style={{ textAlign: 'center', padding: '8px 16px', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-xl)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+  <div className="grade-premium-mini-stat" style={{ textAlign: 'center', padding: '8px 16px', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-xl)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
     <p style={{ fontSize: 'var(--text-lg)', fontWeight: '800', color: 'var(--text-primary)', lineHeight: 1 }}>{value}</p>
     <p style={{ fontSize: '9px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: '4px' }}>{label}</p>
   </div>
@@ -310,9 +312,14 @@ const GradeManagement = () => {
   }
 
   return (
-    <div className="max-w-container section-padding">
-      <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: '900', color: 'var(--text-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+    <div className="max-w-container section-padding grade-premium-page">
+      <motion.div className="grade-premium-header" initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}>
+        <div className="grade-premium-header-icon">
+          <PenTool size={24} />
+        </div>
+        <div className="grade-premium-header-copy">
+          <span className="grade-premium-eyebrow">Évaluation et résultats</span>
+          <h1>
           Gestion des Notes
           {filterDiploma && filterMajor && filterYear && (
             <span style={{
@@ -328,16 +335,25 @@ const GradeManagement = () => {
               {getGroupAbbreviation(filterMajor, filterYear)}
             </span>
           )}
-        </h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-8)' }}>
-          Saisie centralisée des résultats académiques par stagiaire.
-        </p>
+          </h1>
+          <p>Saisie centralisée des résultats académiques par stagiaire.</p>
+        </div>
+        <div className="grade-premium-header-orb" aria-hidden="true">
+          <GraduationCap size={112} />
+        </div>
       </motion.div>
 
       {/* Filters */}
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
-        className="glass-card" style={{ padding: 'var(--space-5)', marginBottom: 'var(--space-6)' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-4)' }}>
+        className="glass-card grade-premium-filter-card">
+        <div className="grade-premium-section-heading">
+          <span className="grade-premium-section-icon"><SlidersHorizontal size={15} /></span>
+          <div>
+            <h2>Filtres de saisie</h2>
+            <p>Sélectionnez une classe puis un stagiaire pour saisir ses résultats.</p>
+          </div>
+        </div>
+        <div className="grade-premium-filter-grid">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label style={lbl}>Niveau</label>
             <FilterSelect
@@ -390,7 +406,7 @@ const GradeManagement = () => {
 
       {/* ── Documents Section ── */}
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}
-        className="glass-card" style={{ marginBottom: 'var(--space-6)', overflow: 'hidden' }}>
+        className="glass-card grade-premium-doc-panel">
         <button onClick={() => setShowDocPanel(!showDocPanel)}
           style={{ width: '100%', padding: '16px 24px', background: 'transparent', border: 'none', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -430,7 +446,7 @@ const GradeManagement = () => {
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--space-3)', marginTop: '12px' }}>
                   
-                  <div style={{ border: '1px solid var(--border-light)', borderRadius: 'var(--radius-xl)', padding: '20px', background: 'white' }}>
+                  <div className="grade-premium-doc-card" style={{ border: '1px solid var(--border-light)', borderRadius: 'var(--radius-xl)', padding: '20px', background: 'white' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                       <FileSignature size={16} style={{ color: 'var(--primary)' }} />
                       <h4 style={{ fontSize: 'var(--text-sm)', fontWeight: '800' }}>Fiche de Notes (CC)</h4>
@@ -454,7 +470,7 @@ const GradeManagement = () => {
                     </button>
                   </div>
 
-                  <div style={{ border: '1px solid var(--border-light)', borderRadius: 'var(--radius-xl)', padding: '20px', background: 'white' }}>
+                  <div className="grade-premium-doc-card" style={{ border: '1px solid var(--border-light)', borderRadius: 'var(--radius-xl)', padding: '20px', background: 'white' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                       <FileText size={16} style={{ color: '#d97706' }} />
                       <h4 style={{ fontSize: 'var(--text-sm)', fontWeight: '800' }}>Fiche de Notes (EFC)</h4>
@@ -465,7 +481,7 @@ const GradeManagement = () => {
                     </button>
                   </div>
 
-                  <div style={{ border: '1px solid var(--border-light)', borderRadius: 'var(--radius-xl)', padding: '20px', background: 'white' }}>
+                  <div className="grade-premium-doc-card" style={{ border: '1px solid var(--border-light)', borderRadius: 'var(--radius-xl)', padding: '20px', background: 'white' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                       <GraduationCap size={16} style={{ color: '#16a34a' }} />
                       <h4 style={{ fontSize: 'var(--text-sm)', fontWeight: '800' }}>Bulletin Global</h4>
@@ -476,7 +492,7 @@ const GradeManagement = () => {
                     </button>
                   </div>
 
-                  <div style={{ border: '1px solid var(--border-light)', borderRadius: 'var(--radius-xl)', padding: '20px', background: 'white' }}>
+                  <div className="grade-premium-doc-card" style={{ border: '1px solid var(--border-light)', borderRadius: 'var(--radius-xl)', padding: '20px', background: 'white' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                       <Award size={16} style={{ color: '#8b5cf6' }} />
                       <h4 style={{ fontSize: 'var(--text-sm)', fontWeight: '800' }}>Attestation Admis</h4>
@@ -497,8 +513,8 @@ const GradeManagement = () => {
       {/* ── Student Content ── */}
       <AnimatePresence mode="wait">
         {selectedStudent ? (
-          <motion.div key={selectedStudentId} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '20px', marginBottom: '24px' }}>
+          <motion.div className="grade-premium-student-panel" key={selectedStudentId} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
+            <div className="grade-premium-student-header" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '20px', marginBottom: '24px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--primary-ultra-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: '900', border: '1px solid var(--border-light)' }}>
                   {selectedStudent.lastName[0]}
@@ -545,7 +561,7 @@ const GradeManagement = () => {
 
             {/* 2nd Year Specific Saisie */}
             {supportsTwoYearFinalDocument && (
-              <div className="glass-card" style={{ padding: '20px', marginBottom: '20px', background: 'rgba(99, 102, 241, 0.03)', border: '1px dashed var(--primary-light)' }}>
+              <div className="glass-card grade-premium-history-card" style={{ padding: '20px', marginBottom: '20px', background: 'rgba(99, 102, 241, 0.03)', border: '1px dashed var(--primary-light)' }}>
                 <h4 style={{ fontSize: 'var(--text-sm)', fontWeight: '800', marginBottom: '16px', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <History size={16} /> Historique & NSTI
                 </h4>
@@ -573,11 +589,13 @@ const GradeManagement = () => {
 
             {/* Main Grade Table */}
             {modules.length === 0 ? (
-              <EmptyState title="Aucun module" message="Configurez les modules pour cette filière dans la gestion des modules." icon="book" />
+              <div className="grade-premium-empty-shell">
+                <EmptyState title="Aucun module" message="Configurez les modules pour cette filière dans la gestion des modules." icon="book" />
+              </div>
             ) : (
-              <div className="glass-card" style={{ overflow: 'hidden' }}>
+              <div className="glass-card grade-premium-table-shell">
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', minWidth: '980px' }}>
+                  <table className="grade-premium-table" style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', minWidth: '980px' }}>
                     <thead>
                       <tr>
                         <th style={thStyle}>#</th>
@@ -601,7 +619,7 @@ const GradeManagement = () => {
                         const passed = avg !== null && avg >= 10;
 
                         return (
-                          <tr key={mod} style={{ background: idx % 2 === 0 ? 'white' : 'var(--bg-subtle)' }}>
+                          <tr key={mod} className="grade-premium-table-row" style={{ background: idx % 2 === 0 ? 'white' : 'var(--bg-subtle)' }}>
                             <td style={tdStyle}><span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-faint)' }}>{idx + 1}</span></td>
                             <td style={tdStyle}>
                               <p style={{ fontSize: 'var(--text-sm)', fontWeight: '700', color: 'var(--text-primary)' }}>{mod}</p>
@@ -648,11 +666,13 @@ const GradeManagement = () => {
             )}
           </motion.div>
         ) : (
-          <EmptyState 
-            title="Aucun stagiaire sélectionné" 
-            message="Utilisez les filtres ci-dessus pour rechercher un stagiaire et gérer ses notes académiques." 
-            icon="search" 
-          />
+          <div className="grade-premium-empty-shell">
+            <EmptyState
+              title="Aucun stagiaire sélectionné"
+              message="Utilisez les filtres ci-dessus pour rechercher un stagiaire et gérer ses notes académiques."
+              icon="search"
+            />
+          </div>
         )}
       </AnimatePresence>
     </div>

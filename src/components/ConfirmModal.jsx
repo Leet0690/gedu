@@ -33,12 +33,13 @@ const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, type = 'dan
 
   return (
     <AnimatePresence>
-      <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div className="app-modal-overlay app-confirm-modal-overlay" style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onCancel}
+          className="app-modal-backdrop"
           style={{ position: 'absolute', inset: 0, background: 'rgba(15, 12, 20, 0.4)', backdropFilter: 'blur(8px)' }}
         />
         
@@ -46,7 +47,7 @@ const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, type = 'dan
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="glass-premium"
+          className="glass-premium app-modal-surface app-confirm-modal"
           style={{
             width: '100%',
             maxWidth: '400px',

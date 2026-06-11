@@ -482,19 +482,20 @@ const StudentAttendance = () => {
   }, [studentAttendance, activeStudents, alertThreshold]);
 
   return (
-    <div className="max-w-container section-padding">
+    <div className="max-w-container section-padding attendance-premium-page attendance-premium-students">
       {/* Page header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
-        <div>
-          <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: '900', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-            <UserCheck size={28} style={{ color: 'var(--primary)' }} /> Absences Stagiaires
-          </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)' }}>Feuilles d'appel et suivi de l'assiduité.</p>
+      <div className="attendance-premium-header">
+        <div className="attendance-premium-header-icon"><UserCheck size={24} /></div>
+        <div className="attendance-premium-header-copy">
+          <span className="attendance-premium-eyebrow">Suivi de l'assiduité</span>
+          <h1>Absences Stagiaires</h1>
+          <p>Feuilles d'appel et suivi de l'assiduité.</p>
         </div>
+        <div className="attendance-premium-header-orb" aria-hidden="true"><Users size={112} /></div>
       </div>
 
       {/* Tab switcher */}
-      <div style={{ display: 'flex', gap: '4px', padding: '4px', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-xl)', marginBottom: 'var(--space-6)', width: 'fit-content' }}>
+      <div className="attendance-premium-tabs" style={{ display: 'flex', gap: '4px', padding: '4px', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-xl)', marginBottom: 'var(--space-6)', width: 'fit-content' }}>
         {[
           { key: 'daily',   label: 'Appel Quotidien', icon: UserCheck },
           { key: 'monthly', label: 'Vue Mensuelle',    icon: CalendarRange },
@@ -521,7 +522,7 @@ const StudentAttendance = () => {
       {/* ════ DAILY VIEW ════ */}
       {view === 'daily' && (
         <>
-          <div className="glass-card" style={{ padding: 'var(--space-5)', marginBottom: 'var(--space-6)' }}>
+          <div className="glass-card attendance-premium-filter-card" style={{ padding: 'var(--space-5)', marginBottom: 'var(--space-6)' }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
               <div style={{ ...filterGroupStyle, flex: '1 1 220px', maxWidth: '300px' }}>
                 <label style={labelStyle}>Date de l'appel</label>
@@ -646,7 +647,7 @@ const StudentAttendance = () => {
             </motion.div>
           )}
 
-          <div className="glass-card" style={{ overflow: 'hidden' }}>
+          <div className="glass-card attendance-premium-table-shell" style={{ overflow: 'hidden' }}>
             {loading ? <TableSkeleton rows={10} /> : (
               !filterDiploma || !filterMajor || !filterYear ? (
                 <EmptyState title="Filtres requis" message="Sélectionnez le niveau, la filière et l'année pour voir les stagiaires." icon="filter" />
@@ -708,7 +709,7 @@ const StudentAttendance = () => {
       {view === 'monthly' && (
         <>
           {/* Monthly filters */}
-          <div className="glass-card" style={{ padding: '20px', marginBottom: 'var(--space-5)' }}>
+          <div className="glass-card attendance-premium-filter-card" style={{ padding: '20px', marginBottom: 'var(--space-5)' }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'end' }}>
               <div style={{ flex: '1.2', minWidth: '160px' }}>
                 <label style={labelStyle}>Mois</label>
@@ -793,7 +794,7 @@ const StudentAttendance = () => {
           </div>
 
           {/* Monthly grid */}
-          <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div className="glass-card attendance-premium-table-shell" style={{ padding: 0, overflow: 'hidden' }}>
             {!mFilterFiliere || !mFilterAnnee ? (
               <div style={{ padding: '64px', textAlign: 'center' }}>
                 <Filter size={40} style={{ color: 'var(--text-faint)', margin: '0 auto 16px', display: 'block' }} />
@@ -888,7 +889,7 @@ const StudentAttendance = () => {
 
       {/* ════ ALERTS VIEW ════ */}
       {view === 'alerts' && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card" style={{ padding: '24px' }}>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card attendance-premium-alert-card" style={{ padding: '24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-lg)', background: 'rgba(220,38,38,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -952,7 +953,7 @@ const StudentAttendance = () => {
                         <div style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-faint)', marginTop: '3px' }}>{s.absences} abs. / {s.total} séances</div>
                       </div>
                       <div style={{ width: '70px', height: '6px', background: 'var(--border-light)', borderRadius: '3px', flexShrink: 0, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${Math.min(rate, 100)}%`, background: severity, borderRadius: '3px', transition: 'width 0.4s' }} />
+                        <div style={{ height: '100%', width: `${Math.min(rate, 100)}%`, background: severity, borderRadius: '3px', transition: 'width 0.18s' }} />
                       </div>
                     </div>
                   );
@@ -973,7 +974,7 @@ const StatusBtn = ({ active, color, children, onClick }) => (
 );
 
 const MiniStat = ({ label, value }) => (
-  <div style={{ padding: '12px 20px', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-xl)', minWidth: '100px', textAlign: 'center' }}>
+  <div className="attendance-premium-mini-stat" style={{ padding: '12px 20px', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-xl)', minWidth: '100px', textAlign: 'center' }}>
     <p style={{ fontSize: 'var(--text-xl)', fontWeight: '900', lineHeight: 1 }}>{value}</p>
     <p style={{ fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: '4px' }}>{label}</p>
   </div>

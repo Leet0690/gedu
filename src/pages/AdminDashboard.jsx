@@ -168,7 +168,7 @@ const TodaySessionsWidget = ({ schedules, teachers, getScheduleModule, activeSem
     <motion.div
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.45 }}
+      transition={{ delay: 0.14 }}
       className="glass-card home-widget home-widget-tall home-widget-sessions"
     >
       <div className="home-widget-header">
@@ -265,7 +265,7 @@ const ActivityFeedWidget = ({ notifications }) => {
     <motion.div
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.5 }}
+      transition={{ delay: 0.16 }}
       className="glass-card home-widget home-widget-tall home-widget-activity"
     >
       <div className="home-widget-header">
@@ -392,7 +392,7 @@ const PendingTasksWidget = ({ students, teachers, grades, teacherAttendance, all
   }, [students, teachers, grades, teacherAttendance, allModules, activeSemester]);
 
   return (
-    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
       className="glass-card home-widget home-widget-tall home-widget-tasks">
       <div className="home-widget-header">
         <div className="home-widget-heading">
@@ -494,7 +494,7 @@ const GradesBreakdownWidget = ({ students, grades, allModules, activeSemester })
   const pctTone = (p) => p >= 75 ? 'success' : p >= 50 ? 'warning' : 'danger';
 
   return (
-    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}
       className="glass-card home-widget home-widget-tall home-widget-grades">
       <div className="home-widget-header">
         <div className="home-widget-heading">
@@ -532,7 +532,7 @@ const GradesBreakdownWidget = ({ students, grades, allModules, activeSemester })
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${g.pct}%` }}
-                  transition={{ duration: 0.8, ease: 'easeOut', delay: 0.4 }}
+                  transition={{ duration: 0.3, ease: 'easeOut', delay: 0.12 }}
                   className="home-grade-fill"
                 />
               </div>
@@ -657,7 +657,7 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="glass-card home-widget home-schedule-card home-widget-schedule">
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.14 }} className="glass-card home-widget home-schedule-card home-widget-schedule">
       {/* Header row */}
       <div className="home-schedule-header">
         <div className="home-schedule-title-group">
@@ -1240,19 +1240,23 @@ const AdminDashboard = () => {
   }, [teacherAttendance]);
 
   return (
-    <div className={`max-w-container section-padding admin-dashboard-shell ${isDashboard ? 'home-dashboard-page' : ''}`}>
+    <div className={`max-w-container section-padding admin-dashboard-shell ${isDashboard ? 'home-dashboard-page' : 'directory-premium-page'} ${!isDashboard ? `directory-premium-${activeTab}` : ''}`}>
       
       {!isDashboard && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <div>
-            <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: '800', color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: '4px' }}>
+        <div className="directory-premium-header">
+          <div className="directory-premium-header-icon">
+            {activeTab === 'students' ? <UsersIcon size={24} /> : <Presentation size={24} />}
+          </div>
+          <div className="directory-premium-header-copy">
+            <span className="directory-premium-eyebrow">{activeTab === 'students' ? 'Gestion des apprenants' : 'Gestion pédagogique'}</span>
+            <h1>
               {activeTab === 'students' ? 'Liste des Stagiaires' : 'Liste des Formateurs'}
             </h1>
-            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', fontWeight: '500' }}>
+            <p>
               Gestion du personnel et des apprenants
             </p>
           </div>
-          <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+          <div className="directory-premium-header-actions">
             {activeTab === 'students' && (
               <button className="btn-modern" style={{ background: 'rgba(15,23,42,0.04)', color: 'var(--text-primary)' }} onClick={() => setPromotionModalOpen(true)}>
                 <GraduationCap size={14} style={{ marginRight: '6px' }} /> Cl&ocirc;turer l&apos;ann&eacute;e
@@ -1275,6 +1279,9 @@ const AdminDashboard = () => {
             <Link to={activeTab === 'students' ? "/admin/add-student" : "/admin/add-teacher"} className="btn-modern primary">
               <Plus size={14} style={{ marginRight: '6px' }} /> Ajouter
             </Link>
+          </div>
+          <div className="directory-premium-header-orb" aria-hidden="true">
+            {activeTab === 'students' ? <GraduationCap size={112} /> : <Presentation size={112} />}
           </div>
         </div>
       )}
@@ -1323,7 +1330,7 @@ const AdminDashboard = () => {
 
       {!isDashboard && (
         <>
-          <div className="glass-card" style={{ display: 'flex', alignItems: 'end', gap: 'var(--space-3)', flexWrap: 'wrap', padding: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
+          <div className="glass-card directory-premium-filter-card" style={{ display: 'flex', alignItems: 'end', gap: 'var(--space-3)', flexWrap: 'wrap', padding: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 240px' }}>
               <label style={labelStyle}>Recherche</label>
               <div style={{ position: 'relative' }}>
@@ -1348,7 +1355,7 @@ const AdminDashboard = () => {
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', marginBottom: 'var(--space-6)' }}>
+          <div className="directory-premium-list" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', marginBottom: 'var(--space-6)' }}>
             {loading ? (
               <TableSkeleton rows={8} />
             ) : (
@@ -1383,9 +1390,9 @@ const AdminDashboard = () => {
       {/* Modal Section */}
       <AnimatePresence>
         {modalMode && selectedItem && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(4px)' }} onClick={closeModal}></motion.div>
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="glass-premium"
+          <div className="app-modal-overlay" style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+            <motion.div className="app-modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(4px)' }} onClick={closeModal}></motion.div>
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="glass-premium directory-premium-dialog app-modal-surface"
               style={{ width: '100%', maxWidth: '500px', padding: '32px', borderRadius: 'var(--radius-3xl)', position: 'relative', zIndex: 101, boxShadow: 'var(--shadow-xl)', maxHeight: '90vh', overflowY: 'auto' }}>
               
               <button onClick={closeModal} className="close-button" aria-label="Fermer la fenêtre" title="Fermer" style={{ position: 'absolute', right: '20px', top: '20px' }}>
@@ -1594,8 +1601,9 @@ const AdminDashboard = () => {
       {/* QR Code Modal */}
       <AnimatePresence>
         {qrModal && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+          <div className="app-modal-overlay" style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="app-modal-backdrop"
               style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.25)', backdropFilter: 'blur(4px)' }}
               onClick={closeQR} />
             <motion.div
@@ -1603,7 +1611,7 @@ const AdminDashboard = () => {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.93, y: 16 }}
               transition={{ type: 'spring', stiffness: 300, damping: 26 }}
-              className="glass-premium"
+              className="glass-premium directory-premium-dialog app-modal-surface"
               style={{ width: '100%', maxWidth: '380px', padding: '28px', borderRadius: 'var(--radius-3xl)', position: 'relative', zIndex: 201, boxShadow: 'var(--shadow-xl)' }}
             >
               <button onClick={closeQR} className="close-button" aria-label="Fermer le QR code" title="Fermer" style={{ position: 'absolute', right: '18px', top: '18px' }}>
@@ -1651,9 +1659,9 @@ const AdminDashboard = () => {
 
       <AnimatePresence>
         {promotionModalOpen && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.28)', backdropFilter: 'blur(4px)' }} onClick={() => { setPromotionModalOpen(false); setPromotionResult(null); }} />
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 12 }} className="glass-premium"
+          <div className="app-modal-overlay" style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+            <motion.div className="app-modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.28)', backdropFilter: 'blur(4px)' }} onClick={() => { setPromotionModalOpen(false); setPromotionResult(null); }} />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 12 }} className="glass-premium directory-premium-dialog app-modal-surface"
               style={{ width: '100%', maxWidth: '600px', padding: '30px', borderRadius: 'var(--radius-3xl)', position: 'relative', zIndex: 101, boxShadow: 'var(--shadow-xl)', maxHeight: '90vh', overflowY: 'auto' }}>
               <button onClick={() => { setPromotionModalOpen(false); setPromotionResult(null); }} className="close-button" aria-label="Fermer la fenetre" title="Fermer" style={{ position: 'absolute', right: '20px', top: '20px' }}>
                 <X size={20} />

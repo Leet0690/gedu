@@ -21,6 +21,7 @@ import { db } from '../firebase';
 import ConfirmModal from '../components/ConfirmModal';
 import { useToast } from './ToastContext';
 import { sanitizeGradeKey } from '../utils/gradeSync';
+import { makeStudentAttendanceDocId } from '../utils/attendanceKeys';
 import { STUDENT_STATUS, isActiveStudent, validateAcademicYearTransition } from '../utils/studentStatus';
 import { getNextStudyYear, isKnownStudyYear } from '../data/modules';
 
@@ -970,10 +971,9 @@ export const AppProvider = ({ children }) => {
   };
 
   // --- PRESENCES ---
-  const updateStudentAttendance = async (studentId, moduleId, date, status, comment, formateurId = 'admin') => {
-    const safeModule = moduleId.replace(/[^a-zA-Z0-9]/g, '_');
-    const docId = `${studentId}_${safeModule}_${date}`;
-    const newRecord = { studentId, moduleId, date, status, comment: comment || '', formateurId, timestamp: serverTimestamp() };
+  const updateStudentAttendance = async (studentId, moduleId, date, status, comment, formateurId = 'admin', timeSlot = '') => {
+    const docId = makeStudentAttendanceDocId(studentId, moduleId, date, timeSlot);
+    const newRecord = { studentId, moduleId, date, status, comment: comment || '', formateurId, timeSlot: timeSlot || '', timestamp: serverTimestamp() };
     
     await setDoc(doc(db, 'attendance_stagiaires', docId), newRecord, { merge: true });
 

@@ -27,7 +27,7 @@ const KPICard = ({ label, value, sub, color = 'var(--primary)', icon: Icon, icon
     initial={{ opacity: 0, y: 12 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay }}
-    className="glass-card"
+    className="glass-card reports-premium-kpi"
     style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '14px' }}
   >
     <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: iconBg || 'var(--primary-ultra-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -638,31 +638,33 @@ const Reports = () => {
     : '#dc2626';
 
   return (
-    <div className="section-padding" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+    <div className="section-padding reports-premium-page" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
       {/* Header */}
-      <header style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-2)' }}>
-            <div style={{ padding: '10px', background: 'var(--primary-ultra-light)', color: 'var(--primary)', borderRadius: 'var(--radius-lg)' }}>
-              <ChartLine size={22} />
-            </div>
-            <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: '900', color: 'var(--text-primary)' }}>Analytique & Rapports</h1>
-          </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)' }}>Suivi visuel des performances académiques et de la progression.</p>
+      <header className="reports-premium-header">
+        <div className="reports-premium-header-icon">
+          <ChartLine size={24} />
+        </div>
+        <div className="reports-premium-header-copy">
+          <span className="reports-premium-eyebrow">Pilotage académique</span>
+          <h1>Analytique & Rapports</h1>
+          <p>Suivi visuel des performances académiques et de la progression.</p>
         </div>
         <button
           onClick={handleExportPDF}
           disabled={isExporting || analytics.filteredStudentsCount === 0}
-          className="btn-modern primary"
+          className="btn-modern primary reports-premium-export"
           style={{ opacity: analytics.filteredStudentsCount === 0 ? 0.5 : 1, alignSelf: 'center' }}
         >
           <Download size={14} style={{ marginRight: '6px' }} />
           {isExporting ? 'Génération…' : 'Exporter PDF'}
         </button>
+        <div className="reports-premium-header-orb" aria-hidden="true">
+          <BarChart size={112} />
+        </div>
       </header>
 
       {/* Filter bar */}
-      <div className="glass-card" style={{ padding: 'var(--space-5)', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)', alignItems: 'flex-end' }}>
+      <div className="glass-card reports-premium-filter-card" style={{ padding: 'var(--space-5)', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)', alignItems: 'flex-end' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <label style={labelStyle}>Niveau</label>
           <FilterSelect value={selectedDiploma} onChange={val => { setSelectedDiploma(val); setSelectedYear(getStudyYearsForDiploma(val)[0]); }} options={Object.keys(MODULES_DATA).map(d => ({ label: d, value: d }))} style={{ minWidth: '180px' }} />
@@ -679,7 +681,7 @@ const Reports = () => {
       </div>
 
       {/* Student ranking table */}
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="glass-card" style={{ overflow: 'hidden' }}>
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }} className="glass-card reports-premium-ranking-card" style={{ overflow: 'hidden' }}>
         <div style={{ padding: '20px 20px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-light)' }}>
           <div>
             <h3 style={{ fontSize: 'var(--text-base)', fontWeight: '800' }}>Classement des Stagiaires</h3>
@@ -726,7 +728,7 @@ const Reports = () => {
                 const isMedal = idx < 3 && s.avg !== null;
                 const medalColor = idx === 0 ? '#f59e0b' : idx === 1 ? '#94a3b8' : '#cd7f32';
                 return (
-                  <tr key={s.id} style={{ borderBottom: '1px solid var(--border-light)', transition: 'background 0.1s' }}
+                  <tr key={s.id} className="reports-premium-table-row" style={{ borderBottom: '1px solid var(--border-light)', transition: 'background 0.1s' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
                     onMouseLeave={e => e.currentTarget.style.background = ''}>
                     <td style={{ padding: '11px 16px', textAlign: 'center' }}>
@@ -795,7 +797,7 @@ const Reports = () => {
       
 
       {/* KPI strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '12px' }}>
+      <div className="reports-premium-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '12px' }}>
         <KPICard
           delay={0} label="Stagiaires" icon={Users}
           iconBg="rgba(99,102,241,0.08)" color="#6366f1"
@@ -824,12 +826,12 @@ const Reports = () => {
       </div>
 
       {/* Charts row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 'var(--space-5)' }}>
+      <div className="reports-premium-chart-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 'var(--space-5)' }}>
 
         
 
         {/* Donut: Pass/fail */}
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="glass-card" style={{ padding: 'var(--space-6)', minHeight: '360px', display: 'flex', flexDirection: 'column' }}>
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card reports-premium-chart-card" style={{ padding: 'var(--space-6)', minHeight: '360px', display: 'flex', flexDirection: 'column' }}>
           <div style={{ marginBottom: 'var(--space-5)' }}>
             <h3 style={{ fontSize: 'var(--text-base)', fontWeight: '800' }}>Admis / Non admis</h3>
             <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Basé sur la moyenne pondérée</p>
@@ -877,7 +879,7 @@ const Reports = () => {
         </motion.div>
 
         {/* Bar: Inter-module comparison */}
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass-card" style={{ padding: 'var(--space-6)', minHeight: '360px' }}>
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }} className="glass-card reports-premium-chart-card" style={{ padding: 'var(--space-6)', minHeight: '360px' }}>
           <div style={{ marginBottom: 'var(--space-5)' }}>
             <h3 style={{ fontSize: 'var(--text-base)', fontWeight: '800' }}>Comparatif Inter-Modules</h3>
             <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Classement par moyenne finale (pondérée)</p>

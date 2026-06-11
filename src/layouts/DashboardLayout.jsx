@@ -124,7 +124,7 @@ const SidebarCategory = ({ cat, isSidebarOpen, renderNavLink, location, isMobile
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            transition={{ duration: 0.16, ease: 'easeInOut' }}
             className="overflow-hidden"
           >
             <div className="premium-sidenav-category-items mt-1 flex flex-col gap-1 ml-[18px] border-l-2 border-slate-100 pl-3 py-1">
@@ -134,7 +134,7 @@ const SidebarCategory = ({ cat, isSidebarOpen, renderNavLink, location, isMobile
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -5 }}
-                  transition={{ duration: 0.2, delay: i * 0.04, ease: 'easeOut' }}
+                  transition={{ duration: 0.12, delay: i * 0.02, ease: 'easeOut' }}
                 >
                   {renderNavLink(item)}
                 </motion.div>
@@ -255,7 +255,7 @@ export default function DashboardLayout({ children }) {
         className={`premium-sidenav desktop-sidebar border-r border-slate-200 bg-white ${isSidebarOpen ? 'is-open' : 'is-collapsed'}`}
         initial={false}
         animate={{ width: isSidebarOpen ? '260px' : '72px' }}
-        transition={{ duration: 0.2 }}
+        transition={{ duration: 0.12 }}
         style={{
           display: 'flex',
           flexDirection: 'column',
@@ -264,7 +264,7 @@ export default function DashboardLayout({ children }) {
         }}
       >
         <div className="premium-sidenav-brand flex h-[64px] items-center border-b border-slate-200 px-5" style={{ justifyContent: isSidebarOpen ? 'space-between' : 'center', padding: isSidebarOpen ? '0 20px' : '0' }}>
-          <Link to="/" className="flex items-center">
+          <Link to="/" className="premium-sidenav-logo flex items-center">
             <Logo size={isSidebarOpen ? 28 : 32} showText={isSidebarOpen} />
           </Link>
         </div>
@@ -290,12 +290,12 @@ export default function DashboardLayout({ children }) {
               style={{
                 width: '36px', height: '36px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)',
                 background: 'var(--white)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                transition: 'all 0.2s', boxShadow: 'var(--shadow-xs)'
+                transition: 'all 0.12s', boxShadow: 'var(--shadow-xs)'
               }}
             >
              <ChevronLeft 
                 size={18} 
-                style={{ transform: isSidebarOpen ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 0.3s' }} 
+                style={{ transform: isSidebarOpen ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 0.16s' }} 
               />
             </button>
 
@@ -378,7 +378,8 @@ export default function DashboardLayout({ children }) {
 
               {/* Premium Logout Button */}
               <button 
-                onClick={logout} 
+                onClick={logout}
+                className="premium-topbar-logout"
                 style={{ 
                   marginLeft: '12px',
                   width: '38px',
@@ -391,7 +392,7 @@ export default function DashboardLayout({ children }) {
                   justifyContent: 'center',
                   color: '#ef4444',
                   cursor: 'pointer',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  transition: 'all 0.16s cubic-bezier(0.4, 0, 0.2, 1)',
                   boxShadow: '0 4px 12px rgba(239,68,68,0.08)'
                 }}
                 onMouseEnter={(e) => {
@@ -418,12 +419,12 @@ export default function DashboardLayout({ children }) {
           <div className="max-w-container" style={{ 
             padding: 0, 
             maxWidth: isSidebarOpen ? '1200px' : '100%', 
-            transition: 'max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1)' 
+            transition: 'max-width 0.2s cubic-bezier(0.4, 0, 0.2, 1)' 
           }}>
             <motion.div
                initial={{ opacity: 0, y: 20 }}
                animate={{ opacity: 1, y: 0 }}
-               transition={{ duration: 0.4 }}
+               transition={{ duration: 0.18 }}
             >
               {children}
             </motion.div>

@@ -224,24 +224,27 @@ const ScheduleManagement = () => {
   };
 
   return (
-    <div className="max-w-container section-padding">
+    <div className="max-w-container section-padding schedule-premium-page">
       {/* Page Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-6)', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
-        <div>
-          <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: '900', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-            <CalendarDays size={28} style={{ color: 'var(--primary)' }} /> Emplois du Temps
-          </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', marginTop: '4px' }}>
-            Plannings hebdomadaires par filière et groupe.
-          </p>
+      <div className="schedule-premium-header">
+        <div className="schedule-premium-header-icon">
+          <CalendarDays size={24} />
         </div>
-        <button onClick={openAdd} className="btn-modern primary">
+        <div className="schedule-premium-header-copy">
+          <span className="schedule-premium-eyebrow">Organisation pédagogique</span>
+          <h1>Emplois du Temps</h1>
+          <p>Plannings hebdomadaires par filière et groupe.</p>
+        </div>
+        <button onClick={openAdd} className="btn-modern primary schedule-premium-add">
           <Plus size={18} style={{ marginRight: '8px' }} /> Ajouter une séance
         </button>
+        <div className="schedule-premium-header-orb" aria-hidden="true">
+          <Calendar size={112} />
+        </div>
       </div>
 
       {/* Filter + Stats Bar */}
-      <div className="glass-card" style={{ padding: '16px 20px', marginBottom: 'var(--space-5)', display: 'flex', alignItems: 'end', gap: '12px', flexWrap: 'wrap' }}>
+      <div className="glass-card schedule-premium-filter-card" style={{ padding: '16px 20px', marginBottom: 'var(--space-5)', display: 'flex', alignItems: 'end', gap: '12px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '0 1 220px' }}>
           <label style={labelStyle}>Niveau</label>
           <FilterSelect
@@ -288,7 +291,7 @@ const ScheduleManagement = () => {
       </div>
 
       {/* Time Grid */}
-      <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="glass-card schedule-premium-grid-shell" style={{ padding: 0, overflow: 'hidden' }}>
         {/* Top Sync Scrollbar */}
         <div 
           ref={topScrollRef} 
@@ -517,8 +520,9 @@ const ScheduleManagement = () => {
       {/* Add Session Modal */}
       <AnimatePresence>
         {showAddModal && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-6)' }}>
+          <div className="app-modal-overlay" style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-6)' }}>
             <motion.div
+              className="app-modal-backdrop"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.1)', backdropFilter: 'blur(8px)' }}
               onClick={() => setShowAddModal(false)}
@@ -527,7 +531,7 @@ const ScheduleManagement = () => {
               initial={{ opacity: 0, scale: 0.95, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 16 }}
-              className="glass-premium"
+              className="glass-premium schedule-premium-dialog app-modal-surface"
               style={{ width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto', padding: '32px', position: 'relative', zIndex: 101, borderRadius: 'var(--radius-3xl)' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>

@@ -20,10 +20,19 @@ import {
   CheckCircle,
   Zap,
   Check,
+  Boxes,
+  BookOpen,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 const labelStyle = { fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' };
 const HIGHER_EDUCATION_DIPLOMAS = ['Licence Professionnelle', 'Master spécialisé'];
+const DIPLOMA_LABELS = {
+  'Licence Professionnelle': 'Licence',
+  'Master spécialisé': 'Master'
+};
+
+const getDiplomaLabel = (diploma) => DIPLOMA_LABELS[diploma] || diploma;
 
 const isHigherEducationDiploma = (diploma) => HIGHER_EDUCATION_DIPLOMAS.includes(diploma);
 
@@ -101,7 +110,8 @@ const ModuleManagement = () => {
   const [copyTargets, setCopyTargets] = useState([]);
   const [isCopying, setIsCopying] = useState(false);
 
-  const diplomas = Object.keys(MODULES_DATA);
+  const diplomas = ['Technicien Spécialisé', 'Technicien', 'Licence Professionnelle', 'Master spécialisé']
+    .filter(diploma => MODULES_DATA[diploma]);
   const majors = filterDiploma ? Object.keys(MODULES_DATA[filterDiploma] || {}) : [];
   const filterYears = filterDiploma ? getStudyYearsForDiploma(filterDiploma) : ALL_STUDY_YEARS;
   const formYears = getStudyYearsForDiploma(formData.diploma);
@@ -270,21 +280,48 @@ const ModuleManagement = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-        <div>
-          <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: '900', color: 'var(--text-primary)' }}>Gestion des Modules</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)' }}>Configurez les matières et leurs coefficients pour chaque filière.</p>
+    <div className="module-premium-page">
+      <header className="module-premium-header">
+        <div className="module-premium-header-icon">
+          <Boxes size={24} />
         </div>
-        <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+        <div className="module-premium-header-copy">
+          <span className="module-premium-eyebrow">Référentiel académique</span>
+          <h1>Gestion des Modules</h1>
+          <p>Configurez les matières et leurs coefficients pour chaque filière.</p>
+        </div>
+        <div className="module-premium-header-actions">
           <button onClick={() => { resetForm(); setIsModalOpen(true); }} className="btn-modern primary">
             <Plus size={16} style={{ marginRight: 'var(--space-2)' }} /> Ajouter Module
           </button>
         </div>
+        <div className="module-premium-header-orb" aria-hidden="true">
+          <BookOpen size={112} />
+        </div>
       </header>
 
       {/* Filters */}
-      <div className="glass-card" style={{ padding: 'var(--space-4)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'var(--space-3)' }}>
+      <div className="glass-card module-premium-filter-card">
+        <div className="module-premium-section-heading">
+          <span className="module-premium-section-icon"><SlidersHorizontal size={15} /></span>
+          <div>
+            <h2>Filtres d'affichage</h2>
+            <p>Sélectionnez une classe et un semestre pour afficher ses modules.</p>
+          </div>
+        </div>
+        <div className="module-premium-filter-grid">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <label style={labelStyle}>Niveau</label>
+          <FilterSelect
+            value={filterDiploma}
+            onChange={val => { setFilterDiploma(val); setFilterMajor(''); setFilterYear(''); setFilterSemester(''); setPage(1); }}
+            options={[
+              { label: "Choisir le niveau", value: "" },
+              ...diplomas.map(d => ({ label: getDiplomaLabel(d), value: d }))
+            ]}
+            placeholder="Choisir le niveau"
+          />
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <label style={labelStyle}>Année</label>
           <FilterSelect
@@ -295,18 +332,6 @@ const ModuleManagement = () => {
               ...filterYears.map(year => ({ label: year, value: year }))
             ]}
             placeholder="Choisir l'année"
-          />
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={labelStyle}>Niveau</label>
-          <FilterSelect
-            value={filterDiploma}
-            onChange={val => { setFilterDiploma(val); setFilterMajor(''); setFilterYear(''); setFilterSemester(''); setPage(1); }}
-            options={[
-              { label: "Choisir le niveau", value: "" },
-              ...diplomas.map(d => ({ label: d, value: d }))
-            ]}
-            placeholder="Choisir le niveau"
           />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -330,16 +355,19 @@ const ModuleManagement = () => {
             placeholder="Semestre"
           />
         </div>
+        </div>
       </div>
 
       {/* Content */}
       {loading ? (
-        <div className="glass-card" style={{ padding: 'var(--space-4)' }}><TableSkeleton rows={10} /></div>
+        <div className="glass-card module-premium-table-shell" style={{ padding: 'var(--space-4)' }}><TableSkeleton rows={10} /></div>
       ) : !isFiltersSelected ? (
-        <EmptyState title="Filtres requis" message="Veuillez sélectionner l'année, le niveau, la filière et le semestre pour afficher les modules." icon="filter" />
+        <div className="module-premium-empty-shell">
+          <EmptyState title="Filtres requis" message="Veuillez sélectionner l'année, le niveau, la filière et le semestre pour afficher les modules." icon="filter" />
+        </div>
       ) : (
-        <div className="glass-card" style={{ overflow: 'hidden' }}>
-          <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
+        <div className="glass-card module-premium-table-shell">
+          <table className="module-premium-table" style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-light)' }}>
                 <th style={{ padding: '16px', fontSize: 'var(--text-xs)', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Module</th>
@@ -359,7 +387,7 @@ const ModuleManagement = () => {
                 </tr>
               ) : (
                 paginatedModules.map((m, idx) => (
-                  <tr key={idx} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                  <tr key={idx} className="module-premium-table-row" style={{ borderBottom: '1px solid var(--border-light)' }}>
                     <td style={{ padding: '16px' }}>
                       <p style={{ fontWeight: '700', color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}>{m.name}</p>
                     </td>
@@ -415,9 +443,9 @@ const ModuleManagement = () => {
       {/* Add / Edit Module Modal */}
       <AnimatePresence>
         {isModalOpen && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsModalOpen(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(4px)' }} />
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="glass-premium"
+          <div className="app-modal-overlay" style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <motion.div className="app-modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsModalOpen(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(4px)' }} />
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="glass-premium module-premium-dialog app-modal-surface"
               style={{ position: 'relative', width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto', padding: '32px', borderRadius: 'var(--radius-3xl)', boxShadow: 'var(--shadow-xl)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                 <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900' }}>{isEditing ? 'Modifier Module' : 'Nouveau Module'}</h2>
@@ -446,7 +474,7 @@ const ModuleManagement = () => {
                         year: getStudyYearsForDiploma(val)[0],
                         semester: 'S1'
                       })}
-                      options={diplomas.map(d => ({ label: d, value: d }))}
+                      options={diplomas.map(d => ({ label: getDiplomaLabel(d), value: d }))}
                     />
                   </div>
                   {!hideYearChoice ? (
@@ -502,9 +530,9 @@ const ModuleManagement = () => {
       {/* Copy to groups modal */}
       <AnimatePresence>
         {copyModalOpen && copySource && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setCopyModalOpen(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(4px)' }} />
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="glass-premium"
+          <div className="app-modal-overlay" style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <motion.div className="app-modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setCopyModalOpen(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(4px)' }} />
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="glass-premium module-premium-dialog app-modal-surface"
               style={{ position: 'relative', width: '100%', maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto', padding: '32px', borderRadius: 'var(--radius-3xl)', boxShadow: 'var(--shadow-xl)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900' }}>Copier vers d'autres groupes</h2>
