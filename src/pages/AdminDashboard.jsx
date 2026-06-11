@@ -867,6 +867,14 @@ const AdminDashboard = () => {
                  : location.pathname.includes('student') ? 'students' 
                  : localActiveTab;
 
+  useEffect(() => {
+    setGlobalFilter('');
+    setCategoryFilter('');
+    setDiplomaFilter('');
+    setYearFilter('');
+    setModuleFilter('');
+  }, [activeTab]);
+
   const [globalFilter, setGlobalFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [diplomaFilter, setDiplomaFilter] = useState('');
@@ -1432,48 +1440,103 @@ const AdminDashboard = () => {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 150px' }}>
               <label style={labelStyle}>Niveau</label>
-              <FilterSelect style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }} value={diplomaFilter} onChange={(val) => { setDiplomaFilter(val); setCategoryFilter(''); setYearFilter(''); }} placeholder="Tous niveaux" options={[{ value: '', label: 'Tous niveaux' }, ...allDiplomas.map(d => ({ value: d, label: d }))]} />
+              <FilterSelect
+                style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }}
+                value={diplomaFilter}
+                onChange={(val) => { setDiplomaFilter(val); setCategoryFilter(''); setYearFilter(''); }}
+                placeholder={activeTab === 'students' ? "Choisir le niveau..." : "Tous niveaux"}
+                options={activeTab === 'students'
+                  ? [{ value: '', label: 'Choisir le niveau...' }, ...allDiplomas.map(d => ({ value: d, label: d }))]
+                  : [{ value: '', label: 'Tous niveaux' }, ...allDiplomas.map(d => ({ value: d, label: d }))]
+                }
+              />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 140px' }}>
               <label style={labelStyle}>Année</label>
-              <FilterSelect style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }} value={yearFilter} onChange={(val) => setYearFilter(val)} placeholder="Toutes années" options={[{ value: '', label: 'Toutes années' }, ...availableYears.map(y => ({ value: y, label: y }))]} />
+              <FilterSelect
+                style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }}
+                value={yearFilter}
+                onChange={(val) => setYearFilter(val)}
+                disabled={activeTab === 'students' && !diplomaFilter}
+                placeholder={activeTab === 'students' ? (diplomaFilter ? "Choisir l'année..." : "Sélectionner niveau") : "Toutes années"}
+                options={activeTab === 'students'
+                  ? [{ value: '', label: diplomaFilter ? "Choisir l'année..." : "Sélectionner niveau d'abord" }, ...availableYears.map(y => ({ value: y, label: y }))]
+                  : [{ value: '', label: 'Toutes années' }, ...availableYears.map(y => ({ value: y, label: y }))]
+                }
+              />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 160px' }}>
               <label style={labelStyle}>Filière</label>
-              <FilterSelect style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }} value={categoryFilter} onChange={(val) => setCategoryFilter(val)} placeholder="Toutes filières" options={[{ value: '', label: 'Toutes filières' }, ...availableMajors.map(m => ({ value: m, label: m }))]} />
+              <FilterSelect
+                style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }}
+                value={categoryFilter}
+                onChange={(val) => setCategoryFilter(val)}
+                disabled={activeTab === 'students' && !diplomaFilter}
+                placeholder={activeTab === 'students' ? (diplomaFilter ? "Choisir la filière..." : "Sélectionner niveau") : "Toutes filières"}
+                options={activeTab === 'students'
+                  ? [{ value: '', label: diplomaFilter ? "Choisir la filière..." : "Sélectionner niveau d'abord" }, ...availableMajors.map(m => ({ value: m, label: m }))]
+                  : [{ value: '', label: 'Toutes filières' }, ...availableMajors.map(m => ({ value: m, label: m }))]
+                }
+              />
             </div>
           </div>
 
-          <div className="directory-premium-list" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', marginBottom: 'var(--space-6)' }}>
-            {loading ? (
-              <TableSkeleton rows={8} />
-            ) : (
-              <>
-                <AnimatePresence mode="popLayout">
-                  {table.getRowModel().rows.map((row, idx) => (
-                    <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { delay: idx * 0.03 } }} exit={{ opacity: 0, scale: 0.97 }} key={row.id} className="dashboard-grid-row">
-                      {row.getVisibleCells().map(cell => <div key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</div>)}
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-                {table.getRowModel().rows.length === 0 && (
-                  <EmptyState title="Aucun résultat" message="Nous n'avons trouvé personne correspondant à vos filtres." icon="search" />
+          {activeTab === 'students' && !(diplomaFilter && yearFilter && categoryFilter) ? (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '60px 24px',
+              textAlign: 'center',
+              background: 'var(--bg-subtle)',
+              borderRadius: 'var(--radius-2xl)',
+              border: '1px dashed var(--border-light)',
+              color: 'var(--text-muted)',
+              marginBottom: 'var(--space-6)'
+            }}>
+              <Filter size={48} style={{ color: 'var(--primary)', marginBottom: '16px', opacity: 0.8 }} />
+              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                Sélectionnez vos filtres
+              </h3>
+              <p style={{ fontSize: '13px', maxWidth: '360px', lineHeight: '1.5' }}>
+                Veuillez choisir un niveau, une année d'étude et une filière ci-dessus pour afficher la liste des stagiaires.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="directory-premium-list" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', marginBottom: 'var(--space-6)' }}>
+                {loading ? (
+                  <TableSkeleton rows={8} />
+                ) : (
+                  <>
+                    <AnimatePresence mode="popLayout">
+                      {table.getRowModel().rows.map((row, idx) => (
+                        <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { delay: idx * 0.03 } }} exit={{ opacity: 0, scale: 0.97 }} key={row.id} className="dashboard-grid-row">
+                          {row.getVisibleCells().map(cell => <div key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</div>)}
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                    {table.getRowModel().rows.length === 0 && (
+                      <EmptyState title="Aucun résultat" message="Nous n'avons trouvé personne correspondant à vos filtres." icon="search" />
+                    )}
+                  </>
                 )}
-              </>
-            )}
-          </div>
+              </div>
 
-          {table.getPageCount() > 1 && (
-            <Pagination
-              currentPage={table.getState().pagination.pageIndex + 1}
-              totalPages={table.getPageCount()}
-              totalItems={table.getFilteredRowModel().rows.length}
-              itemsPerPage={table.getState().pagination.pageSize}
-              onPageChange={(p) => table.setPageIndex(p - 1)}
-              onItemsPerPageChange={(s) => table.setPageSize(s)}
-            />
+              {table.getPageCount() > 1 && (
+                <Pagination
+                  currentPage={table.getState().pagination.pageIndex + 1}
+                  totalPages={table.getPageCount()}
+                  totalItems={table.getFilteredRowModel().rows.length}
+                  itemsPerPage={table.getState().pagination.pageSize}
+                  onPageChange={(p) => table.setPageIndex(p - 1)}
+                  onItemsPerPageChange={(s) => table.setPageSize(s)}
+                />
+              )}
+            </>
           )}
         </>
       )}
