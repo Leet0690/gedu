@@ -532,24 +532,25 @@ const ScheduleManagement = () => {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 16 }}
               className="glass-premium schedule-premium-dialog app-modal-surface"
-              style={{ width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto', padding: '32px', position: 'relative', zIndex: 101, borderRadius: 'var(--radius-3xl)' }}
+              style={{ width: '100%', maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', position: 'relative', zIndex: 101, borderRadius: 'var(--radius-3xl)' }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: '900' }}>
-                  {editingSession ? 'Modifier la séance' : 'Ajouter une séance'}
-                </h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div>
+                  <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: '900', color: 'var(--text-primary)' }}>
+                    {editingSession ? 'Modifier la séance' : 'Ajouter une séance'}
+                  </h3>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600', marginTop: '2px' }}>
+                    {diploma} · {filiere} · {annee} · {semester}
+                  </p>
+                </div>
                 <button onClick={() => setShowAddModal(false)} className="close-button" aria-label="Fermer la fenêtre" title="Fermer"><X size={20} /></button>
               </div>
 
-              <div className="badge-status primary" style={{ marginBottom: '24px', justifyContent: 'flex-start', padding: '12px 16px' }}>
-                <span style={{ fontSize: 'var(--text-sm)', fontWeight: '800' }}>{diploma} — {filiere} — {annee} — {semester}</span>
-              </div>
-
-              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
                     <label style={labelStyle}>Jour</label>
-                    <div style={{ marginTop: '6px' }}>
+                    <div style={{ marginTop: '4px' }}>
                       <FilterSelect
                         value={formData.day}
                         onChange={val => setFormData({ ...formData, day: val })}
@@ -558,146 +559,145 @@ const ScheduleManagement = () => {
                     </div>
                   </div>
                   <div>
-                    <label style={labelStyle}>Horaire</label>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <input
-                        type="time" className="input-premium flex-1"
-                        required
-                        value={formData.time ? formData.time.split('-')[0] : ''}
-                        onChange={e => {
-                          const end = formData.time && formData.time.includes('-') ? formData.time.split('-')[1] : '';
-                          setFormData({ ...formData, time: `${e.target.value}-${end}` });
-                        }}
-                      />
-                      <span className="text-muted-foreground font-semibold text-xs">à</span>
-                      <input
-                        type="time" className="input-premium flex-1"
-                        required
-                        value={formData.time && formData.time.includes('-') ? formData.time.split('-')[1] : ''}
-                        onChange={e => {
-                          const start = formData.time ? formData.time.split('-')[0] : '';
-                          setFormData({ ...formData, time: `${start}-${e.target.value}` });
-                        }}
-                      />
+                    <label style={labelStyle}>Type</label>
+                    <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
+                      {['Cours', 'TP', 'TD'].map(type => (
+                        <button
+                          key={type} type="button"
+                          onClick={() => setFormData({ ...formData, type })}
+                          style={{
+                            flex: 1, padding: '8px 4px', borderRadius: 'var(--radius-md)', border: '1px solid',
+                            fontWeight: '800', fontSize: '10px', cursor: 'pointer', transition: 'all 0.1s',
+                            borderColor: formData.type === type ? 'var(--primary)' : 'var(--border-light)',
+                            background: formData.type === type ? 'var(--primary-ultra-light)' : 'white',
+                            color: formData.type === type ? 'var(--primary)' : 'var(--text-muted)'
+                          }}
+                        >
+                          {type}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>
 
                 <div>
-                  <label style={labelStyle}>Type de séance</label>
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
-                    {['Cours', 'TP', 'TD'].map(type => (
-                      <button
-                        key={type} type="button"
-                        onClick={() => setFormData({ ...formData, type })}
-                        style={{
-                          flex: 1, padding: '8px', borderRadius: 'var(--radius-lg)', border: '1.5px solid',
-                          fontWeight: '800', fontSize: '12px', cursor: 'pointer', transition: 'all 0.15s',
-                          borderColor: formData.type === type ? 'var(--primary)' : 'var(--border)',
-                          background: formData.type === type ? 'var(--primary-ultra-light)' : 'white',
-                          color: formData.type === type ? 'var(--primary)' : 'var(--text-muted)'
-                        }}
-                      >
-                        {type}
-                      </button>
-                    ))}
+                  <label style={labelStyle}>Horaire</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                    <input
+                      type="time" className="input-premium" style={{ flex: 1, padding: '8px 12px' }}
+                      required
+                      value={formData.time ? formData.time.split('-')[0] : ''}
+                      onChange={e => {
+                        const end = formData.time && formData.time.includes('-') ? formData.time.split('-')[1] : '';
+                        setFormData({ ...formData, time: `${e.target.value}-${end}` });
+                      }}
+                    />
+                    <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)' }}>à</span>
+                    <input
+                      type="time" className="input-premium" style={{ flex: 1, padding: '8px 12px' }}
+                      required
+                      value={formData.time && formData.time.includes('-') ? formData.time.split('-')[1] : ''}
+                      onChange={e => {
+                        const start = formData.time ? formData.time.split('-')[0] : '';
+                        setFormData({ ...formData, time: `${start}-${e.target.value}` });
+                      }}
+                    />
                   </div>
                 </div>
 
-                <div>
-                  <label style={labelStyle}>Intervenant</label>
-                  <div style={{ marginTop: '6px' }}>
-                    {(() => {
-                      const filtered = teachers.filter(t =>
-                        (!t.diplomas?.length || t.diplomas.includes(diploma)) &&
-                        (t.groups || []).includes(filiere) && (t.years || []).includes(annee)
-                      );
-                      const options = [
-                        { label: "Sélectionner un formateur...", value: "" },
-                        ...filtered.map(t => ({ label: t.name, value: t.id }))
-                      ];
-                      
-                      return (
-                        <FilterSelect
-                          value={formData.teacherId}
-                          onChange={val => {
-                            const teacher = teachers.find(t => t.id === val);
-                            const teacherSubjects = (teacher?.subjects || [teacher?.subject]).filter(Boolean);
-                            const nextModuleS1 = teacherSubjects.find(subject => modulesBySemester.S1.includes(subject)) || '';
-                            const nextModuleS2 = teacherSubjects.find(subject => modulesBySemester.S2.includes(subject)) || '';
-                            setFormData({ ...formData, teacherId: val, module: nextModuleS1, moduleS1: nextModuleS1, moduleS2: nextModuleS2 });
-                          }}
-                          options={filtered.length > 0 ? options : [{ label: "Aucun formateur assigné à ce niveau/filière/année", value: "" }]}
-                        />
-                      );
-                    })()}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={labelStyle}>Formateur</label>
+                    <div style={{ marginTop: '4px' }}>
+                      {(() => {
+                        const filtered = teachers.filter(t =>
+                          (!t.diplomas?.length || t.diplomas.includes(diploma)) &&
+                          (t.groups || []).includes(filiere) && (t.years || []).includes(annee)
+                        );
+                        const options = [
+                          { label: "Choisir...", value: "" },
+                          ...filtered.map(t => ({ label: t.name, value: t.id }))
+                        ];
+                        
+                        return (
+                          <FilterSelect
+                            value={formData.teacherId}
+                            onChange={val => {
+                              const teacher = teachers.find(t => t.id === val);
+                              const teacherSubjects = (teacher?.subjects || [teacher?.subject]).filter(Boolean);
+                              const nextModuleS1 = teacherSubjects.find(subject => modulesBySemester.S1.includes(subject)) || '';
+                              const nextModuleS2 = teacherSubjects.find(subject => modulesBySemester.S2.includes(subject)) || '';
+                              setFormData({ ...formData, teacherId: val, module: nextModuleS1, moduleS1: nextModuleS1, moduleS2: nextModuleS2 });
+                            }}
+                            options={filtered.length > 0 ? options : [{ label: "Aucun formateur", value: "" }]}
+                          />
+                        );
+                      })()}
+                    </div>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Salle (optionnel)</label>
+                    <input
+                      type="text" className="input-premium"
+                      style={{ width: '100%', marginTop: '4px', padding: '8px 12px' }}
+                      placeholder="Ex: A1"
+                      value={formData.room}
+                      onChange={e => setFormData({ ...formData, room: e.target.value })}
+                    />
                   </div>
                 </div>
 
-                <div>
-                  <label style={labelStyle}>Module S1 / Même horaire</label>
-                  <div style={{ marginTop: '6px' }}>
-                    {(() => {
-                      const teacher = teachers.find(t => t.id === formData.teacherId);
-                      if (!teacher) return <FilterSelect value="" onChange={()=>{}} options={[{label: "Veuillez sélectionner un formateur d'abord", value: ""}]} />;
-                      const teacherModules = teacher.subjects || (teacher.subject ? [teacher.subject] : []);
-                      const filtered = (modulesBySemester.S1 || []).filter(m => teacherModules.includes(m));
-                      if (filtered.length === 0) return <FilterSelect value="" onChange={()=>{}} options={[{label: "Aucun module commun disponible pour S1", value: ""}]} />;
-                      
-                      return (
-                        <FilterSelect
-                          value={formData.moduleS1}
-                          onChange={val => setFormData({ ...formData, module: val, moduleS1: val })}
-                          options={[
-                            { label: "Sélectionner un module...", value: "" },
-                            ...filtered.map(m => ({ label: m, value: m }))
-                          ]}
-                        />
-                      );
-                    })()}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={labelStyle}>Module S1</label>
+                    <div style={{ marginTop: '4px' }}>
+                      {(() => {
+                        const teacher = teachers.find(t => t.id === formData.teacherId);
+                        if (!teacher) return <FilterSelect value="" onChange={()=>{}} options={[{label: "Choisir formateur", value: ""}]} disabled />;
+                        const teacherModules = teacher.subjects || (teacher.subject ? [teacher.subject] : []);
+                        const filtered = (modulesBySemester.S1 || []).filter(m => teacherModules.includes(m));
+                        if (filtered.length === 0) return <FilterSelect value="" onChange={()=>{}} options={[{label: "Aucun module", value: ""}]} disabled />;
+                        
+                        return (
+                          <FilterSelect
+                            value={formData.moduleS1}
+                            onChange={val => setFormData({ ...formData, module: val, moduleS1: val })}
+                            options={[
+                              { label: "Choisir...", value: "" },
+                              ...filtered.map(m => ({ label: m, value: m }))
+                            ]}
+                          />
+                        );
+                      })()}
+                    </div>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Module S2</label>
+                    <div style={{ marginTop: '4px' }}>
+                      {(() => {
+                        const teacher = teachers.find(t => t.id === formData.teacherId);
+                        if (!teacher) return <FilterSelect value="" onChange={()=>{}} options={[{label: "Choisir formateur", value: ""}]} disabled />;
+                        const teacherModules = teacher.subjects || (teacher.subject ? [teacher.subject] : []);
+                        const filtered = (modulesBySemester.S2 || []).filter(m => teacherModules.includes(m));
+                        if (filtered.length === 0) return <FilterSelect value="" onChange={()=>{}} options={[{label: "Aucun module", value: ""}]} disabled />;
+                        
+                        return (
+                          <FilterSelect
+                            value={formData.moduleS2}
+                            onChange={val => setFormData({ ...formData, moduleS2: val })}
+                            options={[
+                              { label: "Aucun module", value: "" },
+                              ...filtered.map(m => ({ label: m, value: m }))
+                            ]}
+                          />
+                        );
+                      })()}
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <label style={labelStyle}>Module S2 / Même horaire</label>
-                  <div style={{ marginTop: '6px' }}>
-                    {(() => {
-                      const teacher = teachers.find(t => t.id === formData.teacherId);
-                      if (!teacher) return <FilterSelect value="" onChange={()=>{}} options={[{label: "Veuillez sélectionner un formateur d'abord", value: ""}]} />;
-                      const teacherModules = teacher.subjects || (teacher.subject ? [teacher.subject] : []);
-                      const filtered = (modulesBySemester.S2 || []).filter(m => teacherModules.includes(m));
-                      if (filtered.length === 0) return <FilterSelect value="" onChange={()=>{}} options={[{label: "Aucun module commun disponible pour S2", value: ""}]} />;
-                      
-                      return (
-                        <FilterSelect
-                          value={formData.moduleS2}
-                          onChange={val => setFormData({ ...formData, moduleS2: val })}
-                          options={[
-                            { label: "Aucun module S2", value: "" },
-                            ...filtered.map(m => ({ label: m, value: m }))
-                          ]}
-                        />
-                      );
-                    })()}
-                  </div>
-                </div>
-
-                <div>
-                  <label style={labelStyle}>Salle (optionnel)</label>
-                  <input
-                    type="text" className="input-premium"
-                    style={{ width: '100%', marginTop: '6px' }}
-                    placeholder="Ex: Salle A1, Amphi…"
-                    value={formData.room}
-                    onChange={e => setFormData({ ...formData, room: e.target.value })}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
-                  <button type="button" onClick={() => setShowAddModal(false)} className="btn-modern" style={{ flex: 1, justifyContent: 'center' }}>
-                    Annuler
-                  </button>
-                  <button type="submit" className="btn-modern primary" style={{ flex: 2, justifyContent: 'center' }}>
+                <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+                  <button type="submit" className="btn-modern primary" style={{ flex: 1, justifyContent: 'center' }}>
                     Valider la séance
                   </button>
                 </div>

@@ -884,6 +884,97 @@ const AdminDashboard = () => {
   const [isPromotingAcademicYear, setIsPromotingAcademicYear] = useState(false);
   const [promotionResult, setPromotionResult] = useState(null);
 
+  // Add student & teacher form states and helper handlers
+  const [addStudentForm, setAddStudentForm] = useState({
+    firstName: '', lastName: '', major: '', regNo: '', diploma: '', year: ''
+  });
+  const [addTeacherForm, setAddTeacherForm] = useState({
+    name: '', diplomas: [], subjects: [], groups: [], years: [], hourlyRate: 0
+  });
+  const [addTeacherModuleSearch, setAddTeacherModuleSearch] = useState('');
+
+  const toggleAddTeacherDiploma = (dip) => {
+    setAddTeacherForm(prev => {
+      const currentDiplomas = prev.diplomas || [];
+      const isSelected = currentDiplomas.includes(dip);
+      const newDiplomas = isSelected ? currentDiplomas.filter(d => d !== dip) : [...currentDiplomas, dip];
+      const allowedYears = getStudyYearsForDiplomas(newDiplomas);
+      const allowedGroups = new Set(newDiplomas.flatMap(diploma => FILIERES[diploma] || []));
+      return {
+        ...prev,
+        diplomas: newDiplomas,
+        groups: (prev.groups || []).filter(group => allowedGroups.has(group)),
+        years: (prev.years || []).filter(year => allowedYears.includes(year)),
+        subjects: newDiplomas.length === 0 ? [] : (prev.subjects || [])
+      };
+    });
+  };
+
+  const toggleAddTeacherYear = (year) => {
+    setAddTeacherForm(prev => ({
+      ...prev,
+      years: (prev.years || []).includes(year) ? (prev.years || []).filter(y => y !== year) : [...(prev.years || []), year]
+    }));
+  };
+
+  const toggleAddTeacherGroup = (filiere) => {
+    setAddTeacherForm(prev => ({
+      ...prev,
+      groups: (prev.groups || []).includes(filiere) ? (prev.groups || []).filter(g => g !== filiere) : [...(prev.groups || []), filiere]
+    }));
+  };
+
+  const toggleAddTeacherSubject = (mod) => {
+    setAddTeacherForm(prev => ({
+      ...prev,
+      subjects: (prev.subjects || []).includes(mod) ? (prev.subjects || []).filter(s => s !== mod) : [...(prev.subjects || []), mod]
+    }));
+  };
+
+  const toggleFiliereAllAdd = (year, filiere, modules) => {
+    const allSelected = modules.every(m => (addTeacherForm.subjects || []).includes(m));
+    if (allSelected) {
+      setAddTeacherForm(prev => ({ ...prev, subjects: (prev.subjects || []).filter(s => !modules.includes(s)) }));
+    } else {
+      setAddTeacherForm(prev => ({ ...prev, subjects: [...new Set([...(prev.subjects || []), ...modules])] }));
+    }
+  };
+
+  const handleAddStudentSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const trimmedData = {
+        ...addStudentForm,
+        firstName: addStudentForm.firstName.trim(),
+        lastName: addStudentForm.lastName.trim()
+      };
+      await addStudent(trimmedData);
+      showToast('Stagiaire inscrit avec succès.', 'success');
+      setAddStudentForm({ firstName: '', lastName: '', major: '', regNo: '', diploma: '', year: '' });
+      closeModal();
+    } catch (err) {
+      console.error(err);
+      showToast("Erreur lors de l'inscription.", 'error');
+    }
+  };
+
+  const handleAddTeacherSubmit = async (e) => {
+    e.preventDefault();
+    if ((addTeacherForm.diplomas || []).length === 0) return showToast('Sélectionnez au moins un diplôme.', 'warning');
+    if ((addTeacherForm.subjects || []).length === 0) return showToast('Sélectionnez au moins un module.', 'warning');
+    if ((addTeacherForm.groups || []).length === 0) return showToast('Sélectionnez au moins une filière.', 'warning');
+    if ((addTeacherForm.years || []).length === 0) return showToast('Sélectionnez au moins un niveau.', 'warning');
+    try {
+      await addTeacher(addTeacherForm);
+      showToast('Formateur enregistré avec succès.', 'success');
+      setAddTeacherForm({ name: '', diplomas: [], subjects: [], groups: [], years: [], hourlyRate: 0 });
+      closeModal();
+    } catch (err) {
+      console.error(err);
+      showToast("Erreur lors de l'enregistrement.", 'error');
+    }
+  };
+
   // QR modal state
   const [qrModal, setQrModal] = useState(null); // { title, links: [{ label, url, color }] }
   const openQR = useCallback((title, links) => setQrModal({ title, links }), []);
@@ -1276,9 +1367,9 @@ const AdminDashboard = () => {
                 <RotateCw size={14} style={{ marginRight: '6px' }} /> Régénérer
               </button>
             )}
-            <Link to={activeTab === 'students' ? "/admin/add-student" : "/admin/add-teacher"} className="btn-modern primary">
+            <button onClick={() => setModalMode(activeTab === 'students' ? 'add-student' : 'add-teacher')} className="btn-modern primary">
               <Plus size={14} style={{ marginRight: '6px' }} /> Ajouter
-            </Link>
+            </button>
           </div>
           <div className="directory-premium-header-orb" aria-hidden="true">
             {activeTab === 'students' ? <GraduationCap size={112} /> : <Presentation size={112} />}
@@ -1389,17 +1480,17 @@ const AdminDashboard = () => {
 
       {/* Modal Section */}
       <AnimatePresence>
-        {modalMode && selectedItem && (
+        {modalMode && (
           <div className="app-modal-overlay" style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
             <motion.div className="app-modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(4px)' }} onClick={closeModal}></motion.div>
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="glass-premium directory-premium-dialog app-modal-surface"
-              style={{ width: '100%', maxWidth: '500px', padding: '32px', borderRadius: 'var(--radius-3xl)', position: 'relative', zIndex: 101, boxShadow: 'var(--shadow-xl)', maxHeight: '90vh', overflowY: 'auto' }}>
+              style={{ width: '100%', maxWidth: (modalMode === 'add-student' || modalMode === 'add-teacher') ? '480px' : '500px', padding: '24px', borderRadius: 'var(--radius-3xl)', position: 'relative', zIndex: 101, boxShadow: 'var(--shadow-xl)', maxHeight: '90vh', overflowY: 'auto' }}>
               
               <button onClick={closeModal} className="close-button" aria-label="Fermer la fenêtre" title="Fermer" style={{ position: 'absolute', right: '20px', top: '20px' }}>
                 <X size={20} />
               </button>
 
-              {modalMode === 'edit' && (
+              {modalMode === 'edit' && selectedItem && (
                 <form onSubmit={handleUpdate}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                     <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900' }}>Modifier {activeTab === 'students' ? 'le stagiaire' : 'le formateur'}</h2>
@@ -1416,7 +1507,7 @@ const AdminDashboard = () => {
                             <label style={lbl}>Nom</label>
                             <input required className="input-premium" value={editFormData.lastName || ''} onChange={e => setEditFormData({...editFormData, lastName: e.target.value})} />
                           </div>
-                          <div style={fGroup}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                             <label style={lbl}>Prénom</label>
                             <input required className="input-premium" value={editFormData.firstName || ''} onChange={e => setEditFormData({...editFormData, firstName: e.target.value})} />
                           </div>
@@ -1442,9 +1533,15 @@ const AdminDashboard = () => {
                       </>
                     ) : (
                       <>
-                        <div style={fGroup}>
-                          <label style={lbl}>Nom Complet</label>
-                          <input required className="input-premium" value={editFormData.name || ''} onChange={e => setEditFormData({...editFormData, name: e.target.value})} />
+                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
+                          <div style={fGroup}>
+                            <label style={lbl}>Nom Complet</label>
+                            <input required className="input-premium" value={editFormData.name || ''} onChange={e => setEditFormData({...editFormData, name: e.target.value})} />
+                          </div>
+                          <div style={fGroup}>
+                            <label style={lbl}>Tarif (DH)</label>
+                            <input type="number" required className="input-premium" value={editFormData.hourlyRate || ''} onChange={e => setEditFormData({...editFormData, hourlyRate: parseFloat(e.target.value) || 0})} />
+                          </div>
                         </div>
                         
                         <div style={fGroup}>
@@ -1520,15 +1617,14 @@ const AdminDashboard = () => {
                   </div>
 
                   <div style={{ display: 'flex', gap: '12px', marginTop: '32px' }}>
-                    <button type="button" onClick={closeModal} className="btn-modern" style={{ flex: 1 }}>Annuler</button>
-                    <button type="submit" disabled={isSaving} className="btn-modern primary" style={{ flex: 2 }}>
+                    <button type="submit" disabled={isSaving} className="btn-modern primary" style={{ flex: 1, justifyContent: 'center' }}>
                       {isSaving ? 'Enregistrement...' : 'Enregistrer les modifications'}
                     </button>
                   </div>
                 </form>
               )}
 
-              {modalMode === 'details' && (
+              {modalMode === 'details' && selectedItem && (
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
                     <div style={{ width: '56px', height: '56px', borderRadius: 'var(--radius-xl)', background: 'var(--primary-ultra-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: '800' }}>
@@ -1592,6 +1688,143 @@ const AdminDashboard = () => {
                     );
                   })()}
                 </div>
+              )}
+
+              {modalMode === 'add-student' && (
+                <form onSubmit={handleAddStudentSubmit}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900' }}>Inscription Stagiaire</h2>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div style={fGroup}>
+                        <label style={lbl}>Nom</label>
+                        <input required className="input-premium" placeholder="Ex: ALAMI" value={addStudentForm.lastName} onChange={e => setAddStudentForm({...addStudentForm, lastName: e.target.value})} />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={lbl}>Prénom</label>
+                        <input required className="input-premium" placeholder="Ex: Omar" value={addStudentForm.firstName} onChange={e => setAddStudentForm({...addStudentForm, firstName: e.target.value})} />
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div style={fGroup}>
+                        <label style={lbl}>Niveau</label>
+                        <FilterSelect value={addStudentForm.diploma} onChange={val => setAddStudentForm({...addStudentForm, diploma: val, major: '', year: ''})} options={[{ value: '', label: 'Sélectionner...' }, ...allDiplomas.map(d => ({ value: d, label: d }))]} />
+                      </div>
+                      <div style={fGroup}>
+                        <label style={lbl}>Année d'étude</label>
+                        <FilterSelect value={addStudentForm.year} onChange={val => setAddStudentForm({...addStudentForm, year: val})} disabled={!addStudentForm.diploma} options={[{ value: '', label: 'Sélectionner...' }, ...getStudyYearsForDiploma(addStudentForm.diploma).map(year => ({ value: year, label: year }))]} />
+                      </div>
+                    </div>
+                    <div style={fGroup}>
+                      <label style={lbl}>Filière</label>
+                      <FilterSelect value={addStudentForm.major} onChange={val => setAddStudentForm({...addStudentForm, major: val})} disabled={!addStudentForm.diploma} options={[{ value: '', label: 'Choisir la filière' }, ...(FILIERES[addStudentForm.diploma] || []).map(f => ({ value: f, label: f }))]} />
+                    </div>
+                    <div style={fGroup}>
+                      <label style={lbl}>Matricule</label>
+                      <input required className="input-premium" style={{ fontFamily: 'monospace' }} placeholder="IPFP-XXXX-XXXX" value={addStudentForm.regNo} onChange={e => setAddStudentForm({...addStudentForm, regNo: e.target.value})} />
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+                    <button type="submit" className="btn-modern primary" style={{ flex: 1, justifyContent: 'center' }}>
+                      Inscrire le stagiaire
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {modalMode === 'add-teacher' && (
+                <form onSubmit={handleAddTeacherSubmit}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900' }}>Nouveau Formateur</h2>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
+                      <div style={fGroup}>
+                        <label style={lbl}>Nom Complet</label>
+                        <input required className="input-premium" placeholder="Ex: Dr. ALAMI Mohamed" value={addTeacherForm.name} onChange={e => setAddTeacherForm({...addTeacherForm, name: e.target.value})} />
+                      </div>
+                      <div style={fGroup}>
+                        <label style={lbl}>Tarif (DH)</label>
+                        <input type="number" required className="input-premium" placeholder="150" value={addTeacherForm.hourlyRate || ''} onChange={e => setAddTeacherForm({...addTeacherForm, hourlyRate: parseFloat(e.target.value) || 0})} />
+                      </div>
+                    </div>
+                    
+                    <div style={fGroup}>
+                      <label style={lbl}>Diplômes assignés</label>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {allDiplomas.map(dip => (
+                          <SelectionTag key={dip} active={(addTeacherForm.diplomas || []).includes(dip)} onClick={() => toggleAddTeacherDiploma(dip)} label={dip} />
+                        ))}
+                      </div>
+                    </div>
+
+                    <div style={fGroup}>
+                      <label style={lbl}>Niveaux d'enseignement</label>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {getStudyYearsForDiplomas(addTeacherForm.diplomas || []).map(y => (
+                          <SelectionTag key={y} active={(addTeacherForm.years || []).includes(y)} onClick={() => toggleAddTeacherYear(y)} label={y} />
+                        ))}
+                      </div>
+                    </div>
+
+                    <div style={fGroup}>
+                      <label style={lbl}>Filières assignées</label>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxHeight: '90px', overflowY: 'auto', padding: '2px' }}>
+                        {Array.from(new Set((addTeacherForm.diplomas || []).flatMap(diploma => FILIERES[diploma] || []))).map(f => (
+                          <SelectionTag key={f} active={(addTeacherForm.groups || []).includes(f)} onClick={() => toggleAddTeacherGroup(f)} label={f} />
+                        ))}
+                      </div>
+                    </div>
+
+                    <div style={fGroup}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <label style={lbl}>Modules ({ (addTeacherForm.subjects || []).length })</label>
+                        <input className="input-premium" style={{ height: '26px', fontSize: '11px', width: '130px' }} placeholder="Filtrer..." value={addTeacherModuleSearch} onChange={e => setAddTeacherModuleSearch(e.target.value)} />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '160px', overflowY: 'auto', background: 'var(--bg-subtle)', padding: '6px', borderRadius: 'var(--radius-xl)' }}>
+                        {(addTeacherForm.years || []).sort().map(year => (
+                          <div key={year}>
+                            <p style={{ fontSize: '10px', fontWeight: '800', color: 'var(--primary)', marginBottom: '4px' }}>{year}</p>
+                            {(addTeacherForm.groups || []).map(filiere => {
+                              const modules = Array.from(new Set(allModules.filter(m => 
+                                (addTeacherForm.diplomas || []).includes(m.diploma) && 
+                                m.major === filiere && 
+                                m.year === year
+                              ).map(m => m.name)));
+                              const filtered = addTeacherModuleSearch ? modules.filter(m => m.toLowerCase().includes(addTeacherModuleSearch.toLowerCase())) : modules;
+                              if (filtered.length === 0) return null;
+                              return (
+                                <div key={filiere} style={{ marginBottom: '6px' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <p style={{ fontSize: '9px', fontWeight: '700', color: 'var(--text-muted)' }}>{filiere}</p>
+                                    <button type="button" onClick={() => toggleFiliereAllAdd(year, filiere, filtered)} style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontSize: '9px', fontWeight: '800', cursor: 'pointer' }}>
+                                      Inverse
+                                    </button>
+                                  </div>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '2px' }}>
+                                    {filtered.map(m => (
+                                      <button type="button" key={m} onClick={() => toggleAddTeacherSubject(m)} style={{ 
+                                        padding: '4px 8px', borderRadius: '6px', fontSize: '10px', border: 'none', cursor: 'pointer',
+                                        background: (addTeacherForm.subjects || []).includes(m) ? 'var(--primary)' : 'white',
+                                        color: (addTeacherForm.subjects || []).includes(m) ? 'white' : 'var(--text-secondary)'
+                                      }}>{m}</button>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+                    <button type="submit" className="btn-modern primary" style={{ flex: 1, justifyContent: 'center' }}>
+                      Enregistrer le formateur
+                    </button>
+                  </div>
+                </form>
               )}
             </motion.div>
           </div>
@@ -1780,8 +2013,7 @@ const AdminDashboard = () => {
 
                   {/* Improvement #2: Disable button when invalid */}
                   <div style={{ display: 'flex', gap: '12px' }}>
-                    <button type="button" className="btn-modern" style={{ flex: 1 }} onClick={() => setPromotionModalOpen(false)}>Annuler</button>
-                    <button type="button" className="btn-modern primary" style={{ flex: 2 }} disabled={isPromotingAcademicYear || promotionPreview.total === 0 || !isYearFormatValid || isAlreadyClosed} onClick={handlePromoteAcademicYear}>
+                    <button type="button" className="btn-modern primary" style={{ flex: 1, justifyContent: 'center' }} disabled={isPromotingAcademicYear || promotionPreview.total === 0 || !isYearFormatValid || isAlreadyClosed} onClick={handlePromoteAcademicYear}>
                       {isPromotingAcademicYear ? 'Cl\u00f4ture en cours...' : "Confirmer la cl\u00f4ture"}
                     </button>
                   </div>

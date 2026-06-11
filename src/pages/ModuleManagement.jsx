@@ -518,7 +518,6 @@ const ModuleManagement = () => {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
-                  <button type="button" onClick={() => setIsModalOpen(false)} className="btn-modern" style={{ flex: 1 }}>Annuler</button>
                   <button type="submit" className="btn-modern primary" style={{ flex: 1 }}>{isEditing ? 'Enregistrer' : 'Ajouter'}</button>
                 </div>
               </form>
@@ -585,12 +584,11 @@ const ModuleManagement = () => {
               </div>
 
               <div style={{ display: 'flex', gap: '12px' }}>
-                <button onClick={() => setCopyModalOpen(false)} className="btn-modern" style={{ flex: 1 }}>Annuler</button>
                 <button
                   onClick={handleCopyConfirm}
                   disabled={copyTargets.length === 0 || isCopying}
                   className="btn-modern primary"
-                  style={{ flex: 2, opacity: copyTargets.length === 0 ? 0.5 : 1 }}
+                  style={{ flex: 1, opacity: copyTargets.length === 0 ? 0.5 : 1 }}
                 >
                   <Copy size={13} style={{ marginRight: '6px' }} />
                   {isCopying ? 'Copie en cours…' : `Copier vers ${copyTargets.length} groupe${copyTargets.length > 1 ? 's' : ''}`}

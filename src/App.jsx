@@ -8,8 +8,6 @@ import { School, Link as LinkIcon } from 'lucide-react';
 
 const Login                    = lazy(() => import('./pages/Login'));
 const AdminDashboard           = lazy(() => import('./pages/AdminDashboard'));
-const AddStudent               = lazy(() => import('./pages/AddStudent'));
-const AddTeacher               = lazy(() => import('./pages/AddTeacher'));
 const TeacherPortal            = lazy(() => import('./pages/TeacherPortal'));
 const StudentResults           = lazy(() => import('./pages/StudentResults'));
 const GradeManagement          = lazy(() => import('./pages/GradeManagement'));
@@ -103,8 +101,6 @@ const AppContent = () => {
         <Route path="/admin/students" element={<AdminDashboard />} />
         <Route path="/admin/teachers" element={<AdminDashboard />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/admin/add-student" element={<AddStudent />} />
-        <Route path="/admin/add-teacher" element={<AddTeacher />} />
         <Route path="/admin/schedules" element={<ScheduleManagement />} />
         <Route path="/admin/grades" element={<GradeManagement />} />
         <Route path="/admin/attendance-students" element={<StudentAttendance />} />
