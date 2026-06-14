@@ -5513,7 +5513,24 @@ body:has(.finance-modal-portal-scope) .finance-radix-select-content {
 }
 
 .app-modal-surface.app-modal-radix-surface {
+  position: fixed !important;
   z-index: 100001 !important;
+}
+
+.app-modal-surface.app-modal-radix-surface[data-state='open'] {
+  animation: app-modal-radix-scale-in 120ms ease-out;
+}
+
+@keyframes app-modal-radix-scale-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 
 .app-modal-surface {
