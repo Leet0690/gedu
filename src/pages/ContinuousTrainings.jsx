@@ -80,6 +80,12 @@ const TRAINING_TYPES = [
   { value: 'informatique', label: 'Informatique', icon: Monitor, colorClass: 'text-violet-600', bgClass: 'bg-violet-50', borderClass: 'border-violet-200', hex: '#7c3aed' },
 ];
 const typeConfig = type => TRAINING_TYPES.find(t => t.value === type) || { value: type, label: type || 'Autre', icon: BookOpen, colorClass: 'text-slate-500', bgClass: 'bg-slate-50', borderClass: 'border-slate-200', hex: '#64748b' };
+const getTrainingTypeOptions = trainings => {
+  const customTypes = Array.from(new Set(trainings.map(t => t.type?.trim()).filter(Boolean)))
+    .filter(type => !TRAINING_TYPES.some(item => item.value === type))
+    .map(type => ({ value: type, label: type }));
+  return [...TRAINING_TYPES.map(({ value, label }) => ({ value, label })), ...customTypes];
+};
 
 const SUPPORT_SUBJECTS = ['Français', 'SVT', 'MATHS', 'Physique'];
 const SUPPORT_CYCLES = ['Primaire', 'Collège', 'Lycée'];
@@ -128,6 +134,7 @@ const getPaymentMethodLabel = method =>
   PAYMENT_METHODS.find(item => item.value === method)?.label || PAYMENT_METHODS[0].label;
 
 const getDefaultSupportLevel = cycle => SUPPORT_LEVELS_BY_CYCLE[cycle]?.[0] || '';
+const isPrimaryCycle = cycle => cycle === 'Primaire';
 
 const getTrainingLevelLabel = training => {
   if (training?.type === 'langue') {
@@ -149,9 +156,9 @@ const getTrainingMetaTags = training => {
   }
   if (training?.type === 'soutien') {
     return [
-      training.subject,
       training.cycle,
       training.level,
+      !isPrimaryCycle(training.cycle) ? training.subject : '',
     ].filter(Boolean);
   }
   return [];
@@ -169,9 +176,9 @@ const getTrainingPropertyRows = training => {
   }
   if (training?.type === 'soutien') {
     return [
-      { label: 'Matière', value: training.subject },
       { label: 'Cycle', value: training.cycle },
       { label: 'Niveau', value: training.level },
+      ...(!isPrimaryCycle(training.cycle) ? [{ label: 'Matière', value: training.subject }] : []),
     ].filter(item => item.value);
   }
   return [];
@@ -311,6 +318,7 @@ function FormationsTab({ trainings, ctStudents, onAdd, onEdit, onDelete }) {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [viewMode, setViewMode] = useState('table');
+  const typeOptions = useMemo(() => getTrainingTypeOptions(trainings), [trainings]);
   const filtered = useMemo(() => trainings.filter(t => {
     if (typeFilter && typeFilter !== 'all' && t.type !== typeFilter) return false;
     if (search) {
@@ -335,8 +343,7 @@ function FormationsTab({ trainings, ctStudents, onAdd, onEdit, onDelete }) {
           </SelectTrigger>
           <SelectContent className="bg-white">
             <SelectItem value="all">Tous les types</SelectItem>
-            {TRAINING_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-            {Array.from(new Set(trainings.map(t => t.type))).filter(t => t && !TRAINING_TYPES.some(tt => tt.value === t)).map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+            {typeOptions.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
           </SelectContent>
         </Select>
         <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
@@ -701,42 +708,84 @@ function PlanningTab({ sessions, trainings, onAddSession, onEditSession, onDelet
   const [viewMode, setViewMode] = useState('grid');
   const [trainingFilter, setTrainingFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [cycleFilter, setCycleFilter] = useState('all');
   const [subjectFilter, setSubjectFilter] = useState('all');
   const [levelFilter, setLevelFilter] = useState('all');
+  const [languageFilter, setLanguageFilter] = useState('all');
+  const [languageAudienceFilter, setLanguageAudienceFilter] = useState('all');
+  const typeOptions = useMemo(() => getTrainingTypeOptions(trainings), [trainings]);
   const getTraining = id => trainings.find(t => t.id === id);
   const today = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
-  const effectiveSubjectFilter = typeFilter === 'soutien' ? subjectFilter : 'all';
-  const subjectOptions = useMemo(() => {
-    const existing = trainings
-      .filter(t => t.type === 'soutien')
-      .map(t => t.subject)
-      .filter(Boolean);
-    return Array.from(new Set([...SUPPORT_SUBJECTS, ...existing]));
-  }, [trainings]);
+  const effectiveCycleFilter = typeFilter === 'soutien' ? cycleFilter : 'all';
+  const effectiveSubjectFilter = typeFilter === 'soutien' && !isPrimaryCycle(effectiveCycleFilter) ? subjectFilter : 'all';
+  const effectiveLanguageFilter = typeFilter === 'langue' ? languageFilter : 'all';
+  const effectiveLanguageAudienceFilter = typeFilter === 'langue' ? languageAudienceFilter : 'all';
   const levelOptions = useMemo(() => {
+    if (typeFilter === 'soutien') {
+      const cycleLevels = effectiveCycleFilter === 'all'
+        ? Object.values(SUPPORT_LEVELS_BY_CYCLE).flat()
+        : SUPPORT_LEVELS_BY_CYCLE[effectiveCycleFilter] || [];
+      const actualLevels = trainings
+        .filter(t => t.type === 'soutien')
+        .filter(t => effectiveCycleFilter === 'all' || t.cycle === effectiveCycleFilter)
+        .map(getTrainingLevelLabel)
+        .filter(Boolean);
+      return Array.from(new Set([...cycleLevels, ...actualLevels]));
+    }
+    if (typeFilter === 'langue') {
+      if (effectiveLanguageAudienceFilter !== 'all' && effectiveLanguageAudienceFilter !== 'ADULTES') return [];
+      const actualLevels = trainings
+        .filter(t => t.type === 'langue')
+        .filter(t => effectiveLanguageFilter === 'all' || t.language === effectiveLanguageFilter)
+        .filter(t => effectiveLanguageAudienceFilter === 'all' || t.languageAudience === effectiveLanguageAudienceFilter)
+        .map(t => t.languageAdultLevel)
+        .filter(Boolean);
+      return Array.from(new Set([...LANGUAGE_ADULT_LEVELS, ...actualLevels]));
+    }
     const actualLevels = trainings
       .filter(t => typeFilter === 'all' || t.type === typeFilter)
       .filter(t => effectiveSubjectFilter === 'all' || t.subject === effectiveSubjectFilter)
       .map(getTrainingLevelLabel)
       .filter(Boolean);
-    if (typeFilter === 'soutien') {
-      return Array.from(new Set([...Object.values(SUPPORT_LEVELS_BY_CYCLE).flat(), ...actualLevels]));
-    }
-    if (typeFilter === 'langue') {
-      return Array.from(new Set(['KIDS', 'ADO', 'ADULTES', ...LANGUAGE_ADULT_LEVELS.map(level => `ADULTES - ${level}`), ...actualLevels]));
-    }
     return Array.from(new Set(actualLevels));
-  }, [trainings, typeFilter, effectiveSubjectFilter]);
+  }, [trainings, typeFilter, effectiveCycleFilter, effectiveSubjectFilter, effectiveLanguageFilter, effectiveLanguageAudienceFilter]);
   const effectiveLevelFilter = levelFilter !== 'all' && levelOptions.includes(levelFilter) ? levelFilter : 'all';
+  const languageOptions = useMemo(() => {
+    const existing = trainings
+      .filter(t => t.type === 'langue')
+      .map(t => t.language)
+      .filter(Boolean);
+    return Array.from(new Set([...LANGUAGE_OPTIONS, ...existing]));
+  }, [trainings]);
+  const languageAudienceOptions = useMemo(() => {
+    const existing = trainings
+      .filter(t => t.type === 'langue')
+      .filter(t => effectiveLanguageFilter === 'all' || t.language === effectiveLanguageFilter)
+      .map(t => t.languageAudience)
+      .filter(Boolean);
+    return Array.from(new Set([...LANGUAGE_AUDIENCES, ...existing]));
+  }, [trainings, effectiveLanguageFilter]);
+  const subjectOptions = useMemo(() => {
+    const existing = trainings
+      .filter(t => t.type === 'soutien')
+      .filter(t => effectiveCycleFilter === 'all' || t.cycle === effectiveCycleFilter)
+      .filter(t => effectiveLevelFilter === 'all' || t.level === effectiveLevelFilter)
+      .map(t => t.subject)
+      .filter(Boolean);
+    return Array.from(new Set([...SUPPORT_SUBJECTS, ...existing]));
+  }, [trainings, effectiveCycleFilter, effectiveLevelFilter]);
   const filteredTrainings = useMemo(() => trainings.filter(training => {
     if (typeFilter !== 'all' && training.type !== typeFilter) return false;
+    if (typeFilter === 'soutien' && effectiveCycleFilter !== 'all' && training.cycle !== effectiveCycleFilter) return false;
     if (effectiveSubjectFilter !== 'all' && training.subject !== effectiveSubjectFilter) return false;
+    if (typeFilter === 'langue' && effectiveLanguageFilter !== 'all' && training.language !== effectiveLanguageFilter) return false;
+    if (typeFilter === 'langue' && effectiveLanguageAudienceFilter !== 'all' && training.languageAudience !== effectiveLanguageAudienceFilter) return false;
     if (effectiveLevelFilter !== 'all') {
-      if (training.type === 'langue' && effectiveLevelFilter === 'ADULTES') return training.languageAudience === 'ADULTES';
+      if (training.type === 'langue') return training.languageAdultLevel === effectiveLevelFilter;
       return getTrainingLevelLabel(training) === effectiveLevelFilter;
     }
     return true;
-  }), [trainings, typeFilter, effectiveSubjectFilter, effectiveLevelFilter]);
+  }), [trainings, typeFilter, effectiveCycleFilter, effectiveSubjectFilter, effectiveLanguageFilter, effectiveLanguageAudienceFilter, effectiveLevelFilter]);
   const filteredTrainingIds = useMemo(() => new Set(filteredTrainings.map(t => t.id)), [filteredTrainings]);
   const effectiveTrainingFilter = trainingFilter !== 'all' && filteredTrainingIds.has(trainingFilter) ? trainingFilter : 'all';
   const filtered = useMemo(() => sessions.filter(s => {
@@ -748,37 +797,73 @@ function PlanningTab({ sessions, trainings, onAddSession, onEditSession, onDelet
   return (
     <div className="space-y-5">
       <div className="continuous-premium-toolbar flex flex-wrap items-center gap-3">
-        <Select value={typeFilter} onValueChange={value => { setTypeFilter(value); setSubjectFilter('all'); setLevelFilter('all'); setTrainingFilter('all'); }}>
+        <Select value={typeFilter} onValueChange={value => { setTypeFilter(value); setCycleFilter('all'); setSubjectFilter('all'); setLevelFilter('all'); setLanguageFilter('all'); setLanguageAudienceFilter('all'); setTrainingFilter('all'); }}>
           <SelectTrigger className="w-48 border-slate-200 bg-white">
             <Filter size={13} className="text-slate-400 mr-1" />
             <SelectValue placeholder="Type" />
           </SelectTrigger>
           <SelectContent className="bg-white">
             <SelectItem value="all">Tous les types</SelectItem>
-            {TRAINING_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+            {typeOptions.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
           </SelectContent>
         </Select>
 
-        {typeFilter === 'soutien' && (
-          <Select value={subjectFilter} onValueChange={value => { setSubjectFilter(value); setLevelFilter('all'); setTrainingFilter('all'); }}>
+        {typeFilter === 'langue' && (
+          <Select value={effectiveLanguageFilter} onValueChange={value => { setLanguageFilter(value); setLanguageAudienceFilter('all'); setLevelFilter('all'); setTrainingFilter('all'); }}>
             <SelectTrigger className="w-44 border-slate-200 bg-white">
-              <SelectValue placeholder="Matière" />
+              <SelectValue placeholder="Langue" />
             </SelectTrigger>
             <SelectContent className="bg-white">
-              <SelectItem value="all">Toutes les matières</SelectItem>
-              {subjectOptions.map(subject => <SelectItem key={subject} value={subject}>{subject}</SelectItem>)}
+              <SelectItem value="all">Toutes les langues</SelectItem>
+              {languageOptions.map(language => <SelectItem key={language} value={language}>{language}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
+
+        {typeFilter === 'langue' && (
+          <Select value={effectiveLanguageAudienceFilter} onValueChange={value => { setLanguageAudienceFilter(value); setLevelFilter('all'); setTrainingFilter('all'); }}>
+            <SelectTrigger className="w-44 border-slate-200 bg-white">
+              <SelectValue placeholder="Public" />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              <SelectItem value="all">Tous les publics</SelectItem>
+              {languageAudienceOptions.map(audience => <SelectItem key={audience} value={audience}>{audience}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
+
+        {typeFilter === 'soutien' && (
+          <Select value={effectiveCycleFilter} onValueChange={value => { setCycleFilter(value); setLevelFilter('all'); setSubjectFilter('all'); setTrainingFilter('all'); }}>
+            <SelectTrigger className="w-44 border-slate-200 bg-white">
+              <SelectValue placeholder="Cycle" />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              <SelectItem value="all">Tous les cycles</SelectItem>
+              {SUPPORT_CYCLES.map(cycle => <SelectItem key={cycle} value={cycle}>{cycle}</SelectItem>)}
             </SelectContent>
           </Select>
         )}
 
         {levelOptions.length > 0 && typeFilter !== 'all' && (
-          <Select value={effectiveLevelFilter} onValueChange={value => { setLevelFilter(value); setTrainingFilter('all'); }}>
+          <Select value={effectiveLevelFilter} onValueChange={value => { setLevelFilter(value); setSubjectFilter('all'); setTrainingFilter('all'); }}>
             <SelectTrigger className="w-52 border-slate-200 bg-white">
               <SelectValue placeholder="Niveau" />
             </SelectTrigger>
             <SelectContent className="bg-white">
               <SelectItem value="all">Tous les niveaux</SelectItem>
               {levelOptions.map(level => <SelectItem key={level} value={level}>{level}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
+
+        {typeFilter === 'soutien' && !isPrimaryCycle(effectiveCycleFilter) && (
+          <Select value={effectiveSubjectFilter} onValueChange={value => { setSubjectFilter(value); setTrainingFilter('all'); }}>
+            <SelectTrigger className="w-44 border-slate-200 bg-white">
+              <SelectValue placeholder="Matière" />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              <SelectItem value="all">Toutes les matières</SelectItem>
+              {subjectOptions.map(subject => <SelectItem key={subject} value={subject}>{subject}</SelectItem>)}
             </SelectContent>
           </Select>
         )}
@@ -1174,7 +1259,7 @@ export default function ContinuousTrainings() {
     language: LANGUAGE_OPTIONS[0],
     languageAudience: LANGUAGE_AUDIENCES[0],
     languageAdultLevel: '',
-    subject: SUPPORT_SUBJECTS[0],
+    subject: '',
     cycle: SUPPORT_CYCLES[0],
     level: getDefaultSupportLevel(SUPPORT_CYCLES[0]),
   };
@@ -1198,7 +1283,7 @@ export default function ContinuousTrainings() {
       language: tr.language || LANGUAGE_OPTIONS[0],
       languageAudience: tr.languageAudience || LANGUAGE_AUDIENCES[0],
       languageAdultLevel: tr.languageAdultLevel || '',
-      subject: tr.subject || SUPPORT_SUBJECTS[0],
+      subject: isPrimaryCycle(cycle) ? '' : (tr.subject || SUPPORT_SUBJECTS[0]),
       cycle,
       level: tr.level || getDefaultSupportLevel(cycle),
     });
@@ -1224,7 +1309,7 @@ export default function ContinuousTrainings() {
         return {
           ...prev,
           type: value,
-          subject: prev.subject || SUPPORT_SUBJECTS[0],
+          subject: isPrimaryCycle(cycle) ? '' : (prev.subject || SUPPORT_SUBJECTS[0]),
           cycle,
           level: prev.level || getDefaultSupportLevel(cycle),
         };
@@ -1255,7 +1340,7 @@ export default function ContinuousTrainings() {
       language: tForm.type === 'langue' ? tForm.language : '',
       languageAudience: tForm.type === 'langue' ? tForm.languageAudience : '',
       languageAdultLevel: tForm.type === 'langue' && tForm.languageAudience === 'ADULTES' ? tForm.languageAdultLevel : '',
-      subject: tForm.type === 'soutien' ? tForm.subject : '',
+      subject: tForm.type === 'soutien' && !isPrimaryCycle(tForm.cycle) ? tForm.subject : '',
       cycle: tForm.type === 'soutien' ? tForm.cycle : '',
       level: tForm.type === 'soutien' ? tForm.level : '',
     };
@@ -1578,17 +1663,17 @@ export default function ContinuousTrainings() {
             )}
             {tForm.type === 'soutien' && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <Field label="Matière">
-                  <NativeSelect value={tForm.subject} onChange={e => setTForm(p => ({ ...p, subject: e.target.value }))}>
-                    {SUPPORT_SUBJECTS.map(subject => <option key={subject} value={subject}>{subject}</option>)}
-                  </NativeSelect>
-                </Field>
                 <Field label="Cycle">
                   <NativeSelect
                     value={tForm.cycle}
                     onChange={e => {
                       const cycle = e.target.value;
-                      setTForm(p => ({ ...p, cycle, level: getDefaultSupportLevel(cycle) }));
+                      setTForm(p => ({
+                        ...p,
+                        cycle,
+                        level: getDefaultSupportLevel(cycle),
+                        subject: isPrimaryCycle(cycle) ? '' : (p.subject || SUPPORT_SUBJECTS[0]),
+                      }));
                     }}
                   >
                     {SUPPORT_CYCLES.map(cycle => <option key={cycle} value={cycle}>{cycle}</option>)}
@@ -1599,6 +1684,13 @@ export default function ContinuousTrainings() {
                     {(SUPPORT_LEVELS_BY_CYCLE[tForm.cycle] || []).map(level => <option key={level} value={level}>{level}</option>)}
                   </NativeSelect>
                 </Field>
+                {!isPrimaryCycle(tForm.cycle) && (
+                  <Field label="Matière">
+                    <NativeSelect value={tForm.subject} onChange={e => setTForm(p => ({ ...p, subject: e.target.value }))}>
+                      {SUPPORT_SUBJECTS.map(subject => <option key={subject} value={subject}>{subject}</option>)}
+                    </NativeSelect>
+                  </Field>
+                )}
               </div>
             )}
             <Field label="Description">
