@@ -80,11 +80,27 @@ const TRAINING_TYPES = [
   { value: 'informatique', label: 'Informatique', icon: Monitor, colorClass: 'text-violet-600', bgClass: 'bg-violet-50', borderClass: 'border-violet-200', hex: '#7c3aed' },
 ];
 const typeConfig = type => TRAINING_TYPES.find(t => t.value === type) || { value: type, label: type || 'Autre', icon: BookOpen, colorClass: 'text-slate-500', bgClass: 'bg-slate-50', borderClass: 'border-slate-200', hex: '#64748b' };
-const getTrainingTypeOptions = trainings => {
-  const customTypes = Array.from(new Set(trainings.map(t => t.type?.trim()).filter(Boolean)))
-    .filter(type => !TRAINING_TYPES.some(item => item.value === type))
-    .map(type => ({ value: type, label: type }));
-  return [...TRAINING_TYPES.map(({ value, label }) => ({ value, label })), ...customTypes];
+const normalizeTypeName = value => String(value || '').trim();
+const getTypeKey = value => normalizeTypeName(value).toLowerCase();
+const isSystemTrainingType = type => TRAINING_TYPES.some(item => item.value === type);
+const isReservedTrainingTypeName = type =>
+  TRAINING_TYPES.some(item => [item.value, item.label].some(value => getTypeKey(value) === getTypeKey(type)));
+const getTrainingTypeOptions = (trainings, managedTypes = []) => {
+  const seen = new Set();
+  const addOption = (value, label = value, id = null) => {
+    const normalized = normalizeTypeName(value);
+    if (!normalized) return null;
+    const key = getTypeKey(normalized);
+    if (seen.has(key)) return null;
+    seen.add(key);
+    return { value: normalized, label: normalizeTypeName(label) || normalized, id };
+  };
+
+  return [
+    ...TRAINING_TYPES.map(({ value, label }) => addOption(value, label)).filter(Boolean),
+    ...managedTypes.map(item => addOption(item.name, item.name, item.id)).filter(Boolean),
+    ...trainings.map(item => addOption(item.type, item.type)).filter(Boolean),
+  ];
 };
 
 const SUPPORT_SUBJECTS = ['Français', 'SVT', 'MATHS', 'Physique'];
@@ -186,6 +202,7 @@ const getTrainingPropertyRows = training => {
 
 const TABS = [
   { id: 'formations', label: 'Formations', icon: BookOpen, color: 'text-violet-600', activeBg: 'bg-violet-50' },
+  { id: 'types', label: 'Types', icon: Filter, color: 'text-slate-600', activeBg: 'bg-slate-50' },
   { id: 'etudiants', label: 'Étudiants', icon: Users, color: 'text-blue-600', activeBg: 'bg-blue-50' },
   { id: 'planning', label: 'Planning', icon: CalendarDays, color: 'text-amber-500', activeBg: 'bg-amber-50' },
   { id: 'salaires', label: 'Salaires', icon: Wallet, color: 'text-green-600', activeBg: 'bg-green-50' },
@@ -225,11 +242,12 @@ function NativeSelect({ className, ...props }) {
 }
 
 /* Colored action icon buttons */
-function ActionBtn({ onClick, title, variant = 'ghost', className, children }) {
+function ActionBtn({ onClick, title, variant = 'ghost', className, children, disabled = false }) {
   return (
     <button
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
       title={title}
+      disabled={disabled}
       className={cn(
         'inline-flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-150 active:scale-95',
         variant === 'ghost'    && 'bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700',
@@ -238,6 +256,7 @@ function ActionBtn({ onClick, title, variant = 'ghost', className, children }) {
         variant === 'info'     && 'bg-blue-50 text-blue-500 hover:bg-blue-100 hover:text-blue-700',
         variant === 'success'  && 'bg-green-50 text-green-500 hover:bg-green-100 hover:text-green-700',
         variant === 'expand'   && 'bg-violet-50 text-violet-500 hover:bg-violet-100 hover:text-violet-700',
+        disabled && 'opacity-40 cursor-not-allowed hover:bg-slate-100 hover:text-slate-500 active:scale-100',
         className,
       )}
     >
@@ -314,11 +333,11 @@ function TableHead({ cols }) {
 
 /* ── Formations tab ──────────────────────────────────────────── */
 
-function FormationsTab({ trainings, ctStudents, onAdd, onEdit, onDelete }) {
+function FormationsTab({ trainings, trainingTypes = [], ctStudents, onAdd, onEdit, onDelete }) {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [viewMode, setViewMode] = useState('table');
-  const typeOptions = useMemo(() => getTrainingTypeOptions(trainings), [trainings]);
+  const typeOptions = useMemo(() => getTrainingTypeOptions(trainings, trainingTypes), [trainings, trainingTypes]);
   const filtered = useMemo(() => trainings.filter(t => {
     if (typeFilter && typeFilter !== 'all' && t.type !== typeFilter) return false;
     if (search) {
@@ -562,6 +581,113 @@ function FormationsTab({ trainings, ctStudents, onAdd, onEdit, onDelete }) {
 
 /* ── Étudiants tab ───────────────────────────────────────────── */
 
+function TypesTab({ trainings, trainingTypes = [], onAdd, onEdit, onDelete }) {
+  const rows = useMemo(() => {
+    const usageByType = trainings.reduce((acc, training) => {
+      const key = getTypeKey(training.type);
+      if (!key) return acc;
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+    const managedByKey = new Map(trainingTypes.map(type => [getTypeKey(type.name), type]));
+    const seen = new Set();
+    const addRow = ({ value, label, id = null, source }) => {
+      const normalized = normalizeTypeName(value);
+      if (!normalized) return null;
+      const key = getTypeKey(normalized);
+      if (seen.has(key)) return null;
+      seen.add(key);
+      return {
+        id,
+        value: normalized,
+        label: normalizeTypeName(label) || normalized,
+        source,
+        isSystem: source === 'system',
+        usageCount: usageByType[key] || 0,
+      };
+    };
+
+    return [
+      ...TRAINING_TYPES.map(type => addRow({ value: type.value, label: type.label, source: 'system' })).filter(Boolean),
+      ...trainingTypes.map(type => addRow({ value: type.name, label: type.name, id: type.id, source: 'managed' })).filter(Boolean),
+      ...trainings
+        .filter(training => !isSystemTrainingType(training.type) && !managedByKey.has(getTypeKey(training.type)))
+        .map(training => addRow({ value: training.type, label: training.type, source: 'training' }))
+        .filter(Boolean),
+    ];
+  }, [trainings, trainingTypes]);
+
+  return (
+    <div className="space-y-5">
+      <div className="continuous-premium-toolbar flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-black text-slate-800">Types de formation</h2>
+          <p className="text-xs font-semibold text-slate-400">Les types système sont protégés, les types personnalisés sont modifiables.</p>
+        </div>
+        <PrimaryBtn onClick={onAdd} icon={Plus}>Nouveau type</PrimaryBtn>
+      </div>
+
+      <div className="continuous-table-shell rounded-2xl overflow-hidden">
+        <table className="w-full text-sm">
+          <TableHead cols={['Type', 'Statut', 'Formations', 'Actions']} />
+          <tbody className="divide-y divide-slate-50">
+            {rows.map(row => {
+              const cfg = typeConfig(row.value);
+              const statusLabel = row.isSystem ? 'Système' : row.id ? 'Personnalisé' : 'Depuis formations';
+              const canEdit = !row.isSystem;
+              const canDelete = !row.isSystem && row.id && row.usageCount === 0;
+
+              return (
+                <tr key={row.value} className="hover:bg-slate-50/60 transition-colors">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center shrink-0', cfg.bgClass, cfg.colorClass)}>
+                        <cfg.icon size={15} />
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-800 leading-tight">{row.label}</p>
+                        {!row.isSystem && <p className="text-[11px] font-semibold text-slate-400">{row.value}</p>}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={cn(
+                      'inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold',
+                      row.isSystem ? 'border-blue-100 bg-blue-50 text-blue-600' : 'border-violet-100 bg-violet-50 text-violet-600',
+                    )}>
+                      {statusLabel}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
+                      <BookOpen size={11} /> {row.usageCount}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1">
+                      <ActionBtn onClick={() => onEdit(row)} title={canEdit ? 'Modifier' : 'Type système protégé'} variant="edit" disabled={!canEdit}>
+                        <Edit3 size={13} />
+                      </ActionBtn>
+                      <ActionBtn
+                        onClick={() => onDelete(row)}
+                        title={canDelete ? 'Supprimer' : row.usageCount > 0 ? 'Type utilisé par des formations' : 'Type système protégé'}
+                        variant="danger"
+                        disabled={!canDelete}
+                      >
+                        <Trash2 size={13} />
+                      </ActionBtn>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function EtudiantsTab({ trainings, ctStudents, onAddStudent, onEditStudent, onDeleteStudent, onGeneratePDF }) {
   const [trainingFilter, setTrainingFilter] = useState('');
   const [search, setSearch] = useState('');
@@ -704,7 +830,7 @@ function EtudiantsTab({ trainings, ctStudents, onAddStudent, onEditStudent, onDe
 
 /* ── Planning tab ────────────────────────────────────────────── */
 
-function PlanningTab({ sessions, trainings, onAddSession, onEditSession, onDeleteSession }) {
+function PlanningTab({ sessions, trainings, trainingTypes = [], onAddSession, onEditSession, onDeleteSession }) {
   const [viewMode, setViewMode] = useState('grid');
   const [trainingFilter, setTrainingFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -713,7 +839,7 @@ function PlanningTab({ sessions, trainings, onAddSession, onEditSession, onDelet
   const [levelFilter, setLevelFilter] = useState('all');
   const [languageFilter, setLanguageFilter] = useState('all');
   const [languageAudienceFilter, setLanguageAudienceFilter] = useState('all');
-  const typeOptions = useMemo(() => getTrainingTypeOptions(trainings), [trainings]);
+  const typeOptions = useMemo(() => getTrainingTypeOptions(trainings, trainingTypes), [trainings, trainingTypes]);
   const getTraining = id => trainings.find(t => t.id === id);
   const today = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
   const effectiveCycleFilter = typeFilter === 'soutien' ? cycleFilter : 'all';
@@ -1233,6 +1359,7 @@ export default function ContinuousTrainings() {
   const {
     teachers = [], confirmAction, showToast,
     continuousTrainings = [], loadContinuousData, addContinuousTraining, updateContinuousTraining, deleteContinuousTraining,
+    continuousTrainingTypes = [], addContinuousTrainingType, renameContinuousTrainingType, deleteContinuousTrainingType,
     ctStudents = [], addCtStudent, updateCtStudent, deleteCtStudent,
     ctSessions = [], addCtSession, updateCtSession, deleteCtSession,
   } = useApp();
@@ -1264,6 +1391,10 @@ export default function ContinuousTrainings() {
     level: getDefaultSupportLevel(SUPPORT_CYCLES[0]),
   };
   const [tForm, setTForm] = useState(emptyT);
+  const trainingTypeOptions = useMemo(
+    () => getTrainingTypeOptions(continuousTrainings, continuousTrainingTypes),
+    [continuousTrainings, continuousTrainingTypes],
+  );
   const openAddTraining = () => { setEditingTraining(null); setTForm(emptyT); setTrainingModal(true); };
   const openEditTraining = tr => {
     const cycle = tr.cycle || SUPPORT_CYCLES[0];
@@ -1352,6 +1483,53 @@ export default function ContinuousTrainings() {
     if (await confirmAction({ title: 'Supprimer', message: 'Supprimer cette formation ?', type: 'danger' })) {
       await deleteContinuousTraining(tr.id);
       showToast(`Formation continue supprimée : ${tr.name}`, 'warning');
+    }
+  };
+
+  /* Type modal */
+  const [typeModal, setTypeModal] = useState(false);
+  const [editingType, setEditingType] = useState(null);
+  const [typeForm, setTypeForm] = useState({ name: '' });
+  const openAddType = () => {
+    setEditingType(null);
+    setTypeForm({ name: '' });
+    setTypeModal(true);
+  };
+  const openEditType = type => {
+    setEditingType(type);
+    setTypeForm({ name: type.value });
+    setTypeModal(true);
+  };
+  const saveType = async () => {
+    const name = normalizeTypeName(typeForm.name);
+    if (!name) { showToast('Nom du type requis', 'error'); return; }
+    if (isReservedTrainingTypeName(name)) { showToast('Ce nom est réservé aux types système', 'error'); return; }
+
+    const duplicate = trainingTypeOptions.some(option =>
+      getTypeKey(option.value) === getTypeKey(name) &&
+      (!editingType || getTypeKey(option.value) !== getTypeKey(editingType.value))
+    );
+    if (duplicate) { showToast('Ce type existe déjà', 'error'); return; }
+
+    if (editingType) {
+      await renameContinuousTrainingType?.({ id: editingType.id, oldName: editingType.value, name });
+      showToast(`Type modifié : ${name}`, 'success');
+    } else {
+      await addContinuousTrainingType?.({ name });
+      showToast(`Type ajouté : ${name}`, 'success');
+    }
+    setTypeModal(false);
+  };
+  const handleDeleteType = async type => {
+    if (type.isSystem) { showToast('Les types système ne peuvent pas être supprimés', 'error'); return; }
+    if (type.usageCount > 0) {
+      showToast(`Impossible de supprimer : ${type.usageCount} formation(s) utilisent ce type`, 'error');
+      return;
+    }
+    if (!type.id) { showToast('Ce type est généré depuis les formations existantes', 'warning'); return; }
+    if (await confirmAction({ title: 'Supprimer', message: `Supprimer le type "${type.label}" ?`, type: 'danger' })) {
+      await deleteContinuousTrainingType?.(type.id);
+      showToast(`Type supprimé : ${type.label}`, 'warning');
     }
   };
 
@@ -1555,8 +1733,7 @@ export default function ContinuousTrainings() {
     showToast('Reçu de paiement généré', 'success');
   };
 
-  const isCustomType = !TRAINING_TYPES.some(t => t.value === tForm.type) &&
-    !Array.from(new Set(continuousTrainings.map(t => t.type))).filter(t => t && !TRAINING_TYPES.some(tt => tt.value === t)).includes(tForm.type);
+  const isCustomType = !tForm.type || !trainingTypeOptions.some(option => option.value === tForm.type);
 
   /* Shared dialog class — fully opaque white */
   const modalCls = 'continuous-premium-dialog bg-white rounded-2xl p-4 gap-3';
@@ -1598,9 +1775,10 @@ export default function ContinuousTrainings() {
       {/* Content */}
       <AnimatePresence mode="wait">
         <motion.div className="continuous-premium-content" key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }}>
-          {activeTab === 'formations' && <FormationsTab trainings={continuousTrainings} ctStudents={ctStudents} onAdd={openAddTraining} onEdit={openEditTraining} onDelete={handleDeleteTraining} />}
+          {activeTab === 'formations' && <FormationsTab trainings={continuousTrainings} trainingTypes={continuousTrainingTypes} ctStudents={ctStudents} onAdd={openAddTraining} onEdit={openEditTraining} onDelete={handleDeleteTraining} />}
+          {activeTab === 'types'      && <TypesTab      trainings={continuousTrainings} trainingTypes={continuousTrainingTypes} onAdd={openAddType} onEdit={openEditType} onDelete={handleDeleteType} />}
           {activeTab === 'etudiants'  && <EtudiantsTab  trainings={continuousTrainings} ctStudents={ctStudents} onAddStudent={openAddStudent} onEditStudent={openEditStudent} onDeleteStudent={handleDeleteStudent} onGeneratePDF={generateReceipt} />}
-          {activeTab === 'planning'   && <PlanningTab   sessions={ctSessions} trainings={continuousTrainings} onAddSession={openAddSession} onEditSession={openEditSession} onDeleteSession={handleDeleteSession} />}
+          {activeTab === 'planning'   && <PlanningTab   sessions={ctSessions} trainings={continuousTrainings} trainingTypes={continuousTrainingTypes} onAddSession={openAddSession} onEditSession={openEditSession} onDeleteSession={handleDeleteSession} />}
           {activeTab === 'salaires'   && <SalairesTab   trainings={continuousTrainings} ctStudents={ctStudents} />}
         </motion.div>
       </AnimatePresence>
@@ -1627,9 +1805,8 @@ export default function ContinuousTrainings() {
                   value={isCustomType ? 'custom' : tForm.type}
                   onChange={e => updateTrainingType(e.target.value)}
                 >
-                  {TRAINING_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                  {Array.from(new Set(continuousTrainings.map(t => t.type))).filter(t => t && !TRAINING_TYPES.some(tt => tt.value === t)).map(t => <option key={t} value={t}>{t}</option>)}
-                  <option value="custom">Nouveau type…</option>
+                  {trainingTypeOptions.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  <option value="custom">Nouveau type...</option>
                 </NativeSelect>
                 {isCustomType && (
                   <Input value={tForm.type} onChange={e => setTForm(p => ({ ...p, type: e.target.value }))} placeholder="Nom du type" className="flex-1 border-slate-200" autoFocus />
@@ -1757,6 +1934,42 @@ export default function ContinuousTrainings() {
             <CancelBtn onClick={() => setTrainingModal(false)}><X size={14} /> Annuler</CancelBtn>
             <PrimaryBtn onClick={saveTraining} icon={editingTraining ? Save : Plus}>
               {editingTraining ? 'Enregistrer' : 'Créer la formation'}
+            </PrimaryBtn>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal : Type de formation */}
+      <Dialog open={typeModal} onOpenChange={setTypeModal}>
+        <DialogContent className={cn(modalCls, 'max-w-md')}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-slate-800">
+              <span className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center">
+                <Filter size={14} className="text-slate-600" />
+              </span>
+              {editingType ? 'Modifier le type' : 'Nouveau type'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-1">
+            <Field label="Nom du type">
+              <Input
+                value={typeForm.name}
+                onChange={e => setTypeForm({ name: e.target.value })}
+                placeholder="Ex: Marketing digital"
+                className="border-slate-200 focus:border-violet-400"
+                autoFocus
+              />
+            </Field>
+            {editingType?.usageCount > 0 && (
+              <div className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700">
+                La modification renommera ce type dans {editingType.usageCount} formation(s).
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <CancelBtn onClick={() => setTypeModal(false)}><X size={14} /> Annuler</CancelBtn>
+            <PrimaryBtn onClick={saveType} icon={editingType ? Save : Plus}>
+              {editingType ? 'Enregistrer' : 'Créer le type'}
             </PrimaryBtn>
           </DialogFooter>
         </DialogContent>

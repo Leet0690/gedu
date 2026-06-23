@@ -244,6 +244,7 @@ export const AppProvider = ({ children }) => {
   const [expenses, setExpenses] = useState([]);
   const [modules, setModules] = useState([]);
   const [continuousTrainings, setContinuousTrainings] = useState([]);
+  const [continuousTrainingTypes, setContinuousTrainingTypes] = useState([]);
   const [ctStudents, setCtStudents] = useState([]);
   const [ctSessions, setCtSessions] = useState([]);
   const [accessLogs, setAccessLogs] = useState([]);
@@ -399,11 +400,17 @@ export const AppProvider = ({ children }) => {
 
           Promise.all([
             getDocs(query(collection(db, 'continuousTrainings'), orderBy('createdAt', 'desc'))),
+            getDocs(collection(db, 'continuousTrainingTypes')),
             getDocs(query(collection(db, 'ctStudents'), orderBy('createdAt', 'desc'))),
             getDocs(query(collection(db, 'ctSessions'), orderBy('createdAt', 'desc')))
-          ]).then(([ctSnap, ctsSnap, ctSesSnap]) => {
+          ]).then(([ctSnap, ctTypeSnap, ctsSnap, ctSesSnap]) => {
             if (!isMounted) return;
             setContinuousTrainings(ctSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+            setContinuousTrainingTypes(
+              ctTypeSnap.docs
+                .map(d => ({ id: d.id, ...d.data() }))
+                .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'fr', { sensitivity: 'base' }))
+            );
             setCtStudents(ctsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
             setCtSessions(ctSesSnap.docs.map(d => ({ id: d.id, ...d.data() })));
           }).catch(error => console.warn('Impossible de charger les formations continues:', error));
@@ -1275,6 +1282,42 @@ export const AppProvider = ({ children }) => {
     await deleteDoc(doc(db, 'continuousTrainings', id));
     setContinuousTrainings(prev => prev.filter(item => item.id !== id));
   };
+  const sortContinuousTrainingTypes = items =>
+    [...items].sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'fr', { sensitivity: 'base' }));
+  const addContinuousTrainingType = async (data) => {
+    const name = String(data?.name || '').trim();
+    const payload = { name, createdAt: serverTimestamp() };
+    const docRef = await addDoc(collection(db, 'continuousTrainingTypes'), payload);
+    setContinuousTrainingTypes(prev => sortContinuousTrainingTypes([{ id: docRef.id, name }, ...prev]));
+  };
+  const renameContinuousTrainingType = async ({ id, oldName, name }) => {
+    const nextName = String(name || '').trim();
+    const batch = writeBatch(db);
+    let hasWrites = false;
+
+    if (id) {
+      batch.update(doc(db, 'continuousTrainingTypes', id), { name: nextName, updatedAt: serverTimestamp() });
+      hasWrites = true;
+    }
+
+    if (oldName && oldName !== nextName) {
+      const trainingSnap = await getDocs(query(collection(db, 'continuousTrainings'), where('type', '==', oldName)));
+      trainingSnap.docs.forEach(trainingDoc => {
+        batch.update(trainingDoc.ref, { type: nextName });
+        hasWrites = true;
+      });
+    }
+
+    if (hasWrites) await batch.commit();
+    if (id) setContinuousTrainingTypes(prev => sortContinuousTrainingTypes(prev.map(item => item.id === id ? { ...item, name: nextName } : item)));
+    if (oldName && oldName !== nextName) {
+      setContinuousTrainings(prev => prev.map(item => item.type === oldName ? { ...item, type: nextName } : item));
+    }
+  };
+  const deleteContinuousTrainingType = async (id) => {
+    await deleteDoc(doc(db, 'continuousTrainingTypes', id));
+    setContinuousTrainingTypes(prev => prev.filter(item => item.id !== id));
+  };
   const addCtStudent = async (data) => {
     const docRef = await addDoc(collection(db, 'ctStudents'), { ...data, createdAt: serverTimestamp() });
     setCtStudents(prev => [{ id: docRef.id, ...data }, ...prev]);
@@ -1311,6 +1354,7 @@ export const AppProvider = ({ children }) => {
       payments, salaries, expenses, loadFinancialData, addPayment, updatePayment, deletePayment, addSalary, updateSalary, deleteSalary, addExpense, deleteExpense,
       modules, addModule, updateModule, deleteModule,
       continuousTrainings, addContinuousTraining, updateContinuousTraining, deleteContinuousTraining,
+      continuousTrainingTypes, addContinuousTrainingType, renameContinuousTrainingType, deleteContinuousTrainingType,
       ctStudents, addCtStudent, updateCtStudent, deleteCtStudent,
       ctSessions, addCtSession, updateCtSession, deleteCtSession,
       accessLogs, logAppAccess, loadAccessLogs,
