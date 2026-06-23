@@ -4,7 +4,6 @@ import { FilterSelect } from '../components/ui/FilterSelect';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { FILIERES, getClassCode, getNextStudyYear, getStudyYearsForDiploma } from '../data/modules';
-import { generateFicheSignature, generateFicheNotes, generateBulletinGlobal, generateNoteObtentionDiplome } from '../utils/pdfGenerator';
 import { getStudentGradeModules, sanitizeGradeKey } from '../utils/gradeSync';
 import { isActiveStudent } from '../utils/studentStatus';
 import { TableSkeleton } from '../components/Skeleton';
@@ -263,9 +262,10 @@ const GradeManagement = () => {
     return t ? t.name : '';
   };
 
-  const handleFicheSignature = () => {
+  const handleFicheSignature = async () => {
     if (!pdfModule || !pdfStudents.length) return;
-    generateFicheSignature({
+    const { generateFicheSignature } = await import('../utils/pdfGenerator');
+    await generateFicheSignature({
       students: pdfStudents,
       filiere: filterMajor,
       niveau: filterYear || '',
@@ -277,9 +277,10 @@ const GradeManagement = () => {
     showToast('Fiche de signature générée', 'success');
   };
 
-  const handleFicheNotes = () => {
+  const handleFicheNotes = async () => {
     if (!pdfModule || !pdfStudents.length) return;
-    generateFicheNotes({
+    const { generateFicheNotes } = await import('../utils/pdfGenerator');
+    await generateFicheNotes({
       students: pdfStudents,
       filiere: filterMajor,
       classe: filterYear || '',
@@ -291,15 +292,17 @@ const GradeManagement = () => {
     showToast('Fiche de notes générée', 'success');
   };
 
-  const handleBulletinGlobal = () => {
+  const handleBulletinGlobal = async () => {
     if (!selectedStudent) return;
-    generateBulletinGlobal(selectedStudent, grades, modules);
+    const { generateBulletinGlobal } = await import('../utils/pdfGenerator');
+    await generateBulletinGlobal(selectedStudent, grades, modules);
     showToast('Bulletin généré', 'success');
   };
 
-  const handleNoteObtentionDiplome = () => {
+  const handleNoteObtentionDiplome = async () => {
     if (!selectedStudent) return;
-    generateNoteObtentionDiplome(selectedStudent, grades, modules);
+    const { generateNoteObtentionDiplome } = await import('../utils/pdfGenerator');
+    await generateNoteObtentionDiplome(selectedStudent, grades, modules);
     showToast('Attestation générée', 'success');
   };
 

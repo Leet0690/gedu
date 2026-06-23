@@ -2,9 +2,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../context/AppContext';
-import { useToast } from '../context/ToastContext';
-import { jsPDF } from 'jspdf';
-import { logoBase64 } from '../utils/logoBase64';
 import {
   BookOpen, Plus, Trash2, Edit3, X, Users, CalendarDays, Wallet,
   Search, ChevronDown, Phone, Clock,
@@ -79,9 +76,106 @@ const parseTimeRange = (t = '') => {
 
 const TRAINING_TYPES = [
   { value: 'langue', label: 'Langue', icon: Languages, colorClass: 'text-blue-600', bgClass: 'bg-blue-50', borderClass: 'border-blue-200', hex: '#2563eb' },
+  { value: 'soutien', label: 'Cours de soutien', icon: GraduationCap, colorClass: 'text-emerald-600', bgClass: 'bg-emerald-50', borderClass: 'border-emerald-200', hex: '#059669' },
   { value: 'informatique', label: 'Informatique', icon: Monitor, colorClass: 'text-violet-600', bgClass: 'bg-violet-50', borderClass: 'border-violet-200', hex: '#7c3aed' },
 ];
 const typeConfig = type => TRAINING_TYPES.find(t => t.value === type) || { value: type, label: type || 'Autre', icon: BookOpen, colorClass: 'text-slate-500', bgClass: 'bg-slate-50', borderClass: 'border-slate-200', hex: '#64748b' };
+
+const SUPPORT_SUBJECTS = ['Français', 'SVT', 'MATHS', 'Physique'];
+const SUPPORT_CYCLES = ['Primaire', 'Collège', 'Lycée'];
+const SUPPORT_LEVELS_BY_CYCLE = {
+  Primaire: ['1ère année primaire', '2ème année primaire', '3ème année primaire', '4ème année primaire', '5ème année primaire', '6ème année primaire'],
+  Collège: ['1ère année collège', '2ème année collège', '3ème année collège'],
+  Lycée: ['Tronc commun', '1BAC', '2BAC'],
+};
+const LANGUAGE_OPTIONS = ['FRANÇAIS', 'ANGLAIS', 'ESPAGNOL', 'ALLEMAND', 'ITALIEN'];
+const LANGUAGE_AUDIENCES = ['KIDS', 'ADO', 'ADULTES'];
+const LANGUAGE_ADULT_LEVELS = ['A1', 'A2', 'B1', 'B2'];
+const PAYMENT_METHODS = [
+  { value: 'espece', label: 'Espèce' },
+  { value: 'virement', label: 'Virement' },
+];
+
+const toMoney = value => {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? Math.max(0, amount) : 0;
+};
+
+const getTrainingGrossTotal = training =>
+  toMoney(training?.pricePerStudent) + toMoney(training?.registrationFee) + toMoney(training?.certificateFee);
+
+const getTrainingDiscount = training => Math.min(toMoney(training?.discountAmount), getTrainingGrossTotal(training));
+
+const getTrainingTotalDue = training => Math.max(0, getTrainingGrossTotal(training) - getTrainingDiscount(training));
+
+const getTeacherCompensationUnit = training => training?.teacherCompensationUnit === 'dh' ? 'dh' : 'percent';
+
+const getTeacherCompensationLabel = training => {
+  const value = toMoney(training?.teacherPct);
+  return getTeacherCompensationUnit(training) === 'dh'
+    ? `${value.toLocaleString()} DH`
+    : `${value}%`;
+};
+
+const getTeacherSalary = (training, totalEncaisse) => {
+  const value = toMoney(training?.teacherPct);
+  return getTeacherCompensationUnit(training) === 'dh'
+    ? Math.round(value)
+    : Math.round(totalEncaisse * value / 100);
+};
+
+const getPaymentMethodLabel = method =>
+  PAYMENT_METHODS.find(item => item.value === method)?.label || PAYMENT_METHODS[0].label;
+
+const getDefaultSupportLevel = cycle => SUPPORT_LEVELS_BY_CYCLE[cycle]?.[0] || '';
+
+const getTrainingLevelLabel = training => {
+  if (training?.type === 'langue') {
+    if (training.languageAudience === 'ADULTES' && training.languageAdultLevel) {
+      return `${training.languageAudience} - ${training.languageAdultLevel}`;
+    }
+    return training?.languageAudience || '';
+  }
+  if (training?.type === 'soutien') return training?.level || '';
+  return training?.level || '';
+};
+
+const getTrainingMetaTags = training => {
+  if (training?.type === 'langue') {
+    return [
+      training.language,
+      getTrainingLevelLabel(training),
+    ].filter(Boolean);
+  }
+  if (training?.type === 'soutien') {
+    return [
+      training.subject,
+      training.cycle,
+      training.level,
+    ].filter(Boolean);
+  }
+  return [];
+};
+
+const getTrainingPropertyRows = training => {
+  if (training?.type === 'langue') {
+    return [
+      { label: 'Langue', value: training.language },
+      { label: 'Public', value: training.languageAudience },
+      ...(training.languageAudience === 'ADULTES'
+        ? [{ label: 'Niveau', value: training.languageAdultLevel }]
+        : []),
+    ].filter(item => item.value);
+  }
+  if (training?.type === 'soutien') {
+    return [
+      { label: 'Matière', value: training.subject },
+      { label: 'Cycle', value: training.cycle },
+      { label: 'Niveau', value: training.level },
+    ].filter(item => item.value);
+  }
+  return [];
+};
 
 const TABS = [
   { id: 'formations', label: 'Formations', icon: BookOpen, color: 'text-violet-600', activeBg: 'bg-violet-50' },
@@ -94,7 +188,7 @@ const TABS = [
 
 function Label({ children }) {
   return (
-    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
       {children}
     </label>
   );
@@ -102,7 +196,7 @@ function Label({ children }) {
 
 function Field({ label, children }) {
   return (
-    <div className="mb-4">
+    <div className="mb-2.5">
       <Label>{label}</Label>
       {children}
     </div>
@@ -113,7 +207,7 @@ function NativeSelect({ className, ...props }) {
   return (
     <select
       className={cn(
-        'flex h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800',
+        'flex h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800',
         'focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-violet-400',
         'disabled:cursor-not-allowed disabled:opacity-50 transition-colors',
         className,
@@ -216,9 +310,14 @@ function TableHead({ cols }) {
 function FormationsTab({ trainings, ctStudents, onAdd, onEdit, onDelete }) {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [viewMode, setViewMode] = useState('table');
   const filtered = useMemo(() => trainings.filter(t => {
     if (typeFilter && typeFilter !== 'all' && t.type !== typeFilter) return false;
-    if (search) { const q = search.toLowerCase(); return t.name?.toLowerCase().includes(q) || t.teacherName?.toLowerCase().includes(q); }
+    if (search) {
+      const q = search.toLowerCase();
+      const metadata = getTrainingMetaTags(t).join(' ').toLowerCase();
+      return t.name?.toLowerCase().includes(q) || t.teacherName?.toLowerCase().includes(q) || metadata.includes(q);
+    }
     return true;
   }), [trainings, search, typeFilter]);
 
@@ -240,23 +339,135 @@ function FormationsTab({ trainings, ctStudents, onAdd, onEdit, onDelete }) {
             {Array.from(new Set(trainings.map(t => t.type))).filter(t => t && !TRAINING_TYPES.some(tt => tt.value === t)).map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
           </SelectContent>
         </Select>
+        <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
+          {[
+            { mode: 'table', label: 'Tableau', Icon: List },
+            { mode: 'cards', label: 'Cartes', Icon: LayoutGrid },
+          ].map(({ mode, label, Icon }) => (
+            <button
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-150',
+                viewMode === mode
+                  ? 'bg-white text-violet-600 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-600',
+              )}
+            >
+              <Icon size={13} /> {label}
+            </button>
+          ))}
+        </div>
         <PrimaryBtn onClick={onAdd} icon={Plus}>Nouvelle formation</PrimaryBtn>
       </div>
 
       {filtered.length === 0 ? (
         <EmptyPlaceholder icon={BookOpen} text="Aucune formation continue" subtext="Créez votre première formation pour commencer" />
+      ) : viewMode === 'table' ? (
+        <div className="continuous-table-shell rounded-2xl overflow-hidden">
+          <table className="w-full text-sm">
+            <TableHead cols={['Formation', 'Type', 'Propriétés', 'Tarifs', 'Formateur', 'Étudiants', 'Encaissement', 'Actions']} />
+            <tbody className="divide-y divide-slate-50">
+              {filtered.map(tr => {
+                const cfg = typeConfig(tr.type);
+                const properties = getTrainingPropertyRows(tr);
+                const trainingStudents = ctStudents.filter(s => s.trainingId === tr.id);
+                const studentCount = trainingStudents.length;
+                const totalPaid = trainingStudents.reduce((sum, s) => sum + (s.payments || []).reduce((a, p) => a + Number(p.amount || 0), 0), 0);
+                const duePerStudent = getTrainingTotalDue(tr);
+                const totalDue = duePerStudent * studentCount;
+                const paidPct = totalDue > 0 ? Math.min(100, Math.round((totalPaid / totalDue) * 100)) : 0;
+
+                return (
+                  <tr key={tr.id} className="hover:bg-slate-50/60 transition-colors">
+                    <td className="px-4 py-3 min-w-[220px]">
+                      <div className="flex items-center gap-2.5">
+                        <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center shrink-0', cfg.bgClass, cfg.colorClass)}>
+                          <cfg.icon size={15} />
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-800 leading-tight">{tr.name}</p>
+                          {tr.description && <p className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">{tr.description}</p>}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3"><TypeBadge cfg={cfg} /></td>
+                    <td className="px-4 py-3 min-w-[190px]">
+                      {properties.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {properties.map(item => (
+                            <span key={`${item.label}-${item.value}`} className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-500">
+                              <span className="text-slate-400">{item.label}:</span> {item.value}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs font-semibold text-slate-300">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="space-y-0.5 text-xs">
+                        <div className="font-black text-green-600">{duePerStudent.toLocaleString()} DH</div>
+                        <div className="text-slate-400 font-semibold">Base {toMoney(tr.pricePerStudent).toLocaleString()} DH</div>
+                        {(toMoney(tr.registrationFee) > 0 || toMoney(tr.certificateFee) > 0 || toMoney(tr.discountAmount) > 0) && (
+                          <div className="text-[10px] text-slate-400">
+                            +{(toMoney(tr.registrationFee) + toMoney(tr.certificateFee)).toLocaleString()} DH frais
+                            {toMoney(tr.discountAmount) > 0 ? ` · -${toMoney(tr.discountAmount).toLocaleString()} DH remise` : ''}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="space-y-0.5 text-xs">
+                        <div className="flex items-center gap-1.5 font-semibold text-slate-600">
+                          <User size={11} className="text-violet-400" />{tr.teacherName || '—'}
+                        </div>
+                        <div className="flex items-center gap-1.5 font-bold text-amber-500">
+                          <Percent size={11} />{getTeacherCompensationLabel(tr)}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-600 border border-blue-100">
+                        <Users size={11} />{studentCount}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 min-w-[150px]">
+                      <div className="flex items-center justify-between text-[11px] mb-1">
+                        <span className="font-bold text-green-600">{totalPaid.toLocaleString()} DH</span>
+                        <span className="text-slate-400">{paidPct}%</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                        <div className="h-full rounded-full bg-green-500" style={{ width: `${paidPct}%` }} />
+                      </div>
+                      {totalDue > 0 && <div className="text-[10px] text-slate-400 mt-1">{totalDue.toLocaleString()} DH attendu</div>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1">
+                        <ActionBtn onClick={() => onEdit(tr)} title="Modifier" variant="edit"><Edit3 size={13} /></ActionBtn>
+                        <ActionBtn onClick={() => onDelete(tr)} title="Supprimer" variant="danger"><Trash2 size={13} /></ActionBtn>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filtered.map(tr => {
             const cfg = typeConfig(tr.type);
+            const metaTags = getTrainingMetaTags(tr);
             const trainingStudents = ctStudents.filter(s => s.trainingId === tr.id);
             const studentCount = trainingStudents.length;
             const totalPaid = trainingStudents.reduce((sum, s) => sum + (s.payments || []).reduce((a, p) => a + Number(p.amount || 0), 0), 0);
-            const totalDue = Number(tr.pricePerStudent || 0) * studentCount;
+            const duePerStudent = getTrainingTotalDue(tr);
+            const totalDue = duePerStudent * studentCount;
             const paidPct = totalDue > 0 ? Math.min(100, Math.round((totalPaid / totalDue) * 100)) : 0;
             const soldéCount = trainingStudents.filter(s => {
               const paid = (s.payments || []).reduce((a, p) => a + Number(p.amount || 0), 0);
-              return Number(tr.pricePerStudent || 0) > 0 && paid >= Number(tr.pricePerStudent || 0);
+              return duePerStudent > 0 && paid >= duePerStudent;
             }).length;
             const barColor = paidPct === 100 ? 'bg-green-500' : paidPct >= 50 ? 'bg-amber-400' : 'bg-red-400';
 
@@ -271,6 +482,15 @@ function FormationsTab({ trainings, ctStudents, onAdd, onEdit, onDelete }) {
                       <div>
                         <p className="text-sm font-bold text-slate-800 leading-tight">{tr.name}</p>
                         <div className="mt-1"><TypeBadge cfg={cfg} /></div>
+                        {metaTags.length > 0 && (
+                          <div className="mt-1.5 flex flex-wrap gap-1">
+                            {metaTags.map(tag => (
+                              <span key={tag} className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -292,11 +512,11 @@ function FormationsTab({ trainings, ctStudents, onAdd, onEdit, onDelete }) {
                     </div>
                     <div className="flex items-center gap-1.5 text-slate-500 font-semibold">
                       <Wallet size={11} className="text-green-400 shrink-0" />
-                      {Number(tr.pricePerStudent || 0).toLocaleString()} DH / étudiant
+                      {duePerStudent.toLocaleString()} DH / étudiant
                     </div>
                     <div className="flex items-center gap-1.5 text-slate-500">
                       <Percent size={11} className="text-amber-400 shrink-0" />
-                      <span className="font-semibold">{tr.teacherPct || 0}% formateur</span>
+                      <span className="font-semibold">{getTeacherCompensationLabel(tr)} formateur</span>
                     </div>
                   </div>
 
@@ -375,7 +595,7 @@ function EtudiantsTab({ trainings, ctStudents, onAddStudent, onEditStudent, onDe
             <tbody className="divide-y divide-slate-50">
               {filtered.map(s => {
                 const tr = getTraining(s.trainingId);
-                const totalDue = Number(tr?.pricePerStudent || 0);
+                const totalDue = getTrainingTotalDue(tr);
                 const totalPaid = (s.payments || []).reduce((a, p) => a + Number(p.amount || 0), 0);
                 const remaining = totalDue - totalPaid;
                 const isPaid = totalDue > 0 && remaining <= 0;
@@ -452,6 +672,7 @@ function EtudiantsTab({ trainings, ctStudents, onAddStudent, onEditStudent, onDe
                                         <CheckCircle size={12} className="text-green-500 shrink-0" />
                                         <span className="font-bold text-green-600 min-w-[80px]">{Number(p.amount).toLocaleString()} DH</span>
                                         <span className="text-slate-400 flex items-center gap-1"><CalendarDays size={10} className="text-blue-400" />{p.date}</span>
+                                        <span className="text-slate-400 font-semibold">{getPaymentMethodLabel(p.method)}</span>
                                         {p.note && <span className="text-slate-400 italic">{p.note}</span>}
                                       </div>
                                     ))}
@@ -478,30 +699,98 @@ function EtudiantsTab({ trainings, ctStudents, onAddStudent, onEditStudent, onDe
 
 function PlanningTab({ sessions, trainings, onAddSession, onEditSession, onDeleteSession }) {
   const [viewMode, setViewMode] = useState('grid');
-  const [trainingFilter, setTrainingFilter] = useState(trainings[0]?.id || '');
-  const filtered = useMemo(() => sessions.filter(s => !trainingFilter || s.trainingId === trainingFilter), [sessions, trainingFilter]);
-  const activeDays = useMemo(() => DAYS.filter(d => filtered.some(s => s.day === d)), [filtered]);
+  const [trainingFilter, setTrainingFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [subjectFilter, setSubjectFilter] = useState('all');
+  const [levelFilter, setLevelFilter] = useState('all');
   const getTraining = id => trainings.find(t => t.id === id);
-  const totalGridHeight = (END_HOUR - START_HOUR + 1) * PX_PER_HOUR;
   const today = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
-
-  // Keep filter synced if trainings load later
-  useEffect(() => {
-    if (!trainingFilter && trainings.length > 0) {
-      setTrainingFilter(trainings[0].id);
+  const effectiveSubjectFilter = typeFilter === 'soutien' ? subjectFilter : 'all';
+  const subjectOptions = useMemo(() => {
+    const existing = trainings
+      .filter(t => t.type === 'soutien')
+      .map(t => t.subject)
+      .filter(Boolean);
+    return Array.from(new Set([...SUPPORT_SUBJECTS, ...existing]));
+  }, [trainings]);
+  const levelOptions = useMemo(() => {
+    const actualLevels = trainings
+      .filter(t => typeFilter === 'all' || t.type === typeFilter)
+      .filter(t => effectiveSubjectFilter === 'all' || t.subject === effectiveSubjectFilter)
+      .map(getTrainingLevelLabel)
+      .filter(Boolean);
+    if (typeFilter === 'soutien') {
+      return Array.from(new Set([...Object.values(SUPPORT_LEVELS_BY_CYCLE).flat(), ...actualLevels]));
     }
-  }, [trainings, trainingFilter]);
+    if (typeFilter === 'langue') {
+      return Array.from(new Set(['KIDS', 'ADO', 'ADULTES', ...LANGUAGE_ADULT_LEVELS.map(level => `ADULTES - ${level}`), ...actualLevels]));
+    }
+    return Array.from(new Set(actualLevels));
+  }, [trainings, typeFilter, effectiveSubjectFilter]);
+  const effectiveLevelFilter = levelFilter !== 'all' && levelOptions.includes(levelFilter) ? levelFilter : 'all';
+  const filteredTrainings = useMemo(() => trainings.filter(training => {
+    if (typeFilter !== 'all' && training.type !== typeFilter) return false;
+    if (effectiveSubjectFilter !== 'all' && training.subject !== effectiveSubjectFilter) return false;
+    if (effectiveLevelFilter !== 'all') {
+      if (training.type === 'langue' && effectiveLevelFilter === 'ADULTES') return training.languageAudience === 'ADULTES';
+      return getTrainingLevelLabel(training) === effectiveLevelFilter;
+    }
+    return true;
+  }), [trainings, typeFilter, effectiveSubjectFilter, effectiveLevelFilter]);
+  const filteredTrainingIds = useMemo(() => new Set(filteredTrainings.map(t => t.id)), [filteredTrainings]);
+  const effectiveTrainingFilter = trainingFilter !== 'all' && filteredTrainingIds.has(trainingFilter) ? trainingFilter : 'all';
+  const filtered = useMemo(() => sessions.filter(s => {
+    if (effectiveTrainingFilter !== 'all' && s.trainingId !== effectiveTrainingFilter) return false;
+    return filteredTrainingIds.has(s.trainingId);
+  }), [sessions, effectiveTrainingFilter, filteredTrainingIds]);
+  const activeDays = useMemo(() => DAYS.filter(d => filtered.some(s => s.day === d)), [filtered]);
 
   return (
     <div className="space-y-5">
       <div className="continuous-premium-toolbar flex flex-wrap items-center gap-3">
-        <Select value={trainingFilter} onValueChange={setTrainingFilter}>
+        <Select value={typeFilter} onValueChange={value => { setTypeFilter(value); setSubjectFilter('all'); setLevelFilter('all'); setTrainingFilter('all'); }}>
+          <SelectTrigger className="w-48 border-slate-200 bg-white">
+            <Filter size={13} className="text-slate-400 mr-1" />
+            <SelectValue placeholder="Type" />
+          </SelectTrigger>
+          <SelectContent className="bg-white">
+            <SelectItem value="all">Tous les types</SelectItem>
+            {TRAINING_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
+        {typeFilter === 'soutien' && (
+          <Select value={subjectFilter} onValueChange={value => { setSubjectFilter(value); setLevelFilter('all'); setTrainingFilter('all'); }}>
+            <SelectTrigger className="w-44 border-slate-200 bg-white">
+              <SelectValue placeholder="Matière" />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              <SelectItem value="all">Toutes les matières</SelectItem>
+              {subjectOptions.map(subject => <SelectItem key={subject} value={subject}>{subject}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
+
+        {levelOptions.length > 0 && typeFilter !== 'all' && (
+          <Select value={effectiveLevelFilter} onValueChange={value => { setLevelFilter(value); setTrainingFilter('all'); }}>
+            <SelectTrigger className="w-52 border-slate-200 bg-white">
+              <SelectValue placeholder="Niveau" />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              <SelectItem value="all">Tous les niveaux</SelectItem>
+              {levelOptions.map(level => <SelectItem key={level} value={level}>{level}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
+
+        <Select value={effectiveTrainingFilter} onValueChange={setTrainingFilter}>
           <SelectTrigger className="w-56 border-slate-200 bg-white">
             <Filter size={13} className="text-slate-400 mr-1" />
             <SelectValue placeholder="Choisir une formation" />
           </SelectTrigger>
           <SelectContent className="bg-white">
-            {trainings.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+            <SelectItem value="all">Toutes les formations</SelectItem>
+            {filteredTrainings.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
           </SelectContent>
         </Select>
 
@@ -539,6 +828,7 @@ function PlanningTab({ sessions, trainings, onAddSession, onEditSession, onDelet
                 {filtered.map(s => {
                   const tr = getTraining(s.trainingId);
                   const cfg = typeConfig(tr?.type);
+                  const metaTags = getTrainingMetaTags(tr);
                   return (
                     <tr key={s.id} className="hover:bg-slate-50/60 transition-colors">
                       <td className="px-4 py-3 font-semibold text-slate-800">{s.day}</td>
@@ -547,7 +837,13 @@ function PlanningTab({ sessions, trainings, onAddSession, onEditSession, onDelet
                           <Clock size={11} className="text-amber-400" />{s.time}
                         </div>
                       </td>
-                      <td className="px-4 py-3"><TypeBadge cfg={cfg} /></td>
+                      <td className="px-4 py-3">
+                        <div className="space-y-1">
+                          <TypeBadge cfg={cfg} />
+                          <div className="text-xs font-semibold text-slate-700">{tr?.name || 'Formation non définie'}</div>
+                          {metaTags.length > 0 && <div className="text-[10px] text-slate-400 font-semibold">{metaTags.join(' · ')}</div>}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-xs text-slate-500">
                         <div className="flex items-center gap-1.5">
                           <User size={11} className="text-violet-400" />{tr?.teacherName || '—'}
@@ -748,9 +1044,8 @@ function SalairesTab({ trainings, ctStudents }) {
   const rows = useMemo(() => trainings.map(tr => {
     const students = ctStudents.filter(s => s.trainingId === tr.id);
     const totalEncaisse = students.reduce((sum, s) => sum + (s.payments || []).reduce((a, p) => a + Number(p.amount || 0), 0), 0);
-    const pct = Number(tr.teacherPct || 0);
-    const salary = Math.round(totalEncaisse * pct / 100);
-    return { tr, students, totalEncaisse, pct, salary, cfg: typeConfig(tr.type) };
+    const salary = getTeacherSalary(tr, totalEncaisse);
+    return { tr, students, totalEncaisse, teacherLabel: getTeacherCompensationLabel(tr), salary, cfg: typeConfig(tr.type) };
   }), [trainings, ctStudents]);
 
   const totalRevenue = rows.reduce((a, r) => a + r.totalEncaisse, 0);
@@ -796,9 +1091,9 @@ function SalairesTab({ trainings, ctStudents }) {
       ) : (
         <div className="continuous-table-shell rounded-2xl overflow-hidden">
           <table className="w-full text-sm">
-            <TableHead cols={['Formation', 'Formateur', 'Étudiants', 'Total encaissé', '% Formateur', 'Salaire', 'Marge']} />
+            <TableHead cols={['Formation', 'Formateur', 'Étudiants', 'Total encaissé', 'Part formateur', 'Salaire', 'Marge']} />
             <tbody className="divide-y divide-slate-50">
-              {rows.map(({ tr, students, totalEncaisse, pct, salary, cfg }) => {
+              {rows.map(({ tr, students, totalEncaisse, teacherLabel, salary, cfg }) => {
                 const marge = totalEncaisse - salary;
                 return (
                   <tr key={tr.id} className="hover:bg-slate-50/60 transition-colors">
@@ -822,7 +1117,7 @@ function SalairesTab({ trainings, ctStudents }) {
                     </td>
                     <td className="px-4 py-3 font-bold text-green-600">{totalEncaisse.toLocaleString()} DH</td>
                     <td className="px-4 py-3">
-                      <span className={cn('text-xs font-bold px-2.5 py-1 rounded-full border', cfg.bgClass, cfg.colorClass, cfg.borderClass)}>{pct}%</span>
+                      <span className={cn('text-xs font-bold px-2.5 py-1 rounded-full border', cfg.bgClass, cfg.colorClass, cfg.borderClass)}>{teacherLabel}</span>
                     </td>
                     <td className="px-4 py-3 text-base font-black text-violet-600">{salary.toLocaleString()} DH</td>
                     <td className={cn('px-4 py-3 font-bold', marge >= 0 ? 'text-green-600' : 'text-red-500')}>{marge.toLocaleString()} DH</td>
@@ -851,33 +1146,127 @@ function SalairesTab({ trainings, ctStudents }) {
 export default function ContinuousTrainings() {
   const navigate = useNavigate();
   const {
-    teachers = [], confirmAction,
-    continuousTrainings = [], addContinuousTraining, updateContinuousTraining, deleteContinuousTraining,
+    teachers = [], confirmAction, showToast,
+    continuousTrainings = [], loadContinuousData, addContinuousTraining, updateContinuousTraining, deleteContinuousTraining,
     ctStudents = [], addCtStudent, updateCtStudent, deleteCtStudent,
     ctSessions = [], addCtSession, updateCtSession, deleteCtSession,
   } = useApp();
-  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState('formations');
+
+  useEffect(() => {
+    loadContinuousData?.();
+  }, [loadContinuousData]);
 
   /* Training modal */
   const [trainingModal, setTrainingModal] = useState(false);
   const [editingTraining, setEditingTraining] = useState(null);
-  const emptyT = { name: '', type: 'langue', description: '', teacherId: '', pricePerStudent: '', teacherPct: '' };
+  const emptyT = {
+    name: '',
+    type: 'langue',
+    description: '',
+    teacherId: '',
+    pricePerStudent: '',
+    registrationFee: '',
+    certificateFee: '',
+    discountAmount: '',
+    teacherPct: '',
+    teacherCompensationUnit: 'percent',
+    language: LANGUAGE_OPTIONS[0],
+    languageAudience: LANGUAGE_AUDIENCES[0],
+    languageAdultLevel: '',
+    subject: SUPPORT_SUBJECTS[0],
+    cycle: SUPPORT_CYCLES[0],
+    level: getDefaultSupportLevel(SUPPORT_CYCLES[0]),
+  };
   const [tForm, setTForm] = useState(emptyT);
   const openAddTraining = () => { setEditingTraining(null); setTForm(emptyT); setTrainingModal(true); };
-  const openEditTraining = tr => { setEditingTraining(tr); setTForm({ name: tr.name || '', type: tr.type || 'langue', description: tr.description || '', teacherId: tr.teacherId || '', pricePerStudent: tr.pricePerStudent || '', teacherPct: tr.teacherPct || '' }); setTrainingModal(true); };
+  const openEditTraining = tr => {
+    const cycle = tr.cycle || SUPPORT_CYCLES[0];
+    setEditingTraining(tr);
+    setTForm({
+      ...emptyT,
+      name: tr.name || '',
+      type: tr.type || 'langue',
+      description: tr.description || '',
+      teacherId: tr.teacherId || '',
+      pricePerStudent: tr.pricePerStudent ?? '',
+      registrationFee: tr.registrationFee ?? '',
+      certificateFee: tr.certificateFee ?? '',
+      discountAmount: tr.discountAmount ?? '',
+      teacherPct: tr.teacherPct ?? '',
+      teacherCompensationUnit: getTeacherCompensationUnit(tr),
+      language: tr.language || LANGUAGE_OPTIONS[0],
+      languageAudience: tr.languageAudience || LANGUAGE_AUDIENCES[0],
+      languageAdultLevel: tr.languageAdultLevel || '',
+      subject: tr.subject || SUPPORT_SUBJECTS[0],
+      cycle,
+      level: tr.level || getDefaultSupportLevel(cycle),
+    });
+    setTrainingModal(true);
+  };
+  const updateTrainingType = value => {
+    if (value === 'custom') {
+      setTForm(prev => ({ ...prev, type: '' }));
+      return;
+    }
+    setTForm(prev => {
+      if (value === 'langue') {
+        return {
+          ...prev,
+          type: value,
+          language: prev.language || LANGUAGE_OPTIONS[0],
+          languageAudience: prev.languageAudience || LANGUAGE_AUDIENCES[0],
+          languageAdultLevel: prev.languageAdultLevel || '',
+        };
+      }
+      if (value === 'soutien') {
+        const cycle = prev.cycle || SUPPORT_CYCLES[0];
+        return {
+          ...prev,
+          type: value,
+          subject: prev.subject || SUPPORT_SUBJECTS[0],
+          cycle,
+          level: prev.level || getDefaultSupportLevel(cycle),
+        };
+      }
+      return { ...prev, type: value };
+    });
+  };
   const saveTraining = async () => {
     if (!tForm.name.trim()) { showToast('Nom requis', 'error'); return; }
+    if (!tForm.type.trim()) { showToast('Type requis', 'error'); return; }
+    if (tForm.type === 'langue' && tForm.languageAudience === 'ADULTES' && !tForm.languageAdultLevel) {
+      showToast('Sélectionnez le niveau adulte', 'error');
+      return;
+    }
     const teacher = teachers.find(t => t.id === tForm.teacherId);
-    const data = { ...tForm, teacherName: teacher?.name || '', pricePerStudent: Number(tForm.pricePerStudent) || 0, teacherPct: Number(tForm.teacherPct) || 0 };
-    if (editingTraining) { await updateContinuousTraining(editingTraining.id, data); showToast('Formation mise à jour', 'success'); }
-    else { await addContinuousTraining(data); showToast('Formation créée', 'success'); }
+    const teacherValue = tForm.teacherCompensationUnit === 'percent'
+      ? Math.min(100, toMoney(tForm.teacherPct))
+      : toMoney(tForm.teacherPct);
+    const data = {
+      ...tForm,
+      teacherName: teacher?.name || '',
+      pricePerStudent: toMoney(tForm.pricePerStudent),
+      registrationFee: toMoney(tForm.registrationFee),
+      certificateFee: toMoney(tForm.certificateFee),
+      discountAmount: toMoney(tForm.discountAmount),
+      teacherPct: teacherValue,
+      teacherCompensationUnit: tForm.teacherCompensationUnit === 'dh' ? 'dh' : 'percent',
+      language: tForm.type === 'langue' ? tForm.language : '',
+      languageAudience: tForm.type === 'langue' ? tForm.languageAudience : '',
+      languageAdultLevel: tForm.type === 'langue' && tForm.languageAudience === 'ADULTES' ? tForm.languageAdultLevel : '',
+      subject: tForm.type === 'soutien' ? tForm.subject : '',
+      cycle: tForm.type === 'soutien' ? tForm.cycle : '',
+      level: tForm.type === 'soutien' ? tForm.level : '',
+    };
+    if (editingTraining) { await updateContinuousTraining(editingTraining.id, data); showToast(`Formation continue mise à jour : ${data.name}`, 'success'); }
+    else { await addContinuousTraining(data); showToast(`Formation continue créée : ${data.name}`, 'success'); }
     setTrainingModal(false);
   };
   const handleDeleteTraining = async tr => {
     if (await confirmAction({ title: 'Supprimer', message: 'Supprimer cette formation ?', type: 'danger' })) {
       await deleteContinuousTraining(tr.id);
-      showToast('Formation supprimée', 'warning');
+      showToast(`Formation continue supprimée : ${tr.name}`, 'warning');
     }
   };
 
@@ -887,19 +1276,20 @@ export default function ContinuousTrainings() {
   const emptyS = { firstName: '', lastName: '', phone: '', trainingId: '', payments: [] };
   const [sForm, setSForm] = useState(emptyS);
   const today = new Date().toISOString().split('T')[0];
-  const [newPayment, setNewPayment] = useState({ amount: '', date: today });
-  const openAddStudent = (preId = '') => { setEditingStudent(null); setSForm({ ...emptyS, trainingId: preId }); setNewPayment({ amount: '', date: today }); setStudentModal(true); };
-  const openEditStudent = s => { setEditingStudent(s); setSForm({ ...s }); setNewPayment({ amount: '', date: today }); setStudentModal(true); };
+  const emptyPayment = { amount: '', date: today, method: 'espece' };
+  const [newPayment, setNewPayment] = useState(emptyPayment);
+  const openAddStudent = (preId = '') => { setEditingStudent(null); setSForm({ ...emptyS, trainingId: preId }); setNewPayment(emptyPayment); setStudentModal(true); };
+  const openEditStudent = s => { setEditingStudent(s); setSForm({ ...s }); setNewPayment(emptyPayment); setStudentModal(true); };
   const addPaymentEntry = () => {
     if (!sForm.trainingId) { showToast("Sélectionnez une formation d'abord", 'error'); return; }
     if (!newPayment.amount || isNaN(Number(newPayment.amount))) { showToast('Montant invalide', 'error'); return; }
     const tr = continuousTrainings.find(t => t.id === sForm.trainingId);
-    const totalDue = Number(tr?.pricePerStudent || 0);
+    const totalDue = getTrainingTotalDue(tr);
     const currentPaid = (sForm.payments || []).reduce((a, p) => a + Number(p.amount || 0), 0);
     const newAmount = Number(newPayment.amount);
     if (currentPaid + newAmount > totalDue) { showToast(`Le total dépasse le prix de la formation (${totalDue} DH)`, 'error'); return; }
     setSForm(prev => ({ ...prev, payments: [...(prev.payments || []), { ...newPayment, amount: newAmount }] }));
-    setNewPayment({ amount: '', date: today });
+    setNewPayment(emptyPayment);
   };
   const removePaymentEntry = idx => setSForm(prev => ({ ...prev, payments: prev.payments.filter((_, i) => i !== idx) }));
   const saveStudent = async () => {
@@ -908,20 +1298,21 @@ export default function ContinuousTrainings() {
     let finalSForm = { ...sForm };
     if (newPayment.amount && !isNaN(Number(newPayment.amount))) {
       const tr = continuousTrainings.find(t => t.id === sForm.trainingId);
-      const totalDue = Number(tr?.pricePerStudent || 0);
+      const totalDue = getTrainingTotalDue(tr);
       const currentPaid = (finalSForm.payments || []).reduce((a, p) => a + Number(p.amount || 0), 0);
       const newAmount = Number(newPayment.amount);
       if (currentPaid + newAmount > totalDue) { showToast(`Le paiement dépasse le prix (${totalDue} DH)`, 'error'); return; }
       finalSForm.payments = [...(finalSForm.payments || []), { ...newPayment, amount: newAmount }];
     }
-    if (editingStudent) { await updateCtStudent(editingStudent.id, finalSForm); showToast('Étudiant mis à jour', 'success'); }
-    else { await addCtStudent(finalSForm); showToast('Étudiant ajouté', 'success'); }
+    const studentName = `${finalSForm.firstName} ${finalSForm.lastName}`.trim();
+    if (editingStudent) { await updateCtStudent(editingStudent.id, finalSForm); showToast(`Stagiaire de formation continue mis à jour : ${studentName}`, 'success'); }
+    else { await addCtStudent(finalSForm); showToast(`Stagiaire ajouté en formation continue : ${studentName}`, 'success'); }
     setStudentModal(false);
   };
   const handleDeleteStudent = async s => {
     if (await confirmAction({ title: 'Supprimer', message: 'Supprimer cet étudiant ?', type: 'danger' })) {
       await deleteCtStudent(s.id);
-      showToast('Étudiant supprimé', 'warning');
+      showToast(`Stagiaire de formation continue supprimé : ${s.firstName} ${s.lastName}`, 'warning');
     }
   };
 
@@ -935,18 +1326,20 @@ export default function ContinuousTrainings() {
   const saveSession = async () => {
     if (!sesForm.trainingId) { showToast('Sélectionnez une formation', 'error'); return; }
     const time = `${sesForm.startTime}-${sesForm.endTime}`;
-    if (editingSession) { await updateCtSession(editingSession.id, { ...sesForm, time }); showToast('Séance modifiée', 'success'); }
-    else { await addCtSession({ ...sesForm, time }); showToast('Séance ajoutée', 'success'); }
+    const trainingName = continuousTrainings.find(training => training.id === sesForm.trainingId)?.name || 'Formation continue';
+    if (editingSession) { await updateCtSession(editingSession.id, { ...sesForm, time }); showToast(`Séance de formation continue modifiée : ${trainingName}`, 'success'); }
+    else { await addCtSession({ ...sesForm, time }); showToast(`Séance de formation continue planifiée : ${trainingName}`, 'success'); }
     setSessionModal(false);
   };
   const handleDeleteSession = async s => {
     if (await confirmAction({ title: 'Supprimer', message: 'Supprimer cette séance ?', type: 'danger' })) {
       await deleteCtSession(s.id);
-      showToast('Séance supprimée', 'warning');
+      const trainingName = continuousTrainings.find(training => training.id === s.trainingId)?.name || 'Formation continue';
+      showToast(`Séance de formation continue supprimée : ${trainingName}`, 'warning');
     }
   };
 
-  const generateReceipt = (student, training) => {
+  const generateReceipt = async (student, training) => {
     if (!student || !training) return;
     const payments = student.payments || [];
     if (payments.length === 0) {
@@ -972,7 +1365,12 @@ export default function ContinuousTrainings() {
     // Fallback if not found (shouldn't happen)
     if (!currentPaymentFound) ctPaymentsCount++;
     const receiptNumber = `FC${String(ctPaymentsCount).padStart(4, '0')}`;
-    
+
+    const [{ jsPDF }, { loadLogoDataUrl }] = await Promise.all([
+      import('jspdf'),
+      import('../utils/loadLogoDataUrl'),
+    ]);
+    const logoBase64 = await loadLogoDataUrl();
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
     const w = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -981,7 +1379,13 @@ export default function ContinuousTrainings() {
     
     const drawReceiptCopy = (offsetY, copyLabel) => {
       // Larger Logo
-      if (logoBase64) { try { doc.addImage(logoBase64, 'PNG', margin, offsetY + 2.5, 28, 12); } catch {} }
+      if (logoBase64) {
+        try {
+          doc.addImage(logoBase64, 'JPEG', margin, offsetY + 2.5, 28, 12);
+        } catch {
+          // Ignore logo rendering failures so the receipt can still be generated.
+        }
+      }
       
       // Copy Label
       doc.setFontSize(7); doc.setTextColor(120, 120, 120); doc.setFont('helvetica', 'bold');
@@ -1011,12 +1415,22 @@ export default function ContinuousTrainings() {
       doc.text(doc.splitTextToSize(training.name || '', 56)[0] || '-', w / 2 + 3, offsetY + 38);
 
       // Calculations for receipt
-    const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-    const totalDue = Number(training.pricePerStudent || 0);
-    const remaining = totalDue - totalPaid;
+      const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      const totalDue = getTrainingTotalDue(training);
+      const remaining = totalDue - totalPaid;
+      const receiptLines = [
+        ['Versement actuel', `${Number(payment.amount).toLocaleString('fr-FR')} DH`],
+        ['Mode de paiement', getPaymentMethodLabel(payment.method)],
+        ['Prix formation', `${toMoney(training.pricePerStudent).toLocaleString('fr-FR')} DH`],
+      ];
+      if (toMoney(training.registrationFee) > 0) receiptLines.push(["Frais d'inscription", `${toMoney(training.registrationFee).toLocaleString('fr-FR')} DH`]);
+      if (toMoney(training.certificateFee) > 0) receiptLines.push(["Frais d'attestation", `${toMoney(training.certificateFee).toLocaleString('fr-FR')} DH`]);
+      if (getTrainingDiscount(training) > 0) receiptLines.push(['Remise', `-${getTrainingDiscount(training).toLocaleString('fr-FR')} DH`]);
+      receiptLines.push(['Total à payer', `${totalDue.toLocaleString('fr-FR')} DH`]);
+      receiptLines.push(['Total payé', `${totalPaid.toLocaleString('fr-FR')} DH`]);
 
       // Line Items Table
-      let y = offsetY + 56;
+      let y = offsetY + 52;
       doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
       doc.text('Designation', margin, y);
       doc.text('Montant', w - margin, y, { align: 'right' });
@@ -1025,28 +1439,22 @@ export default function ContinuousTrainings() {
       
       doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
       
-      y += 5;
-      doc.text(`Versement actuel`, margin, y);
-      doc.text(`${Number(payment.amount).toLocaleString('fr-FR')} DH`, w - margin, y, { align: 'right' });
-      
-      y += 5;
-      doc.text(`Total de la formation`, margin, y);
-      doc.text(`${totalDue.toLocaleString('fr-FR')} DH`, w - margin, y, { align: 'right' });
-      
-      y += 5;
-      doc.text(`Total payé (y compris ce versement)`, margin, y);
-      doc.text(`${totalPaid.toLocaleString('fr-FR')} DH`, w - margin, y, { align: 'right' });
+      receiptLines.forEach(([label, amount]) => {
+        y += 3.8;
+        doc.text(label, margin, y);
+        doc.text(amount, w - margin, y, { align: 'right' });
+      });
 
       // Total
-      y += 6;
+      y += 4;
       doc.setDrawColor(35); doc.line(margin, y, w - margin, y);
-      y += 6;
+      y += 5;
       doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
       doc.text('RESTE A PAYER', margin, y);
       doc.text(`${Math.max(0, remaining).toLocaleString('fr-FR')} DH`, w - margin, y, { align: 'right' });
 
       // Signature (positioned right after Total)
-      y += 12;
+      y += 8;
       doc.setFontSize(7.5); doc.setFont('helvetica', 'italic');
       doc.text("Signature et Cachet de l'administration", w - margin, y, { align: 'right' });
     };
@@ -1066,7 +1474,7 @@ export default function ContinuousTrainings() {
     !Array.from(new Set(continuousTrainings.map(t => t.type))).filter(t => t && !TRAINING_TYPES.some(tt => tt.value === t)).includes(tForm.type);
 
   /* Shared dialog class — fully opaque white */
-  const modalCls = 'continuous-premium-dialog bg-white rounded-2xl';
+  const modalCls = 'continuous-premium-dialog bg-white rounded-2xl p-4 gap-3';
 
   return (
     <div className="continuous-premium-page space-y-6">
@@ -1107,14 +1515,14 @@ export default function ContinuousTrainings() {
         <motion.div className="continuous-premium-content" key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }}>
           {activeTab === 'formations' && <FormationsTab trainings={continuousTrainings} ctStudents={ctStudents} onAdd={openAddTraining} onEdit={openEditTraining} onDelete={handleDeleteTraining} />}
           {activeTab === 'etudiants'  && <EtudiantsTab  trainings={continuousTrainings} ctStudents={ctStudents} onAddStudent={openAddStudent} onEditStudent={openEditStudent} onDeleteStudent={handleDeleteStudent} onGeneratePDF={generateReceipt} />}
-          {activeTab === 'planning'   && <PlanningTab   sessions={ctSessions} trainings={continuousTrainings} onAddSession={openAddSession} onDeleteSession={handleDeleteSession} />}
+          {activeTab === 'planning'   && <PlanningTab   sessions={ctSessions} trainings={continuousTrainings} onAddSession={openAddSession} onEditSession={openEditSession} onDeleteSession={handleDeleteSession} />}
           {activeTab === 'salaires'   && <SalairesTab   trainings={continuousTrainings} ctStudents={ctStudents} />}
         </motion.div>
       </AnimatePresence>
 
       {/* ── Modal : Formation ── */}
       <Dialog open={trainingModal} onOpenChange={setTrainingModal}>
-        <DialogContent className={modalCls}>
+        <DialogContent className={cn(modalCls, 'max-w-2xl')}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-slate-800">
               <span className="w-7 h-7 rounded-lg bg-violet-100 flex items-center justify-center">
@@ -1123,7 +1531,7 @@ export default function ContinuousTrainings() {
               {editingTraining ? 'Modifier la formation' : 'Nouvelle formation'}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-2 py-1">
             <Field label="Nom">
               <Input value={tForm.name} onChange={e => setTForm(p => ({ ...p, name: e.target.value }))} placeholder="Ex: Anglais des affaires" className="border-slate-200 focus:border-violet-400" />
             </Field>
@@ -1132,10 +1540,7 @@ export default function ContinuousTrainings() {
                 <NativeSelect
                   className="flex-1"
                   value={isCustomType ? 'custom' : tForm.type}
-                  onChange={e => {
-                    if (e.target.value === 'custom') setTForm(p => ({ ...p, type: '' }));
-                    else setTForm(p => ({ ...p, type: e.target.value }));
-                  }}
+                  onChange={e => updateTrainingType(e.target.value)}
                 >
                   {TRAINING_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   {Array.from(new Set(continuousTrainings.map(t => t.type))).filter(t => t && !TRAINING_TYPES.some(tt => tt.value === t)).map(t => <option key={t} value={t}>{t}</option>)}
@@ -1146,13 +1551,63 @@ export default function ContinuousTrainings() {
                 )}
               </div>
             </Field>
+            {tForm.type === 'langue' && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <Field label="Langue">
+                  <NativeSelect value={tForm.language} onChange={e => setTForm(p => ({ ...p, language: e.target.value }))}>
+                    {LANGUAGE_OPTIONS.map(language => <option key={language} value={language}>{language}</option>)}
+                  </NativeSelect>
+                </Field>
+                <Field label="Public">
+                  <NativeSelect
+                    value={tForm.languageAudience}
+                    onChange={e => setTForm(p => ({ ...p, languageAudience: e.target.value, languageAdultLevel: e.target.value === 'ADULTES' ? p.languageAdultLevel : '' }))}
+                  >
+                    {LANGUAGE_AUDIENCES.map(level => <option key={level} value={level}>{level}</option>)}
+                  </NativeSelect>
+                </Field>
+                {tForm.languageAudience === 'ADULTES' && (
+                  <Field label="Niveau">
+                    <NativeSelect value={tForm.languageAdultLevel} onChange={e => setTForm(p => ({ ...p, languageAdultLevel: e.target.value }))}>
+                      <option value="">— Choisir —</option>
+                      {LANGUAGE_ADULT_LEVELS.map(level => <option key={level} value={level}>{level}</option>)}
+                    </NativeSelect>
+                  </Field>
+                )}
+              </div>
+            )}
+            {tForm.type === 'soutien' && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <Field label="Matière">
+                  <NativeSelect value={tForm.subject} onChange={e => setTForm(p => ({ ...p, subject: e.target.value }))}>
+                    {SUPPORT_SUBJECTS.map(subject => <option key={subject} value={subject}>{subject}</option>)}
+                  </NativeSelect>
+                </Field>
+                <Field label="Cycle">
+                  <NativeSelect
+                    value={tForm.cycle}
+                    onChange={e => {
+                      const cycle = e.target.value;
+                      setTForm(p => ({ ...p, cycle, level: getDefaultSupportLevel(cycle) }));
+                    }}
+                  >
+                    {SUPPORT_CYCLES.map(cycle => <option key={cycle} value={cycle}>{cycle}</option>)}
+                  </NativeSelect>
+                </Field>
+                <Field label="Niveau">
+                  <NativeSelect value={tForm.level} onChange={e => setTForm(p => ({ ...p, level: e.target.value }))}>
+                    {(SUPPORT_LEVELS_BY_CYCLE[tForm.cycle] || []).map(level => <option key={level} value={level}>{level}</option>)}
+                  </NativeSelect>
+                </Field>
+              </div>
+            )}
             <Field label="Description">
               <textarea
                 value={tForm.description}
                 onChange={e => setTForm(p => ({ ...p, description: e.target.value }))}
                 rows={2}
                 placeholder="Description courte…"
-                className="flex w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-violet-400 resize-y transition-colors"
+                className="flex w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-violet-400 resize-y transition-colors"
               />
             </Field>
             <Field label="Formateur">
@@ -1168,13 +1623,42 @@ export default function ContinuousTrainings() {
                 {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </NativeSelect>
             </Field>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <Field label="Prix / étudiant (DH)">
                 <Input type="number" value={tForm.pricePerStudent} onChange={e => setTForm(p => ({ ...p, pricePerStudent: e.target.value }))} placeholder="0" className="border-slate-200" />
               </Field>
-              <Field label="% Formateur">
-                <Input type="number" value={tForm.teacherPct} onChange={e => setTForm(p => ({ ...p, teacherPct: e.target.value }))} placeholder="0" min="0" max="100" className="border-slate-200" />
+              <Field label="Frais d'inscription (DH)">
+                <Input type="number" value={tForm.registrationFee} onChange={e => setTForm(p => ({ ...p, registrationFee: e.target.value }))} placeholder="Optionnel" className="border-slate-200" />
               </Field>
+              <Field label="Frais d'attestation (DH)">
+                <Input type="number" value={tForm.certificateFee} onChange={e => setTForm(p => ({ ...p, certificateFee: e.target.value }))} placeholder="Optionnel" className="border-slate-200" />
+              </Field>
+              <Field label="Remise (DH)">
+                <Input type="number" value={tForm.discountAmount} onChange={e => setTForm(p => ({ ...p, discountAmount: e.target.value }))} placeholder="0" className="border-slate-200" />
+              </Field>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_112px] gap-2">
+              <Field label="Part formateur">
+                <Input
+                  type="number"
+                  value={tForm.teacherPct}
+                  onChange={e => setTForm(p => ({ ...p, teacherPct: e.target.value }))}
+                  placeholder="0"
+                  min="0"
+                  max={tForm.teacherCompensationUnit === 'percent' ? '100' : undefined}
+                  className="border-slate-200"
+                />
+              </Field>
+              <Field label="Unité">
+                <NativeSelect value={tForm.teacherCompensationUnit} onChange={e => setTForm(p => ({ ...p, teacherCompensationUnit: e.target.value }))}>
+                  <option value="percent">%</option>
+                  <option value="dh">DHS</option>
+                </NativeSelect>
+              </Field>
+            </div>
+            <div className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-600 flex items-center justify-between">
+              <span>Total à payer par étudiant</span>
+              <span className="text-green-600">{getTrainingTotalDue(tForm).toLocaleString()} DH</span>
             </div>
           </div>
           <DialogFooter>
@@ -1188,7 +1672,7 @@ export default function ContinuousTrainings() {
 
       {/* ── Modal : Étudiant ── */}
       <Dialog open={studentModal} onOpenChange={setStudentModal}>
-        <DialogContent className={cn(modalCls, 'max-w-xl')}>
+        <DialogContent className={cn(modalCls, 'max-w-2xl')}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-slate-800">
               <span className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center">
@@ -1197,8 +1681,8 @@ export default function ContinuousTrainings() {
               {editingStudent ? "Modifier l'étudiant" : 'Ajouter un étudiant'}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-1 py-2">
-            <div className="grid grid-cols-2 gap-x-3">
+          <div className="space-y-1 py-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-2">
               <Field label="Prénom">
                 <Input value={sForm.firstName} onChange={e => setSForm(p => ({ ...p, firstName: e.target.value }))} placeholder="Prénom" className="border-slate-200" />
               </Field>
@@ -1219,17 +1703,18 @@ export default function ContinuousTrainings() {
               </Field>
             </div>
 
-            <div className="border-t border-slate-100 pt-4 space-y-3">
+            <div className="border-t border-slate-100 pt-2.5 space-y-2">
               <p className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
                 <Wallet size={12} className="text-green-500" /> Paiements
               </p>
               {(sForm.payments || []).length > 0 && (
                 <div className="flex flex-col gap-2">
                   {(sForm.payments || []).map((p, i) => (
-                    <div key={i} className="flex items-center gap-2.5 px-3 py-2 bg-green-50 border border-green-100 rounded-xl">
+                    <div key={i} className="flex items-center gap-2 px-2.5 py-1.5 bg-green-50 border border-green-100 rounded-lg">
                       <CheckCircle size={13} className="text-green-500 shrink-0" />
                       <span className="text-xs font-bold text-green-600 flex-1">{Number(p.amount).toLocaleString()} DH</span>
                       <span className="text-xs text-slate-400 flex items-center gap-1"><CalendarDays size={10} className="text-blue-400" />{p.date}</span>
+                      <span className="text-xs text-slate-400 font-semibold">{getPaymentMethodLabel(p.method)}</span>
                       <button onClick={() => removePaymentEntry(i)} className="text-red-300 hover:text-red-500 transition-colors p-0.5 rounded-md hover:bg-red-50">
                         <X size={13} />
                       </button>
@@ -1237,16 +1722,21 @@ export default function ContinuousTrainings() {
                   ))}
                 </div>
               )}
-              <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_128px_auto] gap-2 items-end">
                 <Field label="Montant (DH)">
                   <Input type="number" value={newPayment.amount} onChange={e => setNewPayment(p => ({ ...p, amount: e.target.value }))} placeholder="0" className="border-slate-200" />
                 </Field>
                 <Field label="Date">
                   <Input type="date" value={newPayment.date} onChange={e => setNewPayment(p => ({ ...p, date: e.target.value }))} className="border-slate-200" />
                 </Field>
+                <Field label="Mode">
+                  <NativeSelect value={newPayment.method} onChange={e => setNewPayment(p => ({ ...p, method: e.target.value }))}>
+                    {PAYMENT_METHODS.map(method => <option key={method.value} value={method.value}>{method.label}</option>)}
+                  </NativeSelect>
+                </Field>
                 <button
                   onClick={addPaymentEntry}
-                  className="mb-4 h-10 px-4 bg-green-500 hover:bg-green-600 text-white rounded-xl text-xs font-bold active:scale-95 transition-all shadow-sm shadow-green-200 whitespace-nowrap flex items-center gap-1.5"
+                  className="mb-2.5 h-9 px-3 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs font-bold active:scale-95 transition-all shadow-sm shadow-green-200 whitespace-nowrap flex items-center gap-1.5"
                 >
                   <Plus size={13} /> Ajouter
                 </button>
@@ -1271,7 +1761,7 @@ export default function ContinuousTrainings() {
               {editingSession ? 'Modifier la séance' : 'Planifier une séance'}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-2 py-1">
             <Field label="Formation">
               <NativeSelect value={sesForm.trainingId} onChange={e => setSesForm(p => ({ ...p, trainingId: e.target.value }))}>
                 <option value="">— Choisir —</option>
@@ -1283,7 +1773,7 @@ export default function ContinuousTrainings() {
                 {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
               </NativeSelect>
             </Field>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               <Field label="Heure de début">
                 <Input type="time" value={sesForm.startTime} onChange={e => setSesForm(p => ({ ...p, startTime: e.target.value }))} className="border-slate-200" />
               </Field>

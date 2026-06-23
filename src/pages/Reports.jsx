@@ -8,8 +8,6 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, Cell, PieChart, Pie, Legend
 } from 'recharts';
-import { jsPDF } from 'jspdf';
-import { logoBase64 } from '../utils/logoBase64.js';
 import { isActiveStudent } from '../utils/studentStatus';
 import {
   ChartLine, Users, TrendingUp, TrendingDown, Download,
@@ -375,8 +373,13 @@ const Reports = () => {
     };
   }, [getGroupStudents, getReportModuleDetails]);
 
-  const handleExportPDF = useCallback(() => {
+  const handleExportPDF = useCallback(async () => {
     setIsExporting(true);
+    const [{ jsPDF }, { loadLogoDataUrl }] = await Promise.all([
+      import('jspdf'),
+      import('../utils/loadLogoDataUrl.js'),
+    ]);
+    const logoBase64 = await loadLogoDataUrl();
     setTimeout(() => {
       try {
         const doc = new jsPDF('p', 'mm', 'a4');
@@ -387,7 +390,7 @@ const Reports = () => {
         doc.setFillColor(255, 255, 255);
         doc.rect(0, 0, w, doc.internal.pageSize.getHeight(), 'F');
 
-        try { doc.addImage(logoBase64, 'PNG', margin, y, 40, 18); } catch {}
+        try { doc.addImage(logoBase64, 'JPEG', margin, y, 40, 18); } catch {}
 
         doc.setFont('helvetica', 'italic');
         doc.setFontSize(7);

@@ -51,6 +51,16 @@ const calcDuration = (timeStr) => {
   } catch { return 0; }
 };
 
+// Flexible lookup: find a student attendance record by matching fields,
+// regardless of whether the docId was written with or without a timeSlot.
+const findStudentRecord = (records, studentId, safeModule, date) => {
+  return records.find(a =>
+    a.studentId === studentId &&
+    (a.moduleId || a.module || '').replace(/[^a-zA-Z0-9]/g, '_') === safeModule &&
+    a.date === date
+  );
+};
+
 const StudentAttendance = () => {
   const { students, teachers, studentAttendance, updateStudentAttendance, loadAttendanceForSession, loadStudentAttendanceForMonth, loading, schedules, teacherAttendance, updateTeacherAttendance, loadTeacherAttendanceForDate, modules: allModules = [], activeSemester = 'S1', getActiveScheduleModule } = useApp();
   const { showToast } = useToast();
@@ -112,9 +122,9 @@ const StudentAttendance = () => {
 
   const stats = useMemo(() => {
     let presents = 0, absents = 0;
+    const safeModule = (filterModule || 'global').replace(/[^a-zA-Z0-9]/g, '_');
     filteredStudents.forEach(s => {
-      const docId = `${s.id}_${(filterModule || 'global').replace(/[^a-zA-Z0-9]/g, '_')}_${selectedDate}`;
-      const record = studentAttendance.find(a => a.id === docId);
+      const record = findStudentRecord(studentAttendance, s.id, safeModule, selectedDate);
       if (record) {
         if (record.status === 'present') presents++;
         else if (record.status === 'absent') absents++;
@@ -145,9 +155,10 @@ const StudentAttendance = () => {
         s.major === session.filiere && s.year === session.annee
       );
       const safeModule = (getActiveScheduleModule(session) || 'global').replace(/[^a-zA-Z0-9]/g, '_');
-      const marked = groupStudents.filter(s =>
-        (studentAttendance || []).some(a => a.id === `${s.id}_${safeModule}_${selectedDate}` && a.status)
-      ).length;
+      const marked = groupStudents.filter(s => {
+        const record = findStudentRecord(studentAttendance || [], s.id, safeModule, selectedDate);
+        return record && record.status;
+      }).length;
       const total = groupStudents.length;
       const done = total > 0 && marked === total;
       const isCurrent = session.filiere === filterMajor && session.annee === filterYear;
@@ -207,8 +218,8 @@ const StudentAttendance = () => {
       if (groupStudents.length === 0) return true;
       const safeModule = (getActiveScheduleModule(session) || 'global').replace(/[^a-zA-Z0-9]/g, '_');
       return groupStudents.every(s => {
-        const docId = `${s.id}_${safeModule}_${selectedDate}`;
-        return combinedAttendance.some(a => a.id === docId && a.status);
+        const record = findStudentRecord(combinedAttendance, s.id, safeModule, selectedDate);
+        return record && record.status;
       });
     });
 
@@ -229,14 +240,12 @@ const StudentAttendance = () => {
     if (!filterModule) { showToast("Veuillez d'abord sélectionner un module.", 'warning'); return; }
     try {
       const safeModule = filterModule.replace(/[^a-zA-Z0-9]/g, '_');
-      const docId = `${studentId}_${safeModule}_${selectedDate}`;
-      const record = studentAttendance.find(a => a.id === docId);
+      const record = findStudentRecord(studentAttendance, studentId, safeModule, selectedDate);
       await updateStudentAttendance(studentId, filterModule, selectedDate, status, record?.comment || '', 'admin');
 
       const unmarkedStudents = filteredStudents.filter(s => {
         if (s.id === studentId) return false;
-        const sDocId = `${s.id}_${safeModule}_${selectedDate}`;
-        const sRecord = studentAttendance.find(a => a.id === sDocId);
+        const sRecord = findStudentRecord(studentAttendance, s.id, safeModule, selectedDate);
         return !sRecord?.status;
       });
       if (unmarkedStudents.length > 0) {
@@ -254,10 +263,12 @@ const StudentAttendance = () => {
         getActiveScheduleModule(sc) === filterModule
       );
       const extraRecords = [
-        { id: docId, studentId, status },
+        { id: `${studentId}_${safeModule}_${selectedDate}`, studentId, moduleId: filterModule, date: selectedDate, status },
         ...unmarkedStudents.map(s => ({
           id: `${s.id}_${safeModule}_${selectedDate}`,
           studentId: s.id,
+          moduleId: filterModule,
+          date: selectedDate,
           status: 'absent'
         }))
       ];
@@ -275,8 +286,7 @@ const StudentAttendance = () => {
       const safeModule = filterModule.replace(/[^a-zA-Z0-9]/g, '_');
       await Promise.all(
         filteredStudents.map(student => {
-          const docId = `${student.id}_${safeModule}_${selectedDate}`;
-          const record = studentAttendance.find(a => a.id === docId);
+          const record = findStudentRecord(studentAttendance, student.id, safeModule, selectedDate);
           return updateStudentAttendance(student.id, filterModule, selectedDate, 'present', record?.comment || '', 'admin');
         })
       );
@@ -290,6 +300,8 @@ const StudentAttendance = () => {
       const extraRecords = filteredStudents.map(s => ({
         id: `${s.id}_${safeModule}_${selectedDate}`,
         studentId: s.id,
+        moduleId: filterModule,
+        date: selectedDate,
         status: 'present'
       }));
       await autoMarkTeacherIfReady(matchingSession, extraRecords);
@@ -301,23 +313,24 @@ const StudentAttendance = () => {
 
   const handleClearStatus = async (studentId) => {
     if (!filterModule) return;
-    const record = studentAttendance.find(a => a.id === `${studentId}_${filterModule.replace(/[^a-zA-Z0-9]/g, '_')}_${selectedDate}`);
+    const safeModule = filterModule.replace(/[^a-zA-Z0-9]/g, '_');
+    const record = findStudentRecord(studentAttendance, studentId, safeModule, selectedDate);
     await updateStudentAttendance(studentId, filterModule, selectedDate, '', record?.comment || '', 'admin');
   };
 
   const handleCommentChange = async (studentId, comment) => {
     if (!filterModule) return;
-    const docId = `${studentId}_${(filterModule).replace(/[^a-zA-Z0-9]/g, '_')}_${selectedDate}`;
-    const record = studentAttendance.find(a => a.id === docId);
+    const safeModule = filterModule.replace(/[^a-zA-Z0-9]/g, '_');
+    const record = findStudentRecord(studentAttendance, studentId, safeModule, selectedDate);
     await updateStudentAttendance(studentId, filterModule, selectedDate, record?.status || 'present', comment, 'admin');
   };
 
   const exportDailyCSV = () => {
     if (!filteredStudents.length) return showToast('Aucune donnée.', 'info');
     const headers = "\uFEFFStagiaire,Matricule,Module,Date,Statut,Commentaire\n";
+    const safeModule = (filterModule || 'global').replace(/[^a-zA-Z0-9]/g, '_');
     const rows = filteredStudents.map(s => {
-      const docId = `${s.id}_${(filterModule || 'global').replace(/[^a-zA-Z0-9]/g, '_')}_${selectedDate}`;
-      const r = studentAttendance.find(a => a.id === docId) || {};
+      const r = findStudentRecord(studentAttendance, s.id, safeModule, selectedDate) || {};
       return `"${s.lastName} ${s.firstName}","${s.regNo}","${filterModule}","${selectedDate}","${r.status || 'non défini'}","${r.comment || ''}"`;
     }).join('\n');
     const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
@@ -414,8 +427,7 @@ const StudentAttendance = () => {
     let totalAbsent = 0;
 
     monthColumns.forEach(col => {
-      const docId = `${student.id}_${col.safeModule}_${col.dateStr}`;
-      const record = studentAttendance.find(a => a.id === docId);
+      const record = findStudentRecord(studentAttendance, student.id, col.safeModule, col.dateStr);
       
       if (record) {
          byColumn[col.key] = record.status;
@@ -668,8 +680,8 @@ const StudentAttendance = () => {
                     </thead>
                     <tbody>
                       {filteredStudents.map((student, idx) => {
-                        const docId = `${student.id}_${(filterModule).replace(/[^a-zA-Z0-9]/g, '_')}_${selectedDate}`;
-                        const record = studentAttendance.find(a => a.id === docId);
+                        const safeModule = filterModule.replace(/[^a-zA-Z0-9]/g, '_');
+                        const record = findStudentRecord(studentAttendance, student.id, safeModule, selectedDate);
                         const status = record?.status || '';
                         const comment = record?.comment || '';
                         return (

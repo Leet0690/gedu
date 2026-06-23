@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import { logoBase64 } from './logoBase64.js';
+import { loadLogoDataUrl } from './loadLogoDataUrl.js';
 
 /* ── Constants ── */
 const ACCREDITATION_TEXT = [
@@ -11,7 +11,7 @@ const ACCREDITATION_TEXT = [
 /**
  * Common header for all official documents
  */
-const drawHeader = (doc, title, withLine = true) => {
+const drawHeader = (doc, title, logoDataUrl, withLine = true) => {
   const w = doc.internal.pageSize.getWidth();
   const h = doc.internal.pageSize.getHeight();
   const margin = 15;
@@ -23,7 +23,7 @@ const drawHeader = (doc, title, withLine = true) => {
 
   // Logo
   try {
-    doc.addImage(logoBase64, 'PNG', margin, 8, 50, 22);
+    doc.addImage(logoDataUrl, 'JPEG', margin, 8, 50, 22);
   } catch (e) {
     console.error("Logo not found", e);
   }
@@ -70,13 +70,14 @@ const drawHeader = (doc, title, withLine = true) => {
 /* ════════════════════════════════════════════════════════════════════
  *  1. FICHE DE SIGNATURE — Par module / par CC
  * ════════════════════════════════════════════════════════════════════ */
-export const generateFicheSignature = ({ students, filiere, niveau, module, ccNumber, formateur, allGrades }) => {
+export const generateFicheSignature = async ({ students, filiere, niveau, module, ccNumber, formateur, allGrades }) => {
+  const logoDataUrl = await loadLogoDataUrl();
   const doc = new jsPDF();
   const w = doc.internal.pageSize.getWidth();
   const margin = 15;
   const tableW = w - margin * 2;
 
-  let y = drawHeader(doc, 'FICHE DES NOTES');
+  let y = drawHeader(doc, 'FICHE DES NOTES', logoDataUrl);
   doc.setTextColor(0); // Ensure black text after header
 
   // ── Header Info ──
@@ -157,7 +158,7 @@ export const generateFicheSignature = ({ students, filiere, niveau, module, ccNu
   students.forEach((student) => {
     if (y > 260) {
       doc.addPage();
-      y = drawHeader(doc, 'FICHE DES NOTES (Suite)');
+      y = drawHeader(doc, 'FICHE DES NOTES (Suite)', logoDataUrl);
       y += 10;
     }
     doc.rect(margin, y, col1W, rowH);
@@ -198,13 +199,14 @@ export const generateFicheSignature = ({ students, filiere, niveau, module, ccNu
 /* ════════════════════════════════════════════════════════════════════
  *  2. FICHE DES NOTES — Par module, EFCFP & EFCFT seulement
  * ════════════════════════════════════════════════════════════════════ */
-export const generateFicheNotes = ({ students, filiere, classe, anneeFormation, module, formateur, allGrades }) => {
+export const generateFicheNotes = async ({ students, filiere, classe, anneeFormation, module, formateur, allGrades }) => {
+  const logoDataUrl = await loadLogoDataUrl();
   const doc = new jsPDF();
   const w = doc.internal.pageSize.getWidth();
   const margin = 15;
   const tableW = w - margin * 2;
 
-  let y = drawHeader(doc, 'FICHE DES NOTES');
+  let y = drawHeader(doc, 'FICHE DES NOTES', logoDataUrl);
   doc.setTextColor(0); // Ensure black text after header
 
   // ── Header Info ──
@@ -280,7 +282,7 @@ export const generateFicheNotes = ({ students, filiere, classe, anneeFormation, 
   students.forEach((student) => {
     if (y > 255) {
       doc.addPage();
-      y = drawHeader(doc, 'FICHE DES NOTES (Suite)');
+      y = drawHeader(doc, 'FICHE DES NOTES (Suite)', logoDataUrl);
       y += 15;
     }
     doc.rect(margin, y, tCol1, rowH);
@@ -325,14 +327,15 @@ export const generateFicheNotes = ({ students, filiere, classe, anneeFormation, 
 /* ════════════════════════════════════════════════════════════════════
  *  3. RELEVÉ DES NOTES — Par stagiaire, toutes les notes
  * ════════════════════════════════════════════════════════════════════ */
-export const generateBulletinGlobal = (student, allGrades, modules) => {
+export const generateBulletinGlobal = async (student, allGrades, modules) => {
+  const logoDataUrl = await loadLogoDataUrl();
   const doc = new jsPDF();
   const w = doc.internal.pageSize.getWidth();
   const margin = 10;
   const tableW = w - margin * 2;
   const grades = allGrades[student.id] || {};
 
-  let y = drawHeader(doc, 'RELEVÉ DES NOTES');
+  let y = drawHeader(doc, 'RELEVÉ DES NOTES', logoDataUrl);
 
   // ── Student Info Table ──
   y += 3;
@@ -427,7 +430,7 @@ export const generateBulletinGlobal = (student, allGrades, modules) => {
   let countCC = 0, countEFCFT = 0, countEFCFP = 0, countAvg = 0;
 
   modules.forEach((mod, idx) => {
-    if (y > 265) { doc.addPage(); y = drawHeader(doc, 'RELEVÉ DES NOTES (Suite)'); y += 10; }
+    if (y > 265) { doc.addPage(); y = drawHeader(doc, 'RELEVÉ DES NOTES (Suite)', logoDataUrl); y += 10; }
 
     const g = grades[mod] || {};
     const { c1 = '', c2 = '', c3 = '', efcfp = '', efcft = '' } = g;
@@ -583,13 +586,14 @@ export const generateBulletinGlobal = (student, allGrades, modules) => {
 /* ════════════════════════════════════════════════════════════════════
  *  4. NOTE D'OBTENTION DE DIPLÔME
  * ════════════════════════════════════════════════════════════════════ */
-export const generateNoteObtentionDiplome = (student, allGrades, modules) => {
+export const generateNoteObtentionDiplome = async (student, allGrades, modules) => {
+  const logoDataUrl = await loadLogoDataUrl();
   const doc = new jsPDF();
   const w = doc.internal.pageSize.getWidth();
   const margin = 20;
   const grades = allGrades[student.id] || {};
 
-  let y = drawHeader(doc, "Notes d'obtention de diplôme");
+  let y = drawHeader(doc, "Notes d'obtention de diplôme", logoDataUrl);
 
   // ── Student Info Blocks (Light Blue) ──
   y += 5;
@@ -847,4 +851,3 @@ export const generateNoteObtentionDiplome = (student, allGrades, modules) => {
   const safeName = student.lastName.replace(/[^a-z0-9]/gi, '_');
   doc.save(`Note_Obtention_Diplome_${safeName}.pdf`);
 };
-

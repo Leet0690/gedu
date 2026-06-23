@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../context/AppContext';
@@ -128,6 +128,7 @@ const TeacherPortal = () => {
     const seen = new Set();
     unfiltered.forEach(s => {
       const displayModule = getActiveScheduleModule(s);
+      if (!displayModule) return; // Skip if no module scheduled for active semester
       const key = `${s.time}_${s.filiere}_${s.annee}_${displayModule}`.toLowerCase().trim();
       if (!seen.has(key)) {
         seen.add(key);
@@ -144,7 +145,26 @@ const TeacherPortal = () => {
     }
   }, [teacher, selectedDate, accessMode, loadTeacherAttendanceForDate]);
 
-  // Sync completedSessionIds with DB teacherAttendance records
+  // Helper: check if ALL students of a given session's group have student attendance records
+  const isSessionStudentAttendanceComplete = useCallback((session) => {
+    if (!session || !teacher) return false;
+    const sessionModule = getActiveScheduleModule(session);
+    if (!sessionModule) return false;
+    const groupStudents = students
+      .filter(isActiveStudent)
+      .filter(s => s.major === session.filiere && s.year === session.annee);
+    if (groupStudents.length === 0) return false;
+    return groupStudents.every(s => {
+      const docId = makeStudentAttendanceDocId(s.id, sessionModule, selectedDate, session.time);
+      const record = studentAttendance.find(a => a.id === docId);
+      return record && ['present', 'absent'].includes(record.status);
+    });
+  }, [teacher, students, studentAttendance, selectedDate, getActiveScheduleModule]);
+
+  // Sync completedSessionIds with DB records
+  // A session is "completed" if:
+  //   - Teacher declared absent for this slot (teacher attendance record with status 'absent'), OR
+  //   - ALL students of this session's group have a student attendance record
   useEffect(() => {
     if (!teacher || todaysSessions.length === 0 || accessMode !== 'attendance') return;
     const completed = new Set();
@@ -153,7 +173,13 @@ const TeacherPortal = () => {
       const safeTime = (session.time || '').replace(/[^0-9]/g, '') || 'x';
       const docId = `${teacher.id}_${safeModule}_${safeTime}_${selectedDate}`;
       const record = teacherAttendance.find(a => a.id === docId);
-      if (record && (record.status === 'present' || record.status === 'absent')) {
+      // If teacher declared absent, mark session as completed regardless
+      if (record && record.status === 'absent') {
+        completed.add(session.id);
+        return;
+      }
+      // Otherwise, check if student attendance for this specific group is complete
+      if (isSessionStudentAttendanceComplete(session)) {
         completed.add(session.id);
       }
     });
@@ -162,20 +188,23 @@ const TeacherPortal = () => {
       if (isIdentical) return prev;
       return completed;
     });
-  }, [teacher, todaysSessions, teacherAttendance, selectedDate, accessMode, getActiveScheduleModule]);
+  }, [teacher, todaysSessions, teacherAttendance, studentAttendance, students, selectedDate, accessMode, getActiveScheduleModule, isSessionStudentAttendanceComplete]);
 
   // Check if attendance was already submitted today
+  // All sessions must be completed (student attendance done for each group, or teacher absent)
   const alreadyDoneToday = useMemo(() => {
     if (!teacher || todaysSessions.length === 0 || accessMode !== 'attendance') return false;
-    // Check if ALL sessions have a 'present' or 'absent' teacher attendance record for today
     return todaysSessions.every(session => {
       const safeModule = (getActiveScheduleModule(session) || 'global').replace(/[^a-zA-Z0-9]/g, '_');
       const safeTime = (session.time || '').replace(/[^0-9]/g, '') || 'x';
       const docId = `${teacher.id}_${safeModule}_${safeTime}_${selectedDate}`;
       const record = teacherAttendance.find(a => a.id === docId);
-      return record && (record.status === 'present' || record.status === 'absent');
+      // Teacher declared absent → session done
+      if (record && record.status === 'absent') return true;
+      // Otherwise, verify student attendance for this specific group is complete
+      return isSessionStudentAttendanceComplete(session);
     });
-  }, [teacher, todaysSessions, teacherAttendance, selectedDate, accessMode, getActiveScheduleModule]);
+  }, [teacher, todaysSessions, teacherAttendance, studentAttendance, students, selectedDate, accessMode, getActiveScheduleModule, isSessionStudentAttendanceComplete]);
 
   const [selectedSessionId, setSelectedSessionId] = useState('');
   const currentSession = useMemo(() => {
@@ -476,7 +505,7 @@ const TeacherPortal = () => {
     // If so, skip the DB write entirely to avoid overwriting the correct hours
     const alreadyRecordedSameDocId = todaysSessions.some(s => {
       if (s.id === currentSession.id || !completedSessionIds.has(s.id)) return false;
-      const sModule = (s.module || 'global').replace(/[^a-zA-Z0-9]/g, '_');
+      const sModule = (s.displayModule || getActiveScheduleModule(s) || 'global').replace(/[^a-zA-Z0-9]/g, '_');
       const sTime = (s.time || '').replace(/[^0-9]/g, '') || 'x';
       return `${teacher.id}_${sModule}_${sTime}_${selectedDate}` === wouldBeDocId;
     });

@@ -7,7 +7,6 @@ import {
 import { QRCodeSVG } from 'qrcode.react';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
-import { logoBase64 } from '../utils/logoBase64';
 import { generateBulletinGlobal } from '../utils/pdfGenerator';
 import {
   ALL_STUDY_YEARS,
@@ -144,7 +143,8 @@ const TodaySessionsWidget = ({ schedules, teachers, getScheduleModule, activeSem
           start: formatTimeDash((parts[0] || '').trim()), 
           end: formatTimeDash((parts[1] || '').trim()) 
         };
-      });
+      })
+      .filter(s => s.displayModule);
 
     const groups = {};
     filtered.forEach(s => {
@@ -780,6 +780,7 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
               const daySessions = filteredSessions
                 .filter(s => s.day === day)
                 .map(s => { const { start, end } = parseTimeRangeDash(s.time); return { ...s, start, end }; })
+                .filter(s => getScheduleModule(s))
                 .sort((a, b) => a.start.localeCompare(b.start));
 
               const colors = getDayColors(day);

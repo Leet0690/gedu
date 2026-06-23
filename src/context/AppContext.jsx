@@ -72,8 +72,16 @@ const mergeById = (current, incoming) => {
 };
 
 const getScheduleModuleForSemester = (session = {}, semester = 'S1') => {
-  if (normalizeSemester(semester) === 'S2') return session.moduleS2 || session.module || '';
-  return session.moduleS1 || session.module || '';
+  const isS2 = normalizeSemester(semester) === 'S2';
+  if (isS2) {
+    if (session.moduleS2) return session.moduleS2;
+    if (session.moduleS1) return ''; // Specifically scheduled for S1 only
+    return session.module || '';
+  } else {
+    if (session.moduleS1) return session.moduleS1;
+    if (session.moduleS2) return ''; // Specifically scheduled for S2 only
+    return session.module || '';
+  }
 };
 
 const getTeacherAttendanceSlotKey = (record = {}) => {

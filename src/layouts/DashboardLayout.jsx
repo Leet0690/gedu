@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import Logo from '../components/Logo';
 import { SemesterToggle } from '../components/SemesterToggle';
+import { preloadRoute } from '../routeLoaders';
 import { 
   LayoutDashboard, 
   Home,
@@ -207,6 +208,9 @@ export default function DashboardLayout({ children }) {
       <Link 
         key={item.to} 
         to={item.to}
+        onMouseEnter={() => preloadRoute(item.to)}
+        onFocus={() => preloadRoute(item.to)}
+        onTouchStart={() => preloadRoute(item.to)}
         onClick={() => isMobile && setIsMobileMenuOpen(false)}
         className={`premium-sidenav-link group relative flex items-center rounded-full text-sm font-medium transition-all duration-200 ${
           isCollapsed ? 'justify-center w-10 h-10 mx-auto' : 'gap-3 px-3 py-2 w-full'

@@ -5,23 +5,24 @@ import { AdminAuthProvider } from './context/AdminAuthContext';
 import DashboardLayout from './layouts/DashboardLayout';
 import PWAUpdatePrompt from './components/PWAUpdatePrompt';
 import { School, Link as LinkIcon } from 'lucide-react';
+import { loadRoute } from './routeLoaders';
 
-const Login                    = lazy(() => import('./pages/Login'));
-const AdminDashboard           = lazy(() => import('./pages/AdminDashboard'));
-const TeacherPortal            = lazy(() => import('./pages/TeacherPortal'));
-const StudentResults           = lazy(() => import('./pages/StudentResults'));
-const GradeManagement          = lazy(() => import('./pages/GradeManagement'));
-const StudentAttendance        = lazy(() => import('./pages/StudentAttendance'));
-const TeacherAttendance        = lazy(() => import('./pages/TeacherAttendance'));
-const Reports                  = lazy(() => import('./pages/Reports'));
-const ScheduleManagement       = lazy(() => import('./pages/ScheduleManagement'));
-const FinanceDashboard         = lazy(() => import('./pages/FinanceDashboard'));
-const ModuleManagement         = lazy(() => import('./pages/ModuleManagement'));
-const MonthlyAttendance        = lazy(() => import('./pages/MonthlyAttendance'));
-const MonthlyAttendanceTeachers = lazy(() => import('./pages/MonthlyAttendanceTeachers'));
-const AccessLogs               = lazy(() => import('./pages/AccessLogs'));
-const ScheduleGeneration       = lazy(() => import('./pages/ScheduleGeneration'));
-const ContinuousTrainings      = lazy(() => import('./pages/ContinuousTrainings'));
+const Login                    = lazy(() => loadRoute('login'));
+const AdminDashboard           = lazy(() => loadRoute('adminDashboard'));
+const TeacherPortal            = lazy(() => loadRoute('teacherPortal'));
+const StudentResults           = lazy(() => loadRoute('studentResults'));
+const GradeManagement          = lazy(() => loadRoute('gradeManagement'));
+const StudentAttendance        = lazy(() => loadRoute('studentAttendance'));
+const TeacherAttendance        = lazy(() => loadRoute('teacherAttendance'));
+const Reports                  = lazy(() => loadRoute('reports'));
+const ScheduleManagement       = lazy(() => loadRoute('scheduleManagement'));
+const FinanceDashboard         = lazy(() => loadRoute('financeDashboard'));
+const ModuleManagement         = lazy(() => loadRoute('moduleManagement'));
+const MonthlyAttendance        = lazy(() => loadRoute('monthlyAttendance'));
+const MonthlyAttendanceTeachers = lazy(() => loadRoute('monthlyAttendanceTeachers'));
+const AccessLogs               = lazy(() => loadRoute('accessLogs'));
+const ScheduleGeneration       = lazy(() => loadRoute('scheduleGeneration'));
+const ContinuousTrainings      = lazy(() => loadRoute('continuousTrainings'));
 const PageLoader = () => (
   <div className="app-loader-shell">
     <div className="app-loader" role="status" aria-label="Chargement">

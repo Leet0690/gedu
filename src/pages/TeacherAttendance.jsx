@@ -110,6 +110,9 @@ const getScheduledRowsForDate = ({ schedules = [], teachers = [], date, searchTe
   const slotsMap = new Map();
 
   schedules.filter(s => s.day === dayName).forEach(session => {
+    const displayModule = getScheduleModule(session);
+    if (!displayModule) return;
+
     const teacher = teachers.find(t => t.id === session.teacherId);
     if (!teacher) return;
     if (term && !(teacher.name || '').toLowerCase().includes(term)) return;
@@ -117,7 +120,6 @@ const getScheduledRowsForDate = ({ schedules = [], teachers = [], date, searchTe
     const normalizedTime = normalizeTimeSlot(session.time);
     const slotKey = `${teacher.id}_${normalizedTime}`;
     const abbr = getGroupAbbreviation(session.filiere, session.annee);
-    const displayModule = getScheduleModule(session);
 
     if (slotsMap.has(slotKey)) {
       const row = slotsMap.get(slotKey);

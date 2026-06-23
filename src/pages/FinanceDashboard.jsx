@@ -4,8 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/cn';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
-import { jsPDF } from 'jspdf';
-import { logoBase64 } from '../utils/logoBase64';
+
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
@@ -90,8 +89,9 @@ const getScheduledRowsForDate = ({ schedules = [], teacherId, date, getScheduleM
   schedules
     .filter(session => session.teacherId === teacherId && session.day === dayName)
     .forEach(session => {
-      const slotKey = `${teacherId}_${normalizeTimeSlot(session.time)}`;
       const module = getScheduleModule(session);
+      if (!module) return;
+      const slotKey = `${teacherId}_${normalizeTimeSlot(session.time)}`;
       if (slotsMap.has(slotKey)) return;
       slotsMap.set(slotKey, {
         date,
@@ -154,6 +154,18 @@ const getPaymentFeeItems = (payment) => {
 };
 
 const getPaymentTotal = (payment) => parseFloat(payment?.amount) || 0;
+
+const toMoney = value => {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? Math.max(0, amount) : 0;
+};
+
+const getContinuousTeacherSalary = (training, revenue) => {
+  const value = toMoney(training?.teacherPct);
+  return training?.teacherCompensationUnit === 'dh'
+    ? Math.round(value)
+    : Math.round(revenue * value / 100);
+};
 
 const normalizeStatus = (value = '') =>
   String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -445,9 +457,14 @@ const FinanceDashboard = () => {
   const resolveSalaryReceiptNumber = (salary) =>
     salary.receiptNumber || getLegacyReceiptNumber(salary, salaries, 'F');
 
-  const generateReceipt = (payment, student) => {
+  const generateReceipt = async (payment, student) => {
     if (!student) return showToast('Stagiaire introuvable', 'warning');
 
+    const [{ jsPDF }, { loadLogoDataUrl }] = await Promise.all([
+      import('jspdf'),
+      import('../utils/loadLogoDataUrl'),
+    ]);
+    const logoBase64 = await loadLogoDataUrl();
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
     const w = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -529,7 +546,7 @@ const FinanceDashboard = () => {
     showToast('Reçu généré', 'success');
   };
 
-  const generateTeacherReceipt = (salary) => {
+  const generateTeacherReceipt = async (salary) => {
     const teacher = teachers.find(t => t.id === salary.teacherId);
     const monthIndex = months.indexOf(salary.month);
     const sessionRows = (Array.isArray(salary.sessions) && salary.sessions.length > 0)
@@ -538,6 +555,11 @@ const FinanceDashboard = () => {
     const totalHours = Math.round((sessionRows.reduce((sum, row) => sum + (parseFloat(row.hours) || 0), 0) || parseFloat(salary.hours) || 0) * 100) / 100;
     const hourlyRate = parseFloat(salary.hourlyRate) || parseFloat(teacher?.hourlyRate) || (totalHours > 0 ? (parseFloat(salary.amount) || 0) / totalHours : 0);
 
+    const [{ jsPDF }, { loadLogoDataUrl }] = await Promise.all([
+      import('jspdf'),
+      import('../utils/loadLogoDataUrl'),
+    ]);
+    const logoBase64 = await loadLogoDataUrl();
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
     const w = doc.internal.pageSize.getWidth();
     const margin = 10;
@@ -802,7 +824,7 @@ const FinanceDashboard = () => {
           );
           return sum + monthlyPayments.reduce((paymentSum, payment) => paymentSum + Number(payment?.amount || 0), 0);
         }, 0);
-      const teacherShare = Math.round(trainingRevenue * Number(training?.teacherPct || 0) / 100);
+      const teacherShare = getContinuousTeacherSalary(training, trainingRevenue);
       return {
         revenue: totals.revenue + trainingRevenue,
         salaries: totals.salaries + teacherShare
