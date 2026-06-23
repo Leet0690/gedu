@@ -74,6 +74,27 @@ const GradeInput = ({ value, onChange, placeholder = '—' }) => {
 };
 
 const getGroupAbbreviation = (filiere, annee) => getClassCode('', filiere, annee);
+const normalizeTimeSlot = (value = '') => String(value || '').replace(/[^0-9]/g, '') || 'x';
+const safeModuleKey = (value = '') => String(value || 'global').replace(/[^a-zA-Z0-9]/g, '_');
+const makeTeacherAttendanceDocId = (teacherId, moduleId, timeSlot, date) =>
+  `${teacherId}_${safeModuleKey(moduleId)}_${normalizeTimeSlot(timeSlot)}_${date}`;
+const calcDuration = (timeStr = '') => {
+  if (!timeStr) return 0;
+  const match = String(timeStr).match(/(\d{1,2})[h:]?(\d{2})?\s*[-–—]\s*(\d{1,2})[h:]?(\d{2})?/i);
+  if (!match) return 0;
+  const h1 = parseInt(match[1] || 0, 10);
+  const m1 = parseInt(match[2] || 0, 10);
+  const h2 = parseInt(match[3] || 0, 10);
+  const m2 = parseInt(match[4] || 0, 10);
+  const duration = ((h2 * 60 + m2) - (h1 * 60 + m1)) / 60;
+  return Number.isFinite(duration) ? Math.max(0, Math.round(duration * 100) / 100) : 0;
+};
+const getRecordTimestamp = (record) => {
+  if (!record?.timestamp) return 0;
+  if (typeof record.timestamp.toMillis === 'function') return record.timestamp.toMillis();
+  if (typeof record.timestamp.seconds === 'number') return record.timestamp.seconds * 1000;
+  return 0;
+};
 
 const TeacherPortal = () => {
   const { teacherId } = useParams();
@@ -113,6 +134,7 @@ const TeacherPortal = () => {
     return storedVersion !== APP_VERSION;
   });
   const firstUnmarkedRef = useRef(null);
+  const autoSavedTeacherSessionsRef = useRef(new Set());
 
   const dayOfWeek = useMemo(() => {
     const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
@@ -145,10 +167,33 @@ const TeacherPortal = () => {
     }
   }, [teacher, selectedDate, accessMode, loadTeacherAttendanceForDate]);
 
+  const getSessionModule = useCallback((session) => {
+    return session?.displayModule || getActiveScheduleModule(session) || '';
+  }, [getActiveScheduleModule]);
+
+  const getTeacherRecordForSession = useCallback((session) => {
+    if (!teacher || !session) return null;
+    const sessionModule = getSessionModule(session);
+    const docId = makeTeacherAttendanceDocId(teacher.id, sessionModule, session.time, selectedDate);
+    const exact = teacherAttendance.find(record => record.id === docId);
+    if (exact) return exact;
+
+    const rowSlot = normalizeTimeSlot(session.time);
+    const candidates = teacherAttendance.filter(record =>
+      record.teacherId === teacher.id &&
+      record.date === selectedDate &&
+      normalizeTimeSlot(record.timeSlot) === rowSlot
+    );
+    if (!candidates.length) return null;
+    return candidates.reduce((latest, record) =>
+      getRecordTimestamp(record) >= getRecordTimestamp(latest) ? record : latest
+    , candidates[0]);
+  }, [teacher, teacherAttendance, selectedDate, getSessionModule]);
+
   // Helper: check if ALL students of a given session's group have student attendance records
   const isSessionStudentAttendanceComplete = useCallback((session) => {
     if (!session || !teacher) return false;
-    const sessionModule = getActiveScheduleModule(session);
+    const sessionModule = getSessionModule(session);
     if (!sessionModule) return false;
     const groupStudents = students
       .filter(isActiveStudent)
@@ -159,7 +204,34 @@ const TeacherPortal = () => {
       const record = studentAttendance.find(a => a.id === docId);
       return record && ['present', 'absent'].includes(record.status);
     });
-  }, [teacher, students, studentAttendance, selectedDate, getActiveScheduleModule]);
+  }, [teacher, students, studentAttendance, selectedDate, getSessionModule]);
+
+  useEffect(() => {
+    if (!teacher || todaysSessions.length === 0 || accessMode !== 'attendance') return;
+    todaysSessions.forEach(session => {
+      if (!isSessionStudentAttendanceComplete(session)) return;
+      if (getTeacherRecordForSession(session)) return;
+
+      const sessionModule = getSessionModule(session);
+      if (!sessionModule) return;
+      const autoSaveKey = makeTeacherAttendanceDocId(teacher.id, sessionModule, session.time, selectedDate);
+      if (autoSavedTeacherSessionsRef.current.has(autoSaveKey)) return;
+
+      autoSavedTeacherSessionsRef.current.add(autoSaveKey);
+      updateTeacherAttendance(
+        teacher.id,
+        selectedDate,
+        'present',
+        `Appel stagiaires complété: ${sessionModule}`,
+        calcDuration(session.time) || 4,
+        sessionModule,
+        session.time || ''
+      ).catch(() => {
+        autoSavedTeacherSessionsRef.current.delete(autoSaveKey);
+        showToast("Erreur lors de l'enregistrement de la présence formateur.", 'error');
+      });
+    });
+  }, [teacher, todaysSessions, selectedDate, accessMode, isSessionStudentAttendanceComplete, getTeacherRecordForSession, getSessionModule, updateTeacherAttendance, showToast]);
 
   // Sync completedSessionIds with DB records
   // A session is "completed" if:
@@ -169,17 +241,8 @@ const TeacherPortal = () => {
     if (!teacher || todaysSessions.length === 0 || accessMode !== 'attendance') return;
     const completed = new Set();
     todaysSessions.forEach(session => {
-      const safeModule = (getActiveScheduleModule(session) || 'global').replace(/[^a-zA-Z0-9]/g, '_');
-      const safeTime = (session.time || '').replace(/[^0-9]/g, '') || 'x';
-      const docId = `${teacher.id}_${safeModule}_${safeTime}_${selectedDate}`;
-      const record = teacherAttendance.find(a => a.id === docId);
-      // If teacher declared absent, mark session as completed regardless
-      if (record && record.status === 'absent') {
-        completed.add(session.id);
-        return;
-      }
-      // Otherwise, check if student attendance for this specific group is complete
-      if (isSessionStudentAttendanceComplete(session)) {
+      const record = getTeacherRecordForSession(session);
+      if (record && ['present', 'absent'].includes(record.status)) {
         completed.add(session.id);
       }
     });
@@ -188,23 +251,17 @@ const TeacherPortal = () => {
       if (isIdentical) return prev;
       return completed;
     });
-  }, [teacher, todaysSessions, teacherAttendance, studentAttendance, students, selectedDate, accessMode, getActiveScheduleModule, isSessionStudentAttendanceComplete]);
+  }, [teacher, todaysSessions, accessMode, getTeacherRecordForSession]);
 
   // Check if attendance was already submitted today
   // All sessions must be completed (student attendance done for each group, or teacher absent)
   const alreadyDoneToday = useMemo(() => {
     if (!teacher || todaysSessions.length === 0 || accessMode !== 'attendance') return false;
     return todaysSessions.every(session => {
-      const safeModule = (getActiveScheduleModule(session) || 'global').replace(/[^a-zA-Z0-9]/g, '_');
-      const safeTime = (session.time || '').replace(/[^0-9]/g, '') || 'x';
-      const docId = `${teacher.id}_${safeModule}_${safeTime}_${selectedDate}`;
-      const record = teacherAttendance.find(a => a.id === docId);
-      // Teacher declared absent → session done
-      if (record && record.status === 'absent') return true;
-      // Otherwise, verify student attendance for this specific group is complete
-      return isSessionStudentAttendanceComplete(session);
+      const record = getTeacherRecordForSession(session);
+      return record && ['present', 'absent'].includes(record.status);
     });
-  }, [teacher, todaysSessions, teacherAttendance, studentAttendance, students, selectedDate, accessMode, getActiveScheduleModule, isSessionStudentAttendanceComplete]);
+  }, [teacher, todaysSessions, accessMode, getTeacherRecordForSession]);
 
   const [selectedSessionId, setSelectedSessionId] = useState('');
   const currentSession = useMemo(() => {
@@ -214,15 +271,12 @@ const TeacherPortal = () => {
   const includeAllSemestersForGrades = activeTab === 'grades' || accessMode === 'grades';
 
   const sessionDuration = useMemo(() => {
-    if (!currentSession || !currentSession.time) return 4;
-    try {
-      const [start, end] = currentSession.time.split('-');
-      const [h1, m1] = start.split(':').map(Number);
-      const [h2, m2] = end.split(':').map(Number);
-      const diffMinutes = (h2 * 60 + m2) - (h1 * 60 + m1);
-      return Math.max(0, Math.round((diffMinutes / 60) * 100) / 100);
-    } catch (e) { return 4; }
+    return calcDuration(currentSession?.time) || 4;
   }, [currentSession]);
+
+  const currentAttendanceModule = useMemo(() => {
+    return currentSession ? getSessionModule(currentSession) : selectedSubject;
+  }, [currentSession, getSessionModule, selectedSubject]);
 
   React.useEffect(() => {
     if (accessMode === 'attendance') setActiveTab('attendance');
@@ -231,7 +285,7 @@ const TeacherPortal = () => {
 
   React.useEffect(() => {
     if (currentSession) {
-      const sessionModule = getActiveScheduleModule(currentSession);
+      const sessionModule = getSessionModule(currentSession);
       setSelectedGroup(currentSession.filiere);
       setSelectedSubject(sessionModule);
       setFilterYear(currentSession.annee);
@@ -251,13 +305,13 @@ const TeacherPortal = () => {
         }
       }
     }
-  }, [currentSession, allModules, getActiveScheduleModule]);
+  }, [currentSession, allModules, getSessionModule]);
 
   React.useEffect(() => {
-    if (activeTab === 'attendance' && selectedSubject && selectedDate) {
-      loadAttendanceForSession(selectedSubject, selectedDate);
+    if (activeTab === 'attendance' && currentAttendanceModule && selectedDate) {
+      loadAttendanceForSession(currentAttendanceModule, selectedDate);
     }
-  }, [activeTab, selectedSubject, selectedDate, loadAttendanceForSession]);
+  }, [activeTab, currentAttendanceModule, selectedDate, loadAttendanceForSession]);
 
   const availableDiplomas = useMemo(() => {
     if (!teacher) return [];
@@ -358,13 +412,13 @@ const TeacherPortal = () => {
   }, [relevantStudents, selectedSubject, grades]);
 
   const allAttended = useMemo(() => {
-    if (!currentSession || !relevantStudents || relevantStudents.length === 0 || !selectedSubject) return false;
+    if (!currentSession || !relevantStudents || relevantStudents.length === 0 || !currentAttendanceModule) return false;
     return relevantStudents.every(s => {
-      const docId = makeStudentAttendanceDocId(s.id, selectedSubject, selectedDate, currentSession.time);
+      const docId = makeStudentAttendanceDocId(s.id, currentAttendanceModule, selectedDate, currentSession.time);
       const record = studentAttendance.find(a => a.id === docId);
       return record && ['present', 'absent'].includes(record.status);
     });
-  }, [currentSession, relevantStudents, selectedSubject, selectedDate, studentAttendance]);
+  }, [currentSession, relevantStudents, currentAttendanceModule, selectedDate, studentAttendance]);
 
   // Track if ALL sessions for the day are completed
   const allSessionsCompleted = useMemo(() => {
@@ -373,13 +427,13 @@ const TeacherPortal = () => {
   }, [todaysSessions, completedSessionIds]);
 
   const unmarkedStudents = useMemo(() => {
-    if (!currentSession || !selectedSubject || !relevantStudents.length) return [];
+    if (!currentSession || !currentAttendanceModule || !relevantStudents.length) return [];
     return relevantStudents.filter(s => {
-      const docId = makeStudentAttendanceDocId(s.id, selectedSubject, selectedDate, currentSession.time);
+      const docId = makeStudentAttendanceDocId(s.id, currentAttendanceModule, selectedDate, currentSession.time);
       const record = studentAttendance.find(a => a.id === docId);
       return !record || !['present', 'absent'].includes(record.status);
     });
-  }, [currentSession, relevantStudents, selectedSubject, selectedDate, studentAttendance]);
+  }, [currentSession, relevantStudents, currentAttendanceModule, selectedDate, studentAttendance]);
 
   useEffect(() => {
     if (allAttended) setShowUnmarkedWarning(false);
@@ -429,20 +483,13 @@ const TeacherPortal = () => {
     let donePresent = 0, doneAbsent = 0, totalH = 0;
     const countedSlots = new Set();
     todaysSessions.forEach(s => {
-      const safeModule = (getActiveScheduleModule(s) || 'global').replace(/[^a-zA-Z0-9]/g, '_');
-      const safeTime = (s.time || '').replace(/[^0-9]/g, '') || 'x';
-      const docId = `${teacher.id}_${safeModule}_${safeTime}_${selectedDate}`;
-      const record = teacherAttendance.find(a => a.id === docId);
+      const safeTime = normalizeTimeSlot(s.time);
+      const record = getTeacherRecordForSession(s);
       if (record?.status === 'present') {
         donePresent++;
         if (!countedSlots.has(safeTime)) {
           countedSlots.add(safeTime);
-          try {
-            const [start, end] = s.time.split('-');
-            const [h1, m1] = start.split(':').map(Number);
-            const [h2, m2] = end.split(':').map(Number);
-            totalH += Math.max(0, ((h2 * 60 + m2) - (h1 * 60 + m1)) / 60);
-          } catch {}
+          totalH += Number(record.hours) > 0 ? Number(record.hours) : (calcDuration(s.time) || 4);
         }
       } else if (record?.status === 'absent') {
         doneAbsent++;
@@ -491,29 +538,15 @@ const TeacherPortal = () => {
       setShowUnmarkedWarning(true);
       return;
     }
-    // Mark this session as completed locally
+    const sessionModule = getSessionModule(currentSession) || selectedSubject;
+    const existingTeacherRecord = getTeacherRecordForSession(currentSession);
+    if (!existingTeacherRecord) {
+      await updateTeacherAttendance(teacher.id, selectedDate, 'present', `Appel validé: ${sessionModule}`, sessionDuration, sessionModule, currentSession?.time || '');
+    }
     const nextCompleted = new Set(completedSessionIds);
     nextCompleted.add(currentSession.id);
     setCompletedSessionIds(nextCompleted);
-
-    // Build the docId that updateTeacherAttendance would produce
-    const safeModule = (selectedSubject || 'global').replace(/[^a-zA-Z0-9]/g, '_');
-    const safeTime = (currentSession.time || '').replace(/[^0-9]/g, '') || 'x';
-    const wouldBeDocId = `${teacher.id}_${safeModule}_${safeTime}_${selectedDate}`;
-
-    // Check if a session with the SAME docId (same module + same time) was already validated
-    // If so, skip the DB write entirely to avoid overwriting the correct hours
-    const alreadyRecordedSameDocId = todaysSessions.some(s => {
-      if (s.id === currentSession.id || !completedSessionIds.has(s.id)) return false;
-      const sModule = (s.displayModule || getActiveScheduleModule(s) || 'global').replace(/[^a-zA-Z0-9]/g, '_');
-      const sTime = (s.time || '').replace(/[^0-9]/g, '') || 'x';
-      return `${teacher.id}_${sModule}_${sTime}_${selectedDate}` === wouldBeDocId;
-    });
-
-    if (!alreadyRecordedSameDocId) {
-      await updateTeacherAttendance(teacher.id, selectedDate, 'present', `Appel validé: ${selectedSubject}`, sessionDuration, selectedSubject, currentSession?.time || '');
-    }
-    showToast(`Séance "${selectedSubject}" validée.`, 'success');
+    showToast(`Séance "${sessionModule}" validée.`, 'success');
 
     // Move to next uncompleted session using updated set
     const nextSession = todaysSessions.find(s => s.id !== currentSession.id && !nextCompleted.has(s.id));
@@ -532,7 +565,7 @@ const TeacherPortal = () => {
     });
     if (!confirmed) return;
 
-    const sessionModule = selectedSubject || getActiveScheduleModule(currentSession);
+    const sessionModule = getSessionModule(currentSession) || selectedSubject;
     await updateTeacherAttendance(
       teacher.id, selectedDate, 'absent',
       'Formateur absent (auto-déclaration)',
@@ -619,24 +652,24 @@ const TeacherPortal = () => {
   };
 
   const handleAttendanceChange = async (studentId, status) => {
-    if (!selectedSubject || !currentSession) return;
-    const docId = makeStudentAttendanceDocId(studentId, selectedSubject, selectedDate, currentSession.time);
+    if (!currentAttendanceModule || !currentSession) return;
+    const docId = makeStudentAttendanceDocId(studentId, currentAttendanceModule, selectedDate, currentSession.time);
     const record = studentAttendance.find(a => a.id === docId);
-    await updateStudentAttendance(studentId, selectedSubject, selectedDate, status, record?.comment || '', teacher.id, currentSession.time);
+    await updateStudentAttendance(studentId, currentAttendanceModule, selectedDate, status, record?.comment || '', teacher.id, currentSession.time);
   };
 
   const handleClearAttendance = async (studentId) => {
-    if (!selectedSubject || !currentSession) return;
-    const docId = makeStudentAttendanceDocId(studentId, selectedSubject, selectedDate, currentSession.time);
+    if (!currentAttendanceModule || !currentSession) return;
+    const docId = makeStudentAttendanceDocId(studentId, currentAttendanceModule, selectedDate, currentSession.time);
     const record = studentAttendance.find(a => a.id === docId);
-    await updateStudentAttendance(studentId, selectedSubject, selectedDate, '', record?.comment || '', teacher.id, currentSession.time);
+    await updateStudentAttendance(studentId, currentAttendanceModule, selectedDate, '', record?.comment || '', teacher.id, currentSession.time);
   };
 
   const handleAttendanceComment = async (studentId, comment) => {
-    if (!selectedSubject || !currentSession) return;
-    const docId = makeStudentAttendanceDocId(studentId, selectedSubject, selectedDate, currentSession.time);
+    if (!currentAttendanceModule || !currentSession) return;
+    const docId = makeStudentAttendanceDocId(studentId, currentAttendanceModule, selectedDate, currentSession.time);
     let record = studentAttendance.find(a => a.id === docId);
-    await updateStudentAttendance(studentId, selectedSubject, selectedDate, record?.status || 'present', comment, teacher.id, currentSession.time);
+    await updateStudentAttendance(studentId, currentAttendanceModule, selectedDate, record?.status || 'present', comment, teacher.id, currentSession.time);
   };
 
   const calcMoyenneCC = (g) => {
@@ -655,22 +688,15 @@ const TeacherPortal = () => {
     const countedFinishedSlots = new Set();
     let totalDuration = 0;
     todaysSessions.forEach(s => {
-      const safeModule = (getActiveScheduleModule(s) || 'global').replace(/[^a-zA-Z0-9]/g, '_');
-      const safeTime = (s.time || '').replace(/[^0-9]/g, '') || 'x';
-      const docId = `${teacher.id}_${safeModule}_${safeTime}_${selectedDate}`;
-      const record = teacherAttendance.find(a => a.id === docId);
+      const safeTime = normalizeTimeSlot(s.time);
+      const record = getTeacherRecordForSession(s);
       if (record?.status === 'absent') {
         finishedAbsent++;
       } else {
         finishedPresent++;
         if (!countedFinishedSlots.has(safeTime)) {
           countedFinishedSlots.add(safeTime);
-          try {
-            const [start, end] = s.time.split('-');
-            const [h1, m1] = start.split(':').map(Number);
-            const [h2, m2] = end.split(':').map(Number);
-            totalDuration += Math.max(0, ((h2 * 60 + m2) - (h1 * 60 + m1)) / 60);
-          } catch {}
+          totalDuration += Number(record?.hours) > 0 ? Number(record.hours) : (calcDuration(s.time) || 4);
         }
       }
     });
@@ -766,7 +792,7 @@ const TeacherPortal = () => {
               <SessionStat label="Séance" value={dayOfWeek} icon={CalendarDays} />
               <SessionStat label="Horaire" value={currentSession.time} icon={Clock} />
               <SessionStat label="Groupe" value={getGroupAbbreviation(currentSession.filiere, currentSession.annee)} icon={Users} />
-              <SessionStat label="Module" value={selectedSubject || getActiveScheduleModule(currentSession)} icon={BookOpen} />
+              <SessionStat label="Module" value={currentAttendanceModule || getSessionModule(currentSession)} icon={BookOpen} />
             </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--primary)' }}>
@@ -915,7 +941,7 @@ const TeacherPortal = () => {
           <EmptyState title="Séance non sélectionnée" message={todaysSessions.length > 0 ? "Choisissez une séance dans la barre supérieure pour commencer l'appel." : `Aucune séance n'est planifiée pour vous ce ${dayOfWeek}.`} icon="calendar" />
         ) : relevantStudents.length === 0 ? (
           <EmptyState title="Liste vide" message="Aucun stagiaire trouvé pour ce groupe." icon="users" />
-        ) : !selectedSubject ? (
+        ) : !currentAttendanceModule ? (
           <EmptyState title="Module manquant" message="Sélectionnez un module pour afficher la liste." icon="book-open" />
         ) : activeTab === 'grades' ? (
           <div style={{ overflowX: 'auto' }}>
@@ -970,7 +996,7 @@ const TeacherPortal = () => {
               </thead>
               <tbody>
                 {(() => { let firstUnmarkedAssigned = false; return relevantStudents.map((s, idx) => {
-                  const docId = makeStudentAttendanceDocId(s.id, selectedSubject, selectedDate, currentSession?.time);
+                  const docId = makeStudentAttendanceDocId(s.id, currentAttendanceModule, selectedDate, currentSession?.time);
                   const record = studentAttendance.find(a => a.id === docId);
                   const status = record?.status || '';
                   const comment = record?.comment || '';

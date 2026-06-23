@@ -89,6 +89,18 @@ const getTeacherAttendanceSlotKey = (record = {}) => {
   return `${record.teacherId || ''}_${record.date || ''}_${safeTime}`;
 };
 
+const getTimeSlotDuration = (timeStr = '') => {
+  if (!timeStr) return 0;
+  const match = String(timeStr).match(/(\d{1,2})[h:]?(\d{2})?\s*[-–—]\s*(\d{1,2})[h:]?(\d{2})?/i);
+  if (!match) return 0;
+  const h1 = parseInt(match[1] || 0, 10);
+  const m1 = parseInt(match[2] || 0, 10);
+  const h2 = parseInt(match[3] || 0, 10);
+  const m2 = parseInt(match[4] || 0, 10);
+  const duration = ((h2 * 60 + m2) - (h1 * 60 + m1)) / 60;
+  return Number.isFinite(duration) ? Math.max(0, Math.round(duration * 100) / 100) : 0;
+};
+
 const getMonthBounds = (monthIndex, year) => {
   const start = new Date(year, monthIndex, 1);
   const end = new Date(year, monthIndex + 1, 0);
@@ -1083,7 +1095,9 @@ export const AppProvider = ({ children }) => {
     const safeModule = (moduleId || 'global').replace(/[^a-zA-Z0-9]/g, '_');
     const safeTime = (timeSlot || '').replace(/[^0-9]/g, '') || 'x';
     const docId = `${teacherId}_${safeModule}_${safeTime}_${date}`;
-    const data = { teacherId, date, status, hours: status === 'present' ? hours : 0, comment: comment || '', moduleId: moduleId || '', timeSlot: timeSlot || '', timestamp: serverTimestamp() };
+    const parsedHours = Number(hours);
+    const safeHours = Number.isFinite(parsedHours) && parsedHours > 0 ? parsedHours : getTimeSlotDuration(timeSlot);
+    const data = { teacherId, date, status, hours: status === 'present' ? safeHours : 0, comment: comment || '', moduleId: moduleId || '', timeSlot: timeSlot || '', timestamp: serverTimestamp() };
     
     await setDoc(doc(db, 'attendance_formateurs', docId), data, { merge: true });
     
