@@ -10291,6 +10291,16 @@ body:has(.app-modal-overlay) .app-modal-overlay {
   transform: translateY(-1px) scale(0.97);
 }
 
+@media (max-width: 1024px) {
+  .premium-topbar .premium-layout-toggle.desktop-menu-btn {
+    display: none !important;
+  }
+
+  .premium-topbar .premium-layout-toggle.mobile-menu-btn {
+    display: inline-flex !important;
+  }
+}
+
 .premium-topbar-semester {
   border-color: rgba(124, 58, 237, 0.13) !important;
   background: rgba(255, 255, 255, 0.68) !important;
