@@ -196,15 +196,26 @@ const PWAUpdatePrompt = () => {
             <button
               type="button"
               onClick={reloadApp}
-              className="app-update-action-button"
+              className="btn-modern primary"
+              style={{
+                width: '100%',
+                padding: '14px 28px',
+                borderRadius: '16px',
+                fontSize: '14px',
+                fontWeight: '850',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                boxShadow: '0 8px 24px rgba(124, 58, 237, 0.22)',
+                background: 'linear-gradient(135deg, var(--primary), var(--primary-light))',
+                color: '#ffffff',
+                border: 'none',
+              }}
             >
-              <span className="app-update-action-icon" aria-hidden="true">
-                <RefreshCw size={15} />
-              </span>
-              <span className="app-update-action-copy">
-                <span>Actualiser</span>
-                <strong>immédiatement</strong>
-              </span>
+              <RefreshCw size={14} />
+              Actualiser immédiatement
             </button>
           </motion.div>
         </div>
