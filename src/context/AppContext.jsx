@@ -270,8 +270,8 @@ export const AppProvider = ({ children }) => {
   const accessLoggedRef = useRef(false);
 
   // Modal de confirmation global
-  const [confirmState, setConfirmState] = useState({ 
-    isOpen: false, title: '', message: '', type: 'danger', resolve: null 
+  const [confirmState, setConfirmState] = useState({
+    isOpen: false, title: '', message: '', type: 'danger', confirmText: '', cancelText: '', resolve: null
   });
 
   const confirmAction = (options) => {
@@ -281,6 +281,8 @@ export const AppProvider = ({ children }) => {
         title: options.title || 'Confirmation',
         message: options.message || 'Êtes-vous sûr de vouloir continuer ?',
         type: options.type || 'danger',
+        confirmText: options.confirmText || '',
+        cancelText: options.cancelText || '',
         resolve
       });
     });
@@ -1287,14 +1289,19 @@ export const AppProvider = ({ children }) => {
   const addContinuousTraining = async (data) => {
     const docRef = await addDoc(collection(db, 'continuousTrainings'), { ...data, createdAt: serverTimestamp() });
     setContinuousTrainings(prev => [{ id: docRef.id, ...data }, ...prev]);
+    showToast(`Formation continue créée : ${data.name || 'Sans nom'}`, 'success');
   };
   const updateContinuousTraining = async (id, data) => {
+    const current = continuousTrainings.find(item => item.id === id);
     await updateDoc(doc(db, 'continuousTrainings', id), data);
     setContinuousTrainings(prev => prev.map(item => item.id === id ? { ...item, ...data } : item));
+    showToast(`Formation continue mise à jour : ${data.name || current?.name || 'Sans nom'}`, 'success');
   };
   const deleteContinuousTraining = async (id) => {
+    const current = continuousTrainings.find(item => item.id === id);
     await deleteDoc(doc(db, 'continuousTrainings', id));
     setContinuousTrainings(prev => prev.filter(item => item.id !== id));
+    showToast(`Formation continue supprimée : ${current?.name || 'Sans nom'}`, 'warning');
   };
   const sortContinuousTrainingTypes = items =>
     [...items].sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'fr', { sensitivity: 'base' }));
@@ -1303,6 +1310,7 @@ export const AppProvider = ({ children }) => {
     const payload = { name, createdAt: serverTimestamp() };
     const docRef = await addDoc(collection(db, 'continuousTrainingTypes'), payload);
     setContinuousTrainingTypes(prev => sortContinuousTrainingTypes([{ id: docRef.id, name }, ...prev]));
+    showToast(`Type de formation continue ajouté : ${name}`, 'success');
   };
   const renameContinuousTrainingType = async ({ id, oldName, name }) => {
     const nextName = String(name || '').trim();
@@ -1327,34 +1335,52 @@ export const AppProvider = ({ children }) => {
     if (oldName && oldName !== nextName) {
       setContinuousTrainings(prev => prev.map(item => item.type === oldName ? { ...item, type: nextName } : item));
     }
+    showToast(`Type de formation continue modifié : ${nextName}`, 'success');
   };
   const deleteContinuousTrainingType = async (id) => {
+    const current = continuousTrainingTypes.find(item => item.id === id);
     await deleteDoc(doc(db, 'continuousTrainingTypes', id));
     setContinuousTrainingTypes(prev => prev.filter(item => item.id !== id));
+    showToast(`Type de formation continue supprimé : ${current?.name || 'Sans nom'}`, 'warning');
   };
   const addCtStudent = async (data) => {
     const docRef = await addDoc(collection(db, 'ctStudents'), { ...data, createdAt: serverTimestamp() });
     setCtStudents(prev => [{ id: docRef.id, ...data }, ...prev]);
+    showToast(`Stagiaire ajouté en formation continue : ${`${data.firstName || ''} ${data.lastName || ''}`.trim() || 'Sans nom'}`, 'success');
   };
   const updateCtStudent = async (id, data) => {
+    const current = ctStudents.find(item => item.id === id);
     await updateDoc(doc(db, 'ctStudents', id), data);
     setCtStudents(prev => prev.map(item => item.id === id ? { ...item, ...data } : item));
+    const studentName = `${data.firstName || current?.firstName || ''} ${data.lastName || current?.lastName || ''}`.trim();
+    showToast(`Stagiaire de formation continue mis à jour : ${studentName || 'Sans nom'}`, 'success');
   };
   const deleteCtStudent = async (id) => {
+    const current = ctStudents.find(item => item.id === id);
     await deleteDoc(doc(db, 'ctStudents', id));
     setCtStudents(prev => prev.filter(item => item.id !== id));
+    const studentName = `${current?.firstName || ''} ${current?.lastName || ''}`.trim();
+    showToast(`Stagiaire de formation continue supprimé : ${studentName || 'Sans nom'}`, 'warning');
   };
   const addCtSession = async (data) => {
     const docRef = await addDoc(collection(db, 'ctSessions'), { ...data, createdAt: serverTimestamp() });
     setCtSessions(prev => [{ id: docRef.id, ...data }, ...prev]);
+    const trainingName = continuousTrainings.find(training => training.id === data.trainingId)?.name || 'Formation continue';
+    showToast(`Séance de formation continue planifiée : ${trainingName}`, 'success');
   };
   const updateCtSession = async (id, data) => {
+    const current = ctSessions.find(item => item.id === id);
     await updateDoc(doc(db, 'ctSessions', id), data);
     setCtSessions(prev => prev.map(item => item.id === id ? { ...item, ...data } : item));
+    const trainingName = continuousTrainings.find(training => training.id === (data.trainingId || current?.trainingId))?.name || 'Formation continue';
+    showToast(`Séance de formation continue modifiée : ${trainingName}`, 'success');
   };
   const deleteCtSession = async (id) => {
+    const current = ctSessions.find(item => item.id === id);
     await deleteDoc(doc(db, 'ctSessions', id));
     setCtSessions(prev => prev.filter(item => item.id !== id));
+    const trainingName = continuousTrainings.find(training => training.id === current?.trainingId)?.name || 'Formation continue';
+    showToast(`Séance de formation continue supprimée : ${trainingName}`, 'warning');
   };
 
   return (
@@ -1381,6 +1407,8 @@ export const AppProvider = ({ children }) => {
         title={confirmState.title}
         message={confirmState.message}
         type={confirmState.type}
+        confirmText={confirmState.confirmText}
+        cancelText={confirmState.cancelText}
         onConfirm={handleConfirm}
         onCancel={handleCancel}
       />

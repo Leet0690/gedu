@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import {
   BookOpen, Plus, Trash2, Edit3, X, Users, CalendarDays, Wallet,
-  Search, ChevronDown, Phone, Clock,
+  Search, ChevronDown, ChevronLeft, ChevronRight, Phone, Clock,
   CheckCircle, FileDown, MapPin, GraduationCap,
   Languages, Monitor, Percent, BarChart3, User, List, LayoutGrid,
   Save, UserPlus, CalendarPlus, Filter,
@@ -103,7 +103,15 @@ const getTrainingTypeOptions = (trainings, managedTypes = []) => {
   ];
 };
 
-const SUPPORT_SUBJECTS = ['Français', 'SVT', 'MATHS', 'Physique'];
+const SUPPORT_SUBJECTS_BY_CYCLE = {
+  Primaire: ['Arabe', 'Français', 'Maths'],
+  Collège: ['Français', 'SVT', 'MATHS', 'Physique'],
+  Lycée: ['Français', 'SVT', 'MATHS', 'Physique'],
+};
+const getSubjectsForCycle = (cycle) => {
+  return SUPPORT_SUBJECTS_BY_CYCLE[cycle] || SUPPORT_SUBJECTS_BY_CYCLE['Collège'];
+};
+const SUPPORT_SUBJECTS = ['Arabe', 'Français', 'MATHS', 'SVT', 'Physique'];
 const SUPPORT_CYCLES = ['Primaire', 'Collège', 'Lycée'];
 const SUPPORT_LEVELS_BY_CYCLE = {
   Primaire: ['1ère année primaire', '2ème année primaire', '3ème année primaire', '4ème année primaire', '5ème année primaire', '6ème année primaire'],
@@ -123,12 +131,26 @@ const toMoney = value => {
   return Number.isFinite(amount) ? Math.max(0, amount) : 0;
 };
 
-const getTrainingGrossTotal = training =>
-  toMoney(training?.pricePerStudent) + toMoney(training?.registrationFee) + toMoney(training?.certificateFee);
+const getTrainingGrossTotal = training => toMoney(training?.pricePerStudent);
 
-const getTrainingDiscount = training => Math.min(toMoney(training?.discountAmount), getTrainingGrossTotal(training));
+const getStudentFees = student =>
+  toMoney(student?.registrationFee) + toMoney(student?.certificateFee);
 
-const getTrainingTotalDue = training => Math.max(0, getTrainingGrossTotal(training) - getTrainingDiscount(training));
+const getStudentGrossTotal = (student, training) =>
+  getTrainingGrossTotal(training) + getStudentFees(student);
+
+const getStudentDiscount = (student, training) =>
+  Math.min(toMoney(student?.discountAmount), getStudentGrossTotal(student, training));
+
+const getStudentTotalDue = (student, training) =>
+  Math.max(0, getStudentGrossTotal(student, training) - getStudentDiscount(student, training));
+
+const getTrainingPaymentSummary = (students, training) => ({
+  basePerStudent: getTrainingGrossTotal(training),
+  totalFees: students.reduce((sum, student) => sum + getStudentFees(student), 0),
+  totalDiscount: students.reduce((sum, student) => sum + getStudentDiscount(student, training), 0),
+  totalDue: students.reduce((sum, student) => sum + getStudentTotalDue(student, training), 0),
+});
 
 const getTeacherCompensationUnit = training => training?.teacherCompensationUnit === 'dh' ? 'dh' : 'percent';
 
@@ -150,7 +172,6 @@ const getPaymentMethodLabel = method =>
   PAYMENT_METHODS.find(item => item.value === method)?.label || PAYMENT_METHODS[0].label;
 
 const getDefaultSupportLevel = cycle => SUPPORT_LEVELS_BY_CYCLE[cycle]?.[0] || '';
-const isPrimaryCycle = cycle => cycle === 'Primaire';
 
 const getTrainingLevelLabel = training => {
   if (training?.type === 'langue') {
@@ -174,7 +195,7 @@ const getTrainingMetaTags = training => {
     return [
       training.cycle,
       training.level,
-      !isPrimaryCycle(training.cycle) ? training.subject : '',
+      training.subject,
     ].filter(Boolean);
   }
   return [];
@@ -194,7 +215,7 @@ const getTrainingPropertyRows = training => {
     return [
       { label: 'Cycle', value: training.cycle },
       { label: 'Niveau', value: training.level },
-      ...(!isPrimaryCycle(training.cycle) ? [{ label: 'Matière', value: training.subject }] : []),
+      ...(training.subject ? [{ label: 'Matière', value: training.subject }] : []),
     ].filter(item => item.value);
   }
   return [];
@@ -207,6 +228,8 @@ const TABS = [
   { id: 'planning', label: 'Planning', icon: CalendarDays, color: 'text-amber-500', activeBg: 'bg-amber-50' },
   { id: 'salaires', label: 'Salaires', icon: Wallet, color: 'text-green-600', activeBg: 'bg-green-50' },
 ];
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
+const DEFAULT_PAGE_SIZE = 10;
 
 /* ── Reusable primitives ─────────────────────────────────────── */
 
@@ -331,6 +354,85 @@ function TableHead({ cols }) {
   );
 }
 
+function usePaginatedItems(items, initialPageSize = DEFAULT_PAGE_SIZE) {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(initialPageSize);
+  const totalItems = items.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const startIndex = totalItems === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const endIndex = Math.min(safePage * pageSize, totalItems);
+  const pageItems = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return items.slice(start, start + pageSize);
+  }, [items, pageSize, safePage]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [items, pageSize]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  return {
+    items: pageItems,
+    page: safePage,
+    pageSize,
+    setPage,
+    setPageSize: value => setPageSize(Number(value) || DEFAULT_PAGE_SIZE),
+    totalItems,
+    totalPages,
+    startIndex,
+    endIndex,
+  };
+}
+
+function PaginationControls({ pagination, label = 'éléments' }) {
+  if (!pagination || pagination.totalItems === 0) return null;
+
+  return (
+    <div className="continuous-pagination flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white/80 px-3 py-2 text-xs font-semibold text-slate-500 shadow-sm">
+      <div>
+        {pagination.startIndex}-{pagination.endIndex} sur {pagination.totalItems} {label}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-slate-400">Par page</span>
+        <NativeSelect
+          value={pagination.pageSize}
+          onChange={e => pagination.setPageSize(e.target.value)}
+          className="h-8 w-[76px] py-1"
+        >
+          {PAGE_SIZE_OPTIONS.map(size => <option key={size} value={size}>{size}</option>)}
+        </NativeSelect>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => pagination.setPage(Math.max(1, pagination.page - 1))}
+            disabled={pagination.page <= 1}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            title="Page précédente"
+          >
+            <ChevronLeft size={14} />
+          </button>
+          <span className="min-w-[76px] text-center text-slate-600">
+            Page {pagination.page}/{pagination.totalPages}
+          </span>
+          <button
+            type="button"
+            onClick={() => pagination.setPage(Math.min(pagination.totalPages, pagination.page + 1))}
+            disabled={pagination.page >= pagination.totalPages}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            title="Page suivante"
+          >
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Formations tab ──────────────────────────────────────────── */
 
 function FormationsTab({ trainings, trainingTypes = [], ctStudents, onAdd, onEdit, onDelete }) {
@@ -347,6 +449,8 @@ function FormationsTab({ trainings, trainingTypes = [], ctStudents, onAdd, onEdi
     }
     return true;
   }), [trainings, search, typeFilter]);
+  const pagination = usePaginatedItems(filtered);
+  const pageTrainings = pagination.items;
 
   return (
     <div className="space-y-5">
@@ -394,14 +498,13 @@ function FormationsTab({ trainings, trainingTypes = [], ctStudents, onAdd, onEdi
           <table className="w-full text-sm">
             <TableHead cols={['Formation', 'Type', 'Propriétés', 'Tarifs', 'Formateur', 'Étudiants', 'Encaissement', 'Actions']} />
             <tbody className="divide-y divide-slate-50">
-              {filtered.map(tr => {
+              {pageTrainings.map(tr => {
                 const cfg = typeConfig(tr.type);
                 const properties = getTrainingPropertyRows(tr);
                 const trainingStudents = ctStudents.filter(s => s.trainingId === tr.id);
                 const studentCount = trainingStudents.length;
                 const totalPaid = trainingStudents.reduce((sum, s) => sum + (s.payments || []).reduce((a, p) => a + Number(p.amount || 0), 0), 0);
-                const duePerStudent = getTrainingTotalDue(tr);
-                const totalDue = duePerStudent * studentCount;
+                const { basePerStudent, totalFees, totalDiscount, totalDue } = getTrainingPaymentSummary(trainingStudents, tr);
                 const paidPct = totalDue > 0 ? Math.min(100, Math.round((totalPaid / totalDue) * 100)) : 0;
 
                 return (
@@ -433,12 +536,14 @@ function FormationsTab({ trainings, trainingTypes = [], ctStudents, onAdd, onEdi
                     </td>
                     <td className="px-4 py-3">
                       <div className="space-y-0.5 text-xs">
-                        <div className="font-black text-green-600">{duePerStudent.toLocaleString()} DH</div>
+                        <div className="font-black text-green-600">{basePerStudent.toLocaleString()} DH</div>
                         <div className="text-slate-400 font-semibold">Base {toMoney(tr.pricePerStudent).toLocaleString()} DH</div>
-                        {(toMoney(tr.registrationFee) > 0 || toMoney(tr.certificateFee) > 0 || toMoney(tr.discountAmount) > 0) && (
+                        {(totalFees > 0 || totalDiscount > 0) && (
                           <div className="text-[10px] text-slate-400">
-                            +{(toMoney(tr.registrationFee) + toMoney(tr.certificateFee)).toLocaleString()} DH frais
-                            {toMoney(tr.discountAmount) > 0 ? ` · -${toMoney(tr.discountAmount).toLocaleString()} DH remise` : ''}
+                            {[
+                              totalFees > 0 ? `+${totalFees.toLocaleString()} DH frais stagiaires` : '',
+                              totalDiscount > 0 ? `-${totalDiscount.toLocaleString()} DH remises stagiaires` : '',
+                            ].filter(Boolean).join(' | ')}
                           </div>
                         )}
                       </div>
@@ -482,18 +587,18 @@ function FormationsTab({ trainings, trainingTypes = [], ctStudents, onAdd, onEdi
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filtered.map(tr => {
+          {pageTrainings.map(tr => {
             const cfg = typeConfig(tr.type);
             const metaTags = getTrainingMetaTags(tr);
             const trainingStudents = ctStudents.filter(s => s.trainingId === tr.id);
             const studentCount = trainingStudents.length;
             const totalPaid = trainingStudents.reduce((sum, s) => sum + (s.payments || []).reduce((a, p) => a + Number(p.amount || 0), 0), 0);
-            const duePerStudent = getTrainingTotalDue(tr);
-            const totalDue = duePerStudent * studentCount;
+            const { basePerStudent, totalDue } = getTrainingPaymentSummary(trainingStudents, tr);
             const paidPct = totalDue > 0 ? Math.min(100, Math.round((totalPaid / totalDue) * 100)) : 0;
             const soldéCount = trainingStudents.filter(s => {
               const paid = (s.payments || []).reduce((a, p) => a + Number(p.amount || 0), 0);
-              return duePerStudent > 0 && paid >= duePerStudent;
+              const studentDue = getStudentTotalDue(s, tr);
+              return studentDue <= 0 || paid >= studentDue;
             }).length;
             const barColor = paidPct === 100 ? 'bg-green-500' : paidPct >= 50 ? 'bg-amber-400' : 'bg-red-400';
 
@@ -538,7 +643,7 @@ function FormationsTab({ trainings, trainingTypes = [], ctStudents, onAdd, onEdi
                     </div>
                     <div className="flex items-center gap-1.5 text-slate-500 font-semibold">
                       <Wallet size={11} className="text-green-400 shrink-0" />
-                      {duePerStudent.toLocaleString()} DH / étudiant
+                      {basePerStudent.toLocaleString()} DH / étudiant
                     </div>
                     <div className="flex items-center gap-1.5 text-slate-500">
                       <Percent size={11} className="text-amber-400 shrink-0" />
@@ -575,6 +680,7 @@ function FormationsTab({ trainings, trainingTypes = [], ctStudents, onAdd, onEdi
           })}
         </div>
       )}
+      {filtered.length > 0 && <PaginationControls pagination={pagination} label="formations" />}
     </div>
   );
 }
@@ -616,6 +722,8 @@ function TypesTab({ trainings, trainingTypes = [], onAdd, onEdit, onDelete }) {
         .filter(Boolean),
     ];
   }, [trainings, trainingTypes]);
+  const pagination = usePaginatedItems(rows);
+  const pageRows = pagination.items;
 
   return (
     <div className="space-y-5">
@@ -631,7 +739,7 @@ function TypesTab({ trainings, trainingTypes = [], onAdd, onEdit, onDelete }) {
         <table className="w-full text-sm">
           <TableHead cols={['Type', 'Statut', 'Formations', 'Actions']} />
           <tbody className="divide-y divide-slate-50">
-            {rows.map(row => {
+            {pageRows.map(row => {
               const cfg = typeConfig(row.value);
               const statusLabel = row.isSystem ? 'Système' : row.id ? 'Personnalisé' : 'Depuis formations';
               const canEdit = !row.isSystem;
@@ -684,6 +792,7 @@ function TypesTab({ trainings, trainingTypes = [], onAdd, onEdit, onDelete }) {
           </tbody>
         </table>
       </div>
+      <PaginationControls pagination={pagination} label="types" />
     </div>
   );
 }
@@ -698,6 +807,12 @@ function EtudiantsTab({ trainings, ctStudents, onAddStudent, onEditStudent, onDe
     return true;
   }), [ctStudents, trainingFilter, search]);
   const getTraining = id => trainings.find(t => t.id === id);
+  const pagination = usePaginatedItems(filtered);
+  const pageStudents = pagination.items;
+
+  useEffect(() => {
+    setExpandedId(null);
+  }, [pagination.page, pagination.pageSize]);
 
   return (
     <div className="space-y-5">
@@ -726,12 +841,12 @@ function EtudiantsTab({ trainings, ctStudents, onAddStudent, onEditStudent, onDe
           <table className="w-full text-sm">
             <TableHead cols={['Étudiant', 'Formation', 'Contact', 'Paiements', 'Statut', 'Actions']} />
             <tbody className="divide-y divide-slate-50">
-              {filtered.map(s => {
+              {pageStudents.map(s => {
                 const tr = getTraining(s.trainingId);
-                const totalDue = getTrainingTotalDue(tr);
+                const totalDue = getStudentTotalDue(s, tr);
                 const totalPaid = (s.payments || []).reduce((a, p) => a + Number(p.amount || 0), 0);
                 const remaining = totalDue - totalPaid;
-                const isPaid = totalDue > 0 && remaining <= 0;
+                const isPaid = Boolean(tr) && remaining <= 0;
                 const isPartial = !isPaid && totalPaid > 0;
                 const cfg = typeConfig(tr?.type);
 
@@ -757,6 +872,8 @@ function EtudiantsTab({ trainings, ctStudents, onAddStudent, onEditStudent, onDe
                       <td className="px-4 py-3">
                         <span className="text-sm font-bold text-green-600">{totalPaid.toLocaleString()} DH</span>
                         {totalDue > 0 && <span className="text-xs text-slate-400"> / {totalDue.toLocaleString()}</span>}
+                        {getStudentFees(s) > 0 && <div className="text-[10px] font-semibold text-slate-400 mt-0.5">Frais : {getStudentFees(s).toLocaleString()} DH</div>}
+                        {getStudentDiscount(s, tr) > 0 && <div className="text-[10px] font-semibold text-blue-400 mt-0.5">Remise : {getStudentDiscount(s, tr).toLocaleString()} DH</div>}
                         {isPartial && <div className="text-[10px] font-semibold text-red-400 mt-0.5">Reste : {remaining.toLocaleString()} DH</div>}
                       </td>
                       <td className="px-4 py-3">
@@ -824,6 +941,7 @@ function EtudiantsTab({ trainings, ctStudents, onAddStudent, onEditStudent, onDe
           </table>
         </div>
       )}
+      {filtered.length > 0 && <PaginationControls pagination={pagination} label="étudiants" />}
     </div>
   );
 }
@@ -843,7 +961,7 @@ function PlanningTab({ sessions, trainings, trainingTypes = [], onAddSession, on
   const getTraining = id => trainings.find(t => t.id === id);
   const today = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
   const effectiveCycleFilter = typeFilter === 'soutien' ? cycleFilter : 'all';
-  const effectiveSubjectFilter = typeFilter === 'soutien' && !isPrimaryCycle(effectiveCycleFilter) ? subjectFilter : 'all';
+  const effectiveSubjectFilter = typeFilter === 'soutien' ? subjectFilter : 'all';
   const effectiveLanguageFilter = typeFilter === 'langue' ? languageFilter : 'all';
   const effectiveLanguageAudienceFilter = typeFilter === 'langue' ? languageAudienceFilter : 'all';
   const levelOptions = useMemo(() => {
@@ -892,13 +1010,16 @@ function PlanningTab({ sessions, trainings, trainingTypes = [], onAddSession, on
     return Array.from(new Set([...LANGUAGE_AUDIENCES, ...existing]));
   }, [trainings, effectiveLanguageFilter]);
   const subjectOptions = useMemo(() => {
+    const cycleSubjects = effectiveCycleFilter === 'all'
+      ? SUPPORT_SUBJECTS
+      : getSubjectsForCycle(effectiveCycleFilter);
     const existing = trainings
       .filter(t => t.type === 'soutien')
       .filter(t => effectiveCycleFilter === 'all' || t.cycle === effectiveCycleFilter)
       .filter(t => effectiveLevelFilter === 'all' || t.level === effectiveLevelFilter)
       .map(t => t.subject)
       .filter(Boolean);
-    return Array.from(new Set([...SUPPORT_SUBJECTS, ...existing]));
+    return Array.from(new Set([...cycleSubjects, ...existing]));
   }, [trainings, effectiveCycleFilter, effectiveLevelFilter]);
   const filteredTrainings = useMemo(() => trainings.filter(training => {
     if (typeFilter !== 'all' && training.type !== typeFilter) return false;
@@ -918,7 +1039,9 @@ function PlanningTab({ sessions, trainings, trainingTypes = [], onAddSession, on
     if (effectiveTrainingFilter !== 'all' && s.trainingId !== effectiveTrainingFilter) return false;
     return filteredTrainingIds.has(s.trainingId);
   }), [sessions, effectiveTrainingFilter, filteredTrainingIds]);
-  const activeDays = useMemo(() => DAYS.filter(d => filtered.some(s => s.day === d)), [filtered]);
+  const pagination = usePaginatedItems(filtered);
+  const pageSessions = pagination.items;
+  const activeDays = useMemo(() => DAYS.filter(d => pageSessions.some(s => s.day === d)), [pageSessions]);
 
   return (
     <div className="space-y-5">
@@ -982,7 +1105,7 @@ function PlanningTab({ sessions, trainings, trainingTypes = [], onAddSession, on
           </Select>
         )}
 
-        {typeFilter === 'soutien' && !isPrimaryCycle(effectiveCycleFilter) && (
+        {typeFilter === 'soutien' && (
           <Select value={effectiveSubjectFilter} onValueChange={value => { setSubjectFilter(value); setTrainingFilter('all'); }}>
             <SelectTrigger className="w-44 border-slate-200 bg-white">
               <SelectValue placeholder="Matière" />
@@ -1036,7 +1159,7 @@ function PlanningTab({ sessions, trainings, trainingTypes = [], onAddSession, on
             <table className="w-full text-sm">
               <TableHead cols={['Jour', 'Horaire', 'Formation', 'Formateur', 'Salle', '']} />
               <tbody className="divide-y divide-slate-50">
-                {filtered.map(s => {
+                {pageSessions.map(s => {
                   const tr = getTraining(s.trainingId);
                   const cfg = typeConfig(tr?.type);
                   const metaTags = getTrainingMetaTags(tr);
@@ -1121,7 +1244,7 @@ function PlanningTab({ sessions, trainings, trainingTypes = [], onAddSession, on
                 {/* Rows (Days) */}
                 <div className="home-schedule-rows-container" style={{ position: 'relative' }}>
                   {activeDays.map(day => {
-                    const daySessions = filtered.filter(s => s.day === day);
+                    const daySessions = pageSessions.filter(s => s.day === day);
                     const colors = getDayColors(day);
                     
                     return (
@@ -1238,6 +1361,7 @@ function PlanningTab({ sessions, trainings, trainingTypes = [], onAddSession, on
           )}
         </div>
       )}
+      {filtered.length > 0 && <PaginationControls pagination={pagination} label="séances" />}
     </div>
   );
 }
@@ -1258,6 +1382,8 @@ function SalairesTab({ trainings, ctStudents }) {
     const salary = getTeacherSalary(tr, totalEncaisse);
     return { tr, students, totalEncaisse, teacherLabel: getTeacherCompensationLabel(tr), salary, cfg: typeConfig(tr.type) };
   }), [trainings, ctStudents]);
+  const pagination = usePaginatedItems(rows);
+  const pageRows = pagination.items;
 
   const totalRevenue = rows.reduce((a, r) => a + r.totalEncaisse, 0);
   const totalSalaries = rows.reduce((a, r) => a + r.salary, 0);
@@ -1304,7 +1430,7 @@ function SalairesTab({ trainings, ctStudents }) {
           <table className="w-full text-sm">
             <TableHead cols={['Formation', 'Formateur', 'Étudiants', 'Total encaissé', 'Part formateur', 'Salaire', 'Marge']} />
             <tbody className="divide-y divide-slate-50">
-              {rows.map(({ tr, students, totalEncaisse, teacherLabel, salary, cfg }) => {
+              {pageRows.map(({ tr, students, totalEncaisse, teacherLabel, salary, cfg }) => {
                 const marge = totalEncaisse - salary;
                 return (
                   <tr key={tr.id} className="hover:bg-slate-50/60 transition-colors">
@@ -1348,6 +1474,7 @@ function SalairesTab({ trainings, ctStudents }) {
           </table>
         </div>
       )}
+      {rows.length > 0 && <PaginationControls pagination={pagination} label="formations" />}
     </div>
   );
 }
@@ -1378,9 +1505,6 @@ export default function ContinuousTrainings() {
     description: '',
     teacherId: '',
     pricePerStudent: '',
-    registrationFee: '',
-    certificateFee: '',
-    discountAmount: '',
     teacherPct: '',
     teacherCompensationUnit: 'percent',
     language: LANGUAGE_OPTIONS[0],
@@ -1406,15 +1530,12 @@ export default function ContinuousTrainings() {
       description: tr.description || '',
       teacherId: tr.teacherId || '',
       pricePerStudent: tr.pricePerStudent ?? '',
-      registrationFee: tr.registrationFee ?? '',
-      certificateFee: tr.certificateFee ?? '',
-      discountAmount: tr.discountAmount ?? '',
       teacherPct: tr.teacherPct ?? '',
       teacherCompensationUnit: getTeacherCompensationUnit(tr),
       language: tr.language || LANGUAGE_OPTIONS[0],
       languageAudience: tr.languageAudience || LANGUAGE_AUDIENCES[0],
       languageAdultLevel: tr.languageAdultLevel || '',
-      subject: isPrimaryCycle(cycle) ? '' : (tr.subject || SUPPORT_SUBJECTS[0]),
+      subject: tr.subject || getSubjectsForCycle(cycle)[0],
       cycle,
       level: tr.level || getDefaultSupportLevel(cycle),
     });
@@ -1440,7 +1561,7 @@ export default function ContinuousTrainings() {
         return {
           ...prev,
           type: value,
-          subject: isPrimaryCycle(cycle) ? '' : (prev.subject || SUPPORT_SUBJECTS[0]),
+          subject: prev.subject || getSubjectsForCycle(cycle)[0],
           cycle,
           level: prev.level || getDefaultSupportLevel(cycle),
         };
@@ -1463,26 +1584,22 @@ export default function ContinuousTrainings() {
       ...tForm,
       teacherName: teacher?.name || '',
       pricePerStudent: toMoney(tForm.pricePerStudent),
-      registrationFee: toMoney(tForm.registrationFee),
-      certificateFee: toMoney(tForm.certificateFee),
-      discountAmount: toMoney(tForm.discountAmount),
       teacherPct: teacherValue,
       teacherCompensationUnit: tForm.teacherCompensationUnit === 'dh' ? 'dh' : 'percent',
       language: tForm.type === 'langue' ? tForm.language : '',
       languageAudience: tForm.type === 'langue' ? tForm.languageAudience : '',
       languageAdultLevel: tForm.type === 'langue' && tForm.languageAudience === 'ADULTES' ? tForm.languageAdultLevel : '',
-      subject: tForm.type === 'soutien' && !isPrimaryCycle(tForm.cycle) ? tForm.subject : '',
+      subject: tForm.type === 'soutien' ? tForm.subject : '',
       cycle: tForm.type === 'soutien' ? tForm.cycle : '',
       level: tForm.type === 'soutien' ? tForm.level : '',
     };
-    if (editingTraining) { await updateContinuousTraining(editingTraining.id, data); showToast(`Formation continue mise à jour : ${data.name}`, 'success'); }
-    else { await addContinuousTraining(data); showToast(`Formation continue créée : ${data.name}`, 'success'); }
+    if (editingTraining) await updateContinuousTraining(editingTraining.id, data);
+    else await addContinuousTraining(data);
     setTrainingModal(false);
   };
   const handleDeleteTraining = async tr => {
     if (await confirmAction({ title: 'Supprimer', message: 'Supprimer cette formation ?', type: 'danger' })) {
       await deleteContinuousTraining(tr.id);
-      showToast(`Formation continue supprimée : ${tr.name}`, 'warning');
     }
   };
 
@@ -1513,10 +1630,8 @@ export default function ContinuousTrainings() {
 
     if (editingType) {
       await renameContinuousTrainingType?.({ id: editingType.id, oldName: editingType.value, name });
-      showToast(`Type modifié : ${name}`, 'success');
     } else {
       await addContinuousTrainingType?.({ name });
-      showToast(`Type ajouté : ${name}`, 'success');
     }
     setTypeModal(false);
   };
@@ -1529,25 +1644,34 @@ export default function ContinuousTrainings() {
     if (!type.id) { showToast('Ce type est généré depuis les formations existantes', 'warning'); return; }
     if (await confirmAction({ title: 'Supprimer', message: `Supprimer le type "${type.label}" ?`, type: 'danger' })) {
       await deleteContinuousTrainingType?.(type.id);
-      showToast(`Type supprimé : ${type.label}`, 'warning');
     }
   };
 
   /* Student modal */
   const [studentModal, setStudentModal] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
-  const emptyS = { firstName: '', lastName: '', phone: '', trainingId: '', payments: [] };
+  const emptyS = { firstName: '', lastName: '', phone: '', trainingId: '', registrationFee: '', certificateFee: '', discountAmount: '', payments: [] };
   const [sForm, setSForm] = useState(emptyS);
   const today = new Date().toISOString().split('T')[0];
   const emptyPayment = { amount: '', date: today, method: 'espece' };
   const [newPayment, setNewPayment] = useState(emptyPayment);
   const openAddStudent = (preId = '') => { setEditingStudent(null); setSForm({ ...emptyS, trainingId: preId }); setNewPayment(emptyPayment); setStudentModal(true); };
-  const openEditStudent = s => { setEditingStudent(s); setSForm({ ...s }); setNewPayment(emptyPayment); setStudentModal(true); };
+  const openEditStudent = s => {
+    setEditingStudent(s);
+    setSForm({
+      ...s,
+      registrationFee: s.registrationFee ?? '',
+      certificateFee: s.certificateFee ?? '',
+      discountAmount: s.discountAmount ?? '',
+    });
+    setNewPayment(emptyPayment);
+    setStudentModal(true);
+  };
   const addPaymentEntry = () => {
     if (!sForm.trainingId) { showToast("Sélectionnez une formation d'abord", 'error'); return; }
     if (!newPayment.amount || isNaN(Number(newPayment.amount))) { showToast('Montant invalide', 'error'); return; }
     const tr = continuousTrainings.find(t => t.id === sForm.trainingId);
-    const totalDue = getTrainingTotalDue(tr);
+    const totalDue = getStudentTotalDue(sForm, tr);
     const currentPaid = (sForm.payments || []).reduce((a, p) => a + Number(p.amount || 0), 0);
     const newAmount = Number(newPayment.amount);
     if (currentPaid + newAmount > totalDue) { showToast(`Le total dépasse le prix de la formation (${totalDue} DH)`, 'error'); return; }
@@ -1558,24 +1682,27 @@ export default function ContinuousTrainings() {
   const saveStudent = async () => {
     if (!sForm.firstName.trim() || !sForm.lastName.trim()) { showToast('Nom et prénom requis', 'error'); return; }
     if (!sForm.trainingId) { showToast('Sélectionnez une formation', 'error'); return; }
-    let finalSForm = { ...sForm };
+    let finalSForm = {
+      ...sForm,
+      registrationFee: toMoney(sForm.registrationFee),
+      certificateFee: toMoney(sForm.certificateFee),
+      discountAmount: toMoney(sForm.discountAmount)
+    };
     if (newPayment.amount && !isNaN(Number(newPayment.amount))) {
       const tr = continuousTrainings.find(t => t.id === sForm.trainingId);
-      const totalDue = getTrainingTotalDue(tr);
+      const totalDue = getStudentTotalDue(finalSForm, tr);
       const currentPaid = (finalSForm.payments || []).reduce((a, p) => a + Number(p.amount || 0), 0);
       const newAmount = Number(newPayment.amount);
       if (currentPaid + newAmount > totalDue) { showToast(`Le paiement dépasse le prix (${totalDue} DH)`, 'error'); return; }
       finalSForm.payments = [...(finalSForm.payments || []), { ...newPayment, amount: newAmount }];
     }
-    const studentName = `${finalSForm.firstName} ${finalSForm.lastName}`.trim();
-    if (editingStudent) { await updateCtStudent(editingStudent.id, finalSForm); showToast(`Stagiaire de formation continue mis à jour : ${studentName}`, 'success'); }
-    else { await addCtStudent(finalSForm); showToast(`Stagiaire ajouté en formation continue : ${studentName}`, 'success'); }
+    if (editingStudent) await updateCtStudent(editingStudent.id, finalSForm);
+    else await addCtStudent(finalSForm);
     setStudentModal(false);
   };
   const handleDeleteStudent = async s => {
     if (await confirmAction({ title: 'Supprimer', message: 'Supprimer cet étudiant ?', type: 'danger' })) {
       await deleteCtStudent(s.id);
-      showToast(`Stagiaire de formation continue supprimé : ${s.firstName} ${s.lastName}`, 'warning');
     }
   };
 
@@ -1589,16 +1716,13 @@ export default function ContinuousTrainings() {
   const saveSession = async () => {
     if (!sesForm.trainingId) { showToast('Sélectionnez une formation', 'error'); return; }
     const time = `${sesForm.startTime}-${sesForm.endTime}`;
-    const trainingName = continuousTrainings.find(training => training.id === sesForm.trainingId)?.name || 'Formation continue';
-    if (editingSession) { await updateCtSession(editingSession.id, { ...sesForm, time }); showToast(`Séance de formation continue modifiée : ${trainingName}`, 'success'); }
-    else { await addCtSession({ ...sesForm, time }); showToast(`Séance de formation continue planifiée : ${trainingName}`, 'success'); }
+    if (editingSession) await updateCtSession(editingSession.id, { ...sesForm, time });
+    else await addCtSession({ ...sesForm, time });
     setSessionModal(false);
   };
   const handleDeleteSession = async s => {
     if (await confirmAction({ title: 'Supprimer', message: 'Supprimer cette séance ?', type: 'danger' })) {
       await deleteCtSession(s.id);
-      const trainingName = continuousTrainings.find(training => training.id === s.trainingId)?.name || 'Formation continue';
-      showToast(`Séance de formation continue supprimée : ${trainingName}`, 'warning');
     }
   };
 
@@ -1679,16 +1803,16 @@ export default function ContinuousTrainings() {
 
       // Calculations for receipt
       const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-      const totalDue = getTrainingTotalDue(training);
+      const totalDue = getStudentTotalDue(student, training);
       const remaining = totalDue - totalPaid;
       const receiptLines = [
         ['Versement actuel', `${Number(payment.amount).toLocaleString('fr-FR')} DH`],
         ['Mode de paiement', getPaymentMethodLabel(payment.method)],
         ['Prix formation', `${toMoney(training.pricePerStudent).toLocaleString('fr-FR')} DH`],
       ];
-      if (toMoney(training.registrationFee) > 0) receiptLines.push(["Frais d'inscription", `${toMoney(training.registrationFee).toLocaleString('fr-FR')} DH`]);
-      if (toMoney(training.certificateFee) > 0) receiptLines.push(["Frais d'attestation", `${toMoney(training.certificateFee).toLocaleString('fr-FR')} DH`]);
-      if (getTrainingDiscount(training) > 0) receiptLines.push(['Remise', `-${getTrainingDiscount(training).toLocaleString('fr-FR')} DH`]);
+      if (toMoney(student.registrationFee) > 0) receiptLines.push(["Frais d'inscription", `${toMoney(student.registrationFee).toLocaleString('fr-FR')} DH`]);
+      if (toMoney(student.certificateFee) > 0) receiptLines.push(["Frais d'attestation", `${toMoney(student.certificateFee).toLocaleString('fr-FR')} DH`]);
+      if (toMoney(student.discountAmount) > 0) receiptLines.push(['Remise', `-${toMoney(student.discountAmount).toLocaleString('fr-FR')} DH`]);
       receiptLines.push(['Total à payer', `${totalDue.toLocaleString('fr-FR')} DH`]);
       receiptLines.push(['Total payé', `${totalPaid.toLocaleString('fr-FR')} DH`]);
 
@@ -1845,11 +1969,12 @@ export default function ContinuousTrainings() {
                     value={tForm.cycle}
                     onChange={e => {
                       const cycle = e.target.value;
+                      const subjects = getSubjectsForCycle(cycle);
                       setTForm(p => ({
                         ...p,
                         cycle,
                         level: getDefaultSupportLevel(cycle),
-                        subject: isPrimaryCycle(cycle) ? '' : (p.subject || SUPPORT_SUBJECTS[0]),
+                        subject: subjects[0] || '',
                       }));
                     }}
                   >
@@ -1861,13 +1986,11 @@ export default function ContinuousTrainings() {
                     {(SUPPORT_LEVELS_BY_CYCLE[tForm.cycle] || []).map(level => <option key={level} value={level}>{level}</option>)}
                   </NativeSelect>
                 </Field>
-                {!isPrimaryCycle(tForm.cycle) && (
-                  <Field label="Matière">
-                    <NativeSelect value={tForm.subject} onChange={e => setTForm(p => ({ ...p, subject: e.target.value }))}>
-                      {SUPPORT_SUBJECTS.map(subject => <option key={subject} value={subject}>{subject}</option>)}
-                    </NativeSelect>
-                  </Field>
-                )}
+                <Field label="Matière">
+                  <NativeSelect value={tForm.subject} onChange={e => setTForm(p => ({ ...p, subject: e.target.value }))}>
+                    {getSubjectsForCycle(tForm.cycle).map(subject => <option key={subject} value={subject}>{subject}</option>)}
+                  </NativeSelect>
+                </Field>
               </div>
             )}
             <Field label="Description">
@@ -1896,15 +2019,6 @@ export default function ContinuousTrainings() {
               <Field label="Prix / étudiant (DH)">
                 <Input type="number" value={tForm.pricePerStudent} onChange={e => setTForm(p => ({ ...p, pricePerStudent: e.target.value }))} placeholder="0" className="border-slate-200" />
               </Field>
-              <Field label="Frais d'inscription (DH)">
-                <Input type="number" value={tForm.registrationFee} onChange={e => setTForm(p => ({ ...p, registrationFee: e.target.value }))} placeholder="Optionnel" className="border-slate-200" />
-              </Field>
-              <Field label="Frais d'attestation (DH)">
-                <Input type="number" value={tForm.certificateFee} onChange={e => setTForm(p => ({ ...p, certificateFee: e.target.value }))} placeholder="Optionnel" className="border-slate-200" />
-              </Field>
-              <Field label="Remise (DH)">
-                <Input type="number" value={tForm.discountAmount} onChange={e => setTForm(p => ({ ...p, discountAmount: e.target.value }))} placeholder="0" className="border-slate-200" />
-              </Field>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_112px] gap-2">
               <Field label="Part formateur">
@@ -1926,8 +2040,8 @@ export default function ContinuousTrainings() {
               </Field>
             </div>
             <div className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-600 flex items-center justify-between">
-              <span>Total à payer par étudiant</span>
-              <span className="text-green-600">{getTrainingTotalDue(tForm).toLocaleString()} DH</span>
+              <span>Prix de base par étudiant</span>
+              <span className="text-green-600">{getTrainingGrossTotal(tForm).toLocaleString()} DH</span>
             </div>
           </div>
           <DialogFooter>
@@ -2006,7 +2120,25 @@ export default function ContinuousTrainings() {
                   {continuousTrainings.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </NativeSelect>
               </Field>
+              <Field label="Frais d'inscription (DH)">
+                <Input type="number" value={sForm.registrationFee} onChange={e => setSForm(p => ({ ...p, registrationFee: e.target.value }))} placeholder="Optionnel" className="border-slate-200" />
+              </Field>
+              <Field label="Frais d'attestation (DH)">
+                <Input type="number" value={sForm.certificateFee} onChange={e => setSForm(p => ({ ...p, certificateFee: e.target.value }))} placeholder="Optionnel" className="border-slate-200" />
+              </Field>
+              <Field label="Remise (DH)">
+                <Input type="number" value={sForm.discountAmount} onChange={e => setSForm(p => ({ ...p, discountAmount: e.target.value }))} placeholder="0" className="border-slate-200" />
+              </Field>
             </div>
+
+            {sForm.trainingId && (
+              <div className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-600 flex items-center justify-between mt-2">
+                <span>Total à payer (frais/remise inclus)</span>
+                <span className="text-green-600">
+                  {getStudentTotalDue(sForm, continuousTrainings.find(t => t.id === sForm.trainingId)).toLocaleString()} DH
+                </span>
+              </div>
+            )}
 
             <div className="border-t border-slate-100 pt-2.5 space-y-2">
               <p className="text-xs font-bold text-slate-700 flex items-center gap-1.5">

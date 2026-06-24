@@ -291,16 +291,14 @@ export default function DashboardLayout({ children }) {
               className="premium-layout-toggle desktop-menu-btn"
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               aria-label={isSidebarOpen ? "Réduire le menu" : "Développer le menu"}
-              style={{
-                width: '36px', height: '36px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)',
-                background: 'var(--white)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                transition: 'all 0.12s', boxShadow: 'var(--shadow-xs)'
-              }}
             >
-             <ChevronLeft 
-                size={18} 
-                style={{ transform: isSidebarOpen ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 0.16s' }} 
-              />
+              <span className="premium-layout-toggle-glow" aria-hidden="true" />
+              <span className="premium-layout-toggle-icon">
+                <ChevronLeft
+                  size={18}
+                  style={{ transform: isSidebarOpen ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 0.16s' }}
+                />
+              </span>
             </button>
 
             {/* Mobile toggler */}
@@ -453,14 +451,17 @@ export default function DashboardLayout({ children }) {
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
-            style={{ position: 'fixed', bottom: '30px', right: '30px', zIndex: 90 }}
+            className="premium-scrolltop-wrap"
           >
             <button 
               onClick={scrollToTop}
-              className="btn-modern primary"
-              style={{ width: '44px', height: '44px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', boxShadow: '0 8px 24px rgba(79, 70, 229, 0.25)' }}
+              className="premium-scrolltop-button"
+              type="button"
+              aria-label="Retour en haut"
+              title="Retour en haut"
             >
-              <ArrowUp size={20} />
+              <span className="premium-scrolltop-glow" aria-hidden="true" />
+              <ArrowUp size={20} strokeWidth={2.8} />
             </button>
           </motion.div>
         )}

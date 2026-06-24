@@ -2,7 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, AlertCircle, Info, CheckCircle2 } from 'lucide-react';
 
-const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, type = 'danger' }) => {
+const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, type = 'danger', confirmText, cancelText }) => {
   if (!isOpen) return null;
 
   const themes = {
@@ -30,6 +30,8 @@ const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, type = 'dan
 
   const theme = themes[type] || themes.danger;
   const Icon = theme.icon;
+  const defaultConfirmText = type === 'danger' ? 'Supprimer' : 'Confirmer';
+  const defaultCancelText = 'Annuler';
 
   return (
     <AnimatePresence>
@@ -78,24 +80,25 @@ const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, type = 'dan
           <div style={{ display: 'flex', gap: '12px' }}>
             <button 
               onClick={onCancel}
-              className="btn-modern"
+              className="btn-modern btn-confirm-cancel"
               style={{ flex: 1, justifyContent: 'center', background: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: 'none' }}
             >
-              Annuler
+              {cancelText || defaultCancelText}
             </button>
             <button 
               onClick={onConfirm}
-              className="btn-modern"
+              className="btn-modern btn-confirm-submit"
               style={{ 
                 flex: 1.5, 
                 justifyContent: 'center', 
                 background: theme.primary,
+                '--confirm-bg': theme.primary,
                 color: 'white',
                 border: 'none',
                 boxShadow: `0 10px 20px -10px ${theme.primary}`
               }}
             >
-              Confirmer
+              {confirmText || defaultConfirmText}
             </button>
           </div>
         </motion.div>

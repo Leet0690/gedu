@@ -105,6 +105,8 @@ const formatRelativeTime = (timestamp) => {
 };
 
 const getActivityIcon = (message) => {
+  const lower = String(message || '').toLowerCase();
+  if (lower.includes('formation continue')) return { icon: GraduationCap, color: '#7c3aed', bg: 'rgba(124,58,237,0.08)' };
   if (message.includes('stagiaire') && message.includes('ajouté')) return { icon: UserPlus, color: '#16a34a', bg: 'rgba(22,163,74,0.1)' };
   if (message.includes('formateur') && message.includes('ajouté')) return { icon: UserPlus, color: '#0ea5e9', bg: 'rgba(14,165,233,0.1)' };
   if (message.includes('supprimé') || message.includes('supprimée')) return { icon: Trash2, color: '#dc2626', bg: 'rgba(220,38,38,0.08)' };
@@ -119,6 +121,7 @@ const getActivityIcon = (message) => {
 const getActivityVisual = (message = '') => {
   const lower = message.toLowerCase();
   const fallbackIcon = getActivityIcon(message)?.icon || Activity;
+  if (lower.includes('formation continue')) return { icon: GraduationCap, tone: 'violet' };
   if (lower.includes('stagiaire') && lower.includes('ajout')) return { icon: UserPlus, tone: 'success' };
   if (lower.includes('formateur') && lower.includes('ajout')) return { icon: UserPlus, tone: 'info' };
   if (lower.includes('supprim')) return { icon: Trash2, tone: 'danger' };
