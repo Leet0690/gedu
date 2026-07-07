@@ -2,15 +2,22 @@ import { initializeApp } from "firebase/app";
 import { getFirestore, collection, getDocs } from "firebase/firestore";
 import fs from 'fs';
 import path from 'path';
+import { cwd, env, exit, loadEnvFile } from 'node:process';
+
+try { loadEnvFile(); } catch { /* Environment variables may already be exported. */ }
+
+if (!env.VITE_FIREBASE_API_KEY) {
+  throw new Error("Firebase config manquante. Définissez VITE_FIREBASE_API_KEY et les autres variables VITE_FIREBASE_*");
+}
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAG7CiN3A1ZaVDU21AFaFHTwi38CnDs-do",
-  authDomain: "ipfp-4802c.firebaseapp.com",
-  projectId: "ipfp-4802c",
-  storageBucket: "ipfp-4802c.firebasestorage.app",
-  messagingSenderId: "623262953318",
-  appId: "1:623262953318:web:7b91cfbaadf810de5f22a7",
-  measurementId: "G-LD4GH0PPK7"
+  apiKey: env.VITE_FIREBASE_API_KEY,
+  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: env.VITE_FIREBASE_APP_ID,
+  measurementId: env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 const app = initializeApp(firebaseConfig);
@@ -34,7 +41,7 @@ const collections = [
 
 async function backup() {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const backupDir = path.join(process.cwd(), 'backups', `backup-${timestamp}`);
+  const backupDir = path.join(cwd(), 'backups', `backup-${timestamp}`);
   
   if (!fs.existsSync(backupDir)) {
     fs.mkdirSync(backupDir, { recursive: true });
@@ -60,7 +67,7 @@ async function backup() {
   }
 
   console.log('Backup completed successfully!');
-  process.exit(0);
+  exit(0);
 }
 
 backup();

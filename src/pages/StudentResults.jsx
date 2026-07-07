@@ -55,23 +55,19 @@ const gradeColor = (val) => {
   return 'var(--danger)';
 };
 
+const GRADE_STYLES = {
+  dash: { color: 'var(--text-faint)', fontSize: '13px', fontWeight: '500' },
+  base: { fontSize: '13px', fontWeight: '800', padding: '4px 10px', borderRadius: '8px', display: 'inline-block', minWidth: '38px', textAlign: 'center' }
+};
+
+const getGradeBg = (n) => isNaN(n) ? 'transparent' : n >= 14 ? 'var(--success-ultra-light)' : n >= 10 ? 'var(--warning-ultra-light)' : 'var(--danger-ultra-light)';
+const getGradeBorder = (n) => isNaN(n) ? 'none' : `1px solid ${n >= 14 ? 'rgba(22,163,74,0.15)' : n >= 10 ? 'rgba(217,119,6,0.15)' : 'rgba(220,38,38,0.12)'}`;
+
 const Grade = ({ val }) => {
-  if (!val && val !== 0) return <span style={{ color: 'var(--text-faint)', fontSize: '13px', fontWeight: '500' }}>—</span>;
+  if (!val && val !== 0) return <span style={GRADE_STYLES.dash}>—</span>;
   const n = parseFloat(val);
-  const color = gradeColor(val);
   return (
-    <span style={{
-      fontSize: '13px', 
-      fontWeight: '800', 
-      color,
-      background: isNaN(n) ? 'transparent' : n >= 14 ? 'var(--success-ultra-light)' : n >= 10 ? 'var(--warning-ultra-light)' : 'var(--danger-ultra-light)',
-      padding: '4px 10px', 
-      borderRadius: '8px',
-      border: isNaN(n) ? 'none' : `1px solid ${n >= 14 ? 'rgba(22,163,74,0.15)' : n >= 10 ? 'rgba(217,119,6,0.15)' : 'rgba(220,38,38,0.12)'}`,
-      display: 'inline-block',
-      minWidth: '38px',
-      textAlign: 'center'
-    }}>
+    <span style={{ ...GRADE_STYLES.base, color: gradeColor(val), background: getGradeBg(n), border: getGradeBorder(n) }}>
       {n.toFixed(2).replace(/\.00$/, '')}
     </span>
   );
@@ -336,7 +332,7 @@ const StudentResults = () => {
                       <th style={{ padding: '16px', fontSize: '11px', fontWeight: '800', textAlign: 'center', width: '70px' }}>C1</th>
                       <th style={{ padding: '16px', fontSize: '11px', fontWeight: '800', textAlign: 'center', width: '70px' }}>C2</th>
                       <th style={{ padding: '16px', fontSize: '11px', fontWeight: '800', textAlign: 'center', width: '70px' }}>C3</th>
-                      <th style={{ padding: '16px', fontSize: '11px', fontWeight: '800', textAlign: 'center', width: '90px', background: 'rgba(124, 58, 237, 0.05)', color: '#6d28d9', fontWeight: '900' }}>Moy CC</th>
+                      <th style={{ padding: '16px', fontSize: '11px', fontWeight: '900', textAlign: 'center', width: '90px', background: 'rgba(124, 58, 237, 0.05)', color: '#6d28d9' }}>Moy CC</th>
                       <th style={{ padding: '16px', fontSize: '11px', fontWeight: '800', textAlign: 'center', width: '95px' }}>EFC FP</th>
                       <th style={{ padding: '16px', fontSize: '11px', fontWeight: '800', textAlign: 'center', width: '95px' }}>EFC FT</th>
                       <th style={{ padding: '16px', fontSize: '11px', fontWeight: '800', textAlign: 'center', width: '95px' }}>Note finale</th>

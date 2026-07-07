@@ -386,8 +386,8 @@ const ModuleManagement = () => {
                   </td>
                 </tr>
               ) : (
-                paginatedModules.map((m, idx) => (
-                  <tr key={idx} className="module-premium-table-row" style={{ borderBottom: '1px solid var(--border-light)' }}>
+                paginatedModules.map((m) => (
+                  <tr key={m.id} className="module-premium-table-row" style={{ borderBottom: '1px solid var(--border-light)' }}>
                     <td style={{ padding: '16px' }}>
                       <p style={{ fontWeight: '700', color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}>{m.name}</p>
                     </td>

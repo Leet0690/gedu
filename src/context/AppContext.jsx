@@ -21,7 +21,8 @@ import { db } from '../firebase';
 import ConfirmModal from '../components/ConfirmModal';
 import { useToast } from './ToastContext';
 import { sanitizeGradeKey } from '../utils/gradeSync';
-import { makeStudentAttendanceDocId } from '../utils/attendanceKeys';
+import { getStudentAttendanceWriteTarget } from '../utils/attendanceKeys';
+import { getScheduleModuleForSemester, normalizeSemester } from '../utils/scheduleSemester';
 import { STUDENT_STATUS, isActiveStudent, validateAcademicYearTransition } from '../utils/studentStatus';
 import { getNextStudyYear, isKnownStudyYear } from '../data/modules';
 
@@ -41,12 +42,13 @@ export const useApp = () => useContext(AppContext);
 // Cache sessionStorage (TTL 30 min)
 // ──────────────────────────────────────────────────────────
 const CORE_CACHE_KEY = 'ipfp_v2_core_cache';
-const FINANCE_CACHE_KEY = 'ipfp_v2_finance_cache';
+const FINANCE_CACHE_PAYMENTS_KEY = 'ipfp_v2_finance_payments';
+const FINANCE_CACHE_SALARIES_KEY = 'ipfp_v2_finance_salaries';
+const FINANCE_CACHE_EXPENSES_KEY = 'ipfp_v2_finance_expenses';
 const CORE_CACHE_TTL = 6 * 60 * 60 * 1000;
 const FINANCE_CACHE_TTL = 60 * 60 * 1000;
 const ACTIVE_SEMESTER_KEY = 'ipfp_active_semester';
 const pendingLoads = new Map();
-const normalizeSemester = (semester) => semester === 'S2' ? 'S2' : 'S1';
 const makeToken = (length = 32) => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   const values = new Uint32Array(length);
@@ -63,25 +65,16 @@ const readCache = (key, ttl) => {
   } catch { return null; }
 };
 const writeCache = (key, data) => {
-  try { localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data })); } catch (e) { }
+  try {
+    localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data }));
+  } catch {
+    // Storage can be unavailable or full; remote data remains authoritative.
+  }
 };
 const mergeById = (current, incoming) => {
   const map = new Map((current || []).map(item => [item.id, item]));
   incoming.forEach(item => map.set(item.id, item));
   return Array.from(map.values());
-};
-
-const getScheduleModuleForSemester = (session = {}, semester = 'S1') => {
-  const isS2 = normalizeSemester(semester) === 'S2';
-  if (isS2) {
-    if (session.moduleS2) return session.moduleS2;
-    if (session.moduleS1) return ''; // Specifically scheduled for S1 only
-    return session.module || '';
-  } else {
-    if (session.moduleS1) return session.moduleS1;
-    if (session.moduleS2) return ''; // Specifically scheduled for S2 only
-    return session.module || '';
-  }
 };
 
 const getTeacherAttendanceSlotKey = (record = {}) => {
@@ -198,14 +191,12 @@ export const AppProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   
   useEffect(() => {
-    const q = query(collection(db, 'activity_logs'), orderBy('timestamp', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setNotifications(logs);
-    }, (error) => {
+    const q = query(collection(db, 'activity_logs'), orderBy('timestamp', 'desc'), limit(20));
+    return onSnapshot(q, snapshot => {
+      setNotifications(snapshot.docs.map(item => ({ id: item.id, ...item.data() })));
+    }, error => {
       console.error("Erreur lecture activité récente:", error);
     });
-    return () => unsubscribe();
   }, []);
 
   const markNotificationAsRead = useCallback(async (id) => {
@@ -322,7 +313,11 @@ export const AppProvider = ({ children }) => {
         if (!isMounted || !snap.exists()) return;
         const nextSemester = normalizeSemester(snap.data()?.activeSemester);
         setActiveSemesterState(nextSemester);
-        try { localStorage.setItem(ACTIVE_SEMESTER_KEY, nextSemester); } catch { }
+        try {
+          localStorage.setItem(ACTIVE_SEMESTER_KEY, nextSemester);
+        } catch {
+          // Storage can be unavailable in restrictive browser modes.
+        }
       } catch (error) {
         console.warn('Impossible de charger le semestre actif:', error);
       }
@@ -334,7 +329,11 @@ export const AppProvider = ({ children }) => {
   const setActiveSemester = useCallback(async (semester) => {
     const nextSemester = normalizeSemester(semester);
     setActiveSemesterState(nextSemester);
-    try { localStorage.setItem(ACTIVE_SEMESTER_KEY, nextSemester); } catch { }
+    try {
+      localStorage.setItem(ACTIVE_SEMESTER_KEY, nextSemester);
+    } catch {
+      // Storage can be unavailable in restrictive browser modes.
+    }
     try {
       await setDoc(doc(db, 'settings', 'app'), {
         activeSemester: nextSemester,
@@ -348,8 +347,8 @@ export const AppProvider = ({ children }) => {
   }, [showToast]);
 
   const getActiveScheduleModule = useCallback((session = {}) => {
-    return getScheduleModuleForSemester(session, activeSemester);
-  }, [activeSemester]);
+    return getScheduleModuleForSemester(session, activeSemester, modules);
+  }, [activeSemester, modules]);
 
   // ──────────────────────────────────────────────────────────
   // OPTIMISATION FIREBASE (QUOTA) : Chargement ciblé et unique
@@ -383,8 +382,8 @@ export const AppProvider = ({ children }) => {
             pendingLoads.set(coreLoadKey, Promise.all([
               getDocs(query(collection(db, 'students'), orderBy('createdAt', 'desc'))),
               getDocs(query(collection(db, 'teachers'), orderBy('createdAt', 'desc'))),
-              getDocs(query(collection(db, 'grades'), limit(500))),
-              getDocs(query(collection(db, 'schedules'), orderBy('createdAt', 'desc'), limit(500))),
+              getDocs(collection(db, 'grades')),
+              getDocs(query(collection(db, 'schedules'), orderBy('createdAt', 'desc'))),
               getDocs(query(collection(db, 'modules'), orderBy('name', 'asc')))
             ]).then(([stuSnap, teaSnap, graSnap, schSnap, modSnap]) => {
               const gradesData = {}; graSnap.docs.forEach(d => { gradesData[d.id] = d.data(); });
@@ -398,7 +397,7 @@ export const AppProvider = ({ children }) => {
               writeCache(CORE_CACHE_KEY, data);
               return data;
             }).finally(() => {
-              setTimeout(() => pendingLoads.delete(coreLoadKey), 5000);
+              pendingLoads.delete(coreLoadKey);
             }));
           }
 
@@ -435,44 +434,36 @@ export const AppProvider = ({ children }) => {
           const stuQuery = query(collection(db, 'students'), where('token', '==', token));
           const stuSnap = await getDocs(stuQuery);
           let studentDoc = stuSnap.docs[0];
-          
           if (!studentDoc) {
-            const docSnap = await getDoc(doc(db, 'students', token));
-            if (docSnap.exists()) studentDoc = docSnap;
+            const directDoc = await getDoc(doc(db, 'students', token));
+            if (directDoc.exists()) studentDoc = directDoc;
           }
 
           if (studentDoc && isMounted) {
             const studentData = studentDoc.data();
             const currentStudent = { id: studentDoc.id, ...studentData };
             let portalStudents = [currentStudent];
-
             if (studentData.major) {
               const classSnap = await getDocs(query(collection(db, 'students'), where('major', '==', studentData.major)));
               portalStudents = classSnap.docs
-                .map(d => ({ id: d.id, ...d.data() }))
-                .filter(s =>
-                  s.diploma === studentData.diploma &&
-                  s.major === studentData.major &&
-                  s.year === studentData.year
+                .map(item => ({ id: item.id, ...item.data() }))
+                .filter(student =>
+                  student.diploma === studentData.diploma &&
+                  student.major === studentData.major &&
+                  student.year === studentData.year
                 );
-
-              if (!portalStudents.some(s => s.id === studentDoc.id)) {
-                portalStudents.unshift(currentStudent);
-              }
+              if (!portalStudents.some(student => student.id === studentDoc.id)) portalStudents.unshift(currentStudent);
             }
-
             setStudents(portalStudents);
 
             const gradesData = {};
-            const studentIds = portalStudents.map(s => s.id).filter(Boolean);
+            const studentIds = portalStudents.map(student => student.id).filter(Boolean);
             for (let i = 0; i < studentIds.length; i += 10) {
-              const batch = studentIds.slice(i, i + 10);
-              const graSnap = await getDocs(query(collection(db, 'grades'), where('__name__', 'in', batch)));
-              graSnap.docs.forEach(d => { gradesData[d.id] = d.data(); });
+              const gradeSnap = await getDocs(query(collection(db, 'grades'), where('__name__', 'in', studentIds.slice(i, i + 10))));
+              gradeSnap.docs.forEach(item => { gradesData[item.id] = item.data(); });
             }
             setGrades(gradesData);
 
-            // Notes must show the full training year; load all modules then filter locally.
             const modSnap = await getDocs(query(collection(db, 'modules'), orderBy('name', 'asc')));
             setModules(modSnap.docs.map(d => ({ id: d.id, ...d.data() })));
           }
@@ -486,8 +477,8 @@ export const AppProvider = ({ children }) => {
           
           let teacherDoc = tSnap1.docs[0] || tSnap2.docs[0];
           if (!teacherDoc) {
-              const docSnap = await getDoc(doc(db, 'teachers', token));
-              if (docSnap.exists()) teacherDoc = docSnap;
+            const directDoc = await getDoc(doc(db, 'teachers', token));
+            if (directDoc.exists()) teacherDoc = directDoc;
           }
 
           if (teacherDoc && isMounted) {
@@ -522,7 +513,6 @@ export const AppProvider = ({ children }) => {
             }
             setGrades(gradesData);
 
-            // Modules: load all (small collection, needed for grade display)
             const modSnap = await getDocs(query(collection(db, 'modules'), orderBy('name', 'asc')));
             setModules(modSnap.docs.map(d => ({ id: d.id, ...d.data() })));
           }
@@ -544,17 +534,22 @@ export const AppProvider = ({ children }) => {
     return () => { isMounted = false; };
   }, [isAuthenticated, isDirectorAuth]);
 
-  // Sync cache on mutations
+  // Sync cache on mutations (debounced to batch rapid changes)
+  const coreCacheRef = useRef({ students, teachers, grades, schedules, modules });
+  coreCacheRef.current = { students, teachers, grades, schedules, modules };
   useEffect(() => {
     if (loading || !(isAuthenticated || isDirectorAuth)) return;
-    writeCache(CORE_CACHE_KEY, {
-      students, teachers, grades, schedules, modules
-    });
+    const timer = setTimeout(() => {
+      writeCache(CORE_CACHE_KEY, coreCacheRef.current);
+    }, 500);
+    return () => clearTimeout(timer);
   }, [students, teachers, grades, schedules, modules, loading, isAuthenticated, isDirectorAuth]);
 
   useEffect(() => {
     if (!isAuthenticated && !isDirectorAuth) {
-      localStorage.removeItem(FINANCE_CACHE_KEY);
+      localStorage.removeItem(FINANCE_CACHE_PAYMENTS_KEY);
+      localStorage.removeItem(FINANCE_CACHE_SALARIES_KEY);
+      localStorage.removeItem(FINANCE_CACHE_EXPENSES_KEY);
       financeLoadedRef.current = false;
     }
   }, [isAuthenticated, isDirectorAuth]);
@@ -959,8 +954,19 @@ export const AppProvider = ({ children }) => {
   };
 
   const clearAllSchedules = async () => {
-    const snapshot = await getDocs(query(collection(db, 'schedules')));
-    await Promise.all(snapshot.docs.map(d => deleteDoc(d.ref)));
+    const snapshot = await getDocs(collection(db, 'schedules'));
+    const ids = snapshot.docs.map(item => item.id);
+    if (ids.length === 0) {
+      showToast('Aucune séance à supprimer.', 'info');
+      return;
+    }
+    for (let i = 0; i < ids.length; i += 450) {
+      const batch = writeBatch(db);
+      ids.slice(i, i + 450).forEach(id => {
+        batch.delete(doc(db, 'schedules', id));
+      });
+      await batch.commit();
+    }
     setSchedules([]);
     showToast(`Emploi du temps vidé.`, 'warning');
   };
@@ -971,13 +977,16 @@ export const AppProvider = ({ children }) => {
     const gradeRef = doc(db, 'grades', studentId);
     await setDoc(gradeRef, { [safeSubject]: gradeData }, { merge: true });
     
-    setGrades(prev => ({
-      ...prev,
-      [studentId]: {
-        ...(prev[studentId] || {}),
-        [safeSubject]: gradeData
-      }
-    }));
+    setGrades(prev => {
+      if (prev[studentId]?.[safeSubject] === gradeData) return prev;
+      return {
+        ...prev,
+        [studentId]: {
+          ...(prev[studentId] || {}),
+          [safeSubject]: gradeData
+        }
+      };
+    });
     showToast('Notes enregistrées', 'success');
   };
 
@@ -1000,21 +1009,30 @@ export const AppProvider = ({ children }) => {
   };
 
   // --- PRESENCES ---
-  const updateStudentAttendance = async (studentId, moduleId, date, status, comment, formateurId = 'admin', timeSlot = '') => {
-    const docId = makeStudentAttendanceDocId(studentId, moduleId, date, timeSlot);
+  const updateStudentAttendance = async (studentId, moduleId, date, status, comment, formateurId = 'admin', timeSlot = '', recordId = '') => {
+    const { canonicalId, previousId } = getStudentAttendanceWriteTarget(studentId, moduleId, date, timeSlot, recordId);
+    if (!status) {
+      const docId = recordId || canonicalId;
+      await deleteDoc(doc(db, 'attendance_stagiaires', docId));
+      setStudentAttendance(prev => prev.filter(record => record.id !== docId));
+      return;
+    }
     const newRecord = { studentId, moduleId, date, status, comment: comment || '', formateurId, timeSlot: timeSlot || '', timestamp: serverTimestamp() };
-    
-    await setDoc(doc(db, 'attendance_stagiaires', docId), newRecord, { merge: true });
+
+    if (previousId) {
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'attendance_stagiaires', canonicalId), newRecord, { merge: true });
+      batch.delete(doc(db, 'attendance_stagiaires', previousId));
+      await batch.commit();
+    } else {
+      await setDoc(doc(db, 'attendance_stagiaires', canonicalId), newRecord, { merge: true });
+    }
 
     setStudentAttendance(prev => {
-      const existingIdx = prev.findIndex(a => a.id === docId);
-      const updatedRecord = { id: docId, ...newRecord };
-      if (existingIdx >= 0) {
-        const updated = [...prev];
-        updated[existingIdx] = updatedRecord;
-        return updated;
-      }
-      return [...prev, updatedRecord];
+      const withoutPreviousVersions = prev.filter(record =>
+        record.id !== canonicalId && (!previousId || record.id !== previousId)
+      );
+      return [...withoutPreviousVersions, { id: canonicalId, ...newRecord }];
     });
   };
 
@@ -1045,7 +1063,10 @@ export const AppProvider = ({ children }) => {
         where('date', '<=', end)
       ));
       const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      setStudentAttendance(prev => mergeById(prev, data));
+      setStudentAttendance(prev => {
+        const withoutMonth = prev.filter(a => !a.date || a.date < start || a.date > end);
+        return mergeById(withoutMonth, data);
+      });
       studentAttendanceKeysRef.current.add(cacheKey);
     } catch (e) {
       console.error("Error loading monthly student attendance:", e);
@@ -1082,9 +1103,8 @@ export const AppProvider = ({ children }) => {
       ));
       const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       setTeacherAttendance(prev => {
-        if (!force) return mergeById(prev, data);
-        const outsideMonth = prev.filter(record => !record.date || record.date < start || record.date > end);
-        return mergeById(outsideMonth, data);
+        const withoutMonth = prev.filter(record => !record.date || record.date < start || record.date > end);
+        return mergeById(withoutMonth, data);
       });
       teacherAttendanceKeysRef.current.add(cacheKey);
     } catch (e) {
@@ -1122,29 +1142,31 @@ export const AppProvider = ({ children }) => {
   const loadFinancialData = useCallback(async ({ force = false } = {}) => {
     if (financeLoadedRef.current && !force) return;
 
-    const cached = readCache(FINANCE_CACHE_KEY, FINANCE_CACHE_TTL);
-    if (cached && !force) {
-      setPayments(cached.payments || []);
-      setSalaries(cached.salaries || []);
-      setExpenses(cached.expenses || []);
+    const cachedPayments = readCache(FINANCE_CACHE_PAYMENTS_KEY, FINANCE_CACHE_TTL);
+    const cachedSalaries = readCache(FINANCE_CACHE_SALARIES_KEY, FINANCE_CACHE_TTL);
+    const cachedExpenses = readCache(FINANCE_CACHE_EXPENSES_KEY, FINANCE_CACHE_TTL);
+    if (cachedPayments && cachedSalaries && cachedExpenses && !force) {
+      setPayments(cachedPayments);
+      setSalaries(cachedSalaries);
+      setExpenses(cachedExpenses);
     }
 
     const financeLoadKey = 'finance';
     if (!pendingLoads.has(financeLoadKey)) {
       pendingLoads.set(financeLoadKey, Promise.all([
-        getDocs(query(collection(db, 'payments'), orderBy('createdAt', 'desc'), limit(200))),
-        getDocs(query(collection(db, 'salaries'), orderBy('createdAt', 'desc'), limit(200))),
-        getDocs(query(collection(db, 'expenses'), orderBy('createdAt', 'desc'), limit(200)))
+        getDocs(query(collection(db, 'payments'), orderBy('createdAt', 'desc'))),
+        getDocs(query(collection(db, 'salaries'), orderBy('createdAt', 'desc'))),
+        getDocs(query(collection(db, 'expenses'), orderBy('createdAt', 'desc')))
       ]).then(([paySnap, salSnap, expSnap]) => {
-        const data = {
-          payments: paySnap.docs.map(d => ({ id: d.id, ...d.data() })),
-          salaries: salSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-          expenses: expSnap.docs.map(d => ({ id: d.id, ...d.data() }))
-        };
-        writeCache(FINANCE_CACHE_KEY, data);
-        return data;
+        const payments = paySnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const salaries = salSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const expenses = expSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        writeCache(FINANCE_CACHE_PAYMENTS_KEY, payments);
+        writeCache(FINANCE_CACHE_SALARIES_KEY, salaries);
+        writeCache(FINANCE_CACHE_EXPENSES_KEY, expenses);
+        return { payments, salaries, expenses };
       }).finally(() => {
-        setTimeout(() => pendingLoads.delete(financeLoadKey), 5000);
+        pendingLoads.delete(financeLoadKey);
       }));
     }
 
@@ -1186,7 +1208,7 @@ export const AppProvider = ({ children }) => {
     });
 
     setPayments(prev => [{ id: paymentRef.id, ...newPayment }, ...prev]);
-    localStorage.removeItem(FINANCE_CACHE_KEY);
+    localStorage.removeItem(FINANCE_CACHE_PAYMENTS_KEY);
     showToast('Paiement enregistré', 'success');
     return { id: paymentRef.id, ...newPayment };
   };
@@ -1194,14 +1216,14 @@ export const AppProvider = ({ children }) => {
   const updatePayment = async (id, data) => {
     await updateDoc(doc(db, 'payments', id), data);
     setPayments(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
-    localStorage.removeItem(FINANCE_CACHE_KEY);
+    localStorage.removeItem(FINANCE_CACHE_PAYMENTS_KEY);
     showToast('Paiement mis à jour', 'success');
   };
 
   const deletePayment = async (id) => {
     await deleteDoc(doc(db, 'payments', id));
     setPayments(prev => prev.filter(p => p.id !== id));
-    localStorage.removeItem(FINANCE_CACHE_KEY);
+    localStorage.removeItem(FINANCE_CACHE_PAYMENTS_KEY);
     showToast('Paiement supprimé', 'warning');
   };
 
@@ -1231,7 +1253,7 @@ export const AppProvider = ({ children }) => {
     });
 
     setSalaries(prev => [{ id: salaryRef.id, ...newSalary }, ...prev]);
-    localStorage.removeItem(FINANCE_CACHE_KEY);
+    localStorage.removeItem(FINANCE_CACHE_SALARIES_KEY);
     showToast('Salaire enregistré', 'success');
     return { id: salaryRef.id, ...newSalary };
   };
@@ -1239,14 +1261,14 @@ export const AppProvider = ({ children }) => {
   const updateSalary = async (id, data) => {
     await updateDoc(doc(db, 'salaries', id), data);
     setSalaries(prev => prev.map(s => s.id === id ? { ...s, ...data } : s));
-    localStorage.removeItem(FINANCE_CACHE_KEY);
+    localStorage.removeItem(FINANCE_CACHE_SALARIES_KEY);
     showToast('Salaire mis à jour', 'success');
   };
 
   const deleteSalary = async (id) => {
     await deleteDoc(doc(db, 'salaries', id));
     setSalaries(prev => prev.filter(s => s.id !== id));
-    localStorage.removeItem(FINANCE_CACHE_KEY);
+    localStorage.removeItem(FINANCE_CACHE_SALARIES_KEY);
     showToast('Salaire supprimé', 'warning');
   };
 
@@ -1254,14 +1276,14 @@ export const AppProvider = ({ children }) => {
     const newExpense = { ...expenseData, createdAt: serverTimestamp() };
     const docRef = await addDoc(collection(db, 'expenses'), newExpense);
     setExpenses(prev => [{ id: docRef.id, ...newExpense }, ...prev]);
-    localStorage.removeItem(FINANCE_CACHE_KEY);
+    localStorage.removeItem(FINANCE_CACHE_EXPENSES_KEY);
     showToast('Charge enregistrée', 'success');
   };
 
   const deleteExpense = async (id) => {
     await deleteDoc(doc(db, 'expenses', id));
     setExpenses(prev => prev.filter(e => e.id !== id));
-    localStorage.removeItem(FINANCE_CACHE_KEY);
+    localStorage.removeItem(FINANCE_CACHE_EXPENSES_KEY);
     showToast('Charge supprimée', 'warning');
   };
 

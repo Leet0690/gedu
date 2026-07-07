@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { memo, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
-export default function Pagination({
+const Pagination = memo(function Pagination({
   currentPage,
   totalPages,
   totalItems,
@@ -11,6 +11,13 @@ export default function Pagination({
 }) {
   const firstRow = (currentPage - 1) * itemsPerPage + 1;
   const lastRow = Math.min(currentPage * itemsPerPage, totalItems);
+
+  const goFirst = useCallback(() => onPageChange(1), [onPageChange]);
+  const goPrev = useCallback(() => onPageChange(currentPage - 1), [onPageChange, currentPage]);
+  const goNext = useCallback(() => onPageChange(currentPage + 1), [onPageChange, currentPage]);
+  const goLast = useCallback(() => onPageChange(totalPages), [onPageChange, totalPages]);
+  const goPage = useCallback((p) => () => onPageChange(p), [onPageChange]);
+  const handleSizeChange = useCallback((e) => onItemsPerPageChange(Number(e.target.value)), [onItemsPerPageChange]);
 
   const getPageNumbers = () => {
     if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
@@ -25,7 +32,7 @@ export default function Pagination({
     return pages;
   };
 
-  if (totalPages <= 1) return null; // Don't show pagination if there's only one page
+  if (totalPages <= 1) return null;
 
   return (
     <div className="pagination-bar">
@@ -36,25 +43,25 @@ export default function Pagination({
       )}
 
       <div className="pagination-pages">
-        <button className="pagination-btn nav" onClick={() => onPageChange(1)} disabled={currentPage === 1}>
+        <button className="pagination-btn nav" onClick={goFirst} disabled={currentPage === 1}>
           <ChevronsLeft size={13} />
         </button>
-        <button className="pagination-btn nav" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}>
+        <button className="pagination-btn nav" onClick={goPrev} disabled={currentPage === 1}>
           <ChevronLeft size={13} /> Préc.
         </button>
 
         {getPageNumbers().map((p, i) =>
           p === '…'
             ? <span key={`ellipsis-${i}`} className="pagination-ellipsis">…</span>
-            : <button key={i} className={`pagination-btn${p === currentPage ? ' active' : ''}`} onClick={() => onPageChange(p)}>
+            : <button key={i} className={`pagination-btn${p === currentPage ? ' active' : ''}`} onClick={goPage(p)}>
                 {p}
               </button>
         )}
 
-        <button className="pagination-btn nav" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages}>
+        <button className="pagination-btn nav" onClick={goNext} disabled={currentPage === totalPages}>
           Suiv. <ChevronRight size={13} />
         </button>
-        <button className="pagination-btn nav" onClick={() => onPageChange(totalPages)} disabled={currentPage === totalPages}>
+        <button className="pagination-btn nav" onClick={goLast} disabled={currentPage === totalPages}>
           <ChevronsRight size={13} />
         </button>
       </div>
@@ -63,11 +70,13 @@ export default function Pagination({
         <select
           className="pagination-size-select"
           value={itemsPerPage}
-          onChange={e => onItemsPerPageChange(Number(e.target.value))}
+          onChange={handleSizeChange}
         >
           {[5, 10, 20, 50].map(s => <option key={s} value={s}>{s} / page</option>)}
         </select>
       )}
     </div>
   );
-}
+});
+
+export default Pagination;

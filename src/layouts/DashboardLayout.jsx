@@ -90,16 +90,16 @@ const NAV_CATEGORIES = [
 ];
 
 const SidebarCategory = ({ cat, isSidebarOpen, renderNavLink, location, isMobile }) => {
-  if (cat.items.length === 1) {
-    return renderNavLink(cat.items[0]);
-  }
-  
   const isAnyActive = cat.items.some(item => location.pathname === item.to);
   const [open, setOpen] = React.useState(isAnyActive);
   
   React.useEffect(() => {
     if (isAnyActive) setOpen(true);
   }, [isAnyActive]);
+
+  if (cat.items.length === 1) {
+    return renderNavLink(cat.items[0]);
+  }
 
   if (!isSidebarOpen && !isMobile) {
     return cat.items.map(item => renderNavLink(item));
@@ -379,34 +379,9 @@ export default function DashboardLayout({ children }) {
               </div>
 
               {/* Premium Logout Button */}
-              <button 
+              <button
                 onClick={logout}
                 className="premium-topbar-logout"
-                style={{ 
-                  marginLeft: '12px',
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '12px',
-                  background: 'linear-gradient(135deg, rgba(239,68,68,0.15) 0%, rgba(220,38,38,0.05) 100%)',
-                  border: '1px solid rgba(239,68,68,0.25)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#ef4444',
-                  cursor: 'pointer',
-                  transition: 'all 0.16s cubic-bezier(0.4, 0, 0.2, 1)',
-                  boxShadow: '0 4px 12px rgba(239,68,68,0.08)'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(239,68,68,0.25) 0%, rgba(220,38,38,0.15) 100%)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(239,68,68,0.15)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(239,68,68,0.15) 0%, rgba(220,38,38,0.05) 100%)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(239,68,68,0.08)';
-                }}
                 data-tooltip="Se déconnecter"
                 aria-label="Se déconnecter"
               >

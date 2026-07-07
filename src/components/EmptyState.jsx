@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { SearchX, Inbox, Ghost, Filter, BookOpen, Calendar, Users, MousePointer2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -12,12 +13,12 @@ const icons = {
   'mouse-pointer': MousePointer2
 };
 
-const EmptyState = ({ 
+const EmptyState = memo(function EmptyState({
   title = "Aucune donnée trouvée", 
   message = "Nous n'avons trouvé aucun résultat correspondant à votre recherche.",
   icon = "empty",
   action
-}) => {
+}) {
   const Icon = icons[icon] || icons.empty;
 
   return (
@@ -63,6 +64,6 @@ const EmptyState = ({
       )}
     </motion.div>
   );
-};
+});
 
 export default EmptyState;

@@ -892,7 +892,7 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
 };
 
 const AdminDashboard = () => {
-  const { students, teachers, grades, schedules, modules: allModules, deleteStudent, deleteTeacher, updateStudent, promoteAcademicYear, undoLastPromotion, updateTeacher, studentAttendance, teacherAttendance, loadStudentAttendanceForMonth, loadTeacherAttendanceForMonth, migrateTeacherTokens, loading, confirmAction, notifications, activeSemester, setActiveSemester, getActiveScheduleModule } = useApp();
+  const { students, teachers, grades, schedules, modules: allModules, addStudent, addTeacher, deleteStudent, deleteTeacher, updateStudent, promoteAcademicYear, undoLastPromotion, updateTeacher, studentAttendance, teacherAttendance, loadStudentAttendanceForMonth, loadTeacherAttendanceForMonth, migrateTeacherTokens, loading, confirmAction, notifications, activeSemester, setActiveSemester, getActiveScheduleModule } = useApp();
   const { showToast } = useToast();
   const location = useLocation();
   const isDashboard = location.pathname === '/';

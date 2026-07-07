@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/cn';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
+import { useDebounce } from '../utils/useDebounce';
 
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
@@ -284,10 +285,12 @@ const FinanceDashboard = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [activeTab, setActiveTab] = useState('payments');
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearch = useDebounce(searchTerm, 300);
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('');
   const [paymentMonthFilter, setPaymentMonthFilter] = useState(getCurrentMonthName);
   const [summaryMonthFilter, setSummaryMonthFilter] = useState(getCurrentMonthName);
   const [teacherSearchTerm, setTeacherSearchTerm] = useState('');
+  const debouncedTeacherSearch = useDebounce(teacherSearchTerm, 300);
   const [salaryStatusFilter, setSalaryStatusFilter] = useState('');
   const [dailyStatsDate, setDailyStatsDate] = useState('');
   const [dailyStatsEndDate, setDailyStatsEndDate] = useState('');
@@ -348,11 +351,11 @@ const FinanceDashboard = () => {
   const paymentExtraTotal = PAYMENT_FEE_FIELDS.reduce((sum, { key }) => sum + (parseFloat(paymentData[key]) || 0), 0);
   const paymentGrandTotal = paymentBaseAmount + paymentExtraTotal;
 
-  const months = [
+  const months = useMemo(() => [
     "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
     "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
-  ];
-  const currentMonthName = getCurrentMonthName();
+  ], []);
+  const currentMonthName = useMemo(() => getCurrentMonthName(), []);
   const currentMonthIndex = new Date().getMonth();
   const currentYear = new Date().getFullYear();
 
@@ -488,7 +491,11 @@ const FinanceDashboard = () => {
     const receiptNumber = resolvePaymentReceiptNumber(payment, student);
 
     const drawReceiptCopy = (offsetY, copyLabel) => {
-      try { doc.addImage(logoBase64, 'JPEG', margin, offsetY + 2.5, 20, 8.5); } catch {}
+      try {
+        doc.addImage(logoBase64, 'JPEG', margin, offsetY + 2.5, 20, 8.5);
+      } catch {
+        // The receipt remains usable when the optional logo cannot be decoded.
+      }
       doc.setFontSize(5.5); doc.setTextColor(120, 120, 120); doc.setFont('helvetica', 'bold');
       doc.text(copyLabel, w - margin, offsetY + 5.5, { align: 'right' });
       doc.setFontSize(9.5); doc.setTextColor(35, 35, 35);
@@ -565,7 +572,11 @@ const FinanceDashboard = () => {
     const margin = 10;
     let y = 8;
 
-    try { doc.addImage(logoBase64, 'JPEG', margin, y, 34, 15); } catch(e) {}
+    try {
+      doc.addImage(logoBase64, 'JPEG', margin, y, 34, 15);
+    } catch {
+      // The receipt remains usable when the optional logo cannot be decoded.
+    }
     doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(35, 35, 35);
     doc.text('RECU FORMATEUR', w / 2, 28, { align: 'center' });
     doc.setDrawColor(200); doc.line(margin, 33, w - margin, 33);
@@ -670,19 +681,15 @@ const FinanceDashboard = () => {
     };
   }, [monthlyPaymentRows]);
 
-  const filteredPayments = useMemo(() => {
-    return monthlyPaymentRows.filter(p => {
-      const student = students.find(s => s.id === p.studentId);
-      if (!student) return false;
-      if (paymentStatusFilter && getPaymentStatusKey(p.status) !== paymentStatusFilter) return false;
-      const searchStr = `${student.firstName} ${student.lastName} ${p.month}`.toLowerCase();
-      return searchStr.includes(searchTerm.toLowerCase());
-    });
-  }, [monthlyPaymentRows, students, searchTerm, paymentStatusFilter]);
+  const filteredPayments = monthlyPaymentRows.filter(p => {
+    const student = students.find(s => s.id === p.studentId);
+    if (!student) return false;
+    if (paymentStatusFilter && getPaymentStatusKey(p.status) !== paymentStatusFilter) return false;
+    const searchStr = `${student.firstName} ${student.lastName} ${p.month}`.toLowerCase();
+    return searchStr.includes(debouncedSearch.toLowerCase());
+  });
 
-  const paginatedPayments = useMemo(() => {
-    return filteredPayments.slice((paymentsPage - 1) * paymentsPerPage, paymentsPage * paymentsPerPage);
-  }, [filteredPayments, paymentsPage, paymentsPerPage]);
+  const paginatedPayments = filteredPayments.slice((paymentsPage - 1) * paymentsPerPage, paymentsPage * paymentsPerPage);
 
   const totalPaymentsPages = Math.ceil(filteredPayments.length / paymentsPerPage);
 
@@ -722,13 +729,13 @@ const FinanceDashboard = () => {
   }, [teachers, teacherAttendance, salaryFilter, salaries, schedules, getActiveScheduleModule]);
 
   const filteredTeachers = useMemo(() => {
-    const q = teacherSearchTerm.trim().toLowerCase();
+    const q = debouncedTeacherSearch.trim().toLowerCase();
     return calculatedSalaries.filter(t => {
       if (salaryStatusFilter && (t.isPaid ? 'paid' : 'unpaid') !== salaryStatusFilter) return false;
       if (!q) return true;
       return `${t.name}`.toLowerCase().includes(q);
     });
-  }, [calculatedSalaries, teacherSearchTerm, salaryStatusFilter]);
+  }, [calculatedSalaries, debouncedTeacherSearch, salaryStatusFilter]);
 
   const salaryStatusCounts = useMemo(() => {
     return calculatedSalaries.reduce((acc, teacher) => {

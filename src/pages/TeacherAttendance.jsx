@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
+import { useDebounce } from '../utils/useDebounce';
 import { getClassCode } from '../data/modules';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
@@ -178,13 +179,14 @@ const TeacherAttendance = () => {
   /* ── Daily state ── */
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearch = useDebounce(searchTerm, 300);
   const [pendingHours, setPendingHours] = useState({});
 
   const dayOfWeek = useMemo(() => getDayNameFromDate(selectedDate), [selectedDate]);
 
   const sessionRows = useMemo(() => {
-    return getScheduledRowsForDate({ schedules, teachers, date: selectedDate, searchTerm, getScheduleModule: getActiveScheduleModule });
-  }, [schedules, teachers, searchTerm, selectedDate, getActiveScheduleModule]);
+    return getScheduledRowsForDate({ schedules, teachers, date: selectedDate, searchTerm: debouncedSearch, getScheduleModule: getActiveScheduleModule });
+  }, [schedules, teachers, debouncedSearch, selectedDate, getActiveScheduleModule]);
 
   const stats = useMemo(() => {
     let presents = 0, absents = 0, totalHours = 0;

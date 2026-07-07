@@ -135,9 +135,10 @@ const ScheduleManagement = () => {
     () => schedules.filter(s =>
       (s.diploma || getDiplomaForMajor(s.filiere)) === diploma &&
       s.filiere === filiere &&
-      s.annee === annee
+      s.annee === annee &&
+      Boolean(getActiveScheduleModule(s))
     ),
-    [schedules, diploma, filiere, annee]
+    [schedules, diploma, filiere, annee, getActiveScheduleModule]
   );
   const activeDays = useMemo(
     () => DAYS.filter(day => filteredSchedules.some(s => s.day === day)).length,

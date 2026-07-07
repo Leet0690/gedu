@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { motion } from 'framer-motion';
 
-export const Skeleton = ({ width, height, borderRadius = 'var(--radius-md)', margin = '0' }) => {
+export const Skeleton = memo(function Skeleton({ width, height, borderRadius = 'var(--radius-md)', margin = '0' }) {
   return (
     <motion.div
       animate={{ opacity: [0.4, 0.7, 0.4] }}
@@ -16,7 +16,7 @@ export const Skeleton = ({ width, height, borderRadius = 'var(--radius-md)', mar
       }}
     />
   );
-};
+});
 
 export const TableSkeleton = ({ rows = 5 }) => {
   return (

@@ -32,7 +32,7 @@ import {
 } from 'lucide-react';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import { isActiveStudent } from '../utils/studentStatus';
-import { makeStudentAttendanceDocId } from '../utils/attendanceKeys';
+import { findStudentAttendanceRecord, isTeacherSessionComplete } from '../utils/attendanceKeys';
 
 const APP_VERSION = '2.5.1';
 const VERSION_KEY = 'ipfp_app_version';
@@ -171,6 +171,32 @@ const TeacherPortal = () => {
     return session?.displayModule || getActiveScheduleModule(session) || '';
   }, [getActiveScheduleModule]);
 
+  const canUseLegacyAttendance = useCallback((session) => {
+    const sessionModule = getSessionModule(session);
+    if (!session || !sessionModule) return false;
+    const matchingTimes = new Set((schedules || [])
+      .filter(candidate =>
+        candidate.filiere === session.filiere &&
+        candidate.annee === session.annee &&
+        candidate.day === session.day &&
+        getSessionModule(candidate) === sessionModule
+      )
+      .map(candidate => normalizeTimeSlot(candidate.time)));
+    return matchingTimes.size <= 1;
+  }, [schedules, getSessionModule]);
+
+  const getStudentRecordForSession = useCallback((studentId, session, moduleId = '') => {
+    const sessionModule = moduleId || getSessionModule(session);
+    return findStudentAttendanceRecord(
+      studentAttendance,
+      studentId,
+      sessionModule,
+      selectedDate,
+      session?.time,
+      { allowLegacy: canUseLegacyAttendance(session) },
+    );
+  }, [studentAttendance, selectedDate, getSessionModule, canUseLegacyAttendance]);
+
   const getTeacherRecordForSession = useCallback((session) => {
     if (!teacher || !session) return null;
     const sessionModule = getSessionModule(session);
@@ -200,11 +226,10 @@ const TeacherPortal = () => {
       .filter(s => s.major === session.filiere && s.year === session.annee);
     if (groupStudents.length === 0) return false;
     return groupStudents.every(s => {
-      const docId = makeStudentAttendanceDocId(s.id, sessionModule, selectedDate, session.time);
-      const record = studentAttendance.find(a => a.id === docId);
+      const record = getStudentRecordForSession(s.id, session, sessionModule);
       return record && ['present', 'absent'].includes(record.status);
     });
-  }, [teacher, students, studentAttendance, selectedDate, getSessionModule]);
+  }, [teacher, students, getSessionModule, getStudentRecordForSession]);
 
   useEffect(() => {
     if (!teacher || todaysSessions.length === 0 || accessMode !== 'attendance') return;
@@ -233,16 +258,15 @@ const TeacherPortal = () => {
     });
   }, [teacher, todaysSessions, selectedDate, accessMode, isSessionStudentAttendanceComplete, getTeacherRecordForSession, getSessionModule, updateTeacherAttendance, showToast]);
 
-  // Sync completedSessionIds with DB records
-  // A session is "completed" if:
-  //   - Teacher declared absent for this slot (teacher attendance record with status 'absent'), OR
-  //   - ALL students of this session's group have a student attendance record
+  // A present record for a shared time slot must never validate another group.
+  // A session is complete only when its own students are all marked, or when
+  // the teacher explicitly declared an absence for the slot.
   useEffect(() => {
     if (!teacher || todaysSessions.length === 0 || accessMode !== 'attendance') return;
     const completed = new Set();
     todaysSessions.forEach(session => {
       const record = getTeacherRecordForSession(session);
-      if (record && ['present', 'absent'].includes(record.status)) {
+      if (isTeacherSessionComplete(record, isSessionStudentAttendanceComplete(session))) {
         completed.add(session.id);
       }
     });
@@ -251,7 +275,7 @@ const TeacherPortal = () => {
       if (isIdentical) return prev;
       return completed;
     });
-  }, [teacher, todaysSessions, accessMode, getTeacherRecordForSession]);
+  }, [teacher, todaysSessions, accessMode, getTeacherRecordForSession, isSessionStudentAttendanceComplete]);
 
   // Check if attendance was already submitted today
   // All sessions must be completed (student attendance done for each group, or teacher absent)
@@ -259,9 +283,9 @@ const TeacherPortal = () => {
     if (!teacher || todaysSessions.length === 0 || accessMode !== 'attendance') return false;
     return todaysSessions.every(session => {
       const record = getTeacherRecordForSession(session);
-      return record && ['present', 'absent'].includes(record.status);
+      return isTeacherSessionComplete(record, isSessionStudentAttendanceComplete(session));
     });
-  }, [teacher, todaysSessions, accessMode, getTeacherRecordForSession]);
+  }, [teacher, todaysSessions, accessMode, getTeacherRecordForSession, isSessionStudentAttendanceComplete]);
 
   const [selectedSessionId, setSelectedSessionId] = useState('');
   const currentSession = useMemo(() => {
@@ -414,26 +438,27 @@ const TeacherPortal = () => {
   const allAttended = useMemo(() => {
     if (!currentSession || !relevantStudents || relevantStudents.length === 0 || !currentAttendanceModule) return false;
     return relevantStudents.every(s => {
-      const docId = makeStudentAttendanceDocId(s.id, currentAttendanceModule, selectedDate, currentSession.time);
-      const record = studentAttendance.find(a => a.id === docId);
+      const record = getStudentRecordForSession(s.id, currentSession, currentAttendanceModule);
       return record && ['present', 'absent'].includes(record.status);
     });
-  }, [currentSession, relevantStudents, currentAttendanceModule, selectedDate, studentAttendance]);
+  }, [currentSession, relevantStudents, currentAttendanceModule, getStudentRecordForSession]);
 
   // Track if ALL sessions for the day are completed
   const allSessionsCompleted = useMemo(() => {
     if (todaysSessions.length === 0) return false;
-    return todaysSessions.every(session => completedSessionIds.has(session.id));
-  }, [todaysSessions, completedSessionIds]);
+    return todaysSessions.every(session => {
+      const record = getTeacherRecordForSession(session);
+      return isTeacherSessionComplete(record, isSessionStudentAttendanceComplete(session));
+    });
+  }, [todaysSessions, getTeacherRecordForSession, isSessionStudentAttendanceComplete]);
 
   const unmarkedStudents = useMemo(() => {
     if (!currentSession || !currentAttendanceModule || !relevantStudents.length) return [];
     return relevantStudents.filter(s => {
-      const docId = makeStudentAttendanceDocId(s.id, currentAttendanceModule, selectedDate, currentSession.time);
-      const record = studentAttendance.find(a => a.id === docId);
+      const record = getStudentRecordForSession(s.id, currentSession, currentAttendanceModule);
       return !record || !['present', 'absent'].includes(record.status);
     });
-  }, [currentSession, relevantStudents, currentAttendanceModule, selectedDate, studentAttendance]);
+  }, [currentSession, relevantStudents, currentAttendanceModule, getStudentRecordForSession]);
 
   useEffect(() => {
     if (allAttended) setShowUnmarkedWarning(false);
@@ -653,23 +678,21 @@ const TeacherPortal = () => {
 
   const handleAttendanceChange = async (studentId, status) => {
     if (!currentAttendanceModule || !currentSession) return;
-    const docId = makeStudentAttendanceDocId(studentId, currentAttendanceModule, selectedDate, currentSession.time);
-    const record = studentAttendance.find(a => a.id === docId);
-    await updateStudentAttendance(studentId, currentAttendanceModule, selectedDate, status, record?.comment || '', teacher.id, currentSession.time);
+    const record = getStudentRecordForSession(studentId, currentSession, currentAttendanceModule);
+    await updateStudentAttendance(studentId, currentAttendanceModule, selectedDate, status, record?.comment || '', teacher.id, currentSession.time, record?.id || '');
   };
 
   const handleClearAttendance = async (studentId) => {
     if (!currentAttendanceModule || !currentSession) return;
-    const docId = makeStudentAttendanceDocId(studentId, currentAttendanceModule, selectedDate, currentSession.time);
-    const record = studentAttendance.find(a => a.id === docId);
-    await updateStudentAttendance(studentId, currentAttendanceModule, selectedDate, '', record?.comment || '', teacher.id, currentSession.time);
+    const record = getStudentRecordForSession(studentId, currentSession, currentAttendanceModule);
+    if (!record) return;
+    await updateStudentAttendance(studentId, currentAttendanceModule, selectedDate, '', record.comment || '', teacher.id, currentSession.time, record.id);
   };
 
   const handleAttendanceComment = async (studentId, comment) => {
     if (!currentAttendanceModule || !currentSession) return;
-    const docId = makeStudentAttendanceDocId(studentId, currentAttendanceModule, selectedDate, currentSession.time);
-    let record = studentAttendance.find(a => a.id === docId);
-    await updateStudentAttendance(studentId, currentAttendanceModule, selectedDate, record?.status || 'present', comment, teacher.id, currentSession.time);
+    const record = getStudentRecordForSession(studentId, currentSession, currentAttendanceModule);
+    await updateStudentAttendance(studentId, currentAttendanceModule, selectedDate, record?.status || 'present', comment, teacher.id, currentSession.time, record?.id || '');
   };
 
   const calcMoyenneCC = (g) => {
@@ -996,8 +1019,7 @@ const TeacherPortal = () => {
               </thead>
               <tbody>
                 {(() => { let firstUnmarkedAssigned = false; return relevantStudents.map((s, idx) => {
-                  const docId = makeStudentAttendanceDocId(s.id, currentAttendanceModule, selectedDate, currentSession?.time);
-                  const record = studentAttendance.find(a => a.id === docId);
+                  const record = getStudentRecordForSession(s.id, currentSession, currentAttendanceModule);
                   const status = record?.status || '';
                   const comment = record?.comment || '';
                   const isUnmarked = showUnmarkedWarning && !['present', 'absent'].includes(status);

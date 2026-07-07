@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
+import { useDebounce } from '../utils/useDebounce';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
@@ -97,6 +98,7 @@ const StatCard = ({ label, value, icon: Icon, color = 'var(--primary)' }) => (
 const AccessLogs = () => {
   const { accessLogs = [], loadAccessLogs } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearch = useDebounce(searchTerm, 300);
   const [period, setPeriod] = useState('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -110,7 +112,7 @@ const AccessLogs = () => {
   }, [loadAccessLogs]);
 
   const filteredLogs = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
+    const term = debouncedSearch.trim().toLowerCase();
     return (accessLogs || []).filter(log => {
       if (!matchesPeriod(log, period)) return false;
       if (!term) return true;
@@ -127,7 +129,7 @@ const AccessLogs = () => {
         log.time
       ].filter(Boolean).some(value => String(value).toLowerCase().includes(term));
     });
-  }, [accessLogs, period, searchTerm]);
+  }, [accessLogs, period, debouncedSearch]);
 
   const stats = useMemo(() => {
     const uniqueIps = new Set((accessLogs || []).map(log => log.ipAddress).filter(Boolean));

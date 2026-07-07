@@ -390,7 +390,11 @@ const Reports = () => {
         doc.setFillColor(255, 255, 255);
         doc.rect(0, 0, w, doc.internal.pageSize.getHeight(), 'F');
 
-        try { doc.addImage(logoBase64, 'JPEG', margin, y, 40, 18); } catch {}
+        try {
+          doc.addImage(logoBase64, 'JPEG', margin, y, 40, 18);
+        } catch {
+          // The report remains usable when the optional logo cannot be decoded.
+        }
 
         doc.setFont('helvetica', 'italic');
         doc.setFontSize(7);
