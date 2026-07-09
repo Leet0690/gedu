@@ -64,6 +64,127 @@ const parseScore = (value) => {
   return Number.isNaN(score) ? null : score;
 };
 
+const formatExcelScore = (value) => value === null ? '—' : value.toFixed(2);
+
+const formatCoefficient = (value) => {
+  const coefficient = Number(value);
+  if (Number.isNaN(coefficient)) return '';
+  return Number.isInteger(coefficient) ? String(coefficient) : String(coefficient);
+};
+
+const calcCcAverage = (grade) => {
+  if (!grade) return null;
+  const c1 = parseScore(grade.c1);
+  const c2 = parseScore(grade.c2);
+  const c3 = parseScore(grade.c3);
+
+  if (c1 === null || c2 === null) return null;
+
+  const scores = [c1, c2, ...(c3 !== null ? [c3] : [])];
+  return scores.reduce((sum, score) => sum + score, 0) / scores.length;
+};
+
+const calcModuleAverage = ({ ccAverage, theoretical, practical }) => {
+  if (ccAverage === null || theoretical === null || practical === null) return null;
+  return ((ccAverage * 3) + (theoretical * 2) + (practical * 3)) / 8;
+};
+
+const getModuleCoefficient = (module) => {
+  const coefficient = parseFloat(module?.coefficient);
+  return Number.isNaN(coefficient) || coefficient <= 0 ? 1 : coefficient;
+};
+
+const getStudyYearNumber = (year = '') =>
+  String(year).includes('2') ? 2 : 1;
+
+const getModuleExportCode = (module, index, year) =>
+  module?.code || module?.moduleCode || module?.uf || module?.reference || `UF-${getStudyYearNumber(year)}.${String(index + 1).padStart(2, '0')}`;
+
+const getJuryDecision = (average) => {
+  if (average === null) return 'Redoublant(e)';
+  if (average < 8) return 'Redoublant(e)';
+  if (average < 10) return 'Racheté(e)';
+  return 'Admis(e)';
+};
+
+const escapeHtml = (value = '') =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const safeFileNamePart = (value = '') =>
+  String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase() || 'classe';
+
+const getCurrentProfessionalYear = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const startYear = month >= 8 ? year : year - 1;
+  return `${startYear}/${startYear + 1}`;
+};
+
+const getAutoExcelColumnWidth = (values, { min = 44, max = 260, charWidth = 7, padding = 18 } = {}) => {
+  const longest = values.reduce((maxLength, value) => {
+    const text = String(value ?? '').trim();
+    const weightedLength = Array.from(text).reduce((length, char) => {
+      const isWideChar = char.charCodeAt(0) > 255;
+      return length + (isWideChar ? 1.15 : 1);
+    }, 0);
+    return Math.max(maxLength, weightedLength);
+  }, 0);
+
+  return Math.min(max, Math.max(min, Math.ceil((longest * charWidth) + padding)));
+};
+
+const A4_LANDSCAPE_PRINTABLE_WIDTH_PX = 1088;
+const A4_LANDSCAPE_PRINTABLE_HEIGHT_PX = 710;
+const EXCEL_HEADER_ROW_HEIGHT_PX = 24;
+const EXCEL_HEADER_BOTTOM_MARGIN_PX = 12;
+const EXCEL_TABLE_HEADER_ROW_HEIGHT_PX = 27;
+const EXCEL_DATA_ROW_MIN_HEIGHT_PX = 22;
+
+const expandExcelColumnWidthsToTarget = (widths, targetWidth) => {
+  const currentWidth = widths.reduce((sum, width) => sum + width, 0);
+  if (currentWidth <= 0 || currentWidth >= targetWidth) return widths;
+
+  const scale = targetWidth / currentWidth;
+  const expandedWidths = widths.map(width => Math.round(width * scale));
+  const roundingGap = Math.round(targetWidth - expandedWidths.reduce((sum, width) => sum + width, 0));
+
+  if (roundingGap !== 0) {
+    expandedWidths[expandedWidths.length - 1] += roundingGap;
+  }
+
+  return expandedWidths;
+};
+
+const getExcelRowHeights = (studentCount, targetHeight) => {
+  const fixedHeight =
+    (EXCEL_HEADER_ROW_HEIGHT_PX * 3) +
+    EXCEL_HEADER_BOTTOM_MARGIN_PX +
+    (EXCEL_TABLE_HEADER_ROW_HEIGHT_PX * 4);
+  const availableStudentHeight = Math.max(0, targetHeight - fixedHeight);
+  const studentRowHeight = studentCount > 0
+    ? Math.max(EXCEL_DATA_ROW_MIN_HEIGHT_PX, Math.floor(availableStudentHeight / studentCount))
+    : EXCEL_DATA_ROW_MIN_HEIGHT_PX;
+
+  return {
+    headerRowHeight: EXCEL_HEADER_ROW_HEIGHT_PX,
+    tableHeaderRowHeight: EXCEL_TABLE_HEADER_ROW_HEIGHT_PX,
+    studentRowHeight,
+  };
+};
+
+const renderExcelColGroup = (widths) =>
+  `<colgroup>${widths.map(width => `<col style="width:${width}px; mso-width-source:userset;" />`).join('')}</colgroup>`;
+
 const Reports = () => {
   const {
     students = [], grades = {}, modules: allModules = [],
@@ -75,7 +196,7 @@ const Reports = () => {
   const [selectedYear, setSelectedYear] = useState('1ère année');
   const [selectedModule, setSelectedModule] = useState('');
   const [rankSort, setRankSort] = useState('avg_desc');
-  const [isExporting, setIsExporting] = useState(false);
+  const [isExportingExcel, setIsExportingExcel] = useState(false);
   const activeStudents = useMemo(() => (students || []).filter(isActiveStudent), [students]);
 
   useEffect(() => {
@@ -122,7 +243,14 @@ const Reports = () => {
     const getModuleScore = (studentId, modName) => {
       const g = grades[studentId]?.[modName.replace(/\./g, '_')];
       if (!g) return null;
+      const ccAverage = calcCcAverage(g);
       const efcfp = parseFloat(g.efcfp), efcft = parseFloat(g.efcft);
+      const moduleAverage = calcModuleAverage({
+        ccAverage,
+        theoretical: Number.isNaN(efcft) ? null : efcft,
+        practical: Number.isNaN(efcfp) ? null : efcfp,
+      });
+      if (moduleAverage !== null) return moduleAverage;
       if (!isNaN(efcfp) && !isNaN(efcft)) return (efcfp + efcft) / 2;
       const c1 = parseFloat(g.c1), c2 = parseFloat(g.c2), c3 = parseFloat(g.c3);
       const vals = [c1, c2, c3].filter(v => !isNaN(v));
@@ -134,8 +262,9 @@ const Reports = () => {
       availableModulesList.forEach(({ name, coefficient }) => {
         const score = getModuleScore(studentId, name);
         if (score !== null) {
-          totalScore += score * (coefficient || 1);
-          totalWeight += (coefficient || 1);
+          const weight = getModuleCoefficient({ coefficient });
+          totalScore += score * weight;
+          totalWeight += weight;
         }
       });
       return totalWeight > 0 ? totalScore / totalWeight : null;
@@ -264,16 +393,24 @@ const Reports = () => {
     const c3 = parseScore(g?.c3);
     const efcfp = parseScore(g?.efcfp);
     const efcft = parseScore(g?.efcft);
+    const ccAverage = calcCcAverage(g);
+    const moduleAverage = calcModuleAverage({
+      ccAverage,
+      theoretical: efcft,
+      practical: efcfp,
+    });
     let score = null;
 
-    if (efcfp !== null && efcft !== null) {
+    if (moduleAverage !== null) {
+      score = moduleAverage;
+    } else if (efcfp !== null && efcft !== null) {
       score = (efcfp + efcft) / 2;
     } else {
       const vals = [c1, c2, c3].filter(v => v !== null);
       score = vals.length > 0 ? vals.reduce((sum, val) => sum + val, 0) / vals.length : null;
     }
 
-    return { c1, c2, c3, efcfp, efcft, score };
+    return { c1, c2, c3, efcfp, efcft, ccAverage, score };
   }, [grades]);
 
   const getGroupModules = useCallback((group) => {
@@ -301,8 +438,7 @@ const Reports = () => {
       groupModules.forEach(module => {
         const { score } = getReportModuleDetails(student.id, module.name);
         if (score !== null) {
-          const coefficient = parseFloat(module.coefficient);
-          const weight = Number.isNaN(coefficient) ? 1 : coefficient;
+          const weight = getModuleCoefficient(module);
           totalScore += score * weight;
           totalWeight += weight;
         }
@@ -373,199 +509,295 @@ const Reports = () => {
     };
   }, [getGroupStudents, getReportModuleDetails]);
 
-  const handleExportPDF = useCallback(async () => {
-    setIsExporting(true);
-    const [{ jsPDF }, { loadLogoDataUrl }] = await Promise.all([
-      import('jspdf'),
-      import('../utils/loadLogoDataUrl.js'),
-    ]);
-    const logoBase64 = await loadLogoDataUrl();
-    setTimeout(() => {
-      try {
-        const doc = new jsPDF('p', 'mm', 'a4');
-        const w = doc.internal.pageSize.getWidth();
-        const margin = 15;
-        let y = 10;
+  const getExcelModuleDetails = useCallback((studentId, moduleName) => {
+    const grade = grades[studentId]?.[gradeModuleKey(moduleName)];
+    const ccAverage = calcCcAverage(grade);
+    const theoretical = parseScore(grade?.efcft);
+    const practical = parseScore(grade?.efcfp);
+    const moduleAverage = calcModuleAverage({ ccAverage, theoretical, practical });
 
-        doc.setFillColor(255, 255, 255);
-        doc.rect(0, 0, w, doc.internal.pageSize.getHeight(), 'F');
+    return { ccAverage, theoretical, practical, moduleAverage };
+  }, [grades]);
 
-        try {
-          doc.addImage(logoBase64, 'JPEG', margin, y, 40, 18);
-        } catch {
-          // The report remains usable when the optional logo cannot be decoded.
-        }
-
-        doc.setFont('helvetica', 'italic');
-        doc.setFontSize(7);
-        doc.setTextColor(100, 100, 100);
-        doc.text("Institut de formation professionnelle « établissement privé »", w - margin, y + 4, { align: 'right' });
-        doc.text("agréé par le ministère de l'Inclusion économique, de la Petite entreprise,", w - margin, y + 8, { align: 'right' });
-        doc.text("de l'Emploi et des Compétences, sous le numéro 4/01/6/2022", w - margin, y + 12, { align: 'right' });
-
-        y = 34;
-        doc.setDrawColor(180, 104, 185);
-        doc.setLineWidth(0.6);
-        doc.line(margin, y, w - margin, y);
-        y += 8;
-
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(16);
-        doc.setTextColor(30, 30, 30);
-        doc.text('Rapport de Classe', w / 2, y, { align: 'center' });
-        y += 7;
-
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        doc.setTextColor(100, 100, 100);
-        const groupLabel = `${selectedDiploma} · ${selectedMajor} · ${selectedYear}`;
-        doc.text(groupLabel, w / 2, y, { align: 'center' });
-        y += 5;
-        doc.setFontSize(9);
-        doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}`, w / 2, y, { align: 'center' });
-        y += 8;
-
-        doc.setDrawColor(220, 220, 220);
-        doc.setLineWidth(0.3);
-        doc.line(margin, y, w - margin, y);
-        y += 8;
-
-        // KPI row
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(9);
-        doc.setTextColor(150, 150, 150);
-        doc.text('STAGIAIRES', margin, y);
-        doc.text('MOY. PONDÉRÉE', margin + 40, y);
-        doc.text('ADMIS', margin + 85, y);
-        doc.text('NON ADMIS', margin + 115, y);
-        y += 5;
-        doc.setFontSize(15);
-        doc.setTextColor(30, 30, 30);
-        doc.text(String(analytics.filteredStudentsCount), margin, y);
-        doc.setTextColor(analytics.classAvg !== null ? (analytics.classAvg >= 10 ? 22 : 180) : 120, analytics.classAvg !== null ? (analytics.classAvg >= 10 ? 163 : 38) : 120, analytics.classAvg !== null ? (analytics.classAvg >= 10 ? 74 : 38) : 120);
-        doc.text(analytics.classAvg !== null ? analytics.classAvg.toFixed(2) + '/20' : '—', margin + 40, y);
-        doc.setTextColor(22, 163, 74);
-        doc.text(String(analytics.passCount), margin + 85, y);
-        doc.setTextColor(220, 38, 38);
-        doc.text(String(analytics.failCount), margin + 115, y);
-        y += 10;
-
-        doc.setDrawColor(220, 220, 220);
-        doc.line(margin, y, w - margin, y);
-        y += 7;
-
-        // Student ranking table
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(11);
-        doc.setTextColor(30, 30, 30);
-        doc.text('Classement des Stagiaires', margin, y);
-        y += 6;
-
-        const colRank = margin;
-        const colName = margin + 12;
-        const colAvg = margin + 90;
-        const colStatus = margin + 115;
-        const colAbs = margin + 148;
-        const rowH = 7;
-
-        doc.setFillColor(245, 245, 250);
-        doc.rect(margin, y, w - margin * 2, rowH, 'F');
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(7.5);
-        doc.setTextColor(120, 120, 120);
-        doc.text('RG', colRank, y + 4.5);
-        doc.text('NOM & PRÉNOM', colName, y + 4.5);
-        doc.text('MOYENNE', colAvg, y + 4.5);
-        doc.text('RÉSULTAT', colStatus, y + 4.5);
-        if (hasAttendanceData) doc.text('ABSENCES', colAbs, y + 4.5);
-        y += rowH;
-
-        sortedRankings.forEach((s, idx) => {
-          if (y > 265) {
-            doc.addPage();
-            y = 20;
-          }
-          const isPass = s.avg !== null && s.avg >= 10;
-          if (idx % 2 === 0) {
-            doc.setFillColor(252, 252, 254);
-            doc.rect(margin, y, w - margin * 2, rowH, 'F');
-          }
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(8);
-          doc.setTextColor(80, 80, 80);
-          doc.text(String(idx + 1), colRank, y + 4.5);
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(30, 30, 30);
-          const fullSName = s.lastName ? `${s.lastName} ${s.firstName}` : (s.name || '');
-          const nameStr = fullSName.length > 28 ? fullSName.substring(0, 28) + '…' : fullSName;
-          doc.text(nameStr, colName, y + 4.5);
-          if (s.avg !== null) {
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(isPass ? 22 : 220, isPass ? 163 : 38, isPass ? 74 : 38);
-            doc.text(s.avg.toFixed(2), colAvg, y + 4.5);
-            doc.setTextColor(isPass ? 22 : 220, isPass ? 163 : 38, isPass ? 74 : 38);
-            doc.text(isPass ? 'Admis' : 'Non admis', colStatus, y + 4.5);
-          } else {
-            doc.setTextColor(160, 160, 160);
-            doc.text('—', colAvg, y + 4.5);
-            doc.text('—', colStatus, y + 4.5);
-          }
-          if (hasAttendanceData) {
-            doc.setTextColor(s.absenceRate !== null && s.absenceRate > 20 ? 220 : 100, s.absenceRate !== null && s.absenceRate > 20 ? 38 : 100, 100);
-            doc.text(s.absenceRate !== null ? `${s.absenceRate}%` : '—', colAbs, y + 4.5);
-          }
-          doc.setDrawColor(235, 235, 240);
-          doc.setLineWidth(0.2);
-          doc.line(margin, y + rowH, w - margin, y + rowH);
-          y += rowH;
+  const handleExportClassExcel = useCallback(async () => {
+    setIsExportingExcel(true);
+    try {
+      const group = { diploma: selectedDiploma, major: selectedMajor, year: selectedYear };
+      const classStudents = getGroupStudents(group)
+        .sort((a, b) => {
+          const regCompare = String(a.regNo || '').localeCompare(String(b.regNo || ''), 'fr', { numeric: true, sensitivity: 'base' });
+          if (regCompare !== 0) return regCompare;
+          const nameA = `${a.lastName || ''} ${a.firstName || ''} ${a.name || ''}`.trim();
+          const nameB = `${b.lastName || ''} ${b.firstName || ''} ${b.name || ''}`.trim();
+          return nameA.localeCompare(nameB, 'fr', { sensitivity: 'base' });
         });
+      const classModules = getGroupModules(group);
 
-        y += 8;
-        if (analytics.globalModuleData.length > 0) {
-          if (y > 240) { doc.addPage(); y = 20; }
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(11);
-          doc.setTextColor(30, 30, 30);
-          doc.text('Moyennes par Module (EFC)', margin, y);
-          y += 6;
+      if (classStudents.length === 0) return;
 
-          doc.setFillColor(245, 245, 250);
-          doc.rect(margin, y, w - margin * 2, rowH, 'F');
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7.5);
-          doc.setTextColor(120, 120, 120);
-          doc.text('MODULE', margin, y + 4.5);
-          doc.text('MOYENNE /20', margin + 120, y + 4.5);
-          y += rowH;
+      const coefficientTotal = classModules.reduce((sum, module) => sum + getModuleCoefficient(module), 0);
+      const averageHeaderTitle = `Moyennes générales de la ${selectedYear}`;
+      const moduleExportColumns = classModules.map((module, index) => ({
+        module,
+        code: getModuleExportCode(module, index, selectedYear),
+        coefficient: formatCoefficient(getModuleCoefficient(module)),
+      }));
+      const moduleCodeHeader = moduleExportColumns.map(({ code }) =>
+        `<th class="module-group" colspan="3">${escapeHtml(code)}</th>`
+      ).join('');
+      const moduleNameHeader = moduleExportColumns.map(({ module }) =>
+        `<th class="module-group module-name" colspan="3">${escapeHtml(module.name)}</th>`
+      ).join('');
+      const moduleCoefficientHeader = moduleExportColumns.map(({ coefficient }) => {
+        return `<th>${coefficient}</th><th>${coefficient}</th><th>${coefficient}</th>`;
+      }).join('');
+      const moduleSubHeader = classModules.map(() =>
+        '<th>CC</th><th>EFCFT</th><th>EFCFP</th>'
+      ).join('');
+      const registrationWidthValues = [`N° d'insc.`];
+      const nameWidthValues = ['Nom et prénoms'];
+      const moduleWidthValues = moduleExportColumns.map(({ coefficient }) => ({
+        cc: ['CC', coefficient],
+        theoretical: ['EFCFT', coefficient],
+        practical: ['EFCFP', coefficient],
+      }));
+      const summaryWidthValues = {
+        mcc: ['MCC1', formatCoefficient(coefficientTotal)],
+        met: ['MET1', formatCoefficient(coefficientTotal)],
+        mep: ['MEP1', formatCoefficient(coefficientTotal)],
+        general: ['Moyenne Générale', formatCoefficient(coefficientTotal)],
+      };
+      const decisionWidthValues = [`Décision jury d'examen`, 'Admis(e)', 'Racheté(e)', 'Redoublant(e)'];
 
-          analytics.globalModuleData.forEach((mod, idx) => {
-            if (y > 275) { doc.addPage(); y = 20; }
-            if (idx % 2 === 0) {
-              doc.setFillColor(252, 252, 254);
-              doc.rect(margin, y, w - margin * 2, rowH, 'F');
-            }
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(8);
-            doc.setTextColor(30, 30, 30);
-            doc.text(mod.fullName.length > 40 ? mod.fullName.substring(0, 40) + '…' : mod.fullName, margin, y + 4.5);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(parseFloat(mod.moyenne) >= 10 ? 22 : 220, parseFloat(mod.moyenne) >= 10 ? 163 : 38, parseFloat(mod.moyenne) >= 10 ? 74 : 38);
-            doc.text(String(mod.moyenne), margin + 120, y + 4.5);
-            doc.setDrawColor(235, 235, 240);
-            doc.setLineWidth(0.2);
-            doc.line(margin, y + rowH, w - margin, y + rowH);
-            y += rowH;
-          });
-        }
+      const studentRows = classStudents.map((student) => {
+        let ccWeightedTotal = 0;
+        let theoreticalWeightedTotal = 0;
+        let practicalWeightedTotal = 0;
+        const registrationNumber = student.regNo || student.registrationNumber || student.matricule || student.id || '';
+        const fullName = student.lastName || student.firstName
+          ? `${student.lastName || ''} ${student.firstName || ''}`.trim()
+          : (student.name || '');
 
-        doc.save(`rapport-classe-${selectedMajor.replace(/\s+/g, '-')}-${selectedYear.replace(/\s+/g, '-')}.pdf`);
-      } catch (e) {
-        console.error('PDF export error', e);
-      } finally {
-        setIsExporting(false);
-      }
-    }, 100);
-  }, [analytics, sortedRankings, selectedDiploma, selectedMajor, selectedYear, hasAttendanceData]);
+        registrationWidthValues.push(registrationNumber);
+        nameWidthValues.push(fullName);
+
+        const moduleCells = moduleExportColumns.map(({ module }, moduleIndex) => {
+          const details = getExcelModuleDetails(student.id, module.name);
+          const coefficient = getModuleCoefficient(module);
+          ccWeightedTotal += coefficient * (details.ccAverage ?? 0);
+          theoreticalWeightedTotal += coefficient * (details.theoretical ?? 0);
+          practicalWeightedTotal += coefficient * (details.practical ?? 0);
+          const ccLabel = formatExcelScore(details.ccAverage);
+          const theoreticalLabel = formatExcelScore(details.theoretical);
+          const practicalLabel = formatExcelScore(details.practical);
+
+          moduleWidthValues[moduleIndex].cc.push(ccLabel);
+          moduleWidthValues[moduleIndex].theoretical.push(theoreticalLabel);
+          moduleWidthValues[moduleIndex].practical.push(practicalLabel);
+
+          return [ccLabel, theoreticalLabel, practicalLabel]
+            .map(score => `<td class="num">${score}</td>`)
+            .join('');
+        }).join('');
+
+        const mcc = coefficientTotal > 0 ? ccWeightedTotal / coefficientTotal : null;
+        const met = coefficientTotal > 0 ? theoreticalWeightedTotal / coefficientTotal : null;
+        const mep = coefficientTotal > 0 ? practicalWeightedTotal / coefficientTotal : null;
+        const generalAverage = calcModuleAverage({
+          ccAverage: mcc,
+          theoretical: met,
+          practical: mep,
+        });
+        const juryDecision = getJuryDecision(generalAverage);
+        const mccLabel = formatExcelScore(mcc);
+        const metLabel = formatExcelScore(met);
+        const mepLabel = formatExcelScore(mep);
+        const generalAverageLabel = formatExcelScore(generalAverage);
+
+        summaryWidthValues.mcc.push(mccLabel);
+        summaryWidthValues.met.push(metLabel);
+        summaryWidthValues.mep.push(mepLabel);
+        summaryWidthValues.general.push(generalAverageLabel);
+        decisionWidthValues.push(juryDecision);
+
+        return `
+          <tr class="student-row">
+            <td>${escapeHtml(registrationNumber)}</td>
+            <td>${escapeHtml(fullName)}</td>
+            ${moduleCells}
+            <td class="num strong">${mccLabel}</td>
+            <td class="num strong">${metLabel}</td>
+            <td class="num strong">${mepLabel}</td>
+            <td class="num strong">${generalAverageLabel}</td>
+            <td class="strong">${escapeHtml(juryDecision)}</td>
+          </tr>
+        `;
+      }).join('');
+      const moduleColumnWidths = moduleExportColumns.flatMap(({ module, code }, index) => {
+        const mergedHeaderWidth = getAutoExcelColumnWidth([code, module.name], {
+          min: 132,
+          max: 300,
+          charWidth: 6.4,
+          padding: 24,
+        });
+        const minimumFromMergedHeader = Math.ceil(mergedHeaderWidth / 3);
+
+        return [
+          Math.max(minimumFromMergedHeader, getAutoExcelColumnWidth(moduleWidthValues[index].cc, { min: 44, max: 72, padding: 12 })),
+          Math.max(minimumFromMergedHeader, getAutoExcelColumnWidth(moduleWidthValues[index].theoretical, { min: 54, max: 78, padding: 12 })),
+          Math.max(minimumFromMergedHeader, getAutoExcelColumnWidth(moduleWidthValues[index].practical, { min: 54, max: 78, padding: 12 })),
+        ];
+      });
+      const printWidthPages = 2;
+      const printHeightPages = 1;
+      const rowHeights = getExcelRowHeights(
+        classStudents.length,
+        A4_LANDSCAPE_PRINTABLE_HEIGHT_PX * printHeightPages
+      );
+      const rawReportColumnWidths = [
+        getAutoExcelColumnWidth(registrationWidthValues, { min: 74, max: 140, padding: 16 }),
+        getAutoExcelColumnWidth(nameWidthValues, { min: 140, max: 280, padding: 18 }),
+        ...moduleColumnWidths,
+        getAutoExcelColumnWidth(summaryWidthValues.mcc, { min: 56, max: 78, padding: 12 }),
+        getAutoExcelColumnWidth(summaryWidthValues.met, { min: 56, max: 78, padding: 12 }),
+        getAutoExcelColumnWidth(summaryWidthValues.mep, { min: 56, max: 78, padding: 12 }),
+        getAutoExcelColumnWidth(summaryWidthValues.general, { min: 96, max: 128, padding: 14 }),
+        getAutoExcelColumnWidth(decisionWidthValues, { min: 128, max: 178, padding: 18 }),
+      ];
+      const reportColumnWidths = expandExcelColumnWidthsToTarget(
+        rawReportColumnWidths,
+        A4_LANDSCAPE_PRINTABLE_WIDTH_PX * printWidthPages
+      );
+      const reportTableWidth = reportColumnWidths.reduce((sum, width) => sum + width, 0);
+      const excelColGroup = renderExcelColGroup(reportColumnWidths);
+      const reportColumnCount = 2 + (moduleExportColumns.length * 3) + 4 + 1;
+      const signatureLabels = ['Président', 'Membre professionnel', 'Formateur 1', 'Formateur 2', 'Formateur 3'];
+      const signatureFooter = `&C&"Arial,Bold"&10${signatureLabels.join('        ')}`;
+      const signatureFooterCss = signatureFooter.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+      const professionalYear = getCurrentProfessionalYear();
+      const html = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+          <head>
+            <meta charset="UTF-8" />
+            <style>
+              @page {
+                size: A4 landscape;
+                margin: 0.25in 0.18in 0.25in 0.18in;
+                mso-page-orientation: landscape;
+                mso-header-margin: 0.12in;
+                mso-footer-margin: 0.18in;
+                mso-footer-data:'${signatureFooterCss}';
+              }
+              body { margin: 0; }
+              table { border-collapse: collapse; font-family: Arial, sans-serif; font-size: 11px; }
+              th, td { border: 1px solid #d9d9d9; padding: 6px; vertical-align: middle; }
+              th { background: #ede9fe; font-weight: 700; text-align: center; }
+              .report-table, .header-table { width: ${reportTableWidth}px; }
+              .report-table { table-layout: fixed; }
+              .report-table th, .report-table td { white-space: nowrap; }
+              .report-table .module-group, .report-table .average-group { white-space: normal; line-height: 1.2; }
+              .header-table { margin-bottom: ${EXCEL_HEADER_BOTTOM_MARGIN_PX}px; }
+              .header-table tr { height: ${rowHeights.headerRowHeight}px; mso-height-source: userset; }
+              .header-table td { border: none; background: #ffffff; }
+              .report-table thead tr { height: ${rowHeights.tableHeaderRowHeight}px; mso-height-source: userset; }
+              .report-table tbody tr { height: ${rowHeights.studentRowHeight}px; mso-height-source: userset; }
+              .header-center { text-align: center; font-weight: 700; color: #111827; }
+              .document-title { font-size: 15px; text-transform: uppercase; padding-top: 6px; }
+              .class-title { font-size: 13px; padding-top: 4px; }
+              .year-title { font-size: 13px; padding-top: 4px; }
+              .num { text-align: center; mso-number-format: "0.00"; }
+              .strong { font-weight: 700; }
+            </style>
+            <!--[if gte mso 9]>
+            <xml>
+              <x:ExcelWorkbook>
+                <x:ExcelWorksheets>
+                  <x:ExcelWorksheet>
+                    <x:Name>Synthese des notes</x:Name>
+                    <x:WorksheetOptions>
+                      <x:PageSetup>
+                        <x:Layout x:Orientation="Landscape" />
+                        <x:PageMargins x:Left="0.18" x:Right="0.18" x:Top="0.25" x:Bottom="0.25" x:Header="0.12" x:Footer="0.18" />
+                        <x:Footer x:Data="${escapeHtml(signatureFooter)}" />
+                      </x:PageSetup>
+                      <x:FitToPage />
+                      <x:Print>
+                        <x:FitWidth>${printWidthPages}</x:FitWidth>
+                        <x:FitHeight>${printHeightPages}</x:FitHeight>
+                        <x:PaperSizeIndex>9</x:PaperSizeIndex>
+                        <x:ValidPrinterInfo />
+                        <x:HorizontalResolution>600</x:HorizontalResolution>
+                        <x:VerticalResolution>600</x:VerticalResolution>
+                      </x:Print>
+                    </x:WorksheetOptions>
+                  </x:ExcelWorksheet>
+                </x:ExcelWorksheets>
+              </x:ExcelWorkbook>
+            </xml>
+            <![endif]-->
+          </head>
+          <body>
+            <table class="header-table">
+              ${excelColGroup}
+              <tr>
+                <td class="header-center document-title" colspan="${reportColumnCount}">Synthèse des notes</td>
+              </tr>
+              <tr>
+                <td class="header-center class-title" colspan="${reportColumnCount}">Filière: ${escapeHtml(selectedDiploma)} - ${escapeHtml(selectedMajor)} - ${escapeHtml(selectedYear)}</td>
+              </tr>
+              <tr>
+                <td class="header-center year-title" colspan="${reportColumnCount}">${escapeHtml(professionalYear)}</td>
+              </tr>
+            </table>
+            <table class="report-table">
+              ${excelColGroup}
+              <thead>
+                <tr>
+                  <th rowspan="4">N° d'insc.</th>
+                  <th rowspan="4">Nom et prénoms</th>
+                  ${moduleCodeHeader}
+                  <th class="average-group" colspan="4" rowspan="2">${escapeHtml(averageHeaderTitle)}</th>
+                  <th rowspan="4">Décision jury d'examen</th>
+                </tr>
+                <tr>
+                  ${moduleNameHeader}
+                </tr>
+                <tr>
+                  ${moduleCoefficientHeader}
+                  <th colspan="4">${formatCoefficient(coefficientTotal)}</th>
+                </tr>
+                <tr>
+                  ${moduleSubHeader}
+                  <th>MCC1</th>
+                  <th>MET1</th>
+                  <th>MEP1</th>
+                  <th>Moyenne Générale</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${studentRows}
+              </tbody>
+            </table>
+          </body>
+        </html>
+      `;
+
+      const blob = new Blob(['\ufeff', html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `synthese-des-notes-${safeFileNamePart(selectedMajor)}-${safeFileNamePart(selectedYear)}.xls`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Excel export error', error);
+    } finally {
+      setIsExportingExcel(false);
+    }
+  }, [getExcelModuleDetails, getGroupModules, getGroupStudents, selectedDiploma, selectedMajor, selectedYear]);
 
   const reportGroupStats = useMemo(() =>
     allReportGroups.map(group => buildGroupStats(group)),
@@ -656,15 +888,6 @@ const Reports = () => {
           <h1>Analytique & Rapports</h1>
           <p>Suivi visuel des performances académiques et de la progression.</p>
         </div>
-        <button
-          onClick={handleExportPDF}
-          disabled={isExporting || analytics.filteredStudentsCount === 0}
-          className="btn-modern primary reports-premium-export"
-          style={{ opacity: analytics.filteredStudentsCount === 0 ? 0.5 : 1, alignSelf: 'center' }}
-        >
-          <Download size={14} style={{ marginRight: '6px' }} />
-          {isExporting ? 'Génération…' : 'Exporter PDF'}
-        </button>
         <div className="reports-premium-header-orb" aria-hidden="true">
           <BarChart size={112} />
         </div>
@@ -684,6 +907,19 @@ const Reports = () => {
           <label style={labelStyle}>Année</label>
           <FilterSelect value={selectedYear} onChange={val => setSelectedYear(val)} options={availableStudyYears.map(year => ({ label: year, value: year }))} />
         </div>
+        <button
+          onClick={handleExportClassExcel}
+          disabled={isExportingExcel || analytics.filteredStudentsCount === 0}
+          className="reports-excel-export-btn"
+        >
+          <span className="reports-excel-export-icon">
+            <Download size={16} />
+          </span>
+          <span className="reports-excel-export-copy">
+            <span>{isExportingExcel ? 'Génération…' : 'Synthèse des notes'}</span>
+            <small>Exporter en Excel</small>
+          </span>
+        </button>
         
       </div>
 
