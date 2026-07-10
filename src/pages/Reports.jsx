@@ -152,6 +152,29 @@ const expandExcelColumnWidthsToTarget = (widths, targetWidth) => {
   return expandedWidths;
 };
 
+const getExcelPageColumnRanges = (columnWidths, pageWidth, pageCount) => {
+  const ranges = [];
+  let startCol = 1;
+  let width = 0;
+
+  columnWidths.forEach((columnWidth, index) => {
+    const currentCol = index + 1;
+    if (
+      ranges.length < pageCount - 1 &&
+      width > 0 &&
+      width + columnWidth > pageWidth
+    ) {
+      ranges.push({ startCol, endCol: currentCol - 1 });
+      startCol = currentCol;
+      width = 0;
+    }
+    width += columnWidth;
+  });
+
+  ranges.push({ startCol, endCol: columnWidths.length });
+  return ranges;
+};
+
 const getExcelRowHeights = (studentCount, targetHeight, extraFixedHeight = 0) => {
   const fixedHeight =
     (EXCEL_HEADER_ROW_HEIGHT_PX * 3) +
@@ -186,6 +209,7 @@ const columnName = (index) => {
 
 const pxToExcelWidth = (px) => Math.max(4, Math.round((px / 7) * 100) / 100);
 const pxToPoints = (px) => Math.round(px * 0.75 * 100) / 100;
+const escapeSheetNameForFormula = (value = '') => String(value || '').replace(/'/g, "''");
 
 const xlsxStyleId = {
   title: 1,
@@ -303,10 +327,16 @@ const buildXlsxBlob = ({
   footerText,
   printWidthPages,
   printHeightPages,
+  repeatTitleRows = [1, 3],
   sheetName = 'Synthese des notes',
 }) => {
   const lastColumn = columnName(columnWidths.length);
   const lastRow = rows.length;
+  const escapedSheetName = escapeHtml(sheetName);
+  const escapedFormulaSheetName = escapeHtml(escapeSheetNameForFormula(sheetName));
+  const printTitleRowsXml = repeatTitleRows
+    ? `<definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">'${escapedFormulaSheetName}'!$${repeatTitleRows[0]}:$${repeatTitleRows[1]}</definedName></definedNames>`
+    : '';
   const colsXml = columnWidths.map((width, index) =>
     `<col min="${index + 1}" max="${index + 1}" width="${pxToExcelWidth(width)}" customWidth="1"/>`
   ).join('');
@@ -337,6 +367,7 @@ const buildXlsxBlob = ({
   <cols>${colsXml}</cols>
   <sheetData>${rowsXml}</sheetData>
   ${mergeXml}
+  <printOptions horizontalCentered="1"/>
   <pageMargins left="0.18" right="0.18" top="0.25" bottom="0.25" header="0.12" footer="0.18"/>
   <pageSetup paperSize="9" orientation="landscape" fitToWidth="${printWidthPages}" fitToHeight="${printHeightPages}"/>
   <headerFooter><oddFooter>${escapeHtml(footerText)}</oddFooter></headerFooter>
@@ -417,7 +448,7 @@ const buildXlsxBlob = ({
       content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <dc:creator>IPFP</dc:creator>
-  <dc:title>${escapeHtml(sheetName)}</dc:title>
+  <dc:title>${escapedSheetName}</dc:title>
   <dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString()}</dcterms:created>
 </cp:coreProperties>`,
     },
@@ -425,7 +456,8 @@ const buildXlsxBlob = ({
       name: 'xl/workbook.xml',
       content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-  <sheets><sheet name="${escapeHtml(sheetName)}" sheetId="1" r:id="rId1"/></sheets>
+  <sheets><sheet name="${escapedSheetName}" sheetId="1" r:id="rId1"/></sheets>
+  ${printTitleRowsXml}
 </workbook>`,
     },
     {
@@ -908,6 +940,11 @@ const Reports = () => {
         A4_LANDSCAPE_PRINTABLE_WIDTH_PX * printWidthPages
       );
       const reportColumnCount = 2 + (moduleExportColumns.length * 3) + 4 + 1;
+      const pageColumnRanges = getExcelPageColumnRanges(
+        reportColumnWidths,
+        A4_LANDSCAPE_PRINTABLE_WIDTH_PX,
+        printWidthPages
+      );
       const professionalYear = getCurrentProfessionalYear();
       const rows = [];
       const rowHeightsPx = [];
@@ -920,6 +957,21 @@ const Reports = () => {
         value: value === null ? '—' : Number(value.toFixed(2)),
         style,
       });
+      const mergeRangeIfNeeded = (startCol, endCol, rowNumber) => {
+        if (endCol > startCol) {
+          merges.push(`${columnName(startCol)}${rowNumber}:${columnName(endCol)}${rowNumber}`);
+        }
+      };
+      const addRepeatedPageTitleRow = (value, style) => {
+        const rowNumber = rows.length + 1;
+        const row = makeRow();
+        pageColumnRanges.forEach(({ startCol, endCol }) => {
+          setCell(row, startCol, value, style);
+          mergeRangeIfNeeded(startCol, endCol, rowNumber);
+        });
+        rows.push(row);
+        rowHeightsPx.push(rowHeights.headerRowHeight);
+      };
       const addSignatureRows = () => {
         rows.push([]);
         rowHeightsPx.push(rowHeights.signatureSpacerRowHeight);
@@ -929,12 +981,17 @@ const Reports = () => {
         const labelRow = makeRow();
         const areaRow = makeRow();
 
-        signatureLabels.forEach((label, index) => {
-          const startCol = Math.floor((index * reportColumnCount) / signatureLabels.length) + 1;
-          const endCol = Math.floor(((index + 1) * reportColumnCount) / signatureLabels.length);
-          setCell(labelRow, startCol, label, 'signature');
-          merges.push(`${columnName(startCol)}${labelRowNumber}:${columnName(endCol)}${labelRowNumber}`);
-          merges.push(`${columnName(startCol)}${areaRowNumber}:${columnName(endCol)}${areaRowNumber}`);
+        pageColumnRanges.forEach(({ startCol: pageStartCol, endCol: pageEndCol }) => {
+          const pageColumnCount = pageEndCol - pageStartCol + 1;
+          signatureLabels.forEach((label, index) => {
+            const startCol = pageStartCol + Math.floor((index * pageColumnCount) / signatureLabels.length);
+            const rawEndCol = pageStartCol + Math.floor(((index + 1) * pageColumnCount) / signatureLabels.length) - 1;
+            const endCol = Math.max(startCol, Math.min(pageEndCol, rawEndCol));
+            if (startCol > pageEndCol) return;
+            setCell(labelRow, startCol, label, 'signature');
+            mergeRangeIfNeeded(startCol, endCol, labelRowNumber);
+            mergeRangeIfNeeded(startCol, endCol, areaRowNumber);
+          });
         });
 
         rows.push(labelRow);
@@ -943,13 +1000,9 @@ const Reports = () => {
         rowHeightsPx.push(rowHeights.signatureAreaRowHeight);
       };
 
-      rows.push([{ value: 'Synthèse des notes', style: 'title' }]);
-      rows.push([{ value: `Filière: ${selectedDiploma} - ${selectedMajor} - ${selectedYear}`, style: 'subtitle' }]);
-      rows.push([{ value: professionalYear, style: 'subtitle' }]);
-      rowHeightsPx.push(rowHeights.headerRowHeight, rowHeights.headerRowHeight, rowHeights.headerRowHeight);
-      merges.push(`A1:${columnName(reportColumnCount)}1`);
-      merges.push(`A2:${columnName(reportColumnCount)}2`);
-      merges.push(`A3:${columnName(reportColumnCount)}3`);
+      addRepeatedPageTitleRow('Synthèse des notes', 'title');
+      addRepeatedPageTitleRow(`Filière: ${selectedDiploma} - ${selectedMajor} - ${selectedYear}`, 'subtitle');
+      addRepeatedPageTitleRow(professionalYear, 'subtitle');
 
       rows.push([]);
       rowHeightsPx.push(EXCEL_HEADER_BOTTOM_MARGIN_PX);
