@@ -603,16 +603,11 @@ const Reports = () => {
     };
 
     const computeWeightedAvg = (studentId) => {
-      let totalWeight = 0, totalScore = 0;
-      availableModulesList.forEach(({ name, coefficient }) => {
-        const score = getModuleScore(studentId, name);
-        if (score !== null) {
-          const weight = getModuleCoefficient({ coefficient });
-          totalScore += score * weight;
-          totalWeight += weight;
-        }
-      });
-      return totalWeight > 0 ? totalScore / totalWeight : null;
+      const { generalAverage } = calcStudentSynthesisAverages(
+        grades[studentId] || {},
+        availableModulesList
+      );
+      return generalAverage;
     };
 
     const studentRankings = filteredStudents.map(s => {
@@ -777,24 +772,17 @@ const Reports = () => {
     const groupModules = getGroupModules(group);
 
     const rankings = groupStudents.map(student => {
-      let totalWeight = 0;
-      let totalScore = 0;
-
-      groupModules.forEach(module => {
-        const { score } = getReportModuleDetails(student.id, module.name);
-        if (score !== null) {
-          const weight = getModuleCoefficient(module);
-          totalScore += score * weight;
-          totalWeight += weight;
-        }
-      });
+      const { generalAverage } = calcStudentSynthesisAverages(
+        grades[student.id] || {},
+        groupModules
+      );
 
       const studentMonthAttendance = studentAttendance.filter(a => a.studentId === student.id);
       const absences = studentMonthAttendance.filter(a => a.status === 'absent').length;
 
       return {
         student,
-        avg: totalWeight > 0 ? totalScore / totalWeight : null,
+        avg: generalAverage,
         absenceRate: studentMonthAttendance.length > 0 ? Math.round((absences / studentMonthAttendance.length) * 100) : null,
       };
     }).sort((a, b) => (b.avg ?? -1) - (a.avg ?? -1));
@@ -830,7 +818,7 @@ const Reports = () => {
       passCount: rankedWithAvg.filter(item => item.avg >= 10).length,
       failCount: rankedWithAvg.filter(item => item.avg < 10).length,
     };
-  }, [getGroupModules, getGroupStudents, getReportModuleDetails, studentAttendance]);
+  }, [getGroupModules, getGroupStudents, getReportModuleDetails, grades, studentAttendance]);
 
   const buildModuleStats = useCallback((group, moduleName) => {
     const groupStudents = getGroupStudents(group);
