@@ -110,7 +110,7 @@ const getCurrentProfessionalYear = (date = new Date()) => {
   return `${startYear}/${startYear + 1}`;
 };
 
-const getAutoExcelColumnWidth = (values, { min = 44, max = 260, charWidth = 7, padding = 18 } = {}) => {
+const getAutoExcelColumnWidth = (values, { min = 36, max = 220, charWidth = 5.2, padding = 12 } = {}) => {
   const longest = values.reduce((maxLength, value) => {
     const text = String(value ?? '').trim();
     const weightedLength = Array.from(text).reduce((length, char) => {
@@ -127,8 +127,8 @@ const A4_LANDSCAPE_PRINTABLE_WIDTH_PX = 1088;
 const A4_LANDSCAPE_PRINTABLE_HEIGHT_PX = 710;
 const EXCEL_HEADER_ROW_HEIGHT_PX = 24;
 const EXCEL_HEADER_BOTTOM_MARGIN_PX = 12;
-const EXCEL_TABLE_HEADER_ROW_HEIGHT_PX = 27;
-const EXCEL_DATA_ROW_MIN_HEIGHT_PX = 22;
+const EXCEL_TABLE_HEADER_ROW_HEIGHT_PX = 22;
+const EXCEL_DATA_ROW_MIN_HEIGHT_PX = 12;
 const EXCEL_SIGNATURE_SPACER_HEIGHT_PX = 14;
 const EXCEL_SIGNATURE_LABEL_HEIGHT_PX = 24;
 const EXCEL_SIGNATURE_AREA_HEIGHT_PX = 44;
@@ -150,6 +150,57 @@ const expandExcelColumnWidthsToTarget = (widths, targetWidth) => {
   }
 
   return expandedWidths;
+};
+
+const fitExcelColumnWidthsToTarget = (widths, targetWidth) => {
+  const currentWidth = widths.reduce((sum, width) => sum + width, 0);
+  if (currentWidth <= 0) return widths;
+
+  const scale = targetWidth / currentWidth;
+  const fittedWidths = widths.map(width => Math.max(4, Math.round(width * scale)));
+  const roundingGap = Math.round(targetWidth - fittedWidths.reduce((sum, width) => sum + width, 0));
+
+  if (roundingGap !== 0) {
+    fittedWidths[fittedWidths.length - 1] = Math.max(4, fittedWidths[fittedWidths.length - 1] + roundingGap);
+  }
+
+  return fittedWidths;
+};
+
+const getModuleBoundaryPageBreakColumn = (columnWidths, moduleCount) => {
+  if (moduleCount < 2) return null;
+
+  const moduleStartCol = 3;
+  const moduleColumnSpan = 3;
+  let bestBreakAfterCol = null;
+  let bestScore = Infinity;
+
+  for (let moduleIndex = 1; moduleIndex < moduleCount; moduleIndex += 1) {
+    const breakAfterCol = moduleStartCol - 1 + (moduleIndex * moduleColumnSpan);
+    const firstPageWidth = columnWidths
+      .slice(0, breakAfterCol)
+      .reduce((sum, width) => sum + width, 0);
+    const secondPageWidth = columnWidths
+      .slice(breakAfterCol)
+      .reduce((sum, width) => sum + width, 0);
+    const score = Math.abs(firstPageWidth - secondPageWidth);
+
+    if (score < bestScore) {
+      bestScore = score;
+      bestBreakAfterCol = breakAfterCol;
+    }
+  }
+
+  return bestBreakAfterCol;
+};
+
+const fitExcelColumnWidthsToModulePageBreak = (widths, breakAfterCol, pageWidth) => {
+  if (!breakAfterCol) return widths;
+
+  return [
+    ...fitExcelColumnWidthsToTarget(widths.slice(0, breakAfterCol), pageWidth),
+    ...fitExcelColumnWidthsToTarget(widths.slice(breakAfterCol), pageWidth),
+  ];
 };
 
 const getExcelPageColumnRanges = (columnWidths, pageWidth, pageCount) => {
@@ -183,7 +234,7 @@ const getExcelRowHeights = (studentCount, targetHeight, extraFixedHeight = 0) =>
     extraFixedHeight;
   const availableStudentHeight = Math.max(0, targetHeight - fixedHeight);
   const studentRowHeight = studentCount > 0
-    ? Math.max(EXCEL_DATA_ROW_MIN_HEIGHT_PX, Math.floor(availableStudentHeight / studentCount))
+    ? Math.max(EXCEL_DATA_ROW_MIN_HEIGHT_PX, Math.round((availableStudentHeight / studentCount) * 100) / 100)
     : EXCEL_DATA_ROW_MIN_HEIGHT_PX;
 
   return {
@@ -327,6 +378,7 @@ const buildXlsxBlob = ({
   footerText,
   printWidthPages,
   printHeightPages,
+  columnBreaks = [],
   repeatTitleRows = [1, 3],
   sheetName = 'Synthese des notes',
 }) => {
@@ -358,6 +410,9 @@ const buildXlsxBlob = ({
   const mergeXml = merges.length > 0
     ? `<mergeCells count="${merges.length}">${merges.map(ref => `<mergeCell ref="${ref}"/>`).join('')}</mergeCells>`
     : '';
+  const colBreaksXml = columnBreaks.length > 0
+    ? `<colBreaks count="${columnBreaks.length}" manualBreakCount="${columnBreaks.length}">${columnBreaks.map(column => `<brk id="${column}" max="1048575" man="1"/>`).join('')}</colBreaks>`
+    : '';
   const worksheetXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>
@@ -371,15 +426,18 @@ const buildXlsxBlob = ({
   <pageMargins left="0.18" right="0.18" top="0.25" bottom="0.25" header="0.12" footer="0.18"/>
   <pageSetup paperSize="9" orientation="landscape" fitToWidth="${printWidthPages}" fitToHeight="${printHeightPages}"/>
   <headerFooter><oddFooter>${escapeHtml(footerText)}</oddFooter></headerFooter>
+  ${colBreaksXml}
 </worksheet>`;
 
   const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <fonts count="4">
+  <fonts count="6">
     <font><sz val="11"/><color theme="1"/><name val="Arial"/><family val="2"/></font>
     <font><b/><sz val="11"/><color theme="1"/><name val="Arial"/><family val="2"/></font>
     <font><b/><sz val="15"/><color theme="1"/><name val="Arial"/><family val="2"/></font>
     <font><b/><sz val="13"/><color theme="1"/><name val="Arial"/><family val="2"/></font>
+    <font><sz val="8"/><color theme="1"/><name val="Arial"/><family val="2"/></font>
+    <font><b/><sz val="8"/><color theme="1"/><name val="Arial"/><family val="2"/></font>
   </fonts>
   <fills count="3">
     <fill><patternFill patternType="none"/></fill>
@@ -401,11 +459,11 @@ const buildXlsxBlob = ({
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
     <xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
     <xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
-    <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
-    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment vertical="center"/></xf>
-    <xf numFmtId="2" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
-    <xf numFmtId="2" fontId="1" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
-    <xf numFmtId="0" fontId="1" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="5" fillId="2" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="4" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="2" fontId="4" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="2" fontId="5" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="5" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
     <xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
   </cellXfs>
   <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
@@ -831,7 +889,7 @@ const Reports = () => {
         coefficient: formatCoefficient(getModuleCoefficient(module)),
       }));
       const registrationHeader = `N° d'insc.`;
-      const nameHeader = 'Nom et prénoms';
+      const nameHeader = 'Nom et prénom';
       const generalAverageHeader = 'Moyenne Générale';
       const decisionHeader = `Décision jury d'examen`;
       const registrationWidthValues = [registrationHeader];
@@ -904,17 +962,17 @@ const Reports = () => {
       });
       const moduleColumnWidths = moduleExportColumns.flatMap(({ module, code }, index) => {
         const mergedHeaderWidth = getAutoExcelColumnWidth([code, module.name], {
-          min: 132,
-          max: 300,
-          charWidth: 6.4,
-          padding: 24,
+          min: 96,
+          max: 220,
+          charWidth: 4.8,
+          padding: 16,
         });
         const minimumFromMergedHeader = Math.ceil(mergedHeaderWidth / 3);
 
         return [
-          Math.max(minimumFromMergedHeader, getAutoExcelColumnWidth(moduleWidthValues[index].cc, { min: 44, max: 72, padding: 12 })),
-          Math.max(minimumFromMergedHeader, getAutoExcelColumnWidth(moduleWidthValues[index].theoretical, { min: 54, max: 78, padding: 12 })),
-          Math.max(minimumFromMergedHeader, getAutoExcelColumnWidth(moduleWidthValues[index].practical, { min: 54, max: 78, padding: 12 })),
+          Math.max(minimumFromMergedHeader, getAutoExcelColumnWidth(moduleWidthValues[index].cc, { min: 34, max: 54, padding: 8 })),
+          Math.max(minimumFromMergedHeader, getAutoExcelColumnWidth(moduleWidthValues[index].theoretical, { min: 42, max: 60, padding: 8 })),
+          Math.max(minimumFromMergedHeader, getAutoExcelColumnWidth(moduleWidthValues[index].practical, { min: 42, max: 60, padding: 8 })),
         ];
       });
       const printWidthPages = 2;
@@ -926,25 +984,40 @@ const Reports = () => {
         EXCEL_SIGNATURE_TOTAL_HEIGHT_PX
       );
       const rawReportColumnWidths = [
-        getAutoExcelColumnWidth(registrationWidthValues, { min: 74, max: 140, padding: 16 }),
-        getAutoExcelColumnWidth(nameWidthValues, { min: 140, max: 280, padding: 18 }),
+        getAutoExcelColumnWidth(registrationWidthValues, { min: 58, max: 96, padding: 10 }),
+        getAutoExcelColumnWidth(nameWidthValues, { min: 112, max: 210, padding: 12 }),
         ...moduleColumnWidths,
-        getAutoExcelColumnWidth(summaryWidthValues.mcc, { min: 56, max: 78, padding: 12 }),
-        getAutoExcelColumnWidth(summaryWidthValues.met, { min: 56, max: 78, padding: 12 }),
-        getAutoExcelColumnWidth(summaryWidthValues.mep, { min: 56, max: 78, padding: 12 }),
-        getAutoExcelColumnWidth(summaryWidthValues.general, { min: 96, max: 128, padding: 14 }),
-        getAutoExcelColumnWidth(decisionWidthValues, { min: 128, max: 178, padding: 18 }),
+        getAutoExcelColumnWidth(summaryWidthValues.mcc, { min: 42, max: 58, padding: 8 }),
+        getAutoExcelColumnWidth(summaryWidthValues.met, { min: 42, max: 58, padding: 8 }),
+        getAutoExcelColumnWidth(summaryWidthValues.mep, { min: 42, max: 58, padding: 8 }),
+        getAutoExcelColumnWidth(summaryWidthValues.general, { min: 76, max: 104, padding: 10 }),
+        getAutoExcelColumnWidth(decisionWidthValues, { min: 92, max: 136, padding: 12 }),
       ];
-      const reportColumnWidths = expandExcelColumnWidthsToTarget(
-        rawReportColumnWidths,
-        A4_LANDSCAPE_PRINTABLE_WIDTH_PX * printWidthPages
-      );
       const reportColumnCount = 2 + (moduleExportColumns.length * 3) + 4 + 1;
-      const pageColumnRanges = getExcelPageColumnRanges(
-        reportColumnWidths,
-        A4_LANDSCAPE_PRINTABLE_WIDTH_PX,
-        printWidthPages
+      const modulePageBreakAfterColumn = getModuleBoundaryPageBreakColumn(
+        rawReportColumnWidths,
+        moduleExportColumns.length
       );
+      const reportColumnWidths = modulePageBreakAfterColumn
+        ? fitExcelColumnWidthsToModulePageBreak(
+          rawReportColumnWidths,
+          modulePageBreakAfterColumn,
+          A4_LANDSCAPE_PRINTABLE_WIDTH_PX
+        )
+        : expandExcelColumnWidthsToTarget(
+          rawReportColumnWidths,
+          A4_LANDSCAPE_PRINTABLE_WIDTH_PX * printWidthPages
+        );
+      const pageColumnRanges = modulePageBreakAfterColumn
+        ? [
+          { startCol: 1, endCol: modulePageBreakAfterColumn },
+          { startCol: modulePageBreakAfterColumn + 1, endCol: reportColumnCount },
+        ]
+        : getExcelPageColumnRanges(
+          reportColumnWidths,
+          A4_LANDSCAPE_PRINTABLE_WIDTH_PX,
+          printWidthPages
+        );
       const professionalYear = getCurrentProfessionalYear();
       const rows = [];
       const rowHeightsPx = [];
@@ -1094,6 +1167,7 @@ const Reports = () => {
         footerText: '',
         printWidthPages,
         printHeightPages,
+        columnBreaks: modulePageBreakAfterColumn ? [modulePageBreakAfterColumn] : [],
       });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
