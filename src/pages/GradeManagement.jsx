@@ -5,6 +5,12 @@ import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { FILIERES, getClassCode, getNextStudyYear, getStudyYearsForDiploma } from '../data/modules';
 import { getStudentGradeModules, sanitizeGradeKey } from '../utils/gradeSync';
+import {
+  calcCcAverage,
+  calcModuleAverage,
+  calcStudentSynthesisAverages,
+  parseScore,
+} from '../utils/gradeCalculations';
 import { isActiveStudent } from '../utils/studentStatus';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
@@ -196,16 +202,9 @@ const GradeManagement = () => {
   };
 
   const calcMoyenneCC = (g) => {
-    if (!g || g.c1 === '' || g.c2 === '') return null;
+    if (!g) return null;
     if (!isValidGrade(g.c1) || !isValidGrade(g.c2) || !isValidGrade(g.c3)) return null;
-    
-    const c1 = parseFloat(g.c1), c2 = parseFloat(g.c2);
-    if (isNaN(c1) || isNaN(c2)) return null;
-    if (g.c3 !== '' && g.c3 !== undefined && g.c3 !== null) {
-      const c3 = parseFloat(g.c3);
-      if (!isNaN(c3)) return (c1 + c2 + c3) / 3;
-    }
-    return (c1 + c2) / 2;
+    return calcCcAverage(g);
   };
 
   const calcAvg = (g) => {
@@ -215,9 +214,12 @@ const GradeManagement = () => {
     const cc = calcMoyenneCC(g);
     if (cc === null) return null;
     if (g.efcfp === '' || g.efcft === '') return null;
-    const efcfp = parseFloat(g.efcfp), efcft = parseFloat(g.efcft);
-    if (isNaN(efcfp) || isNaN(efcft)) return null;
-    return (cc * 3 + efcft * 2 + efcfp * 3) / 8;
+    const efcfp = parseScore(g.efcfp), efcft = parseScore(g.efcft);
+    return calcModuleAverage({
+      ccAverage: cc,
+      theoretical: efcft,
+      practical: efcfp,
+    });
   };
 
   const isComplete = (g) => {
@@ -236,22 +238,8 @@ const GradeManagement = () => {
   };
 
   const generalAvg = () => {
-    let sumCC = 0, sumFT = 0, sumFP = 0, cnt = 0;
-    studentModules.forEach(mod => {
-      const g = localGrades[sanitizeGradeKey(mod.name)];
-      const cc = calcMoyenneCC(g);
-      if (cc !== null && g?.efcft !== '' && g?.efcft !== undefined && g?.efcfp !== '' && g?.efcfp !== undefined) {
-        sumCC += cc;
-        sumFT += parseFloat(g.efcft);
-        sumFP += parseFloat(g.efcfp);
-        cnt++;
-      }
-    });
-    if (cnt === 0) return '—';
-    const mCC = sumCC / cnt;
-    const mFT = sumFT / cnt;
-    const mFP = sumFP / cnt;
-    return (((mCC * 3) + (mFT * 2) + (mFP * 3)) / 8).toFixed(2);
+    const { generalAverage } = calcStudentSynthesisAverages(localGrades, studentModules);
+    return generalAverage !== null ? generalAverage.toFixed(2) : '—';
   };
 
   const completedModules = modules.filter(mod => isComplete(localGrades[sanitizeGradeKey(mod)])).length;
@@ -295,7 +283,7 @@ const GradeManagement = () => {
   const handleBulletinGlobal = async () => {
     if (!selectedStudent) return;
     const { generateBulletinGlobal } = await import('../utils/pdfGenerator');
-    await generateBulletinGlobal(selectedStudent, grades, modules);
+    await generateBulletinGlobal(selectedStudent, grades, studentModules);
     showToast('Bulletin généré', 'success');
   };
 

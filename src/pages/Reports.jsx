@@ -14,6 +14,13 @@ import {
   Award, AlertTriangle, ChevronUp, ChevronDown, Minus,
   CheckCircle, XCircle
 } from 'lucide-react';
+import {
+  calcCcAverage,
+  calcModuleAverage,
+  calcStudentSynthesisAverages,
+  getModuleCoefficient,
+  parseScore,
+} from '../utils/gradeCalculations';
 
 const labelStyle = {
   fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)',
@@ -59,39 +66,12 @@ const CustomDonutLabel = ({ cx, cy, value, label }) => (
 
 const gradeModuleKey = (moduleName = '') => moduleName.replace(/\./g, '_');
 
-const parseScore = (value) => {
-  const score = parseFloat(value);
-  return Number.isNaN(score) ? null : score;
-};
-
 const formatExcelScore = (value) => value === null ? '—' : value.toFixed(2);
 
 const formatCoefficient = (value) => {
   const coefficient = Number(value);
   if (Number.isNaN(coefficient)) return '';
   return Number.isInteger(coefficient) ? String(coefficient) : String(coefficient);
-};
-
-const calcCcAverage = (grade) => {
-  if (!grade) return null;
-  const c1 = parseScore(grade.c1);
-  const c2 = parseScore(grade.c2);
-  const c3 = parseScore(grade.c3);
-
-  if (c1 === null || c2 === null) return null;
-
-  const scores = [c1, c2, ...(c3 !== null ? [c3] : [])];
-  return scores.reduce((sum, score) => sum + score, 0) / scores.length;
-};
-
-const calcModuleAverage = ({ ccAverage, theoretical, practical }) => {
-  if (ccAverage === null || theoretical === null || practical === null) return null;
-  return ((ccAverage * 3) + (theoretical * 2) + (practical * 3)) / 8;
-};
-
-const getModuleCoefficient = (module) => {
-  const coefficient = parseFloat(module?.coefficient);
-  return Number.isNaN(coefficient) || coefficient <= 0 ? 1 : coefficient;
 };
 
 const getStudyYearNumber = (year = '') =>
@@ -149,6 +129,13 @@ const EXCEL_HEADER_ROW_HEIGHT_PX = 24;
 const EXCEL_HEADER_BOTTOM_MARGIN_PX = 12;
 const EXCEL_TABLE_HEADER_ROW_HEIGHT_PX = 27;
 const EXCEL_DATA_ROW_MIN_HEIGHT_PX = 22;
+const EXCEL_SIGNATURE_SPACER_HEIGHT_PX = 14;
+const EXCEL_SIGNATURE_LABEL_HEIGHT_PX = 24;
+const EXCEL_SIGNATURE_AREA_HEIGHT_PX = 44;
+const EXCEL_SIGNATURE_TOTAL_HEIGHT_PX =
+  EXCEL_SIGNATURE_SPACER_HEIGHT_PX +
+  EXCEL_SIGNATURE_LABEL_HEIGHT_PX +
+  EXCEL_SIGNATURE_AREA_HEIGHT_PX;
 
 const expandExcelColumnWidthsToTarget = (widths, targetWidth) => {
   const currentWidth = widths.reduce((sum, width) => sum + width, 0);
@@ -165,11 +152,12 @@ const expandExcelColumnWidthsToTarget = (widths, targetWidth) => {
   return expandedWidths;
 };
 
-const getExcelRowHeights = (studentCount, targetHeight) => {
+const getExcelRowHeights = (studentCount, targetHeight, extraFixedHeight = 0) => {
   const fixedHeight =
     (EXCEL_HEADER_ROW_HEIGHT_PX * 3) +
     EXCEL_HEADER_BOTTOM_MARGIN_PX +
-    (EXCEL_TABLE_HEADER_ROW_HEIGHT_PX * 4);
+    (EXCEL_TABLE_HEADER_ROW_HEIGHT_PX * 4) +
+    extraFixedHeight;
   const availableStudentHeight = Math.max(0, targetHeight - fixedHeight);
   const studentRowHeight = studentCount > 0
     ? Math.max(EXCEL_DATA_ROW_MIN_HEIGHT_PX, Math.floor(availableStudentHeight / studentCount))
@@ -179,11 +167,279 @@ const getExcelRowHeights = (studentCount, targetHeight) => {
     headerRowHeight: EXCEL_HEADER_ROW_HEIGHT_PX,
     tableHeaderRowHeight: EXCEL_TABLE_HEADER_ROW_HEIGHT_PX,
     studentRowHeight,
+    signatureSpacerRowHeight: EXCEL_SIGNATURE_SPACER_HEIGHT_PX,
+    signatureLabelRowHeight: EXCEL_SIGNATURE_LABEL_HEIGHT_PX,
+    signatureAreaRowHeight: EXCEL_SIGNATURE_AREA_HEIGHT_PX,
   };
 };
 
-const renderExcelColGroup = (widths) =>
-  `<colgroup>${widths.map(width => `<col style="width:${width}px; mso-width-source:userset;" />`).join('')}</colgroup>`;
+const columnName = (index) => {
+  let name = '';
+  let n = index;
+  while (n > 0) {
+    const remainder = (n - 1) % 26;
+    name = String.fromCharCode(65 + remainder) + name;
+    n = Math.floor((n - 1) / 26);
+  }
+  return name;
+};
+
+const pxToExcelWidth = (px) => Math.max(4, Math.round((px / 7) * 100) / 100);
+const pxToPoints = (px) => Math.round(px * 0.75 * 100) / 100;
+
+const xlsxStyleId = {
+  title: 1,
+  subtitle: 2,
+  header: 3,
+  text: 4,
+  number: 5,
+  strongNumber: 6,
+  strongText: 7,
+  signature: 8,
+};
+
+const crc32Table = (() => {
+  const table = new Uint32Array(256);
+  for (let i = 0; i < 256; i += 1) {
+    let crc = i;
+    for (let j = 0; j < 8; j += 1) {
+      crc = (crc & 1) ? (0xedb88320 ^ (crc >>> 1)) : (crc >>> 1);
+    }
+    table[i] = crc >>> 0;
+  }
+  return table;
+})();
+
+const crc32 = (bytes) => {
+  let crc = 0xffffffff;
+  bytes.forEach((byte) => {
+    crc = crc32Table[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  });
+  return (crc ^ 0xffffffff) >>> 0;
+};
+
+const getDosDateTime = (date = new Date()) => {
+  const year = Math.max(1980, date.getFullYear());
+  const dosTime = (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2);
+  const dosDate = ((year - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate();
+  return { dosTime, dosDate };
+};
+
+const createZipBlob = (files) => {
+  const encoder = new TextEncoder();
+  const now = getDosDateTime();
+  const localParts = [];
+  const centralParts = [];
+  let offset = 0;
+
+  const writeHeader = (length) => {
+    const bytes = new Uint8Array(length);
+    const view = new DataView(bytes.buffer);
+    return { bytes, view };
+  };
+
+  files.forEach(({ name, content }) => {
+    const nameBytes = encoder.encode(name);
+    const contentBytes = typeof content === 'string' ? encoder.encode(content) : content;
+    const fileCrc = crc32(contentBytes);
+
+    const local = writeHeader(30 + nameBytes.length);
+    local.view.setUint32(0, 0x04034b50, true);
+    local.view.setUint16(4, 20, true);
+    local.view.setUint16(6, 0, true);
+    local.view.setUint16(8, 0, true);
+    local.view.setUint16(10, now.dosTime, true);
+    local.view.setUint16(12, now.dosDate, true);
+    local.view.setUint32(14, fileCrc, true);
+    local.view.setUint32(18, contentBytes.length, true);
+    local.view.setUint32(22, contentBytes.length, true);
+    local.view.setUint16(26, nameBytes.length, true);
+    local.view.setUint16(28, 0, true);
+    local.bytes.set(nameBytes, 30);
+    localParts.push(local.bytes, contentBytes);
+
+    const central = writeHeader(46 + nameBytes.length);
+    central.view.setUint32(0, 0x02014b50, true);
+    central.view.setUint16(4, 20, true);
+    central.view.setUint16(6, 20, true);
+    central.view.setUint16(8, 0, true);
+    central.view.setUint16(10, 0, true);
+    central.view.setUint16(12, now.dosTime, true);
+    central.view.setUint16(14, now.dosDate, true);
+    central.view.setUint32(16, fileCrc, true);
+    central.view.setUint32(20, contentBytes.length, true);
+    central.view.setUint32(24, contentBytes.length, true);
+    central.view.setUint16(28, nameBytes.length, true);
+    central.view.setUint16(30, 0, true);
+    central.view.setUint16(32, 0, true);
+    central.view.setUint16(34, 0, true);
+    central.view.setUint16(36, 0, true);
+    central.view.setUint32(38, 0, true);
+    central.view.setUint32(42, offset, true);
+    central.bytes.set(nameBytes, 46);
+    centralParts.push(central.bytes);
+
+    offset += local.bytes.length + contentBytes.length;
+  });
+
+  const centralSize = centralParts.reduce((sum, part) => sum + part.length, 0);
+  const end = writeHeader(22);
+  end.view.setUint32(0, 0x06054b50, true);
+  end.view.setUint16(8, files.length, true);
+  end.view.setUint16(10, files.length, true);
+  end.view.setUint32(12, centralSize, true);
+  end.view.setUint32(16, offset, true);
+
+  return new Blob([...localParts, ...centralParts, end.bytes], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+};
+
+const buildXlsxBlob = ({
+  rows,
+  merges,
+  columnWidths,
+  rowHeights,
+  footerText,
+  printWidthPages,
+  printHeightPages,
+  sheetName = 'Synthese des notes',
+}) => {
+  const lastColumn = columnName(columnWidths.length);
+  const lastRow = rows.length;
+  const colsXml = columnWidths.map((width, index) =>
+    `<col min="${index + 1}" max="${index + 1}" width="${pxToExcelWidth(width)}" customWidth="1"/>`
+  ).join('');
+  const rowsXml = rows.map((row, rowIndex) => {
+    const rowNumber = rowIndex + 1;
+    const height = rowHeights[rowIndex];
+    const heightAttributes = height ? ` ht="${pxToPoints(height)}" customHeight="1"` : '';
+    const cellsXml = row.map((cell, colIndex) => {
+      if (!cell) return '';
+      const ref = `${columnName(colIndex + 1)}${rowNumber}`;
+      const style = cell.style ? ` s="${xlsxStyleId[cell.style] ?? xlsxStyleId.text}"` : '';
+      if (typeof cell.value === 'number') {
+        return `<c r="${ref}"${style}><v>${cell.value}</v></c>`;
+      }
+      return `<c r="${ref}" t="inlineStr"${style}><is><t>${escapeHtml(cell.value ?? '')}</t></is></c>`;
+    }).join('');
+    return `<row r="${rowNumber}"${heightAttributes}>${cellsXml}</row>`;
+  }).join('');
+  const mergeXml = merges.length > 0
+    ? `<mergeCells count="${merges.length}">${merges.map(ref => `<mergeCell ref="${ref}"/>`).join('')}</mergeCells>`
+    : '';
+  const worksheetXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>
+  <dimension ref="A1:${lastColumn}${lastRow}"/>
+  <sheetViews><sheetView workbookViewId="0"/></sheetViews>
+  <sheetFormatPr defaultRowHeight="15"/>
+  <cols>${colsXml}</cols>
+  <sheetData>${rowsXml}</sheetData>
+  ${mergeXml}
+  <pageMargins left="0.18" right="0.18" top="0.25" bottom="0.25" header="0.12" footer="0.18"/>
+  <pageSetup paperSize="9" orientation="landscape" fitToWidth="${printWidthPages}" fitToHeight="${printHeightPages}"/>
+  <headerFooter><oddFooter>${escapeHtml(footerText)}</oddFooter></headerFooter>
+</worksheet>`;
+
+  const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="4">
+    <font><sz val="11"/><color theme="1"/><name val="Arial"/><family val="2"/></font>
+    <font><b/><sz val="11"/><color theme="1"/><name val="Arial"/><family val="2"/></font>
+    <font><b/><sz val="15"/><color theme="1"/><name val="Arial"/><family val="2"/></font>
+    <font><b/><sz val="13"/><color theme="1"/><name val="Arial"/><family val="2"/></font>
+  </fonts>
+  <fills count="3">
+    <fill><patternFill patternType="none"/></fill>
+    <fill><patternFill patternType="gray125"/></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFEDE9FE"/><bgColor indexed="64"/></patternFill></fill>
+  </fills>
+  <borders count="2">
+    <border><left/><right/><top/><bottom/><diagonal/></border>
+    <border>
+      <left style="thin"><color rgb="FFD9D9D9"/></left>
+      <right style="thin"><color rgb="FFD9D9D9"/></right>
+      <top style="thin"><color rgb="FFD9D9D9"/></top>
+      <bottom style="thin"><color rgb="FFD9D9D9"/></bottom>
+      <diagonal/>
+    </border>
+  </borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="9">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+    <xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment vertical="center"/></xf>
+    <xf numFmtId="2" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="2" fontId="1" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="1" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+  </cellXfs>
+  <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+  <dxfs count="0"/>
+  <tableStyles count="0" defaultTableStyle="TableStyleMedium2" defaultPivotStyle="PivotStyleLight16"/>
+</styleSheet>`;
+
+  return createZipBlob([
+    {
+      name: '[Content_Types].xml',
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>`,
+    },
+    {
+      name: '_rels/.rels',
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+</Relationships>`,
+    },
+    {
+      name: 'docProps/app.xml',
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
+  <Application>IPFP</Application>
+</Properties>`,
+    },
+    {
+      name: 'docProps/core.xml',
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <dc:creator>IPFP</dc:creator>
+  <dc:title>${escapeHtml(sheetName)}</dc:title>
+  <dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString()}</dcterms:created>
+</cp:coreProperties>`,
+    },
+    {
+      name: 'xl/workbook.xml',
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets><sheet name="${escapeHtml(sheetName)}" sheetId="1" r:id="rId1"/></sheets>
+</workbook>`,
+    },
+    {
+      name: 'xl/_rels/workbook.xml.rels',
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`,
+    },
+    { name: 'xl/styles.xml', content: stylesXml },
+    { name: 'xl/worksheets/sheet1.xml', content: worksheetXml },
+  ]);
+};
 
 const Reports = () => {
   const {
@@ -542,20 +798,12 @@ const Reports = () => {
         code: getModuleExportCode(module, index, selectedYear),
         coefficient: formatCoefficient(getModuleCoefficient(module)),
       }));
-      const moduleCodeHeader = moduleExportColumns.map(({ code }) =>
-        `<th class="module-group" colspan="3">${escapeHtml(code)}</th>`
-      ).join('');
-      const moduleNameHeader = moduleExportColumns.map(({ module }) =>
-        `<th class="module-group module-name" colspan="3">${escapeHtml(module.name)}</th>`
-      ).join('');
-      const moduleCoefficientHeader = moduleExportColumns.map(({ coefficient }) => {
-        return `<th>${coefficient}</th><th>${coefficient}</th><th>${coefficient}</th>`;
-      }).join('');
-      const moduleSubHeader = classModules.map(() =>
-        '<th>CC</th><th>EFCFT</th><th>EFCFP</th>'
-      ).join('');
-      const registrationWidthValues = [`N° d'insc.`];
-      const nameWidthValues = ['Nom et prénoms'];
+      const registrationHeader = `N° d'insc.`;
+      const nameHeader = 'Nom et prénoms';
+      const generalAverageHeader = 'Moyenne Générale';
+      const decisionHeader = `Décision jury d'examen`;
+      const registrationWidthValues = [registrationHeader];
+      const nameWidthValues = [nameHeader];
       const moduleWidthValues = moduleExportColumns.map(({ coefficient }) => ({
         cc: ['CC', coefficient],
         theoretical: ['EFCFT', coefficient],
@@ -565,14 +813,11 @@ const Reports = () => {
         mcc: ['MCC1', formatCoefficient(coefficientTotal)],
         met: ['MET1', formatCoefficient(coefficientTotal)],
         mep: ['MEP1', formatCoefficient(coefficientTotal)],
-        general: ['Moyenne Générale', formatCoefficient(coefficientTotal)],
+        general: [generalAverageHeader, formatCoefficient(coefficientTotal)],
       };
-      const decisionWidthValues = [`Décision jury d'examen`, 'Admis(e)', 'Racheté(e)', 'Redoublant(e)'];
+      const decisionWidthValues = [decisionHeader, 'Admis(e)', 'Racheté(e)', 'Redoublant(e)'];
 
       const studentRows = classStudents.map((student) => {
-        let ccWeightedTotal = 0;
-        let theoreticalWeightedTotal = 0;
-        let practicalWeightedTotal = 0;
         const registrationNumber = student.regNo || student.registrationNumber || student.matricule || student.id || '';
         const fullName = student.lastName || student.firstName
           ? `${student.lastName || ''} ${student.firstName || ''}`.trim()
@@ -581,12 +826,8 @@ const Reports = () => {
         registrationWidthValues.push(registrationNumber);
         nameWidthValues.push(fullName);
 
-        const moduleCells = moduleExportColumns.map(({ module }, moduleIndex) => {
+        const moduleScores = moduleExportColumns.map(({ module }, moduleIndex) => {
           const details = getExcelModuleDetails(student.id, module.name);
-          const coefficient = getModuleCoefficient(module);
-          ccWeightedTotal += coefficient * (details.ccAverage ?? 0);
-          theoreticalWeightedTotal += coefficient * (details.theoretical ?? 0);
-          practicalWeightedTotal += coefficient * (details.practical ?? 0);
           const ccLabel = formatExcelScore(details.ccAverage);
           const theoreticalLabel = formatExcelScore(details.theoretical);
           const practicalLabel = formatExcelScore(details.practical);
@@ -595,19 +836,17 @@ const Reports = () => {
           moduleWidthValues[moduleIndex].theoretical.push(theoreticalLabel);
           moduleWidthValues[moduleIndex].practical.push(practicalLabel);
 
-          return [ccLabel, theoreticalLabel, practicalLabel]
-            .map(score => `<td class="num">${score}</td>`)
-            .join('');
-        }).join('');
-
-        const mcc = coefficientTotal > 0 ? ccWeightedTotal / coefficientTotal : null;
-        const met = coefficientTotal > 0 ? theoreticalWeightedTotal / coefficientTotal : null;
-        const mep = coefficientTotal > 0 ? practicalWeightedTotal / coefficientTotal : null;
-        const generalAverage = calcModuleAverage({
-          ccAverage: mcc,
-          theoretical: met,
-          practical: mep,
+          return {
+            ccAverage: details.ccAverage,
+            theoretical: details.theoretical,
+            practical: details.practical,
+          };
         });
+
+        const { mcc, met, mep, generalAverage } = calcStudentSynthesisAverages(
+          grades[student.id] || {},
+          classModules
+        );
         const juryDecision = getJuryDecision(generalAverage);
         const mccLabel = formatExcelScore(mcc);
         const metLabel = formatExcelScore(met);
@@ -620,19 +859,17 @@ const Reports = () => {
         summaryWidthValues.general.push(generalAverageLabel);
         decisionWidthValues.push(juryDecision);
 
-        return `
-          <tr class="student-row">
-            <td>${escapeHtml(registrationNumber)}</td>
-            <td>${escapeHtml(fullName)}</td>
-            ${moduleCells}
-            <td class="num strong">${mccLabel}</td>
-            <td class="num strong">${metLabel}</td>
-            <td class="num strong">${mepLabel}</td>
-            <td class="num strong">${generalAverageLabel}</td>
-            <td class="strong">${escapeHtml(juryDecision)}</td>
-          </tr>
-        `;
-      }).join('');
+        return {
+          registrationNumber,
+          fullName,
+          moduleScores,
+          mcc,
+          met,
+          mep,
+          generalAverage,
+          juryDecision,
+        };
+      });
       const moduleColumnWidths = moduleExportColumns.flatMap(({ module, code }, index) => {
         const mergedHeaderWidth = getAutoExcelColumnWidth([code, module.name], {
           min: 132,
@@ -650,9 +887,11 @@ const Reports = () => {
       });
       const printWidthPages = 2;
       const printHeightPages = 1;
+      const signatureLabels = ['Président', 'Membre professionnel', 'Formateur 1', 'Formateur 2', 'Formateur 3'];
       const rowHeights = getExcelRowHeights(
         classStudents.length,
-        A4_LANDSCAPE_PRINTABLE_HEIGHT_PX * printHeightPages
+        A4_LANDSCAPE_PRINTABLE_HEIGHT_PX * printHeightPages,
+        EXCEL_SIGNATURE_TOTAL_HEIGHT_PX
       );
       const rawReportColumnWidths = [
         getAutoExcelColumnWidth(registrationWidthValues, { min: 74, max: 140, padding: 16 }),
@@ -668,126 +907,145 @@ const Reports = () => {
         rawReportColumnWidths,
         A4_LANDSCAPE_PRINTABLE_WIDTH_PX * printWidthPages
       );
-      const reportTableWidth = reportColumnWidths.reduce((sum, width) => sum + width, 0);
-      const excelColGroup = renderExcelColGroup(reportColumnWidths);
       const reportColumnCount = 2 + (moduleExportColumns.length * 3) + 4 + 1;
-      const signatureLabels = ['Président', 'Membre professionnel', 'Formateur 1', 'Formateur 2', 'Formateur 3'];
-      const signatureFooter = `&C&"Arial,Bold"&10${signatureLabels.join('        ')}`;
-      const signatureFooterCss = signatureFooter.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-
       const professionalYear = getCurrentProfessionalYear();
-      const html = `
-        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-          <head>
-            <meta charset="UTF-8" />
-            <style>
-              @page {
-                size: A4 landscape;
-                margin: 0.25in 0.18in 0.25in 0.18in;
-                mso-page-orientation: landscape;
-                mso-header-margin: 0.12in;
-                mso-footer-margin: 0.18in;
-                mso-footer-data:'${signatureFooterCss}';
-              }
-              body { margin: 0; }
-              table { border-collapse: collapse; font-family: Arial, sans-serif; font-size: 11px; }
-              th, td { border: 1px solid #d9d9d9; padding: 6px; vertical-align: middle; }
-              th { background: #ede9fe; font-weight: 700; text-align: center; }
-              .report-table, .header-table { width: ${reportTableWidth}px; }
-              .report-table { table-layout: fixed; }
-              .report-table th, .report-table td { white-space: nowrap; }
-              .report-table .module-group, .report-table .average-group { white-space: normal; line-height: 1.2; }
-              .header-table { margin-bottom: ${EXCEL_HEADER_BOTTOM_MARGIN_PX}px; }
-              .header-table tr { height: ${rowHeights.headerRowHeight}px; mso-height-source: userset; }
-              .header-table td { border: none; background: #ffffff; }
-              .report-table thead tr { height: ${rowHeights.tableHeaderRowHeight}px; mso-height-source: userset; }
-              .report-table tbody tr { height: ${rowHeights.studentRowHeight}px; mso-height-source: userset; }
-              .header-center { text-align: center; font-weight: 700; color: #111827; }
-              .document-title { font-size: 15px; text-transform: uppercase; padding-top: 6px; }
-              .class-title { font-size: 13px; padding-top: 4px; }
-              .year-title { font-size: 13px; padding-top: 4px; }
-              .num { text-align: center; mso-number-format: "0.00"; }
-              .strong { font-weight: 700; }
-            </style>
-            <!--[if gte mso 9]>
-            <xml>
-              <x:ExcelWorkbook>
-                <x:ExcelWorksheets>
-                  <x:ExcelWorksheet>
-                    <x:Name>Synthese des notes</x:Name>
-                    <x:WorksheetOptions>
-                      <x:PageSetup>
-                        <x:Layout x:Orientation="Landscape" />
-                        <x:PageMargins x:Left="0.18" x:Right="0.18" x:Top="0.25" x:Bottom="0.25" x:Header="0.12" x:Footer="0.18" />
-                        <x:Footer x:Data="${escapeHtml(signatureFooter)}" />
-                      </x:PageSetup>
-                      <x:FitToPage />
-                      <x:Print>
-                        <x:FitWidth>${printWidthPages}</x:FitWidth>
-                        <x:FitHeight>${printHeightPages}</x:FitHeight>
-                        <x:PaperSizeIndex>9</x:PaperSizeIndex>
-                        <x:ValidPrinterInfo />
-                        <x:HorizontalResolution>600</x:HorizontalResolution>
-                        <x:VerticalResolution>600</x:VerticalResolution>
-                      </x:Print>
-                    </x:WorksheetOptions>
-                  </x:ExcelWorksheet>
-                </x:ExcelWorksheets>
-              </x:ExcelWorkbook>
-            </xml>
-            <![endif]-->
-          </head>
-          <body>
-            <table class="header-table">
-              ${excelColGroup}
-              <tr>
-                <td class="header-center document-title" colspan="${reportColumnCount}">Synthèse des notes</td>
-              </tr>
-              <tr>
-                <td class="header-center class-title" colspan="${reportColumnCount}">Filière: ${escapeHtml(selectedDiploma)} - ${escapeHtml(selectedMajor)} - ${escapeHtml(selectedYear)}</td>
-              </tr>
-              <tr>
-                <td class="header-center year-title" colspan="${reportColumnCount}">${escapeHtml(professionalYear)}</td>
-              </tr>
-            </table>
-            <table class="report-table">
-              ${excelColGroup}
-              <thead>
-                <tr>
-                  <th rowspan="4">N° d'insc.</th>
-                  <th rowspan="4">Nom et prénoms</th>
-                  ${moduleCodeHeader}
-                  <th class="average-group" colspan="4" rowspan="2">${escapeHtml(averageHeaderTitle)}</th>
-                  <th rowspan="4">Décision jury d'examen</th>
-                </tr>
-                <tr>
-                  ${moduleNameHeader}
-                </tr>
-                <tr>
-                  ${moduleCoefficientHeader}
-                  <th colspan="4">${formatCoefficient(coefficientTotal)}</th>
-                </tr>
-                <tr>
-                  ${moduleSubHeader}
-                  <th>MCC1</th>
-                  <th>MET1</th>
-                  <th>MEP1</th>
-                  <th>Moyenne Générale</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${studentRows}
-              </tbody>
-            </table>
-          </body>
-        </html>
-      `;
+      const rows = [];
+      const rowHeightsPx = [];
+      const merges = [];
+      const makeRow = () => Array(reportColumnCount).fill(null);
+      const setCell = (row, col, value, style = 'text') => {
+        row[col - 1] = { value, style };
+      };
+      const toScoreCell = (value, style = 'number') => ({
+        value: value === null ? '—' : Number(value.toFixed(2)),
+        style,
+      });
+      const addSignatureRows = () => {
+        rows.push([]);
+        rowHeightsPx.push(rowHeights.signatureSpacerRowHeight);
 
-      const blob = new Blob(['\ufeff', html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+        const labelRowNumber = rows.length + 1;
+        const areaRowNumber = labelRowNumber + 1;
+        const labelRow = makeRow();
+        const areaRow = makeRow();
+
+        signatureLabels.forEach((label, index) => {
+          const startCol = Math.floor((index * reportColumnCount) / signatureLabels.length) + 1;
+          const endCol = Math.floor(((index + 1) * reportColumnCount) / signatureLabels.length);
+          setCell(labelRow, startCol, label, 'signature');
+          merges.push(`${columnName(startCol)}${labelRowNumber}:${columnName(endCol)}${labelRowNumber}`);
+          merges.push(`${columnName(startCol)}${areaRowNumber}:${columnName(endCol)}${areaRowNumber}`);
+        });
+
+        rows.push(labelRow);
+        rowHeightsPx.push(rowHeights.signatureLabelRowHeight);
+        rows.push(areaRow);
+        rowHeightsPx.push(rowHeights.signatureAreaRowHeight);
+      };
+
+      rows.push([{ value: 'Synthèse des notes', style: 'title' }]);
+      rows.push([{ value: `Filière: ${selectedDiploma} - ${selectedMajor} - ${selectedYear}`, style: 'subtitle' }]);
+      rows.push([{ value: professionalYear, style: 'subtitle' }]);
+      rowHeightsPx.push(rowHeights.headerRowHeight, rowHeights.headerRowHeight, rowHeights.headerRowHeight);
+      merges.push(`A1:${columnName(reportColumnCount)}1`);
+      merges.push(`A2:${columnName(reportColumnCount)}2`);
+      merges.push(`A3:${columnName(reportColumnCount)}3`);
+
+      rows.push([]);
+      rowHeightsPx.push(EXCEL_HEADER_BOTTOM_MARGIN_PX);
+
+      const tableStartRow = rows.length + 1;
+      const moduleStartCol = 3;
+      const averageStartCol = moduleStartCol + (moduleExportColumns.length * 3);
+      const decisionCol = averageStartCol + 4;
+
+      const headerRow1 = makeRow();
+      setCell(headerRow1, 1, registrationHeader, 'header');
+      setCell(headerRow1, 2, nameHeader, 'header');
+      moduleExportColumns.forEach(({ code }, index) => {
+        const startCol = moduleStartCol + (index * 3);
+        setCell(headerRow1, startCol, code, 'header');
+        merges.push(`${columnName(startCol)}${tableStartRow}:${columnName(startCol + 2)}${tableStartRow}`);
+      });
+      setCell(headerRow1, averageStartCol, averageHeaderTitle, 'header');
+      setCell(headerRow1, decisionCol, decisionHeader, 'header');
+      rows.push(headerRow1);
+      rowHeightsPx.push(rowHeights.tableHeaderRowHeight);
+
+      const headerRow2 = makeRow();
+      moduleExportColumns.forEach(({ module }, index) => {
+        const startCol = moduleStartCol + (index * 3);
+        setCell(headerRow2, startCol, module.name, 'header');
+        merges.push(`${columnName(startCol)}${tableStartRow + 1}:${columnName(startCol + 2)}${tableStartRow + 1}`);
+      });
+      rows.push(headerRow2);
+      rowHeightsPx.push(rowHeights.tableHeaderRowHeight);
+
+      const headerRow3 = makeRow();
+      moduleExportColumns.forEach(({ coefficient }, index) => {
+        const startCol = moduleStartCol + (index * 3);
+        setCell(headerRow3, startCol, coefficient, 'header');
+        setCell(headerRow3, startCol + 1, coefficient, 'header');
+        setCell(headerRow3, startCol + 2, coefficient, 'header');
+      });
+      setCell(headerRow3, averageStartCol, formatCoefficient(coefficientTotal), 'header');
+      merges.push(`${columnName(averageStartCol)}${tableStartRow + 2}:${columnName(averageStartCol + 3)}${tableStartRow + 2}`);
+      rows.push(headerRow3);
+      rowHeightsPx.push(rowHeights.tableHeaderRowHeight);
+
+      const headerRow4 = makeRow();
+      moduleExportColumns.forEach((_, index) => {
+        const startCol = moduleStartCol + (index * 3);
+        setCell(headerRow4, startCol, 'CC', 'header');
+        setCell(headerRow4, startCol + 1, 'EFCFT', 'header');
+        setCell(headerRow4, startCol + 2, 'EFCFP', 'header');
+      });
+      setCell(headerRow4, averageStartCol, 'MCC1', 'header');
+      setCell(headerRow4, averageStartCol + 1, 'MET1', 'header');
+      setCell(headerRow4, averageStartCol + 2, 'MEP1', 'header');
+      setCell(headerRow4, averageStartCol + 3, generalAverageHeader, 'header');
+      rows.push(headerRow4);
+      rowHeightsPx.push(rowHeights.tableHeaderRowHeight);
+
+      merges.push(`A${tableStartRow}:A${tableStartRow + 3}`);
+      merges.push(`B${tableStartRow}:B${tableStartRow + 3}`);
+      merges.push(`${columnName(averageStartCol)}${tableStartRow}:${columnName(averageStartCol + 3)}${tableStartRow + 1}`);
+      merges.push(`${columnName(decisionCol)}${tableStartRow}:${columnName(decisionCol)}${tableStartRow + 3}`);
+
+      studentRows.forEach((studentRow) => {
+        const row = makeRow();
+        setCell(row, 1, studentRow.registrationNumber, 'text');
+        setCell(row, 2, studentRow.fullName, 'text');
+        studentRow.moduleScores.forEach((scores, index) => {
+          const startCol = moduleStartCol + (index * 3);
+          row[startCol - 1] = toScoreCell(scores.ccAverage);
+          row[startCol] = toScoreCell(scores.theoretical);
+          row[startCol + 1] = toScoreCell(scores.practical);
+        });
+        row[averageStartCol - 1] = toScoreCell(studentRow.mcc, 'strongNumber');
+        row[averageStartCol] = toScoreCell(studentRow.met, 'strongNumber');
+        row[averageStartCol + 1] = toScoreCell(studentRow.mep, 'strongNumber');
+        row[averageStartCol + 2] = toScoreCell(studentRow.generalAverage, 'strongNumber');
+        setCell(row, decisionCol, studentRow.juryDecision, 'strongText');
+        rows.push(row);
+        rowHeightsPx.push(rowHeights.studentRowHeight);
+      });
+
+      addSignatureRows();
+
+      const blob = buildXlsxBlob({
+        rows,
+        merges,
+        columnWidths: reportColumnWidths,
+        rowHeights: rowHeightsPx,
+        footerText: '',
+        printWidthPages,
+        printHeightPages,
+      });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `synthese-des-notes-${safeFileNamePart(selectedMajor)}-${safeFileNamePart(selectedYear)}.xls`;
+      link.download = `synthese-des-notes-${safeFileNamePart(selectedMajor)}-${safeFileNamePart(selectedYear)}.xlsx`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -797,7 +1055,7 @@ const Reports = () => {
     } finally {
       setIsExportingExcel(false);
     }
-  }, [getExcelModuleDetails, getGroupModules, getGroupStudents, selectedDiploma, selectedMajor, selectedYear]);
+  }, [getExcelModuleDetails, getGroupModules, getGroupStudents, grades, selectedDiploma, selectedMajor, selectedYear]);
 
   const reportGroupStats = useMemo(() =>
     allReportGroups.map(group => buildGroupStats(group)),

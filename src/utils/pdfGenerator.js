@@ -1,5 +1,13 @@
 import { jsPDF } from 'jspdf';
 import { loadLogoDataUrl } from './loadLogoDataUrl.js';
+import { sanitizeGradeKey } from './gradeSync.js';
+import {
+  calcCcAverage,
+  calcModuleAverage,
+  calcStudentSynthesisAverages,
+  getModuleCoefficient,
+  parseScore,
+} from './gradeCalculations.js';
 
 /* ── Constants ── */
 const ACCREDITATION_TEXT = [
@@ -65,6 +73,44 @@ const drawHeader = (doc, title, logoDataUrl, withLine = true) => {
   }
 
   return title === "Notes d'obtention de diplôme" ? 55 : 55;
+};
+
+const hasEnteredGrade = (grade) =>
+  !!grade && ['c1', 'c2', 'c3', 'efcfp', 'efcft'].some(field =>
+    grade[field] !== undefined && grade[field] !== null && grade[field] !== ''
+  );
+
+const normalizeBulletinModules = (modules = [], grades = {}) => {
+  const entries = [];
+  const seenKeys = new Set();
+
+  (modules || []).forEach((module, index) => {
+    const isObjectModule = module && typeof module === 'object';
+    const name = isObjectModule ? (module.name || module.module || module.label || '') : String(module || '');
+    if (!name) return;
+    const key = sanitizeGradeKey(name);
+    seenKeys.add(key);
+    entries.push({
+      name,
+      key,
+      coefficient: isObjectModule ? getModuleCoefficient(module) : 1,
+      code: isObjectModule ? (module.code || module.moduleCode || module.uf || module.reference || '') : '',
+      order: index,
+    });
+  });
+
+  Object.keys(grades || {}).forEach((key) => {
+    if (seenKeys.has(key) || !hasEnteredGrade(grades[key])) return;
+    entries.push({
+      name: key.replace(/_/g, '.'),
+      key,
+      coefficient: 1,
+      code: '',
+      order: entries.length,
+    });
+  });
+
+  return entries;
 };
 
 /* ════════════════════════════════════════════════════════════════════
@@ -334,6 +380,7 @@ export const generateBulletinGlobal = async (student, allGrades, modules) => {
   const margin = 10;
   const tableW = w - margin * 2;
   const grades = allGrades[student.id] || {};
+  const bulletinModules = normalizeBulletinModules(modules, grades);
 
   let y = drawHeader(doc, 'RELEVÉ DES NOTES', logoDataUrl);
 
@@ -425,40 +472,27 @@ export const generateBulletinGlobal = async (student, allGrades, modules) => {
   });
 
   y += rH * 1.5;
-  let totalWeighted = 0, totalCoeff = 0;
-  let sumCC = 0, sumEFCFT = 0, sumEFCFP = 0, sumAvg = 0;
-  let countCC = 0, countEFCFT = 0, countEFCFP = 0, countAvg = 0;
+  const {
+    mcc: avgCC_num,
+    met: avgEFCFT_num,
+    mep: avgEFCFP_num,
+    generalAverage: finalAvgNum,
+    coefficientTotal,
+  } = calcStudentSynthesisAverages(grades, bulletinModules);
 
-  modules.forEach((mod, idx) => {
+  bulletinModules.forEach((mod, idx) => {
     if (y > 265) { doc.addPage(); y = drawHeader(doc, 'RELEVÉ DES NOTES (Suite)', logoDataUrl); y += 10; }
 
-    const g = grades[mod] || {};
-    const { c1 = '', c2 = '', c3 = '', efcfp = '', efcft = '' } = g;
-    const coeff = 2;
-
-    let moyCC = null;
-    if (c1 !== '' && c2 !== '') {
-      const n1 = parseFloat(c1), n2 = parseFloat(c2);
-      if (!isNaN(n1) && !isNaN(n2)) {
-        const n3 = (c3 !== '' && c3 != null) ? parseFloat(c3) : NaN;
-        moyCC = !isNaN(n3) ? (n1 + n2 + n3) / 3 : (n1 + n2) / 2;
-        sumCC += moyCC; countCC++;
-      }
-    }
-
-    const nP = efcfp !== '' ? parseFloat(efcfp) : NaN;
-    const nT = efcft !== '' ? parseFloat(efcft) : NaN;
-    if (!isNaN(nT)) { sumEFCFT += nT; countEFCFT++; }
-    if (!isNaN(nP)) { sumEFCFP += nP; countEFCFP++; }
-
-    let avg = null;
-    if (moyCC !== null && !isNaN(nP) && !isNaN(nT)) {
-      // New Formula: ((moyCC*3) + (EFCFT*2) + (EFCFP*3)) / 8
-      avg = (moyCC * 3 + nT * 2 + nP * 3) / 8;
-      totalWeighted += avg * coeff;
-      totalCoeff += coeff;
-      sumAvg += avg; countAvg++;
-    }
+    const g = grades[mod.key] || grades[mod.name] || {};
+    const coeff = mod.coefficient;
+    const moyCC = calcCcAverage(g);
+    const nP = parseScore(g.efcfp);
+    const nT = parseScore(g.efcft);
+    const avg = calcModuleAverage({
+      ccAverage: moyCC,
+      theoretical: nT,
+      practical: nP,
+    });
 
     // Appreciation: Faible, Passable, A.Bien, Bien, T.bien, Excellent
     let appreciation = '';
@@ -483,10 +517,10 @@ export const generateBulletinGlobal = async (student, allGrades, modules) => {
     doc.setFontSize(6.5);
     doc.setFont('helvetica', 'normal');
     xP = margin;
-    const ufNum = `UF ${(idx + 1).toString().padStart(1, '0')}.${idx + 1}`;
+    const ufNum = mod.code || `UF ${(idx + 1).toString().padStart(1, '0')}.${idx + 1}`;
     doc.text(ufNum, xP + c[0] / 2, y + 6, { align: 'center' });
     xP += c[0];
-    const dispMod = mod.length > 32 ? mod.substring(0, 30) + '…' : mod;
+    const dispMod = mod.name.length > 32 ? mod.name.substring(0, 30) + '…' : mod.name;
     doc.text(dispMod, xP + 1.5, y + 6);
     xP += c[1];
     doc.text(String(coeff), xP + c[2] / 2, y + 6, { align: 'center' });
@@ -494,9 +528,9 @@ export const generateBulletinGlobal = async (student, allGrades, modules) => {
     doc.setFont('helvetica', 'bold');
     doc.text(moyCC !== null ? moyCC.toFixed(2) : '', xP + c[3] / 2, y + 6, { align: 'center' });
     xP += c[3];
-    doc.text(!isNaN(nT) ? nT.toFixed(2) : '', xP + c[4] / 2, y + 6, { align: 'center' });
+    doc.text(nT !== null ? nT.toFixed(2) : '', xP + c[4] / 2, y + 6, { align: 'center' });
     xP += c[4];
-    doc.text(!isNaN(nP) ? nP.toFixed(2) : '', xP + c[5] / 2, y + 6, { align: 'center' });
+    doc.text(nP !== null ? nP.toFixed(2) : '', xP + c[5] / 2, y + 6, { align: 'center' });
     xP += c[5];
     doc.text(avg !== null ? avg.toFixed(2) : '', xP + c[6] / 2, y + 6, { align: 'center' });
     xP += c[6];
@@ -509,18 +543,10 @@ export const generateBulletinGlobal = async (student, allGrades, modules) => {
   // ── Moyennes pondérées row ──
   // ── Moyenne générale (Using the new global formula) ──
   // Formula: ((moyCC*3) + (avgEFCFT*2) + (avgEFCFP*3)) / 8
-  const avgCC_num = countCC > 0 ? (sumCC / countCC) : 0;
-  const avgEFCFT_num = countEFCFT > 0 ? (sumEFCFT / countEFCFT) : 0;
-  const avgEFCFP_num = countEFCFP > 0 ? (sumEFCFP / countEFCFP) : 0;
-  
-  const finalAvgNum = (countAvg === modules.length && modules.length > 0) 
-    ? ((avgCC_num * 3) + (avgEFCFT_num * 2) + (avgEFCFP_num * 3)) / 8 
-    : 0;
-
-  const finalAvg = (finalAvgNum > 0 && countAvg === modules.length) ? finalAvgNum.toFixed(2).replace('.', ',') : '—';
-  const avgCC = countCC > 0 ? avgCC_num.toFixed(2) : '';
-  const avgEFCFT = countEFCFT > 0 ? avgEFCFT_num.toFixed(2) : '';
-  const avgEFCFP = countEFCFP > 0 ? avgEFCFP_num.toFixed(2) : '';
+  const finalAvg = finalAvgNum !== null ? finalAvgNum.toFixed(2).replace('.', ',') : '—';
+  const avgCC = avgCC_num !== null ? avgCC_num.toFixed(2) : '';
+  const avgEFCFT = avgEFCFT_num !== null ? avgEFCFT_num.toFixed(2) : '';
+  const avgEFCFP = avgEFCFP_num !== null ? avgEFCFP_num.toFixed(2) : '';
   const avgMoy = finalAvg;
 
   if (y > 265) { doc.addPage(); y = 40; }
@@ -536,7 +562,7 @@ export const generateBulletinGlobal = async (student, allGrades, modules) => {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7);
   doc.text(`Moyennes pondérées`, margin + 2, y + 6);
-  doc.text(String(totalCoeff || 0), margin + lblW + c[2] / 2, y + 6, { align: 'center' });
+  doc.text(String(coefficientTotal || 0), margin + lblW + c[2] / 2, y + 6, { align: 'center' });
   doc.text(avgCC, margin + lblW + c[2] + c[3] / 2, y + 6, { align: 'center' });
   doc.text(avgEFCFT, margin + lblW + c[2] + c[3] + c[4] / 2, y + 6, { align: 'center' });
   doc.text(avgEFCFP, margin + lblW + c[2] + c[3] + c[4] + c[5] / 2, y + 6, { align: 'center' });
@@ -557,7 +583,7 @@ export const generateBulletinGlobal = async (student, allGrades, modules) => {
 
   // ── Décision jury ──
   y += rH;
-  const isPassed = totalCoeff > 0 && parseFloat(finalAvg.replace(',', '.')) >= 10;
+  const isPassed = finalAvgNum !== null && finalAvgNum >= 10;
   doc.setFillColor(220, 210, 240);
   doc.rect(margin, y, fullLabelW, rH, 'FD');
   doc.rect(margin + fullLabelW, y, resultW, rH, 'FD');

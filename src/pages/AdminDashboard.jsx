@@ -1064,10 +1064,10 @@ const AdminDashboard = () => {
   }, [diplomaFilter]);
   const getStudentActiveModules = useCallback((student) => {
     const configuredModules = (allModules || [])
-      .filter(m => m.diploma === student.diploma && m.major === student.major && m.year === student.year && [activeSemester, 'Annuel'].includes(m.semester || 'S1'))
-      .map(m => m.name);
+      .filter(m => m.diploma === student.diploma && m.major === student.major && m.year === student.year)
+      .sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''), 'fr', { numeric: true, sensitivity: 'base' }));
     return configuredModules.length > 0 ? configuredModules : getModulesForStudent(student);
-  }, [allModules, activeSemester]);
+  }, [allModules]);
 
   // Edit helper functions
   const toggleDiplomaEdit = (dip) => {
