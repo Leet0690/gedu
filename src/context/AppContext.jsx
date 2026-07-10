@@ -1301,6 +1301,26 @@ export const AppProvider = ({ children }) => {
     showToast(`Module mis à jour.`, 'success');
   };
 
+  const reorderModules = async (orderUpdates = []) => {
+    const validUpdates = (orderUpdates || [])
+      .filter(item => item?.id && Number.isInteger(Number(item.order)) && Number(item.order) > 0)
+      .map(item => ({ id: item.id, order: Number(item.order) }));
+
+    if (validUpdates.length === 0) return;
+
+    const batch = writeBatch(db);
+    validUpdates.forEach(({ id, order }) => {
+      batch.update(doc(db, 'modules', id), { order });
+    });
+    await batch.commit();
+
+    const orderById = new Map(validUpdates.map(item => [item.id, item.order]));
+    setModules(prev => prev.map(module =>
+      orderById.has(module.id) ? { ...module, order: orderById.get(module.id) } : module
+    ));
+    showToast('Ordre des modules enregistre automatiquement.', 'success');
+  };
+
   const deleteModule = async (id) => {
     await deleteDoc(doc(db, 'modules', id));
     setModules(prev => prev.filter(m => m.id !== id));
@@ -1414,7 +1434,7 @@ export const AppProvider = ({ children }) => {
       loadAttendanceForSession, loadStudentAttendanceForMonth, loadTeacherAttendanceForDate, loadTeacherAttendanceForMonth,
       schedules, addSchedule, updateSchedule, deleteSchedule, clearAllSchedules, migrateTeacherTokens,
       payments, salaries, expenses, loadFinancialData, addPayment, updatePayment, deletePayment, addSalary, updateSalary, deleteSalary, addExpense, deleteExpense,
-      modules, addModule, updateModule, deleteModule,
+      modules, addModule, updateModule, deleteModule, reorderModules,
       continuousTrainings, addContinuousTraining, updateContinuousTraining, deleteContinuousTraining,
       continuousTrainingTypes, addContinuousTrainingType, renameContinuousTrainingType, deleteContinuousTrainingType,
       ctStudents, addCtStudent, updateCtStudent, deleteCtStudent,

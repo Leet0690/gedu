@@ -21,7 +21,7 @@ import {
   getModuleCoefficient,
   parseScore,
 } from '../utils/gradeCalculations';
-import { getGradeByModuleName } from '../utils/gradeSync';
+import { getGradeByModuleName, sortModulesByOrder } from '../utils/gradeSync';
 
 const labelStyle = {
   fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)',
@@ -559,10 +559,12 @@ const Reports = () => {
 
   const availableModulesList = useMemo(() => {
     if (!selectedDiploma || !selectedMajor || !selectedYear) return [];
-    return allModules.filter(m =>
-      m.diploma === selectedDiploma &&
-      m.major === selectedMajor &&
-      m.year === selectedYear
+    return sortModulesByOrder(
+      allModules.filter(m =>
+        m.diploma === selectedDiploma &&
+        m.major === selectedMajor &&
+        m.year === selectedYear
+      )
     );
   }, [selectedDiploma, selectedMajor, selectedYear, allModules]);
 
@@ -760,7 +762,7 @@ const Reports = () => {
       .forEach(module => {
         if (!modulesMap.has(module.name)) modulesMap.set(module.name, module);
       });
-    return Array.from(modulesMap.values());
+    return sortModulesByOrder(Array.from(modulesMap.values()));
   }, [allModules]);
 
   const getGroupStudents = useCallback((group) =>

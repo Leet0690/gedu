@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { ALL_STUDY_YEARS, MODULES_DATA, getClassCode, getDiplomaAbbreviation, getStudyYearsForDiploma } from '../data/modules';
+import { getModuleOrder, sortModulesByOrder } from '../utils/gradeSync';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
@@ -23,8 +24,10 @@ import {
   Boxes,
   BookOpen,
   SlidersHorizontal,
+  GripVertical,
 } from 'lucide-react';
 
+const MODULE_FILTERS_STORAGE_KEY = 'ipfp_module_management_filters';
 const labelStyle = { fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' };
 const HIGHER_EDUCATION_DIPLOMAS = ['Licence Professionnelle', 'Master spécialisé'];
 const DIPLOMA_LABELS = {
@@ -79,8 +82,48 @@ const ActionBtn = ({ icon: Icon, title, onClick, color = 'var(--text-muted)' }) 
   </button>
 );
 
+const buildModuleGroups = (sourceModules = []) => {
+  const groups = {};
+  sourceModules.forEach(m => {
+    const key = `${m.name}_${m.coefficient}_${getFormSemester(m)}_${getModuleOrder(m) ?? ''}`;
+    if (!groups[key]) {
+      groups[key] = { ...m, allClasses: [], allDiplomas: [], ids: [] };
+    }
+    const classCode = getClassCode(m.diploma, m.major, m.year);
+    if (!groups[key].allClasses.includes(classCode)) groups[key].allClasses.push(classCode);
+    if (!groups[key].allDiplomas.includes(m.diploma)) groups[key].allDiplomas.push(m.diploma);
+    groups[key].ids.push(m.id);
+  });
+  return sortModulesByOrder(Object.values(groups));
+};
+
+const moveItem = (items, fromIndex, toIndex) => {
+  const nextItems = [...items];
+  const [movedItem] = nextItems.splice(fromIndex, 1);
+  nextItems.splice(toIndex, 0, movedItem);
+  return nextItems;
+};
+
+const getStoredModuleFilters = () => {
+  if (typeof window === 'undefined') return {};
+  try {
+    return JSON.parse(window.sessionStorage.getItem(MODULE_FILTERS_STORAGE_KEY) || '{}') || {};
+  } catch {
+    return {};
+  }
+};
+
+const saveModuleFilters = (filters) => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.setItem(MODULE_FILTERS_STORAGE_KEY, JSON.stringify(filters));
+  } catch {
+    // Ignore storage errors. Filters still work normally in memory.
+  }
+};
+
 const ModuleManagement = () => {
-  const { modules, addModule, updateModule, deleteModule, loading, confirmAction } = useApp();
+  const { modules, addModule, updateModule, deleteModule, reorderModules, loading, confirmAction } = useApp();
   const { showToast } = useToast();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -89,20 +132,25 @@ const ModuleManagement = () => {
   const [formData, setFormData] = useState({
     name: '',
     coefficient: '1',
+    order: '1',
     diploma: 'Technicien Spécialisé',
     major: 'Développement Informatique',
     year: '1ère année',
     semester: 'S1'
   });
 
-  const [filterDiploma, setFilterDiploma] = useState('');
-  const [filterMajor, setFilterMajor] = useState('');
-  const [filterYear, setFilterYear] = useState('');
-  const [filterSemester, setFilterSemester] = useState('');
+  const [filterDiploma, setFilterDiploma] = useState(() => getStoredModuleFilters().diploma || '');
+  const [filterMajor, setFilterMajor] = useState(() => getStoredModuleFilters().major || '');
+  const [filterYear, setFilterYear] = useState(() => getStoredModuleFilters().year || '');
+  const [filterSemester, setFilterSemester] = useState(() => getStoredModuleFilters().semester || '');
 
   const [page, setPage] = useState(1);
   const itemsPerPage = 15;
   const [selectedIds, setSelectedIds] = useState([]);
+  const [draggedModuleId, setDraggedModuleId] = useState(null);
+  const [dragOverModuleId, setDragOverModuleId] = useState(null);
+  const [dragPreviewModules, setDragPreviewModules] = useState(null);
+  const [isSavingOrder, setIsSavingOrder] = useState(false);
 
   // Copy modal state
   const [copyModalOpen, setCopyModalOpen] = useState(false);
@@ -119,6 +167,15 @@ const ModuleManagement = () => {
   const filterSemesterOptions = filterDiploma ? getSemesterOptions(filterDiploma) : getSemesterOptions('');
   const hideYearChoice = isHigherEducationDiploma(formData.diploma);
 
+  useEffect(() => {
+    saveModuleFilters({
+      diploma: filterDiploma,
+      major: filterMajor,
+      year: filterYear,
+      semester: filterSemester
+    });
+  }, [filterDiploma, filterMajor, filterYear, filterSemester]);
+
   // All available groups across all diplomas for the copy modal
   const allGroups = useMemo(() => {
     const groups = [];
@@ -132,7 +189,7 @@ const ModuleManagement = () => {
     return groups;
   }, []);
 
-  const isFiltersSelected = !!(filterYear && filterDiploma && filterMajor && filterSemester);
+  const isFiltersSelected = !!(filterYear && filterDiploma && filterMajor);
 
   const groupedModules = useMemo(() => {
     const f = modules.filter(m => {
@@ -143,36 +200,42 @@ const ModuleManagement = () => {
       if (filterSemester && sem !== filterSemester) return false;
       return true;
     });
-
-    const groups = {};
-    f.forEach(m => {
-      const key = `${m.name}_${m.coefficient}_${getFormSemester(m)}`;
-      if (!groups[key]) {
-        groups[key] = { ...m, allClasses: [], allDiplomas: [], ids: [] };
-      }
-      const classCode = getClassCode(m.diploma, m.major, m.year);
-      if (!groups[key].allClasses.includes(classCode)) groups[key].allClasses.push(classCode);
-      if (!groups[key].allDiplomas.includes(m.diploma)) groups[key].allDiplomas.push(m.diploma);
-      groups[key].ids.push(m.id);
-    });
-    return Object.values(groups);
+    return buildModuleGroups(f);
   }, [modules, filterDiploma, filterMajor, filterYear, filterSemester]);
 
 
+  const displayModules = dragPreviewModules || groupedModules;
+
   const paginatedModules = useMemo(
-    () => groupedModules.slice((page - 1) * itemsPerPage, page * itemsPerPage),
-    [groupedModules, page]
+    () => displayModules.slice((page - 1) * itemsPerPage, page * itemsPerPage),
+    [displayModules, page]
   );
-  const totalPages = Math.ceil(groupedModules.length / itemsPerPage);
+  const totalPages = Math.ceil(displayModules.length / itemsPerPage);
+
+  const getNextModuleOrder = (diploma, major, year) => {
+    const maxOrder = (modules || [])
+      .filter(m =>
+        m.diploma === diploma &&
+        m.major === major &&
+        m.year === year
+      )
+      .reduce((max, module) => Math.max(max, getModuleOrder(module) || 0), 0);
+    return String(maxOrder + 1);
+  };
 
   const resetForm = () => {
+    const defaultDiploma = filterDiploma || Object.keys(MODULES_DATA)[0];
+    const defaultMajor = filterMajor || Object.keys(MODULES_DATA[defaultDiploma] || {})[0] || '';
+    const defaultYear = filterYear || getStudyYearsForDiploma(defaultDiploma)[0];
+    const defaultSemester = filterSemester || 'S1';
     setFormData({
       name: '',
       coefficient: '1',
-      diploma: Object.keys(MODULES_DATA)[0],
-      major: Object.keys(MODULES_DATA[Object.keys(MODULES_DATA)[0]])[0],
-      year: '1ère année',
-      semester: 'S1'
+      order: getNextModuleOrder(defaultDiploma, defaultMajor, defaultYear, defaultSemester),
+      diploma: defaultDiploma,
+      major: defaultMajor,
+      semester: defaultSemester,
+      year: defaultYear
     });
     setIsEditing(false);
     setSelectedIds([]);
@@ -183,11 +246,14 @@ const ModuleManagement = () => {
     if (!formData.name || !formData.coefficient) return;
     try {
       const trimmedName = formData.name.trim();
-      const normalizedFormData = normalizeModuleFormData({
+      const normalizedBaseData = normalizeModuleFormData({
         ...formData,
         name: trimmedName,
         coefficient: parseFloat(formData.coefficient)
       });
+      const fallbackOrder = Number(getNextModuleOrder(normalizedBaseData.diploma, normalizedBaseData.major, normalizedBaseData.year));
+      const parsedOrder = isEditing ? Number(formData.order) || fallbackOrder : fallbackOrder;
+      const normalizedFormData = { ...normalizedBaseData, order: parsedOrder };
       if (isEditing) {
         for (const id of selectedIds) {
           await updateModule(id, normalizedFormData);
@@ -206,6 +272,7 @@ const ModuleManagement = () => {
     setFormData({
       name: m.name,
       coefficient: m.coefficient.toString(),
+      order: String(getModuleOrder(m) ?? getNextModuleOrder(m.diploma, m.major, m.year)),
       diploma: m.diploma,
       major: m.major,
       year: m.year,
@@ -227,13 +294,95 @@ const ModuleManagement = () => {
   };
 
 
-  // Feature 2: Quick-add a single missing module
-  const handleQuickAdd = async (name) => {
-    try {
-      await addModule({ name, coefficient: 1, diploma: filterDiploma, major: filterMajor, year: filterYear, semester: filterSemester });
-    } catch {
-      showToast("Erreur lors de l'ajout", 'error');
+  const handleModuleDragStart = (event, moduleId) => {
+    if (isSavingOrder || groupedModules.length <= 1) return;
+    setDraggedModuleId(moduleId);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', moduleId);
+    setDragPreviewModules(groupedModules);
+  };
+
+  const handleModuleDragOver = (event, moduleId) => {
+    const sourceModuleId = draggedModuleId || event.dataTransfer.getData('text/plain');
+    if (!sourceModuleId || isSavingOrder) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    if (dragOverModuleId === moduleId) return;
+    setDragOverModuleId(moduleId);
+    setDragPreviewModules(prevModules => {
+      const currentModules = prevModules || groupedModules;
+      const fromIndex = currentModules.findIndex(module => module.id === sourceModuleId);
+      const toIndex = currentModules.findIndex(module => module.id === moduleId);
+      if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return currentModules;
+      return moveItem(currentModules, fromIndex, toIndex);
+    });
+  };
+
+  const handleModuleDrop = async (event, targetModuleId) => {
+    event.preventDefault();
+    const sourceModuleId = draggedModuleId || event.dataTransfer.getData('text/plain');
+    let finalVisibleModules = dragPreviewModules || groupedModules;
+
+    if (!dragPreviewModules && sourceModuleId && targetModuleId && sourceModuleId !== targetModuleId) {
+      const fromIndex = groupedModules.findIndex(module => module.id === sourceModuleId);
+      const toIndex = groupedModules.findIndex(module => module.id === targetModuleId);
+      if (fromIndex >= 0 && toIndex >= 0) {
+        finalVisibleModules = moveItem(groupedModules, fromIndex, toIndex);
+      }
     }
+
+    setDraggedModuleId(null);
+    setDragOverModuleId(null);
+
+    if (!sourceModuleId || isSavingOrder) {
+      setDragPreviewModules(null);
+      return;
+    }
+
+    const hasOrderChanged = finalVisibleModules.some((module, index) => module.id !== groupedModules[index]?.id);
+    if (!hasOrderChanged) {
+      setDragPreviewModules(null);
+      return;
+    }
+
+    saveModuleFilters({
+      diploma: filterDiploma,
+      major: filterMajor,
+      year: filterYear,
+      semester: filterSemester
+    });
+
+    const visibleIds = new Set(finalVisibleModules.map(module => module.id));
+    const fullClassGroups = buildModuleGroups((modules || []).filter(module =>
+      module.diploma === filterDiploma &&
+      module.major === filterMajor &&
+      module.year === filterYear
+    ));
+
+    let visibleIndex = 0;
+    const finalOrderedGroups = fullClassGroups.map(module =>
+      visibleIds.has(module.id) ? finalVisibleModules[visibleIndex++] : module
+    );
+    const orderUpdates = finalOrderedGroups.flatMap((module, index) =>
+      (module.ids || [module.id]).map(id => ({ id, order: index + 1 }))
+    );
+
+    try {
+      setIsSavingOrder(true);
+      await reorderModules(orderUpdates);
+    } catch (error) {
+      console.error('Module reorder error', error);
+      showToast("Erreur lors de l'enregistrement de l'ordre.", 'error');
+    } finally {
+      setIsSavingOrder(false);
+      setDragPreviewModules(null);
+    }
+  };
+
+  const handleModuleDragEnd = () => {
+    setDraggedModuleId(null);
+    setDragOverModuleId(null);
+    setDragPreviewModules(null);
   };
 
   // Feature 6: Open copy modal
@@ -262,7 +411,15 @@ const ModuleManagement = () => {
           m.name === copySource.name && m.diploma === diploma && m.major === major && m.year === year && (m.semester || 'S1') === (copySource.semester || 'S1')
         );
         if (exists) { skipped++; continue; }
-        await addModule({ name: copySource.name, coefficient: copySource.coefficient, diploma, major, year, semester: copySource.semester || 'S1' });
+        await addModule({
+          name: copySource.name,
+          coefficient: copySource.coefficient,
+          order: getModuleOrder(copySource) || Number(getNextModuleOrder(diploma, major, year, copySource.semester || 'S1')),
+          diploma,
+          major,
+          year,
+          semester: copySource.semester || 'S1'
+        });
         copied++;
       }
       const msg = copied > 0
@@ -306,7 +463,7 @@ const ModuleManagement = () => {
           <span className="module-premium-section-icon"><SlidersHorizontal size={15} /></span>
           <div>
             <h2>Filtres d'affichage</h2>
-            <p>Sélectionnez une classe et un semestre pour afficher ses modules.</p>
+            <p>Sélectionnez une classe, puis filtrez par semestre si besoin.</p>
           </div>
         </div>
         <div className="module-premium-filter-grid">
@@ -351,8 +508,8 @@ const ModuleManagement = () => {
           <FilterSelect
             value={filterSemester}
             onChange={val => { setFilterSemester(val); setPage(1); }}
-            options={[{ label: "Semestre", value: "" }, ...filterSemesterOptions]}
-            placeholder="Semestre"
+            options={[{ label: "Tous les semestres", value: "" }, ...filterSemesterOptions]}
+            placeholder="Tous les semestres"
           />
         </div>
         </div>
@@ -363,13 +520,14 @@ const ModuleManagement = () => {
         <div className="glass-card module-premium-table-shell" style={{ padding: 'var(--space-4)' }}><TableSkeleton rows={10} /></div>
       ) : !isFiltersSelected ? (
         <div className="module-premium-empty-shell">
-          <EmptyState title="Filtres requis" message="Veuillez sélectionner l'année, le niveau, la filière et le semestre pour afficher les modules." icon="filter" />
+          <EmptyState title="Filtres requis" message="Veuillez sélectionner l'année, le niveau et la filière pour afficher les modules." icon="filter" />
         </div>
       ) : (
         <div className="glass-card module-premium-table-shell">
           <table className="module-premium-table" style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-light)' }}>
+                <th style={{ padding: '16px', fontSize: 'var(--text-xs)', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', textAlign: 'center' }}>Ordre</th>
                 <th style={{ padding: '16px', fontSize: 'var(--text-xs)', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Module</th>
                 <th style={{ padding: '16px', fontSize: 'var(--text-xs)', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Niveau</th>
                 <th style={{ padding: '16px', fontSize: 'var(--text-xs)', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', textAlign: 'center' }}>Sem.</th>
@@ -381,13 +539,108 @@ const ModuleManagement = () => {
             <tbody>
               {paginatedModules.length === 0 ? (
                 <tr>
-                  <td colSpan="6" style={{ padding: 0 }}>
+                  <td colSpan="7" style={{ padding: 0 }}>
                     <EmptyState title="Aucun module" message="Aucun module n'est configuré pour cette sélection." icon="book" />
                   </td>
                 </tr>
               ) : (
-                paginatedModules.map((m) => (
-                  <tr key={m.id} className="module-premium-table-row" style={{ borderBottom: '1px solid var(--border-light)' }}>
+                paginatedModules.map((m) => {
+                  const isDragging = draggedModuleId === m.id;
+                  const isDragTarget = dragOverModuleId === m.id && draggedModuleId !== m.id;
+                  const canDrag = displayModules.length > 1 && !isSavingOrder;
+                  if (isDragging) {
+                    return (
+                      <tr
+                        key={m.id}
+                        className="module-premium-table-row"
+                        onDragOver={event => handleModuleDragOver(event, m.id)}
+                        onDrop={event => handleModuleDrop(event, m.id)}
+                        onDragEnd={handleModuleDragEnd}
+                        style={{
+                          borderBottom: '1px solid var(--border-light)',
+                          background: 'var(--primary-ultra-light)'
+                        }}
+                      >
+                        <td colSpan="7" style={{ padding: '10px 16px' }}>
+                          <div
+                            aria-label={`Module en deplacement : ${m.name}`}
+                            style={{
+                              minHeight: '42px',
+                              border: '1px dashed var(--primary)',
+                              borderRadius: '12px',
+                              background: 'linear-gradient(135deg, rgba(176,104,185,0.14), rgba(176,104,185,0.04))',
+                              color: 'var(--primary)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '12px',
+                              padding: '8px 14px',
+                              boxShadow: 'inset 0 0 0 1px rgba(176,104,185,0.08)',
+                              opacity: 0.82
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                              <GripVertical size={16} style={{ flexShrink: 0 }} />
+                              <div style={{ minWidth: 0 }}>
+                                <p style={{ fontWeight: '900', fontSize: '13px', color: 'var(--primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {m.name}
+                                </p>
+                                <p style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                  Module en deplacement
+                                </p>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                              <span style={{ fontWeight: '800', fontSize: '11px', background: 'white', color: 'var(--primary)', borderRadius: '999px', padding: '3px 8px', border: '1px solid var(--primary-light)' }}>
+                                {getFormSemester(m)}
+                              </span>
+                              <span style={{ fontWeight: '800', fontSize: '11px', background: 'white', color: 'var(--text-primary)', borderRadius: '999px', padding: '3px 8px', border: '1px solid var(--border-light)' }}>
+                                Coeff. {m.coefficient}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
+                  return (
+                  <tr
+                    key={m.id}
+                    className="module-premium-table-row"
+                    draggable={canDrag}
+                    onDragStart={event => handleModuleDragStart(event, m.id)}
+                    onDragOver={event => handleModuleDragOver(event, m.id)}
+                    onDrop={event => handleModuleDrop(event, m.id)}
+                    onDragEnd={handleModuleDragEnd}
+                    style={{
+                      borderBottom: '1px solid var(--border-light)',
+                      background: isDragTarget ? 'var(--primary-ultra-light)' : undefined,
+                      opacity: isDragging ? 0.55 : 1,
+                      cursor: isSavingOrder ? 'wait' : canDrag ? 'grab' : 'default'
+                    }}
+                  >
+                    <td style={{ padding: '16px', textAlign: 'center' }}>
+                      <span
+                        title="Glisser-deposer pour changer l'ordre"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '4px',
+                          padding: '4px 9px',
+                          background: 'var(--primary-ultra-light)',
+                          color: 'var(--primary)',
+                          borderRadius: '8px',
+                          fontWeight: '900',
+                          fontSize: '12px',
+                          cursor: isSavingOrder ? 'wait' : canDrag ? 'grab' : 'default',
+                          userSelect: 'none'
+                        }}
+                      >
+                        <GripVertical size={14} />
+                        {getModuleOrder(m) ?? '—'}
+                      </span>
+                    </td>
                     <td style={{ padding: '16px' }}>
                       <p style={{ fontWeight: '700', color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}>{m.name}</p>
                     </td>
@@ -425,7 +678,8 @@ const ModuleManagement = () => {
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -433,7 +687,7 @@ const ModuleManagement = () => {
           <Pagination
             currentPage={page}
             totalPages={totalPages}
-            totalItems={groupedModules.length}
+            totalItems={displayModules.length}
             itemsPerPage={itemsPerPage}
             onPageChange={setPage}
           />
@@ -541,7 +795,7 @@ const ModuleManagement = () => {
               <div style={{ marginBottom: '20px', padding: '12px 14px', background: 'var(--primary-ultra-light)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--primary-light)' }}>
                 <p style={{ fontSize: '11px', fontWeight: '700', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '3px' }}>Module à copier</p>
                 <p style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)' }}>{copySource.name}</p>
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Coeff. {copySource.coefficient} · {copySource.semester || 'S1'}</p>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Ordre {getModuleOrder(copySource) ?? '—'} · Coeff. {copySource.coefficient} · {copySource.semester || 'S1'}</p>
               </div>
 
               <p style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>

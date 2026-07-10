@@ -81,8 +81,14 @@ export const getGradeByModuleName = (studentGrades = {}, moduleName = '') => {
   return mergeGradeRecords(...gradeRecords);
 };
 
-export const sortModulesByName = (modules = []) => {
+export const getModuleOrder = (module) => {
+  const order = Number(module?.order);
+  return Number.isFinite(order) && order > 0 ? order : null;
+};
+
+export const sortModulesByOrder = (modules = []) => {
   return [...modules].sort((a, b) =>
+    (getModuleOrder(a) ?? Number.MAX_SAFE_INTEGER) - (getModuleOrder(b) ?? Number.MAX_SAFE_INTEGER) ||
     String(a?.name || '').localeCompare(String(b?.name || ''), 'fr', {
       numeric: true,
       sensitivity: 'base',
@@ -90,10 +96,12 @@ export const sortModulesByName = (modules = []) => {
   );
 };
 
+export const sortModulesByName = sortModulesByOrder;
+
 export const getStudentGradeModules = (allModules = [], student) => {
   if (!student) return [];
 
-  return sortModulesByName(
+  return sortModulesByOrder(
     (allModules || []).filter(module =>
       module?.diploma === student.diploma &&
       module?.major === student.major &&
