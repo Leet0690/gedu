@@ -3,11 +3,19 @@ export const sanitizeGradeKey = (subject = '') => String(subject || '').replace(
 const gradeAliasGroups = [
   {
     target: 'Soft skills',
-    aliases: ['SOFTSKILS'],
+    aliases: ['SOFTSKILS', 'Soft skills et Techniques de communication'],
   },
   {
     target: 'ERP avec ODOO',
     aliases: ['ERP'],
+  },
+  {
+    target: 'Développement web (HTML / PHP / CSS / JavaScript)',
+    aliases: ['Développement web (HTML/PHP/CSS/JavaScript)'],
+  },
+  {
+    target: 'Management et organisation des entreprises',
+    aliases: ['Management et Organisation des E/ses'],
   },
 ];
 
