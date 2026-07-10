@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import { loadLogoDataUrl } from './loadLogoDataUrl.js';
-import { sanitizeGradeKey } from './gradeSync.js';
+import { getGradeByModuleName, getGradeKeyCandidates, sanitizeGradeKey } from './gradeSync.js';
 import {
   calcCcAverage,
   calcModuleAverage,
@@ -89,7 +89,7 @@ const normalizeBulletinModules = (modules = [], grades = {}) => {
     const name = isObjectModule ? (module.name || module.module || module.label || '') : String(module || '');
     if (!name) return;
     const key = sanitizeGradeKey(name);
-    seenKeys.add(key);
+    getGradeKeyCandidates(name).forEach(candidateKey => seenKeys.add(candidateKey));
     entries.push({
       name,
       key,
@@ -483,7 +483,7 @@ export const generateBulletinGlobal = async (student, allGrades, modules) => {
   bulletinModules.forEach((mod, idx) => {
     if (y > 265) { doc.addPage(); y = drawHeader(doc, 'RELEVÉ DES NOTES (Suite)', logoDataUrl); y += 10; }
 
-    const g = grades[mod.key] || grades[mod.name] || {};
+    const g = getGradeByModuleName(grades, mod.name) || grades[mod.key] || grades[mod.name] || {};
     const coeff = mod.coefficient;
     const moyCC = calcCcAverage(g);
     const nP = parseScore(g.efcfp);

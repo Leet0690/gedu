@@ -4,7 +4,7 @@ import { FilterSelect } from '../components/ui/FilterSelect';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { FILIERES, getClassCode, getNextStudyYear, getStudyYearsForDiploma } from '../data/modules';
-import { getStudentGradeModules, sanitizeGradeKey } from '../utils/gradeSync';
+import { getGradeByModuleName, getStudentGradeModules, sanitizeGradeKey } from '../utils/gradeSync';
 import {
   calcCcAverage,
   calcModuleAverage,
@@ -242,7 +242,7 @@ const GradeManagement = () => {
     return generalAverage !== null ? generalAverage.toFixed(2) : '—';
   };
 
-  const completedModules = modules.filter(mod => isComplete(localGrades[sanitizeGradeKey(mod)])).length;
+  const completedModules = modules.filter(mod => isComplete(getGradeByModuleName(localGrades, mod))).length;
 
   // ── PDF Handlers ──
   const findFormateur = (moduleName) => {
@@ -603,7 +603,7 @@ const GradeManagement = () => {
                     </thead>
                     <tbody>
                       {modules.map((mod, idx) => {
-                        const g = localGrades[sanitizeGradeKey(mod)] || { c1: '', c2: '', c3: '', efcfp: '', efcft: '' };
+                        const g = getGradeByModuleName(localGrades, mod) || { c1: '', c2: '', c3: '', efcfp: '', efcft: '' };
                         const moyCC = calcMoyenneCC(g);
                         const avg = calcAvg(g);
                         const complete = isComplete(g);

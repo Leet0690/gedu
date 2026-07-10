@@ -1,4 +1,4 @@
-import { sanitizeGradeKey } from './gradeSync.js';
+import { getGradeByModuleName } from './gradeSync.js';
 
 export const parseScore = (value) => {
   const score = parseFloat(value);
@@ -36,11 +36,6 @@ export const calcModuleAverage = ({ ccAverage, theoretical, practical }) => {
 export const getModuleCoefficient = (module, fallback = 1) => {
   const coefficient = parseFloat(module?.coefficient);
   return Number.isNaN(coefficient) || coefficient <= 0 ? fallback : coefficient;
-};
-
-export const getGradeByModuleName = (studentGrades = {}, moduleName = '') => {
-  if (!studentGrades || !moduleName) return null;
-  return studentGrades[sanitizeGradeKey(moduleName)] || studentGrades[moduleName] || null;
 };
 
 export const calcStudentSynthesisAverages = (studentGrades = {}, modules = []) => {

@@ -21,6 +21,7 @@ import {
   getModuleCoefficient,
   parseScore,
 } from '../utils/gradeCalculations';
+import { getGradeByModuleName } from '../utils/gradeSync';
 
 const labelStyle = {
   fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)',
@@ -63,8 +64,6 @@ const CustomDonutLabel = ({ cx, cy, value, label }) => (
     <tspan x={cx} dy="18" fontSize="10" fontWeight="700" fill="var(--text-muted)">{label}</tspan>
   </text>
 );
-
-const gradeModuleKey = (moduleName = '') => moduleName.replace(/\./g, '_');
 
 const formatExcelScore = (value) => value === null ? '—' : value.toFixed(2);
 
@@ -587,7 +586,7 @@ const Reports = () => {
     );
 
     const getModuleScore = (studentId, modName) => {
-      const g = grades[studentId]?.[modName.replace(/\./g, '_')];
+      const g = getGradeByModuleName(grades[studentId], modName);
       if (!g) return null;
       const ccAverage = calcCcAverage(g);
       const efcfp = parseFloat(g.efcfp), efcft = parseFloat(g.efcft);
@@ -632,7 +631,7 @@ const Reports = () => {
     let avgC1 = 0, avgC2 = 0, avgC3 = 0, avgEFC = 0;
     let countC1 = 0, countC2 = 0, countC3 = 0, countEFC = 0;
     filteredStudents.forEach(s => {
-      const g = grades[s.id]?.[selectedModule.replace(/\./g, '_')];
+      const g = getGradeByModuleName(grades[s.id], selectedModule);
       if (g) {
         if (g.c1 && !isNaN(parseFloat(g.c1))) { avgC1 += parseFloat(g.c1); countC1++; }
         if (g.c2 && !isNaN(parseFloat(g.c2))) { avgC2 += parseFloat(g.c2); countC2++; }
@@ -733,7 +732,7 @@ const Reports = () => {
   }, [activeStudents, allModules]);
 
   const getReportModuleDetails = useCallback((studentId, moduleName) => {
-    const g = grades[studentId]?.[gradeModuleKey(moduleName)];
+    const g = getGradeByModuleName(grades[studentId], moduleName);
     const c1 = parseScore(g?.c1);
     const c2 = parseScore(g?.c2);
     const c3 = parseScore(g?.c3);
@@ -856,7 +855,7 @@ const Reports = () => {
   }, [getGroupStudents, getReportModuleDetails]);
 
   const getExcelModuleDetails = useCallback((studentId, moduleName) => {
-    const grade = grades[studentId]?.[gradeModuleKey(moduleName)];
+    const grade = getGradeByModuleName(grades[studentId], moduleName);
     const ccAverage = calcCcAverage(grade);
     const theoretical = parseScore(grade?.efcft);
     const practical = parseScore(grade?.efcfp);
