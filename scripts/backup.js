@@ -35,13 +35,25 @@ const collections = [
   'expenses',
   'modules',
   'settings',
+  'activity_logs',
   'access_logs',
+  'operations',
+  'receipt_counters',
+  'continuousTrainings',
+  'continuousTrainingTypes',
+  'ctStudents',
+  'ctSessions',
   'tokens'
 ];
 
 async function backup() {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const backupDir = path.join(cwd(), 'backups', `backup-${timestamp}`);
+  const manifest = {
+    generatedAt: new Date().toISOString(),
+    projectId: firebaseConfig.projectId,
+    collections: {},
+  };
   
   if (!fs.existsSync(backupDir)) {
     fs.mkdirSync(backupDir, { recursive: true });
@@ -60,12 +72,15 @@ async function backup() {
 
       const filePath = path.join(backupDir, `${colName}.json`);
       fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+      manifest.collections[colName] = data.length;
       console.log(`Saved ${data.length} documents to ${colName}.json`);
     } catch (error) {
+      manifest.collections[colName] = { error: error.message };
       console.error(`Error backing up ${colName}:`, error.message);
     }
   }
 
+  fs.writeFileSync(path.join(backupDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
   console.log('Backup completed successfully!');
   exit(0);
 }
