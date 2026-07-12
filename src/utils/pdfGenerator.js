@@ -91,7 +91,7 @@ const hasEnteredGrade = (grade) =>
     grade[field] !== undefined && grade[field] !== null && grade[field] !== ''
   );
 
-const normalizeBulletinModules = (modules = [], grades = {}) => {
+export const normalizeBulletinModules = (modules = [], grades = {}) => {
   const entries = [];
   const seenKeys = new Set();
 

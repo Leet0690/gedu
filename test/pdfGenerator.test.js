@@ -3,7 +3,28 @@ import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
 import { readFile } from 'node:fs/promises';
 
-import { generateBulletinGlobal } from '../src/utils/pdfGenerator.js';
+import {
+  generateBulletinGlobal,
+  normalizeBulletinModules,
+} from '../src/utils/pdfGenerator.js';
+
+test('normalizeBulletinModules does not add a duplicate Laravel row from legacy grade keys', () => {
+  const modules = [{
+    name: 'Frameworks web : Laravel (back end)',
+    coefficient: 1,
+    order: 1,
+    year: '2ème année',
+  }];
+  const grades = {
+    'Frameworks web : Laravel (back end)': { c1: '19.5', c2: '20', efcft: '19', efcfp: '18.5' },
+    'Framework web : Laravel (back end)': { c1: '19.5', c2: '20', efcft: '19', efcfp: '18.5' },
+  };
+
+  assert.deepEqual(
+    normalizeBulletinModules(modules, grades).map(module => module.name),
+    ['Frameworks web : Laravel (back end)']
+  );
+});
 
 test('generateBulletinGlobal renders the largest configured bulletin on one page', async () => {
   const originalFetch = globalThis.fetch;

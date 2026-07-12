@@ -23,6 +23,10 @@ const gradeAliasGroups = [
     target: 'Management et organisation des entreprises',
     aliases: ['Management et Organisation des E/ses'],
   },
+  {
+    target: 'Frameworks web : Laravel (back end)',
+    aliases: ['Framework web : Laravel (back end)'],
+  },
 ];
 
 const normalizeGradeName = (value = '') =>

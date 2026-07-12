@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  getGradeByModuleName,
   getModuleOrder,
   getStudentGradeModules,
   sortModulesByOrder,
@@ -99,6 +100,29 @@ test('getModuleOrder resolves known aliases against the official catalog order',
       year: '1ère année',
     }),
     11
+  );
+});
+
+test('getGradeByModuleName merges singular and plural Laravel module keys', () => {
+  const grades = {
+    'Framework web : Laravel (back end)': { c1: '19.5', c2: '20', efcft: '19', efcfp: '18.5' },
+  };
+
+  assert.deepEqual(
+    getGradeByModuleName(grades, 'Frameworks web : Laravel (back end)'),
+    { c1: '19.5', c2: '20', efcft: '19', efcfp: '18.5' }
+  );
+});
+
+test('getModuleOrder resolves the Laravel singular/plural alias against the official catalog order', () => {
+  assert.equal(
+    getModuleOrder({
+      name: 'Frameworks web : Laravel (back end)',
+      diploma: 'Technicien Spécialisé',
+      major: 'Développement Informatique',
+      year: '2ème année',
+    }),
+    1
   );
 });
 
