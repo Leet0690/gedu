@@ -94,8 +94,8 @@ const getTodayFrench = () => {
   return DASH_DAYS[jsDay === 0 ? 6 : jsDay - 1];
 };
 
-const ACTIVITY_TIME_ZONE = 'Etc/GMT-1';
-const ACTIVITY_TIME_ZONE_LABEL = 'GMT+1';
+const ACTIVITY_TIME_ZONE = 'UTC';
+const ACTIVITY_TIME_ZONE_LABEL = 'GMT';
 
 const getDateFromTimestamp = (timestamp) => {
   if (!timestamp) return null;
