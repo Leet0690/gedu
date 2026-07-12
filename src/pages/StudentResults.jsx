@@ -1,8 +1,14 @@
 import React, { useMemo, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
-import { getStudentGradeModules, sanitizeGradeKey } from '../utils/gradeSync';
+import { getGradeByModuleName, getStudentGradeModules } from '../utils/gradeSync';
+import {
+  calcCcAverage,
+  calcModuleAverage,
+  calcStudentSynthesisAverages,
+  parseScore,
+} from '../utils/gradeCalculations';
 import { isActiveStudent, isLaureatStudent } from '../utils/studentStatus';
 import { getDiplomaAbbreviation } from '../data/modules';
 import { TableSkeleton } from '../components/Skeleton';
@@ -27,25 +33,6 @@ import {
   ArrowLeft,
   FileText
 } from 'lucide-react';
-
-const calcMoyenneCC = (g) => {
-  if (!g || g.c1 === '' || g.c1 === undefined || g.c2 === '' || g.c2 === undefined) return null;
-  const c1 = parseFloat(g.c1), c2 = parseFloat(g.c2);
-  if (isNaN(c1) || isNaN(c2)) return null;
-  if (g.c3 !== '' && g.c3 !== undefined && g.c3 !== null) {
-    const c3 = parseFloat(g.c3);
-    if (!isNaN(c3)) return (c1 + c2 + c3) / 3;
-  }
-  return (c1 + c2) / 2;
-};
-
-const calcModuleScore = (g) => {
-  if (!g) return null;
-  const cc = calcMoyenneCC(g);
-  const fp = parseFloat(g.efcfp), ft = parseFloat(g.efcft);
-  if (cc === null || isNaN(fp) || isNaN(ft)) return null;
-  return (cc * 3 + ft * 2 + fp * 3) / 8;
-};
 
 const gradeColor = (val) => {
   const n = parseFloat(val);
@@ -75,7 +62,6 @@ const Grade = ({ val }) => {
 
 const StudentResults = () => {
   const { studentId } = useParams();
-  const navigate = useNavigate();
   const { students = [], grades = {}, loading = false, modules: allModules = [] } = useApp() || {};
 
   const student = students.find(s => {
@@ -90,7 +76,11 @@ const StudentResults = () => {
     }
   }, [student]);
 
-  const studentGrades = student ? (grades[student.id] || {}) : {};
+  const resolvedStudentId = student?.id;
+  const studentGrades = useMemo(
+    () => resolvedStudentId ? (grades[resolvedStudentId] || {}) : {},
+    [grades, resolvedStudentId]
+  );
   const studentModules = useMemo(
     () => getStudentGradeModules(allModules, student),
     [allModules, student]
@@ -98,23 +88,22 @@ const StudentResults = () => {
   const moduleNames = studentModules.map(m => m.name || '');
 
   const moduleScores = useMemo(() => studentModules.map(mod => {
-    const g = studentGrades[sanitizeGradeKey(mod.name)] || {};
-    const cc = calcMoyenneCC(g);
-    const score = calcModuleScore(g);
-    const fp = g.efcfp !== '' && g.efcfp !== undefined ? parseFloat(g.efcfp) : null;
-    const ft = g.efcft !== '' && g.efcft !== undefined ? parseFloat(g.efcft) : null;
+    const g = getGradeByModuleName(studentGrades, mod.name) || {};
+    const cc = calcCcAverage(g);
+    const fp = parseScore(g.efcfp);
+    const ft = parseScore(g.efcft);
+    const score = calcModuleAverage({
+      ccAverage: cc,
+      theoretical: ft,
+      practical: fp,
+    });
     const hasGrades = score !== null;
     const passed = hasGrades && score >= 10;
     return { mod, g, cc, score, fp, ft, hasGrades, passed };
   }), [studentModules, studentGrades]);
 
-  let sumCC = 0, sumFT = 0, sumFP = 0, cnt = 0;
-  moduleScores.forEach(({ cc, fp, ft }) => {
-    if (cc === null || fp === null || ft === null || isNaN(fp) || isNaN(ft)) return;
-    sumCC += cc; sumFT += ft; sumFP += fp; cnt++;
-  });
-  const generalAvgNum = cnt > 0 ? (((sumCC / cnt) * 3) + ((sumFT / cnt) * 2) + ((sumFP / cnt) * 3)) / 8 : 0;
-  const generalAvg = cnt > 0 ? generalAvgNum.toFixed(2) : '—';
+  const { generalAverage: generalAvgNum } = calcStudentSynthesisAverages(studentGrades, studentModules);
+  const generalAvg = generalAvgNum !== null ? generalAvgNum.toFixed(2) : '—';
   const completedModules = moduleScores.filter(s => s.hasGrades).length;
 
   const classRank = useMemo(() => {
@@ -133,18 +122,10 @@ const StudentResults = () => {
       return true;
     });
     const peerAvgs = peers.map(s => {
-      const sGrades = grades[s.id] || {};
-      let sCC = 0, sFT = 0, sFP = 0, sCnt = 0;
-      studentModules.forEach(mod => {
-        const g = sGrades[sanitizeGradeKey(mod.name)] || {};
-        const cc = calcMoyenneCC(g);
-        const fp = g.efcfp !== '' && g.efcfp !== undefined ? parseFloat(g.efcfp) : NaN;
-        const ft = g.efcft !== '' && g.efcft !== undefined ? parseFloat(g.efcft) : NaN;
-        if (cc !== null && !isNaN(fp) && !isNaN(ft)) {
-          sCC += cc; sFT += ft; sFP += fp; sCnt++;
-        }
-      });
-      const avg = sCnt > 0 ? (((sCC / sCnt) * 3) + ((sFT / sCnt) * 2) + ((sFP / sCnt) * 3)) / 8 : null;
+      const { generalAverage: avg } = calcStudentSynthesisAverages(
+        grades[s.id] || {},
+        studentModules
+      );
       return { id: s.id, avg };
     }).filter(p => p.avg !== null);
 
@@ -299,9 +280,9 @@ const StudentResults = () => {
         <MetricCard 
           icon={isAdmitted ? TrendingUp : TrendingDown} 
           label="Statut Décisionnel" 
-          value={cnt === moduleNames.length && moduleNames.length > 0 ? (isAdmitted ? 'Admis' : 'Non Admis') : 'En Cours'} 
+          value={completedModules === moduleNames.length && moduleNames.length > 0 ? (isAdmitted ? 'Admis' : 'Non Admis') : 'En Cours'}
           desc="Statut de l'année académique"
-          color={cnt === moduleNames.length && moduleNames.length > 0 ? (isAdmitted ? 'var(--success)' : 'var(--danger)') : 'var(--warning)'}
+          color={completedModules === moduleNames.length && moduleNames.length > 0 ? (isAdmitted ? 'var(--success)' : 'var(--danger)') : 'var(--warning)'}
         />
       </div>
 
@@ -482,7 +463,7 @@ const StudentResults = () => {
       </div>
 
       {/* Decision Summary Card */}
-      {cnt === moduleNames.length && moduleNames.length > 0 && (
+      {completedModules === moduleNames.length && moduleNames.length > 0 && (
         <motion.div 
           initial={{ opacity: 0, scale: 0.98 }} 
           animate={{ opacity: 1, scale: 1 }} 

@@ -1,4 +1,10 @@
+import { getModulesForFiliere } from '../data/modules.js';
+
 export const sanitizeGradeKey = (subject = '') => String(subject || '').replace(/\./g, '_');
+
+export const getModuleName = (module) => typeof module === 'string'
+  ? module
+  : (module?.name || module?.module || module?.label || '');
 
 const gradeAliasGroups = [
   {
@@ -24,6 +30,15 @@ const normalizeGradeName = (value = '') =>
     .trim()
     .replace(/\s+/g, ' ')
     .toLocaleLowerCase('fr');
+
+const normalizeModuleOrderName = (value = '') =>
+  String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('fr')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
 
 const addGradeKeyVariant = (keys, value) => {
   const raw = String(value || '').trim();
@@ -83,29 +98,76 @@ export const getGradeByModuleName = (studentGrades = {}, moduleName = '') => {
 
 export const getModuleOrder = (module) => {
   const order = Number(module?.order);
-  return Number.isFinite(order) && order > 0 ? order : null;
+  if (Number.isFinite(order) && order > 0) return order;
+
+  const defaultModules = getModulesForFiliere(module?.diploma, module?.major, module?.year);
+  const moduleNameVariants = new Set(
+    getGradeKeyCandidates(getModuleName(module)).map(normalizeModuleOrderName)
+  );
+  const defaultIndex = defaultModules.findIndex(name =>
+    getGradeKeyCandidates(name).some(candidate =>
+      moduleNameVariants.has(normalizeModuleOrderName(candidate))
+    )
+  );
+
+  return defaultIndex >= 0 ? defaultIndex + 1 : null;
+};
+
+const getModuleCreatedAtMillis = (module) => {
+  const createdAt = module?.createdAt;
+  if (!createdAt) return null;
+  if (typeof createdAt.toMillis === 'function') return createdAt.toMillis();
+  if (typeof createdAt.seconds === 'number') {
+    return createdAt.seconds * 1000 + Math.floor((createdAt.nanoseconds || 0) / 1000000);
+  }
+  const parsed = Date.parse(createdAt);
+  return Number.isNaN(parsed) ? null : parsed;
 };
 
 export const sortModulesByOrder = (modules = []) => {
-  return [...modules].sort((a, b) =>
-    (getModuleOrder(a) ?? Number.MAX_SAFE_INTEGER) - (getModuleOrder(b) ?? Number.MAX_SAFE_INTEGER) ||
-    String(a?.name || '').localeCompare(String(b?.name || ''), 'fr', {
+  return [...modules].sort((a, b) => {
+    const orderA = getModuleOrder(a);
+    const orderB = getModuleOrder(b);
+    const explicitOrderCompare =
+      (orderA ?? Number.MAX_SAFE_INTEGER) - (orderB ?? Number.MAX_SAFE_INTEGER);
+    if (explicitOrderCompare !== 0) return explicitOrderCompare;
+
+    if (orderA === null && orderB === null) {
+      const createdAtCompare =
+        (getModuleCreatedAtMillis(a) ?? Number.MAX_SAFE_INTEGER) -
+        (getModuleCreatedAtMillis(b) ?? Number.MAX_SAFE_INTEGER);
+      if (createdAtCompare !== 0) return createdAtCompare;
+    }
+
+    return String(a?.name || '').localeCompare(String(b?.name || ''), 'fr', {
       numeric: true,
       sensitivity: 'base',
-    })
-  );
+    });
+  });
 };
 
 export const sortModulesByName = sortModulesByOrder;
 
+export const dedupeModulesByName = (modules = []) => {
+  const seenNames = new Set();
+
+  return (modules || []).filter(module => {
+    const name = getModuleName(module);
+    const normalizedName = normalizeGradeName(name);
+    if (!normalizedName || seenNames.has(normalizedName)) return false;
+    seenNames.add(normalizedName);
+    return true;
+  });
+};
+
 export const getStudentGradeModules = (allModules = [], student) => {
   if (!student) return [];
 
-  return sortModulesByOrder(
-    (allModules || []).filter(module =>
+  return dedupeModulesByName(
+    sortModulesByOrder((allModules || []).filter(module =>
       module?.diploma === student.diploma &&
       module?.major === student.major &&
       module?.year === student.year
-    )
+    ))
   );
 };

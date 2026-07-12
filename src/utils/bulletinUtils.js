@@ -7,6 +7,25 @@ import { getGradeByModuleName, getModuleOrder } from './gradeSync.js';
 
 export const STAGE_RESERVATION_NOTE = 'Sous réserve de la note de stage en entreprise.';
 
+export const getSinglePageBulletinRowHeight = ({
+  moduleCount = 0,
+  hasRemark = false,
+  tableStartY = 92,
+  pageHeight = 297,
+  maxRowHeight = 9,
+  footerGap = 15,
+  footerBottomMargin = 22,
+} = {}) => {
+  const safeModuleCount = Math.max(0, Number(moduleCount) || 0);
+  const fixedRowUnits = 1.5 + 3 + (hasRemark ? 1 : 0);
+  const availableHeight = Math.max(
+    0,
+    pageHeight - footerBottomMargin - footerGap - tableStartY
+  );
+
+  return Math.min(maxRowHeight, availableHeight / (safeModuleCount + fixedRowUnits));
+};
+
 const getModuleName = (module) => typeof module === 'string'
   ? module
   : (module?.name || module?.module || module?.label || '');

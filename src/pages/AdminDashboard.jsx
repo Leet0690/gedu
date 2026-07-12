@@ -8,7 +8,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { generateBulletinGlobal } from '../utils/pdfGenerator';
-import { sortModulesByOrder } from '../utils/gradeSync';
+import { getStudentGradeModules } from '../utils/gradeSync';
 import {
   ALL_STUDY_YEARS,
   FILIERES,
@@ -1064,8 +1064,7 @@ const AdminDashboard = () => {
     return FILIERES[diplomaFilter] || [];
   }, [diplomaFilter]);
   const getStudentActiveModules = useCallback((student) => {
-    const configuredModules = sortModulesByOrder((allModules || [])
-      .filter(m => m.diploma === student.diploma && m.major === student.major && m.year === student.year));
+    const configuredModules = getStudentGradeModules(allModules || [], student);
     return configuredModules.length > 0 ? configuredModules : getModulesForStudent(student);
   }, [allModules]);
 

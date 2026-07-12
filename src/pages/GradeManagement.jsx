@@ -405,7 +405,10 @@ const GradeManagement = () => {
   const handleBulletinGlobal = async () => {
     if (!selectedStudent) return;
     const { generateBulletinGlobal } = await import('../utils/pdfGenerator');
-    await generateBulletinGlobal(selectedStudent, grades, studentModules);
+    await generateBulletinGlobal(selectedStudent, {
+      ...grades,
+      [selectedStudent.id]: localGrades,
+    }, studentModules);
     showToast('Bulletin généré', 'success');
   };
 

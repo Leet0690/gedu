@@ -26,7 +26,7 @@ import {
   isCompanyInternshipGradeMissing,
   STAGE_RESERVATION_NOTE,
 } from '../utils/bulletinUtils';
-import { getGradeByModuleName, sortModulesByOrder } from '../utils/gradeSync';
+import { dedupeModulesByName, getGradeByModuleName, sortModulesByOrder } from '../utils/gradeSync';
 
 const labelStyle = {
   fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)',
@@ -558,12 +558,12 @@ const Reports = () => {
 
   const availableModulesList = useMemo(() => {
     if (!selectedDiploma || !selectedMajor || !selectedYear) return [];
-    return sortModulesByOrder(
-      allModules.filter(m =>
+    return dedupeModulesByName(
+      sortModulesByOrder(allModules.filter(m =>
         m.diploma === selectedDiploma &&
         m.major === selectedMajor &&
         m.year === selectedYear
-      )
+      ))
     );
   }, [selectedDiploma, selectedMajor, selectedYear, allModules]);
 
@@ -755,13 +755,13 @@ const Reports = () => {
   }, [grades]);
 
   const getGroupModules = useCallback((group) => {
-    const modulesMap = new Map();
-    allModules
-      .filter(m => m.diploma === group.diploma && m.major === group.major && m.year === group.year)
-      .forEach(module => {
-        if (!modulesMap.has(module.name)) modulesMap.set(module.name, module);
-      });
-    return sortModulesByOrder(Array.from(modulesMap.values()));
+    return dedupeModulesByName(
+      sortModulesByOrder(allModules.filter(m =>
+        m.diploma === group.diploma &&
+        m.major === group.major &&
+        m.year === group.year
+      ))
+    );
   }, [allModules]);
 
   const getGroupStudents = useCallback((group) =>
@@ -969,7 +969,7 @@ const Reports = () => {
           Math.max(minimumFromMergedHeader, getAutoExcelColumnWidth(moduleWidthValues[index].practical, { min: 42, max: 60, padding: 8 })),
         ];
       });
-      const printWidthPages = 2;
+      const printWidthPages = 1;
       const printHeightPages = 1;
       const signatureLabels = ['Président', 'Membre professionnel', 'Formateur 1', 'Formateur 2', 'Formateur 3'];
       const rowHeights = getExcelRowHeights(
@@ -989,10 +989,9 @@ const Reports = () => {
         getAutoExcelColumnWidth(remarkWidthValues, { min: 150, max: 220, padding: 12 }),
       ];
       const reportColumnCount = 2 + (moduleExportColumns.length * 3) + 4 + 2;
-      const modulePageBreakAfterColumn = getModuleBoundaryPageBreakColumn(
-        rawReportColumnWidths,
-        moduleExportColumns.length
-      );
+      const modulePageBreakAfterColumn = printWidthPages > 1
+        ? getModuleBoundaryPageBreakColumn(rawReportColumnWidths, moduleExportColumns.length)
+        : null;
       const reportColumnWidths = modulePageBreakAfterColumn
         ? fitExcelColumnWidthsToModulePageBreak(
           rawReportColumnWidths,

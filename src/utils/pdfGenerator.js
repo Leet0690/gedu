@@ -15,6 +15,7 @@ import {
 } from './gradeCalculations.js';
 import {
   formatModuleUfNumber,
+  getSinglePageBulletinRowHeight,
   isCompanyInternshipGradeMissing,
   STAGE_RESERVATION_NOTE,
 } from './bulletinUtils.js';
@@ -99,7 +100,9 @@ const normalizeBulletinModules = (modules = [], grades = {}) => {
     const name = isObjectModule ? (module.name || module.module || module.label || '') : String(module || '');
     if (!name) return;
     const key = sanitizeGradeKey(name);
-    getGradeKeyCandidates(name).forEach(candidateKey => seenKeys.add(candidateKey));
+    const keyCandidates = getGradeKeyCandidates(name);
+    if (keyCandidates.some(candidateKey => seenKeys.has(candidateKey))) return;
+    keyCandidates.forEach(candidateKey => seenKeys.add(candidateKey));
     entries.push({
       name,
       key,
@@ -383,9 +386,9 @@ export const generateFicheNotes = async ({ students, filiere, classe, anneeForma
 /* ════════════════════════════════════════════════════════════════════
  *  3. RELEVÉ DES NOTES — Par stagiaire, toutes les notes
  * ════════════════════════════════════════════════════════════════════ */
-export const generateBulletinGlobal = async (student, allGrades, modules) => {
+export const generateBulletinGlobal = async (student, allGrades, modules, { save = true } = {}) => {
   const logoDataUrl = await loadLogoDataUrl();
-  const doc = new jsPDF();
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const w = doc.internal.pageSize.getWidth();
   const margin = 10;
   const tableW = w - margin * 2;
@@ -460,24 +463,35 @@ export const generateBulletinGlobal = async (student, allGrades, modules) => {
 
   // ── Grades Table ──
   y += infoH + 2;
-  const rH = 9;
+  const defaultRowHeight = 9;
+  const footerGap = 15;
+  const rH = getSinglePageBulletinRowHeight({
+    moduleCount: bulletinModules.length,
+    hasRemark: isStageGradeMissing,
+    tableStartY: y,
+    pageHeight: doc.internal.pageSize.getHeight(),
+    maxRowHeight: defaultRowHeight,
+    footerGap,
+  });
+  const rowScale = rH / defaultRowHeight;
+  const scaled = value => value * rowScale;
   const c = [14, 62, 11, 20, 20, 20, 20, 23];
   const hdr = ['N° UF', 'Unité de formation', 'Coeff', 'Contrôles\ncontinus', 'EFCF\nthéorique', 'EFCF\nPratique', 'Moyenne\ngénérale', 'Appréciations des\nformateurs'];
 
   // Table header
   doc.setFillColor(210, 210, 230);
   let xP = margin;
-  doc.setFontSize(6);
+  doc.setFontSize(scaled(6));
   doc.setFont('helvetica', 'bold');
   hdr.forEach((h, i) => {
     doc.setFillColor(210, 210, 230);
     doc.rect(xP, y, c[i], rH * 1.5, 'FD');
     const lines = h.split('\n');
     if (lines.length > 1) {
-      doc.text(lines[0], xP + c[i] / 2, y + 5, { align: 'center' });
-      doc.text(lines[1], xP + c[i] / 2, y + 9, { align: 'center' });
+      doc.text(lines[0], xP + c[i] / 2, y + scaled(5), { align: 'center' });
+      doc.text(lines[1], xP + c[i] / 2, y + scaled(9), { align: 'center' });
     } else {
-      doc.text(h, xP + c[i] / 2, y + 7, { align: 'center' });
+      doc.text(h, xP + c[i] / 2, y + scaled(7), { align: 'center' });
     }
     xP += c[i];
   });
@@ -492,8 +506,6 @@ export const generateBulletinGlobal = async (student, allGrades, modules) => {
   } = calcStudentSynthesisAverages(grades, bulletinModules);
 
   bulletinModules.forEach((mod, idx) => {
-    if (y > 265) { doc.addPage(); y = drawHeader(doc, 'RELEVÉ DES NOTES (Suite)', logoDataUrl); y += 10; }
-
     const g = getGradeByModuleName(grades, mod.name) || grades[mod.key] || grades[mod.name] || {};
     const coeff = mod.coefficient;
     const moyCC = calcCcAverage(g);
@@ -525,28 +537,28 @@ export const generateBulletinGlobal = async (student, allGrades, modules) => {
     xP = margin;
     c.forEach(cw => { doc.rect(xP, y, cw, rH); xP += cw; });
 
-    doc.setFontSize(6.5);
+    doc.setFontSize(scaled(6.5));
     doc.setFont('helvetica', 'normal');
     xP = margin;
     const ufNum = formatModuleUfNumber(mod, idx, student.year);
-    doc.text(ufNum, xP + c[0] / 2, y + 6, { align: 'center' });
+    doc.text(ufNum, xP + c[0] / 2, y + scaled(6), { align: 'center' });
     xP += c[0];
     const dispMod = mod.name.length > 32 ? mod.name.substring(0, 30) + '…' : mod.name;
-    doc.text(dispMod, xP + 1.5, y + 6);
+    doc.text(dispMod, xP + 1.5, y + scaled(6));
     xP += c[1];
-    doc.text(String(coeff), xP + c[2] / 2, y + 6, { align: 'center' });
+    doc.text(String(coeff), xP + c[2] / 2, y + scaled(6), { align: 'center' });
     xP += c[2];
     doc.setFont('helvetica', 'bold');
-    doc.text(moyCC !== null ? moyCC.toFixed(2) : '', xP + c[3] / 2, y + 6, { align: 'center' });
+    doc.text(moyCC !== null ? moyCC.toFixed(2) : '', xP + c[3] / 2, y + scaled(6), { align: 'center' });
     xP += c[3];
-    doc.text(nT !== null ? nT.toFixed(2) : '', xP + c[4] / 2, y + 6, { align: 'center' });
+    doc.text(nT !== null ? nT.toFixed(2) : '', xP + c[4] / 2, y + scaled(6), { align: 'center' });
     xP += c[4];
-    doc.text(nP !== null ? nP.toFixed(2) : '', xP + c[5] / 2, y + 6, { align: 'center' });
+    doc.text(nP !== null ? nP.toFixed(2) : '', xP + c[5] / 2, y + scaled(6), { align: 'center' });
     xP += c[5];
-    doc.text(avg !== null ? avg.toFixed(2) : '', xP + c[6] / 2, y + 6, { align: 'center' });
+    doc.text(avg !== null ? avg.toFixed(2) : '', xP + c[6] / 2, y + scaled(6), { align: 'center' });
     xP += c[6];
     doc.setFont('helvetica', 'normal');
-    doc.text(appreciation, xP + c[7] / 2, y + 6, { align: 'center' });
+    doc.text(appreciation, xP + c[7] / 2, y + scaled(6), { align: 'center' });
 
     y += rH;
   });
@@ -560,7 +572,6 @@ export const generateBulletinGlobal = async (student, allGrades, modules) => {
   const avgEFCFP = avgEFCFP_num !== null ? avgEFCFP_num.toFixed(2) : '';
   const avgMoy = finalAvg;
 
-  if (y > 265) { doc.addPage(); y = 40; }
   doc.setFillColor(230, 230, 245);
   const lblW = c[0] + c[1];
   doc.rect(margin, y, lblW, rH, 'FD'); // Label cell
@@ -571,13 +582,13 @@ export const generateBulletinGlobal = async (student, allGrades, modules) => {
   doc.rect(margin + lblW + c[2] + c[3] + c[4] + c[5], y, c[6] + c[7], rH, 'FD'); // Final cell
   
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.text(`Moyennes pondérées`, margin + 2, y + 6);
-  doc.text(String(coefficientTotal || 0), margin + lblW + c[2] / 2, y + 6, { align: 'center' });
-  doc.text(avgCC, margin + lblW + c[2] + c[3] / 2, y + 6, { align: 'center' });
-  doc.text(avgEFCFT, margin + lblW + c[2] + c[3] + c[4] / 2, y + 6, { align: 'center' });
-  doc.text(avgEFCFP, margin + lblW + c[2] + c[3] + c[4] + c[5] / 2, y + 6, { align: 'center' });
-  doc.text(avgMoy, margin + lblW + c[2] + c[3] + c[4] + c[5] + (c[6] + c[7]) / 2, y + 6, { align: 'center' });
+  doc.setFontSize(scaled(7));
+  doc.text(`Moyennes pondérées`, margin + 2, y + scaled(6));
+  doc.text(String(coefficientTotal || 0), margin + lblW + c[2] / 2, y + scaled(6), { align: 'center' });
+  doc.text(avgCC, margin + lblW + c[2] + c[3] / 2, y + scaled(6), { align: 'center' });
+  doc.text(avgEFCFT, margin + lblW + c[2] + c[3] + c[4] / 2, y + scaled(6), { align: 'center' });
+  doc.text(avgEFCFP, margin + lblW + c[2] + c[3] + c[4] + c[5] / 2, y + scaled(6), { align: 'center' });
+  doc.text(avgMoy, margin + lblW + c[2] + c[3] + c[4] + c[5] + (c[6] + c[7]) / 2, y + scaled(6), { align: 'center' });
 
   y += rH;
   const fullLabelW = c[0] + c[1] + c[2] + c[3] + c[4] + c[5];
@@ -587,10 +598,10 @@ export const generateBulletinGlobal = async (student, allGrades, modules) => {
   doc.rect(margin, y, fullLabelW, rH, 'FD');
   doc.rect(margin + fullLabelW, y, resultW, rH, 'FD');
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.text('Moyenne générale', margin + 2, y + 6);
-  doc.setFontSize(10);
-  doc.text(finalAvg, margin + fullLabelW + resultW / 2, y + 6.5, { align: 'center' });
+  doc.setFontSize(scaled(8));
+  doc.text('Moyenne générale', margin + 2, y + scaled(6));
+  doc.setFontSize(scaled(10));
+  doc.text(finalAvg, margin + fullLabelW + resultW / 2, y + scaled(6.5), { align: 'center' });
 
   // ── Décision jury ──
   y += rH;
@@ -599,35 +610,36 @@ export const generateBulletinGlobal = async (student, allGrades, modules) => {
   doc.rect(margin, y, fullLabelW, rH, 'FD');
   doc.rect(margin + fullLabelW, y, resultW, rH, 'FD');
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.text("Décision jury d'examen", margin + 2, y + 6);
+  doc.setFontSize(scaled(8));
+  doc.text("Décision jury d'examen", margin + 2, y + scaled(6));
   doc.setTextColor(isPassed ? 0 : 200, isPassed ? 128 : 0, isPassed ? 0 : 0);
-  doc.text(isPassed ? 'Admis(e)' : 'Ajourné(e)', margin + fullLabelW + resultW / 2, y + 6.5, { align: 'center' });
+  doc.text(isPassed ? 'Admis(e)' : 'Ajourné(e)', margin + fullLabelW + resultW / 2, y + scaled(6.5), { align: 'center' });
   doc.setTextColor(0);
 
   if (isStageGradeMissing) {
     y += rH;
-    if (y > 270) { doc.addPage(); y = 40; }
     doc.setFillColor(255, 248, 220);
     doc.setDrawColor(217, 119, 6);
     doc.rect(margin, y, tableW, rH, 'FD');
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
+    doc.setFontSize(scaled(8));
     doc.setTextColor(180, 83, 9);
-    doc.text(`Remarque : ${STAGE_RESERVATION_NOTE}`, margin + 2, y + 6);
+    doc.text(`Remarque : ${STAGE_RESERVATION_NOTE}`, margin + 2, y + scaled(6));
     doc.setTextColor(0);
     doc.setDrawColor(0);
   }
 
   // ── Footer ──
-  y += rH + 15;
-  if (y > 275) { doc.addPage(); y = 40; }
+  y += rH + footerGap;
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.text("Visa de l'administration", w / 2, y, { align: 'center' });
 
   const safeName = student.lastName.replace(/[^a-z0-9]/gi, '_');
-  doc.save(`Releve_Notes_${safeName}_${student.regNo.replace(/[^a-z0-9]/gi, '_')}.pdf`);
+  if (save) {
+    doc.save(`Releve_Notes_${safeName}_${student.regNo.replace(/[^a-z0-9]/gi, '_')}.pdf`);
+  }
+  return doc;
 };
 
 
