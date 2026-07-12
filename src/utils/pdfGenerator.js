@@ -1,6 +1,11 @@
 import { jsPDF } from 'jspdf';
 import { loadLogoDataUrl } from './loadLogoDataUrl.js';
-import { getGradeByModuleName, getGradeKeyCandidates, sanitizeGradeKey } from './gradeSync.js';
+import {
+  getGradeByModuleName,
+  getGradeKeyCandidates,
+  getModuleOrder,
+  sanitizeGradeKey,
+} from './gradeSync.js';
 import {
   calcCcAverage,
   calcModuleAverage,
@@ -8,6 +13,11 @@ import {
   getModuleCoefficient,
   parseScore,
 } from './gradeCalculations.js';
+import {
+  formatModuleUfNumber,
+  isCompanyInternshipGradeMissing,
+  STAGE_RESERVATION_NOTE,
+} from './bulletinUtils.js';
 
 /* ── Constants ── */
 const ACCREDITATION_TEXT = [
@@ -94,8 +104,8 @@ const normalizeBulletinModules = (modules = [], grades = {}) => {
       name,
       key,
       coefficient: isObjectModule ? getModuleCoefficient(module) : 1,
-      code: isObjectModule ? (module.code || module.moduleCode || module.uf || module.reference || '') : '',
-      order: index,
+      order: isObjectModule ? (getModuleOrder(module) ?? index + 1) : index + 1,
+      year: isObjectModule ? (module.year || '') : '',
     });
   });
 
@@ -105,8 +115,8 @@ const normalizeBulletinModules = (modules = [], grades = {}) => {
       name: key.replace(/_/g, '.'),
       key,
       coefficient: 1,
-      code: '',
-      order: entries.length,
+      order: entries.length + 1,
+      year: '',
     });
   });
 
@@ -381,6 +391,7 @@ export const generateBulletinGlobal = async (student, allGrades, modules) => {
   const tableW = w - margin * 2;
   const grades = allGrades[student.id] || {};
   const bulletinModules = normalizeBulletinModules(modules, grades);
+  const isStageGradeMissing = isCompanyInternshipGradeMissing(bulletinModules, grades);
 
   let y = drawHeader(doc, 'RELEVÉ DES NOTES', logoDataUrl);
 
@@ -517,7 +528,7 @@ export const generateBulletinGlobal = async (student, allGrades, modules) => {
     doc.setFontSize(6.5);
     doc.setFont('helvetica', 'normal');
     xP = margin;
-    const ufNum = mod.code || `UF ${(idx + 1).toString().padStart(1, '0')}.${idx + 1}`;
+    const ufNum = formatModuleUfNumber(mod, idx, student.year);
     doc.text(ufNum, xP + c[0] / 2, y + 6, { align: 'center' });
     xP += c[0];
     const dispMod = mod.name.length > 32 ? mod.name.substring(0, 30) + '…' : mod.name;
@@ -593,6 +604,20 @@ export const generateBulletinGlobal = async (student, allGrades, modules) => {
   doc.setTextColor(isPassed ? 0 : 200, isPassed ? 128 : 0, isPassed ? 0 : 0);
   doc.text(isPassed ? 'Admis(e)' : 'Ajourné(e)', margin + fullLabelW + resultW / 2, y + 6.5, { align: 'center' });
   doc.setTextColor(0);
+
+  if (isStageGradeMissing) {
+    y += rH;
+    if (y > 270) { doc.addPage(); y = 40; }
+    doc.setFillColor(255, 248, 220);
+    doc.setDrawColor(217, 119, 6);
+    doc.rect(margin, y, tableW, rH, 'FD');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(180, 83, 9);
+    doc.text(`Remarque : ${STAGE_RESERVATION_NOTE}`, margin + 2, y + 6);
+    doc.setTextColor(0);
+    doc.setDrawColor(0);
+  }
 
   // ── Footer ──
   y += rH + 15;

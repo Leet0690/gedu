@@ -66,7 +66,7 @@ import {
 const lbl = { fontSize: 'var(--text-xs)', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' };
 const thStyle = { padding: '12px 16px', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid var(--border-light)', background: 'var(--bg-subtle)', whiteSpace: 'nowrap' };
 const tdStyle = { padding: '12px 16px', borderBottom: '1px solid var(--border-light)' };
-const selectStyle = { cursor: 'pointer', paddingRight: '36px' };
+const EMPTY_GRADE = { c1: '', c2: '', c3: '', efcfp: '', efcft: '' };
 
 /* ── Components ── */
 const GradeInput = ({ value, onChange, placeholder = '—' }) => {
@@ -94,12 +94,16 @@ const MiniStat = ({ label, value, icon: Icon }) => (
 const GradeManagement = () => {
   const { students = [], teachers = [], grades = {}, batchUpdateGrades, loading = false, modules: allModules = [], confirmAction } = useApp() || {};
   const { showToast } = useToast();
+  const [entryMode, setEntryMode] = useState('student');
   const [selectedStudentId, setSelectedStudentId] = useState('');
+  const [selectedGradeModule, setSelectedGradeModule] = useState('');
   const [filterDiploma, setFilterDiploma] = useState('');
   const [filterMajor, setFilterMajor] = useState('');
   const [filterYear, setFilterYear] = useState('');
   const [saved, setSaved] = useState(false);
   const [localGrades, setLocalGrades] = useState({});
+  const [moduleLocalGrades, setModuleLocalGrades] = useState({});
+  const [moduleDirtyStudentIds, setModuleDirtyStudentIds] = useState(() => new Set());
   const activeStudents = useMemo(() => (students || []).filter(isActiveStudent), [students]);
 
   // ── PDF States ──
@@ -145,6 +149,19 @@ const GradeManagement = () => {
   
   const pdfModules = pdfModulesList.map(m => m.name);
 
+  const moduleStudents = useMemo(() => [...filteredStudents].sort((a, b) => {
+    const regCompare = String(a.regNo || '').localeCompare(String(b.regNo || ''), 'fr', {
+      numeric: true,
+      sensitivity: 'base',
+    });
+    if (regCompare !== 0) return regCompare;
+    return `${a.lastName || ''} ${a.firstName || ''}`.localeCompare(
+      `${b.lastName || ''} ${b.firstName || ''}`,
+      'fr',
+      { sensitivity: 'base' }
+    );
+  }), [filteredStudents]);
+
   // Students for PDF (filtered)
   const pdfStudents = useMemo(() => {
     return activeStudents.filter(s => {
@@ -155,12 +172,88 @@ const GradeManagement = () => {
     }).sort((a, b) => (a.regNo || '').localeCompare(b.regNo || ''));
   }, [activeStudents, filterDiploma, filterMajor, filterYear]);
 
+  React.useEffect(() => {
+    if (!selectedGradeModule) {
+      setModuleLocalGrades({});
+      setModuleDirtyStudentIds(new Set());
+      return;
+    }
+
+    const nextGrades = {};
+    moduleStudents.forEach(student => {
+      nextGrades[student.id] = {
+        ...EMPTY_GRADE,
+        ...(getGradeByModuleName(grades[student.id], selectedGradeModule) || {}),
+      };
+    });
+    setModuleLocalGrades(nextGrades);
+    setModuleDirtyStudentIds(new Set());
+  }, [grades, moduleStudents, selectedGradeModule]);
+
+  const canDiscardModuleDraft = async () => {
+    if (moduleDirtyStudentIds.size === 0 || !confirmAction) return true;
+    return confirmAction({
+      title: 'Notes non enregistrées',
+      message: 'Des notes saisies par module ne sont pas encore enregistrées. Voulez-vous abandonner ces modifications ?',
+      type: 'warning',
+    });
+  };
+
+  const handleDiplomaFilterChange = async (value) => {
+    if (!(await canDiscardModuleDraft())) return;
+    setFilterDiploma(value);
+    setFilterMajor('');
+    setFilterYear('');
+    setSelectedStudentId('');
+    setSelectedGradeModule('');
+    setPdfModule('');
+  };
+
+  const handleMajorFilterChange = async (value) => {
+    if (!(await canDiscardModuleDraft())) return;
+    setFilterMajor(value);
+    setSelectedStudentId('');
+    setSelectedGradeModule('');
+    setPdfModule('');
+  };
+
+  const handleYearFilterChange = async (value) => {
+    if (!(await canDiscardModuleDraft())) return;
+    setFilterYear(value);
+    setSelectedStudentId('');
+    setSelectedGradeModule('');
+    setPdfModule('');
+  };
+
+  const handleGradeModuleSelection = async (value) => {
+    if (value === selectedGradeModule || !(await canDiscardModuleDraft())) return;
+    setSelectedGradeModule(value);
+    setSaved(false);
+  };
+
   const handleGradeChange = (module, field, value) => {
     const safeModule = sanitizeGradeKey(module);
     setLocalGrades(prev => {
       const current = prev[safeModule] || { c1: '', c2: '', c3: '', efcfp: '', efcft: '' };
       return { ...prev, [safeModule]: { ...current, [field]: value } };
     });
+  };
+
+  const handleModuleGradeChange = (studentId, field, value) => {
+    setModuleLocalGrades(prev => ({
+      ...prev,
+      [studentId]: {
+        ...EMPTY_GRADE,
+        ...(prev[studentId] || {}),
+        [field]: value,
+      },
+    }));
+    setModuleDirtyStudentIds(prev => {
+      const next = new Set(prev);
+      next.add(studentId);
+      return next;
+    });
+    setSaved(false);
   };
 
   const handleSave = async () => {
@@ -197,8 +290,34 @@ const GradeManagement = () => {
 
   const isValidGrade = (val) => {
     if (val === '' || val === undefined || val === null) return true;
-    const num = parseFloat(val);
-    return !isNaN(num) && num >= 0 && num <= 20;
+    const num = Number(val);
+    return Number.isFinite(num) && num >= 0 && num <= 20;
+  };
+
+  const handleSaveByModule = async () => {
+    if (!selectedGradeModule || moduleDirtyStudentIds.size === 0) return;
+
+    const dirtyIds = Array.from(moduleDirtyStudentIds);
+    const hasInvalid = dirtyIds.some(studentId =>
+      ['c1', 'c2', 'c3', 'efcfp', 'efcft'].some(field =>
+        !isValidGrade(moduleLocalGrades[studentId]?.[field])
+      )
+    );
+
+    if (hasInvalid) {
+      showToast('Validation impossible : certaines notes sont invalides.', 'error');
+      return;
+    }
+
+    await batchUpdateGrades(dirtyIds.map(studentId => ({
+      studentId,
+      subject: selectedGradeModule,
+      gradeData: { ...EMPTY_GRADE, ...(moduleLocalGrades[studentId] || {}) },
+    })));
+
+    setModuleDirtyStudentIds(new Set());
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
   };
 
   const calcMoyenneCC = (g) => {
@@ -243,6 +362,9 @@ const GradeManagement = () => {
   };
 
   const completedModules = modules.filter(mod => isComplete(getGradeByModuleName(localGrades, mod))).length;
+  const completedModuleStudents = moduleStudents.filter(student =>
+    isComplete(moduleLocalGrades[student.id])
+  ).length;
 
   // ── PDF Handlers ──
   const findFormateur = (moduleName) => {
@@ -327,7 +449,7 @@ const GradeManagement = () => {
             </span>
           )}
           </h1>
-          <p>Saisie centralisée des résultats académiques par stagiaire.</p>
+          <p>Saisie centralisée des résultats académiques par stagiaire ou par module.</p>
         </div>
         <div className="grade-premium-header-orb" aria-hidden="true">
           <GraduationCap size={112} />
@@ -337,11 +459,61 @@ const GradeManagement = () => {
       {/* Filters */}
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
         className="glass-card grade-premium-filter-card">
+        <div
+          role="tablist"
+          aria-label="Mode de saisie des notes"
+          style={{
+            display: 'inline-flex',
+            gap: '4px',
+            padding: '4px',
+            marginBottom: '20px',
+            borderRadius: 'var(--radius-xl)',
+            background: 'var(--bg-subtle)',
+            border: '1px solid var(--border-light)',
+          }}
+        >
+          {[
+            { value: 'student', label: 'Par stagiaire' },
+            { value: 'module', label: 'Par module' },
+          ].map(mode => {
+            const isActive = entryMode === mode.value;
+            return (
+              <button
+                key={mode.value}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => {
+                  setEntryMode(mode.value);
+                  setSaved(false);
+                }}
+                style={{
+                  padding: '9px 18px',
+                  border: 'none',
+                  borderRadius: 'var(--radius-lg)',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: '800',
+                  color: isActive ? 'white' : 'var(--text-muted)',
+                  background: isActive ? 'var(--primary)' : 'transparent',
+                  boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
+                  transition: 'all 160ms ease',
+                }}
+              >
+                {mode.label}
+              </button>
+            );
+          })}
+        </div>
         <div className="grade-premium-section-heading">
           <span className="grade-premium-section-icon"><SlidersHorizontal size={15} /></span>
           <div>
             <h2>Filtres de saisie</h2>
-            <p>Sélectionnez une classe puis un stagiaire pour saisir ses résultats.</p>
+            <p>
+              {entryMode === 'student'
+                ? 'Sélectionnez une classe puis un stagiaire pour saisir ses résultats.'
+                : 'Sélectionnez une classe puis un module pour saisir les notes de tous les stagiaires.'}
+            </p>
           </div>
         </div>
         <div className="grade-premium-filter-grid">
@@ -349,7 +521,7 @@ const GradeManagement = () => {
             <label style={lbl}>Niveau</label>
             <FilterSelect
               value={filterDiploma}
-              onChange={(val) => { setFilterDiploma(val); setFilterMajor(''); setFilterYear(''); setSelectedStudentId(''); setPdfModule(''); }}
+              onChange={handleDiplomaFilterChange}
               options={[
                 { label: "-- Choisir le niveau --", value: "" },
                 ...Object.keys(FILIERES).map(d => ({ label: d, value: d }))
@@ -360,7 +532,7 @@ const GradeManagement = () => {
             <label style={lbl}>Filière</label>
             <FilterSelect
               value={filterMajor}
-              onChange={(val) => { setFilterMajor(val); setSelectedStudentId(''); setPdfModule(''); }}
+              onChange={handleMajorFilterChange}
               options={[
                 { label: "-- Choisir la filière --", value: "" },
                 ...availableMajors.map(m => ({ label: m, value: m }))
@@ -371,7 +543,7 @@ const GradeManagement = () => {
             <label style={lbl}>Année</label>
             <FilterSelect
               value={filterYear}
-              onChange={(val) => { setFilterYear(val); setSelectedStudentId(''); setPdfModule(''); }}
+              onChange={handleYearFilterChange}
               options={[
                 { label: "-- Choisir l'année --", value: "" },
                 ...getStudyYearsForDiploma(filterDiploma).map(year => ({ label: year, value: year }))
@@ -379,18 +551,29 @@ const GradeManagement = () => {
             />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={lbl}>Stagiaire</label>
-            <FilterSelect
-              value={selectedStudentId}
-              onChange={(val) => setSelectedStudentId(val)}
-              options={[
-                { label: "Sélectionner un stagiaire", value: "" },
-                ...filteredStudents.map(s => ({ 
-                  label: `${s.lastName} ${s.firstName} [${getGroupAbbreviation(s.major, s.year)}]`, 
-                  value: s.id 
-                }))
-              ]}
-            />
+            <label style={lbl}>{entryMode === 'student' ? 'Stagiaire' : 'Module'}</label>
+            {entryMode === 'student' ? (
+              <FilterSelect
+                value={selectedStudentId}
+                onChange={(val) => setSelectedStudentId(val)}
+                options={[
+                  { label: "Sélectionner un stagiaire", value: "" },
+                  ...filteredStudents.map(s => ({
+                    label: `${s.lastName} ${s.firstName} [${getGroupAbbreviation(s.major, s.year)}]`,
+                    value: s.id
+                  }))
+                ]}
+              />
+            ) : (
+              <FilterSelect
+                value={selectedGradeModule}
+                onChange={handleGradeModuleSelection}
+                options={[
+                  { label: 'Sélectionner un module', value: '' },
+                  ...pdfModules.map(module => ({ label: module, value: module })),
+                ]}
+              />
+            )}
           </div>
         </div>
       </motion.div>
@@ -503,7 +686,141 @@ const GradeManagement = () => {
 
       {/* ── Student Content ── */}
       <AnimatePresence mode="wait">
-        {selectedStudent ? (
+        {entryMode === 'module' ? (
+          selectedGradeModule ? (
+            <motion.div
+              className="grade-premium-student-panel"
+              key={`module-${selectedGradeModule}`}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+            >
+              <div className="grade-premium-student-header" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '20px', marginBottom: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', minWidth: 0 }}>
+                  <div style={{ width: '48px', height: '48px', flex: '0 0 48px', borderRadius: 'var(--radius-xl)', background: 'var(--primary-ultra-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-light)' }}>
+                    <PenTool size={20} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: '800', overflowWrap: 'anywhere' }}>
+                      {selectedGradeModule}
+                    </h3>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600', marginTop: '4px' }}>
+                      {filterMajor} · {filterYear} · saisie par module
+                    </p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                  <MiniStat label="Stagiaires" value={moduleStudents.length} />
+                  <MiniStat label="Complets" value={`${completedModuleStudents}/${moduleStudents.length}`} />
+                  <button
+                    onClick={handleSaveByModule}
+                    disabled={moduleDirtyStudentIds.size === 0}
+                    className="btn-modern primary"
+                    style={{ padding: '12px 24px', opacity: moduleDirtyStudentIds.size === 0 ? 0.55 : 1 }}
+                  >
+                    <CloudUpload size={18} style={{ marginRight: '8px' }} />
+                    Enregistrer{moduleDirtyStudentIds.size > 0 ? ` (${moduleDirtyStudentIds.size})` : ''}
+                  </button>
+                </div>
+              </div>
+
+              <AnimatePresence>
+                {saved && (
+                  <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
+                    style={{ background: 'var(--success-ultra-light)', border: '1px solid var(--success-light)', borderRadius: 'var(--radius-lg)', padding: '12px 20px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <CheckCircle2 size={16} style={{ color: 'var(--success)' }} />
+                    <span style={{ fontSize: 'var(--text-sm)', fontWeight: '700', color: 'var(--success)' }}>Notes du module synchronisées avec succès.</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {moduleStudents.length === 0 ? (
+                <div className="grade-premium-empty-shell">
+                  <EmptyState title="Aucun stagiaire" message="Aucun stagiaire actif ne correspond à cette classe." icon="search" />
+                </div>
+              ) : (
+                <div className="glass-card grade-premium-table-shell">
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="grade-premium-table" style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', minWidth: '1120px' }}>
+                      <thead>
+                        <tr>
+                          <th style={thStyle}>#</th>
+                          <th style={thStyle}>N° inscription</th>
+                          <th style={thStyle}>Stagiaire</th>
+                          <th style={{ ...thStyle, textAlign: 'center' }}>CC1</th>
+                          <th style={{ ...thStyle, textAlign: 'center' }}>CC2</th>
+                          <th style={{ ...thStyle, textAlign: 'center' }}>CC3</th>
+                          <th style={{ ...thStyle, textAlign: 'center', background: 'rgba(0,0,0,0.02)' }}>Moy CC</th>
+                          <th style={{ ...thStyle, textAlign: 'center' }}>EFCFP</th>
+                          <th style={{ ...thStyle, textAlign: 'center' }}>EFCFT</th>
+                          <th style={{ ...thStyle, textAlign: 'center', background: 'var(--primary-ultra-light)' }}>Générale</th>
+                          <th style={{ ...thStyle, textAlign: 'center' }}>Statut</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {moduleStudents.map((student, idx) => {
+                          const g = moduleLocalGrades[student.id] || EMPTY_GRADE;
+                          const moyCC = calcMoyenneCC(g);
+                          const avg = calcAvg(g);
+                          const complete = isComplete(g);
+                          const isDirty = moduleDirtyStudentIds.has(student.id);
+
+                          return (
+                            <tr key={student.id} className="grade-premium-table-row" style={{ background: idx % 2 === 0 ? 'white' : 'var(--bg-subtle)' }}>
+                              <td style={tdStyle}><span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-faint)' }}>{idx + 1}</span></td>
+                              <td style={tdStyle}><span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{student.regNo || '—'}</span></td>
+                              <td style={tdStyle}>
+                                <p style={{ fontSize: 'var(--text-sm)', fontWeight: '700', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                                  {student.lastName} {student.firstName}
+                                </p>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                                  {isDirty ? <CloudUpload size={10} style={{ color: 'var(--warning)' }} /> : complete ? <CheckCircle2 size={10} style={{ color: 'var(--success)' }} /> : <Clock size={10} style={{ color: 'var(--text-faint)' }} />}
+                                  <span style={{ fontSize: '9px', fontWeight: '800', color: isDirty ? 'var(--warning)' : complete ? 'var(--success)' : 'var(--text-faint)', textTransform: 'uppercase' }}>
+                                    {isDirty ? 'Modifié' : complete ? 'Complet' : 'Partiel'}
+                                  </span>
+                                </div>
+                              </td>
+                              <td style={{ ...tdStyle, textAlign: 'center' }}><GradeInput value={g.c1 ?? ''} onChange={(v) => handleModuleGradeChange(student.id, 'c1', v)} /></td>
+                              <td style={{ ...tdStyle, textAlign: 'center' }}><GradeInput value={g.c2 ?? ''} onChange={(v) => handleModuleGradeChange(student.id, 'c2', v)} /></td>
+                              <td style={{ ...tdStyle, textAlign: 'center' }}><GradeInput value={g.c3 ?? ''} onChange={(v) => handleModuleGradeChange(student.id, 'c3', v)} placeholder="opt." /></td>
+                              <td style={{ ...tdStyle, textAlign: 'center', background: 'rgba(0,0,0,0.01)' }}>
+                                <span style={{ fontSize: 'var(--text-sm)', fontWeight: '800' }}>{moyCC !== null ? moyCC.toFixed(2) : '—'}</span>
+                              </td>
+                              <td style={{ ...tdStyle, textAlign: 'center' }}><GradeInput value={g.efcfp ?? ''} onChange={(v) => handleModuleGradeChange(student.id, 'efcfp', v)} /></td>
+                              <td style={{ ...tdStyle, textAlign: 'center' }}><GradeInput value={g.efcft ?? ''} onChange={(v) => handleModuleGradeChange(student.id, 'efcft', v)} /></td>
+                              <td style={{ ...tdStyle, textAlign: 'center', background: 'var(--primary-ultra-light)' }}>
+                                <span style={{ fontSize: 'var(--text-sm)', fontWeight: '900', color: avg !== null ? (avg >= 10 ? 'var(--primary)' : 'var(--accent)') : 'var(--text-faint)' }}>
+                                  {avg !== null ? avg.toFixed(2) : '—'}
+                                </span>
+                              </td>
+                              <td style={{ ...tdStyle, textAlign: 'center' }}>
+                                {avg !== null ? (
+                                  <span style={{ padding: '4px 10px', borderRadius: 'var(--radius-pill)', fontSize: '9px', fontWeight: '800', textTransform: 'uppercase', background: getMention(avg).bg, color: getMention(avg).color }}>
+                                    {getMention(avg).label}
+                                  </span>
+                                ) : (
+                                  <span style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-faint)' }}>Non saisi</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          ) : (
+            <div className="grade-premium-empty-shell">
+              <EmptyState
+                title="Aucun module sélectionné"
+                message="Sélectionnez une classe et un module pour saisir les notes de tous les stagiaires."
+                icon="book"
+              />
+            </div>
+          )
+        ) : selectedStudent ? (
           <motion.div className="grade-premium-student-panel" key={selectedStudentId} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
             <div className="grade-premium-student-header" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '20px', marginBottom: '24px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -607,8 +924,6 @@ const GradeManagement = () => {
                         const moyCC = calcMoyenneCC(g);
                         const avg = calcAvg(g);
                         const complete = isComplete(g);
-                        const passed = avg !== null && avg >= 10;
-
                         return (
                           <tr key={mod} className="grade-premium-table-row" style={{ background: idx % 2 === 0 ? 'white' : 'var(--bg-subtle)' }}>
                             <td style={tdStyle}><span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-faint)' }}>{idx + 1}</span></td>

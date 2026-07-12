@@ -9,7 +9,7 @@ import {
   getFirestore,
   updateDoc,
 } from 'firebase/firestore';
-import { env, exit, loadEnvFile } from 'node:process';
+import { argv, env, exit, loadEnvFile } from 'node:process';
 
 try { loadEnvFile(); } catch { /* Environment variables may already be exported. */ }
 
@@ -30,7 +30,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-const dryRun = process.argv.includes('--dry-run');
+const dryRun = argv.includes('--dry-run');
 const gradeFields = ['c1', 'c2', 'c3', 'efcfp', 'efcft', 'moyCC', 'moyEFCFT', 'moyEFCFP', 'nsti'];
 
 const gradeMigrations = [

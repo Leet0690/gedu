@@ -21,6 +21,11 @@ import {
   getModuleCoefficient,
   parseScore,
 } from '../utils/gradeCalculations';
+import {
+  formatModuleUfNumber,
+  isCompanyInternshipGradeMissing,
+  STAGE_RESERVATION_NOTE,
+} from '../utils/bulletinUtils';
 import { getGradeByModuleName, sortModulesByOrder } from '../utils/gradeSync';
 
 const labelStyle = {
@@ -72,12 +77,6 @@ const formatCoefficient = (value) => {
   if (Number.isNaN(coefficient)) return '';
   return Number.isInteger(coefficient) ? String(coefficient) : String(coefficient);
 };
-
-const getStudyYearNumber = (year = '') =>
-  String(year).includes('2') ? 2 : 1;
-
-const getModuleExportCode = (module, index, year) =>
-  module?.code || module?.moduleCode || module?.uf || module?.reference || `UF-${getStudyYearNumber(year)}.${String(index + 1).padStart(2, '0')}`;
 
 const getJuryDecision = (average) => {
   if (average === null) return 'Redoublant(e)';
@@ -874,13 +873,14 @@ const Reports = () => {
       const averageHeaderTitle = `Moyennes générales de la ${selectedYear}`;
       const moduleExportColumns = classModules.map((module, index) => ({
         module,
-        code: getModuleExportCode(module, index, selectedYear),
+        code: formatModuleUfNumber(module, index, selectedYear),
         coefficient: formatCoefficient(getModuleCoefficient(module)),
       }));
       const registrationHeader = `N° d'insc.`;
       const nameHeader = 'Nom et prénom';
       const generalAverageHeader = 'Moyenne Générale';
       const decisionHeader = `Décision jury d'examen`;
+      const remarkHeader = 'Remarque';
       const registrationWidthValues = [registrationHeader];
       const nameWidthValues = [nameHeader];
       const moduleWidthValues = moduleExportColumns.map(({ coefficient }) => ({
@@ -895,6 +895,7 @@ const Reports = () => {
         general: [generalAverageHeader, formatCoefficient(coefficientTotal)],
       };
       const decisionWidthValues = [decisionHeader, 'Admis(e)', 'Racheté(e)', 'Redoublant(e)'];
+      const remarkWidthValues = [remarkHeader, STAGE_RESERVATION_NOTE];
 
       const studentRows = classStudents.map((student) => {
         const registrationNumber = student.regNo || student.registrationNumber || student.matricule || student.id || '';
@@ -927,6 +928,9 @@ const Reports = () => {
           classModules
         );
         const juryDecision = getJuryDecision(generalAverage);
+        const remark = isCompanyInternshipGradeMissing(classModules, grades[student.id] || {})
+          ? STAGE_RESERVATION_NOTE
+          : '';
         const mccLabel = formatExcelScore(mcc);
         const metLabel = formatExcelScore(met);
         const mepLabel = formatExcelScore(mep);
@@ -947,6 +951,7 @@ const Reports = () => {
           mep,
           generalAverage,
           juryDecision,
+          remark,
         };
       });
       const moduleColumnWidths = moduleExportColumns.flatMap(({ module, code }, index) => {
@@ -981,8 +986,9 @@ const Reports = () => {
         getAutoExcelColumnWidth(summaryWidthValues.mep, { min: 42, max: 58, padding: 8 }),
         getAutoExcelColumnWidth(summaryWidthValues.general, { min: 76, max: 104, padding: 10 }),
         getAutoExcelColumnWidth(decisionWidthValues, { min: 92, max: 136, padding: 12 }),
+        getAutoExcelColumnWidth(remarkWidthValues, { min: 150, max: 220, padding: 12 }),
       ];
-      const reportColumnCount = 2 + (moduleExportColumns.length * 3) + 4 + 1;
+      const reportColumnCount = 2 + (moduleExportColumns.length * 3) + 4 + 2;
       const modulePageBreakAfterColumn = getModuleBoundaryPageBreakColumn(
         rawReportColumnWidths,
         moduleExportColumns.length
@@ -1073,6 +1079,7 @@ const Reports = () => {
       const moduleStartCol = 3;
       const averageStartCol = moduleStartCol + (moduleExportColumns.length * 3);
       const decisionCol = averageStartCol + 4;
+      const remarkCol = decisionCol + 1;
 
       const headerRow1 = makeRow();
       setCell(headerRow1, 1, registrationHeader, 'header');
@@ -1084,6 +1091,7 @@ const Reports = () => {
       });
       setCell(headerRow1, averageStartCol, averageHeaderTitle, 'header');
       setCell(headerRow1, decisionCol, decisionHeader, 'header');
+      setCell(headerRow1, remarkCol, remarkHeader, 'header');
       rows.push(headerRow1);
       rowHeightsPx.push(rowHeights.tableHeaderRowHeight);
 
@@ -1126,6 +1134,7 @@ const Reports = () => {
       merges.push(`B${tableStartRow}:B${tableStartRow + 3}`);
       merges.push(`${columnName(averageStartCol)}${tableStartRow}:${columnName(averageStartCol + 3)}${tableStartRow + 1}`);
       merges.push(`${columnName(decisionCol)}${tableStartRow}:${columnName(decisionCol)}${tableStartRow + 3}`);
+      merges.push(`${columnName(remarkCol)}${tableStartRow}:${columnName(remarkCol)}${tableStartRow + 3}`);
 
       studentRows.forEach((studentRow) => {
         const row = makeRow();
@@ -1142,6 +1151,7 @@ const Reports = () => {
         row[averageStartCol + 1] = toScoreCell(studentRow.mep, 'strongNumber');
         row[averageStartCol + 2] = toScoreCell(studentRow.generalAverage, 'strongNumber');
         setCell(row, decisionCol, studentRow.juryDecision, 'strongText');
+        setCell(row, remarkCol, studentRow.remark, 'text');
         rows.push(row);
         rowHeightsPx.push(rowHeights.studentRowHeight);
       });
