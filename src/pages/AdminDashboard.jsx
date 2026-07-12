@@ -94,8 +94,57 @@ const getTodayFrench = () => {
   return DASH_DAYS[jsDay === 0 ? 6 : jsDay - 1];
 };
 
+const ACTIVITY_TIME_ZONE = 'Etc/GMT-1';
+const ACTIVITY_TIME_ZONE_LABEL = 'GMT+1';
+
+const getDateFromTimestamp = (timestamp) => {
+  if (!timestamp) return null;
+  if (timestamp instanceof Date) {
+    return Number.isNaN(timestamp.getTime()) ? null : timestamp;
+  }
+  if (typeof timestamp === 'number') {
+    const date = new Date(timestamp);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  if (typeof timestamp === 'string') {
+    const date = new Date(timestamp);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  if (typeof timestamp.toDate === 'function') {
+    const date = timestamp.toDate();
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  if (typeof timestamp.seconds === 'number') {
+    const date = new Date(timestamp.seconds * 1000 + Math.floor((timestamp.nanoseconds || 0) / 1000000));
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  return null;
+};
+
+const formatActivityClock = (timestamp) => {
+  const date = getDateFromTimestamp(timestamp);
+  if (!date) return '';
+  return new Intl.DateTimeFormat('fr-FR', {
+    timeZone: ACTIVITY_TIME_ZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+};
+
+const formatActivityDateTime = (timestamp) => {
+  const date = getDateFromTimestamp(timestamp);
+  if (!date) return '';
+  return new Intl.DateTimeFormat('fr-FR', {
+    timeZone: ACTIVITY_TIME_ZONE,
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(date);
+};
+
 const formatRelativeTime = (timestamp) => {
-  const diff = Date.now() - timestamp;
+  const date = getDateFromTimestamp(timestamp);
+  if (!date) return '—';
+  const diff = Date.now() - date.getTime();
   const minutes = Math.floor(diff / 60000);
   if (minutes < 1) return "À l'instant";
   if (minutes < 60) return `Il y a ${minutes} min`;
@@ -296,6 +345,8 @@ const ActivityFeedWidget = ({ notifications }) => {
         <div className="home-widget-list home-activity-list">
           {visibleActivities.map((notif) => {
             const { icon: Icon, tone } = getActivityVisual(notif.message);
+            const activityClock = formatActivityClock(notif.timestamp);
+            const activityDateTime = formatActivityDateTime(notif.timestamp);
             return (
               <div
                 key={notif.id}
@@ -309,8 +360,8 @@ const ActivityFeedWidget = ({ notifications }) => {
                     {notif.message}
                   </p>
                 </div>
-                <span className="home-activity-time">
-                  {formatRelativeTime(notif.timestamp)}
+                <span className="home-activity-time" title={activityDateTime ? `${activityDateTime} ${ACTIVITY_TIME_ZONE_LABEL}` : undefined}>
+                  {activityClock ? `${activityClock} ${ACTIVITY_TIME_ZONE_LABEL}` : formatRelativeTime(notif.timestamp)}
                 </span>
               </div>
             );
