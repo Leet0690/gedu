@@ -8267,6 +8267,17 @@ body:has(.app-modal-overlay) .app-modal-overlay {
     inset 0 1px 0 #fff;
 }
 
+.grade-premium-page input.input-premium[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.grade-premium-page input.input-premium[type="number"]::-webkit-outer-spin-button,
+.grade-premium-page input.input-premium[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 .grade-premium-table .input-premium:focus {
   border-color: rgba(124, 58, 237, 0.45);
   box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.10);
