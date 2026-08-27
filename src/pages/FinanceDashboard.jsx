@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/cn';
@@ -43,8 +43,6 @@ import {
   Check, 
   ChevronLeft, 
   ChevronRight, 
-  ChevronUp,
-  ChevronDown,
   RotateCcw,
   BarChart3,
   PieChart,
@@ -350,7 +348,6 @@ const FinanceDashboard = () => {
 
   const [annualYear, setAnnualYear] = useState(new Date().getFullYear());
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const paymentModalRef = useRef(null);
   const [editingPayment, setEditingPayment] = useState(null);
   const [paymentData, setPaymentData] = useState({
     studentId: '',
@@ -2436,14 +2433,10 @@ const FinanceDashboard = () => {
         {showPaymentModal && (
           <div className="finance-payment-modal-overlay finance-admin-page finance-modal-portal-scope app-modal-overlay">
             <motion.div className="app-modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(6px)' }} onClick={() => setShowPaymentModal(false)} />
-            <motion.div ref={paymentModalRef} initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="glass-premium finance-payment-modal app-modal-surface">
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="glass-premium finance-payment-modal app-modal-surface">
               <div className="finance-payment-modal-header">
                 <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900' }}>{editingPayment ? 'Modifier le paiement' : 'Enregistrer un Paiement'}</h2>
-                <div className="finance-payment-modal-header-actions">
-                  <button type="button" onClick={() => paymentModalRef.current?.scrollTo({ top: 0, behavior: 'smooth' })} className="finance-payment-scroll-button" aria-label="Remonter en haut" title="Remonter en haut"><ChevronUp size={17} /></button>
-                  <button type="button" onClick={() => paymentModalRef.current?.scrollTo({ top: paymentModalRef.current.scrollHeight, behavior: 'smooth' })} className="finance-payment-scroll-button" aria-label="Descendre en bas" title="Descendre en bas"><ChevronDown size={17} /></button>
-                  <button onClick={() => { setShowPaymentModal(false); setEditingPayment(null); }} className="close-button" aria-label="Fermer la fenêtre"><X size={20} /></button>
-                </div>
+                <button onClick={() => { setShowPaymentModal(false); setEditingPayment(null); }} className="close-button" aria-label="Fermer la fenêtre"><X size={20} /></button>
               </div>
               <div className="finance-payment-modal-stack">
                 <div className="finance-payment-modal-panel">
