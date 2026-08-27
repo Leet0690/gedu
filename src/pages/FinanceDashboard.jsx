@@ -795,9 +795,11 @@ const FinanceDashboard = () => {
   }, [paymentAcademicStudents, paymentModalFilter.diploma, paymentModalFilter.major]);
   const modalStudents = useMemo(() => {
     return paymentAcademicStudents.filter(s => {
-      if (paymentModalFilter.year === 'Lauréat') return s.graduationAcademicYear === paymentData.academicYear;
       if (paymentModalFilter.diploma && s.diploma !== paymentModalFilter.diploma) return false;
       if (paymentModalFilter.major && s.major !== paymentModalFilter.major) return false;
+      if (paymentModalFilter.year === 'Lauréat') {
+        return s.graduationAcademicYear === paymentData.academicYear;
+      }
       if (paymentModalFilter.year && s.year !== paymentModalFilter.year) return false;
       return true;
     });

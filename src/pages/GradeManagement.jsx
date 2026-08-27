@@ -5,10 +5,12 @@ import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { FILIERES, getClassCode, getNextStudyYear, getStudyYearsForDiploma } from '../data/modules';
 import {
+  dedupeModulesByName,
   getGradeByModuleName,
   getGradesForAcademicYear,
   getStudentGradeModules,
   sanitizeGradeKey,
+  sortModulesByOrder,
 } from '../utils/gradeSync';
 import {
   calcCcAverage,
@@ -25,6 +27,12 @@ import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 
 const getGroupAbbreviation = (filiere, annee) => getClassCode('', filiere, annee);
+
+const getStudentSearchLabel = (student = {}) => [
+  `${student.lastName || ''} ${student.firstName || ''}`.trim(),
+  student.regNo ? `(${student.regNo})` : '',
+  student.major && student.year ? `[${getGroupAbbreviation(student.major, student.year)}]` : '',
+].filter(Boolean).join(' ');
 
 const getClassColor = (label) => {
   const colors = {
@@ -105,6 +113,7 @@ const GradeManagement = () => {
   const { showToast } = useToast();
   const [entryMode, setEntryMode] = useState('student');
   const [selectedStudentId, setSelectedStudentId] = useState('');
+  const [studentSearchTerm, setStudentSearchTerm] = useState('');
   const [selectedGradeModule, setSelectedGradeModule] = useState('');
   const [filterDiploma, setFilterDiploma] = useState('');
   const [filterMajor, setFilterMajor] = useState('');
@@ -157,13 +166,20 @@ const GradeManagement = () => {
 
   const filteredStudents = useMemo(() => {
     return academicStudents.filter(s => {
-      if (filterYear === 'Lauréat') return s.graduationAcademicYear === filterAcademicYear;
       if (filterDiploma && s.diploma !== filterDiploma) return false;
       if (filterMajor && s.major !== filterMajor) return false;
+      if (filterYear === 'Lauréat') {
+        return s.graduationAcademicYear === filterAcademicYear;
+      }
       if (filterYear && s.year !== filterYear) return false;
       return true;
     });
   }, [academicStudents, filterDiploma, filterMajor, filterYear, filterAcademicYear]);
+
+  const studentSearchOptions = useMemo(() => filteredStudents.map(student => ({
+    id: student.id,
+    label: getStudentSearchLabel(student),
+  })), [filteredStudents]);
 
   const selectedStudent = academicStudents.find(s => s.id === selectedStudentId);
   const supportsTwoYearFinalDocument = !!selectedStudent
@@ -183,14 +199,18 @@ const GradeManagement = () => {
 
   // Modules for PDF (based on filters, not selected student)
   const pdfModulesList = useMemo(() => {
-    if (filterDiploma && filterMajor && filterYear) {
-      return getStudentGradeModules(
-        allModules,
-        { diploma: filterDiploma, major: filterMajor, year: filterYear }
-      );
-    }
-    return [];
-  }, [filterDiploma, filterMajor, filterYear, allModules]);
+    if (!filterDiploma || !filterMajor || !filterYear) return [];
+
+    const studyYears = filterYear === 'Lauréat'
+      ? new Set(filteredStudents.map(student => student.year).filter(Boolean))
+      : new Set([filterYear]);
+
+    return dedupeModulesByName(sortModulesByOrder(allModules.filter(module =>
+      module.diploma === filterDiploma &&
+      module.major === filterMajor &&
+      studyYears.has(module.year)
+    )));
+  }, [filterDiploma, filterMajor, filterYear, filteredStudents, allModules]);
   
   const pdfModules = pdfModulesList.map(m => m.name);
 
@@ -209,13 +229,8 @@ const GradeManagement = () => {
 
   // Students for PDF (filtered)
   const pdfStudents = useMemo(() => {
-    return academicStudents.filter(s => {
-      if (filterDiploma && s.diploma !== filterDiploma) return false;
-      if (filterMajor && s.major !== filterMajor) return false;
-      if (filterYear && s.year !== filterYear) return false;
-      return true;
-    }).sort((a, b) => (a.regNo || '').localeCompare(b.regNo || ''));
-  }, [academicStudents, filterDiploma, filterMajor, filterYear]);
+    return [...filteredStudents].sort((a, b) => (a.regNo || '').localeCompare(b.regNo || ''));
+  }, [filteredStudents]);
 
   const academicGrades = useMemo(() => Object.fromEntries(
     academicStudents.map(student => [
@@ -258,6 +273,7 @@ const GradeManagement = () => {
     setFilterMajor('');
     setFilterYear('');
     setSelectedStudentId('');
+    setStudentSearchTerm('');
     setSelectedGradeModule('');
     setPdfModule('');
   };
@@ -268,6 +284,7 @@ const GradeManagement = () => {
     setFilterMajor('');
     setFilterYear('');
     setSelectedStudentId('');
+    setStudentSearchTerm('');
     setSelectedGradeModule('');
     setPdfModule('');
   };
@@ -276,6 +293,7 @@ const GradeManagement = () => {
     if (!(await canDiscardModuleDraft())) return;
     setFilterMajor(value);
     setSelectedStudentId('');
+    setStudentSearchTerm('');
     setSelectedGradeModule('');
     setPdfModule('');
   };
@@ -284,6 +302,7 @@ const GradeManagement = () => {
     if (!(await canDiscardModuleDraft())) return;
     setFilterYear(value);
     setSelectedStudentId('');
+    setStudentSearchTerm('');
     setSelectedGradeModule('');
     setPdfModule('');
   };
@@ -600,16 +619,34 @@ const GradeManagement = () => {
                   className="input-premium"
                   placeholder="Tapez le nom..."
                   style={{ width: '100%' }}
+                  list="grade-student-search-options"
+                  value={studentSearchTerm}
                   onChange={(e) => {
-                    const val = e.target.value.toLowerCase();
-                    if (!val) {
+                    const value = e.target.value;
+                    const normalizedValue = value.trim().toLocaleLowerCase('fr');
+                    setStudentSearchTerm(value);
+                    if (!normalizedValue) {
                       setSelectedStudentId('');
                       return;
                     }
-                    const s = filteredStudents.find(st => `${st.lastName} ${st.firstName}`.toLowerCase().includes(val));
-                    setSelectedStudentId(s ? s.id : '');
+                    const exactMatches = studentSearchOptions.filter(option =>
+                      option.label.toLocaleLowerCase('fr') === normalizedValue
+                    );
+                    if (exactMatches.length === 1) {
+                      setSelectedStudentId(exactMatches[0].id);
+                      return;
+                    }
+                    const partialMatches = studentSearchOptions.filter(option =>
+                      option.label.toLocaleLowerCase('fr').includes(normalizedValue)
+                    );
+                    setSelectedStudentId(partialMatches.length === 1 ? partialMatches[0].id : '');
                   }}
                 />
+                <datalist id="grade-student-search-options">
+                  {studentSearchOptions.map(option => (
+                    <option key={option.id} value={option.label} />
+                  ))}
+                </datalist>
               </div>
             ) : (
               <FilterSelect

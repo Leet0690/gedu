@@ -344,7 +344,8 @@ const ScheduleGeneration = () => {
   // ═══════════════════════════════════════════
 
   // Mode "En cours de construction" actif
-  if (true) {
+  const isUnderConstruction = true;
+  if (isUnderConstruction) {
     return (
       <div className="max-w-container section-padding" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '70vh', textAlign: 'center' }}>
         <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'var(--primary-ultra-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px' }}>

@@ -567,16 +567,45 @@ const Reports = () => {
   );
   const availableStudyYears = useMemo(() => getStudyYearsForDiploma(selectedDiploma), [selectedDiploma]);
 
-  const availableModulesList = useMemo(() => {
-    if (!selectedDiploma || !selectedMajor || !selectedYear) return [];
+  const getGroupStudents = useCallback((group) =>
+    reportStudents.filter(student =>
+      student.diploma === group.diploma &&
+      student.major === group.major &&
+      (group.year === 'Lauréat'
+        ? student.graduationAcademicYear === selectedAcademicYear
+        : student.year === group.year)
+    ),
+  [reportStudents, selectedAcademicYear]);
+
+  const getGroupModules = useCallback((group) => {
+    const studyYears = group.year === 'Lauréat'
+      ? new Set(getGroupStudents(group).map(student => student.year).filter(Boolean))
+      : new Set([group.year]);
+
     return dedupeModulesByName(
-      sortModulesByOrder(allModules.filter(m =>
-        m.diploma === selectedDiploma &&
-        m.major === selectedMajor &&
-        m.year === selectedYear
+      sortModulesByOrder(allModules.filter(module =>
+        module.diploma === group.diploma &&
+        module.major === group.major &&
+        studyYears.has(module.year)
       ))
     );
-  }, [selectedDiploma, selectedMajor, selectedYear, allModules]);
+  }, [allModules, getGroupStudents]);
+
+  const selectedGroup = useMemo(() => ({
+    diploma: selectedDiploma,
+    major: selectedMajor,
+    year: selectedYear,
+  }), [selectedDiploma, selectedMajor, selectedYear]);
+
+  const selectedCohortStudents = useMemo(
+    () => getGroupStudents(selectedGroup),
+    [getGroupStudents, selectedGroup]
+  );
+
+  const availableModulesList = useMemo(() => {
+    if (!selectedDiploma || !selectedMajor || !selectedYear) return [];
+    return getGroupModules(selectedGroup);
+  }, [getGroupModules, selectedDiploma, selectedMajor, selectedYear, selectedGroup]);
 
   const availableModules = useMemo(() => availableModulesList.map(m => m.name), [availableModulesList]);
 
@@ -593,10 +622,7 @@ const Reports = () => {
   }, [availableModules, selectedModule]);
 
   const analytics = useMemo(() => {
-    const filteredStudents = reportStudents.filter(s => {
-      if (selectedYear === 'Lauréat') return s.graduationAcademicYear === selectedAcademicYear;
-      return s.diploma === selectedDiploma && s.major === selectedMajor && s.year === selectedYear;
-    });
+    const filteredStudents = selectedCohortStudents;
 
     const getModuleScore = (studentId, modName) => {
       const g = getGradeByModuleName(getStudentGrades(studentId), modName);
@@ -692,7 +718,7 @@ const Reports = () => {
       bestModule: globalModuleData[0] || null,
       worstModule: globalModuleData[globalModuleData.length - 1] || null,
     };
-  }, [reportStudents, getStudentGrades, selectedDiploma, selectedMajor, selectedYear, selectedModule, availableModules, availableModulesList, studentAttendance]);
+  }, [selectedCohortStudents, getStudentGrades, selectedModule, availableModules, availableModulesList, studentAttendance]);
 
   const sortedRankings = useMemo(() => {
     const copy = [...(analytics.studentRankings || [])];
@@ -765,20 +791,6 @@ const Reports = () => {
 
     return { c1, c2, c3, efcfp, efcft, ccAverage, score };
   }, [getStudentGrades]);
-
-  const getGroupModules = useCallback((group) => {
-    return dedupeModulesByName(
-      sortModulesByOrder(allModules.filter(m =>
-        m.diploma === group.diploma &&
-        m.major === group.major &&
-        m.year === group.year
-      ))
-    );
-  }, [allModules]);
-
-  const getGroupStudents = useCallback((group) =>
-    reportStudents.filter(s => s.diploma === group.diploma && s.major === group.major && s.year === group.year),
-  [reportStudents]);
 
   const buildGroupStats = useCallback((group) => {
     const groupStudents = getGroupStudents(group);

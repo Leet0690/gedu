@@ -775,6 +775,8 @@ const StudentAttendance = () => {
                       })}
                     </tbody>
                   </table>
+                </div>
+              )
             )}
           </div>
         </>

@@ -858,22 +858,7 @@ export const AppProvider = ({ children }) => {
     );
     await receiptCounterBatch.commit();
 
-    try {
-      const attStudentSnap = await getDocs(collection(db, 'student_attendance'));
-      const attTeacherSnap = await getDocs(collection(db, 'teacher_attendance'));
-      const allAttDocs = [...attStudentSnap.docs, ...attTeacherSnap.docs];
-      for (let i = 0; i < allAttDocs.length; i += 500) {
-        const batch = writeBatch(db);
-        allAttDocs.slice(i, i + 500).forEach(docSnap => batch.delete(docSnap.ref));
-        await batch.commit();
-      }
-      setStudentAttendance([]);
-      setTeacherAttendance([]);
-    } catch (e) {
-      console.error("Erreur suppression présences:", e);
-    }
-
-    setActiveAcademicYearState(toAcademicYear);
+    setActiveAcademicYear(toAcademicYear);
 
     // Improvement #7: Build breakdown by filière
     const breakdown = {};
