@@ -651,7 +651,7 @@ const StudentAttendance = () => {
             </div>
           )}
           <div className="glass-card attendance-premium-filter-card" style={{ padding: 'var(--space-5)', marginBottom: 'var(--space-6)' }}>
-            <div className="app-filter-grid app-filter-grid--6" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
+            <div className="app-filter-grid app-filter-grid--6">
               <div style={{ ...filterGroupStyle, flex: '1 1 220px', maxWidth: '300px' }}>
                 <label style={labelStyle}>Date de l'appel</label>
                 <DatePicker
@@ -851,7 +851,7 @@ const StudentAttendance = () => {
         <>
           {/* Monthly filters */}
           <div className="glass-card attendance-premium-filter-card" style={{ padding: '20px', marginBottom: 'var(--space-5)' }}>
-            <div className="app-filter-grid app-filter-grid--5" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'end' }}>
+            <div className="app-filter-grid app-filter-grid--5">
               <div style={{ flex: '1.5', minWidth: '200px' }}>
                 <label style={labelStyle}>Recherche par nom</label>
                 <div style={{ position: 'relative' }}>

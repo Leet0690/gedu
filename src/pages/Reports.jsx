@@ -1302,7 +1302,7 @@ const Reports = () => {
       </header>
 
       {/* Filter bar */}
-      <div className="glass-card reports-premium-filter-card app-filter-grid app-filter-grid--5" style={{ padding: 'var(--space-5)', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)', alignItems: 'flex-end' }}>
+      <div className="glass-card reports-premium-filter-card app-filter-grid app-filter-grid--5" style={{ padding: 'var(--space-5)' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <label style={labelStyle}>Année académique</label>
           <FilterSelect

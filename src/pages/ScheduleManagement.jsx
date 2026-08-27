@@ -245,7 +245,7 @@ const ScheduleManagement = () => {
       </div>
 
       {/* Filter + Stats Bar */}
-      <div className="glass-card schedule-premium-filter-card app-filter-grid app-filter-grid--4" style={{ padding: '16px 20px', marginBottom: 'var(--space-5)', display: 'flex', alignItems: 'end', gap: '12px', flexWrap: 'wrap' }}>
+      <div className="glass-card schedule-premium-filter-card app-filter-grid app-filter-grid--4" style={{ padding: '16px 20px', marginBottom: 'var(--space-5)' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '0 1 220px' }}>
           <label style={labelStyle}>Niveau</label>
           <FilterSelect
