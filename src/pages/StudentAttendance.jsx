@@ -7,7 +7,7 @@ import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import { DatePicker } from '../components/ui';
 import { FilterSelect } from '../components/ui/FilterSelect';
-import { isActiveStudent } from '../utils/studentStatus';
+import { isActiveStudent, getStudentAcademicSnapshot } from '../utils/studentStatus';
 import { useDebounce } from '../utils/useDebounce';
 import { findStudentAttendanceRecord, isFinalAttendanceStatus, makeAttendanceColumnKey, makeStudentAttendanceDocId } from '../utils/attendanceKeys';
 import {
@@ -54,7 +54,7 @@ const calcDuration = (timeStr) => {
 };
 
 const StudentAttendance = () => {
-  const { students, teachers, studentAttendance, updateStudentAttendance, loadAttendanceForSession, loadStudentAttendanceForMonth, loading, schedules, teacherAttendance, updateTeacherAttendance, loadTeacherAttendanceForDate, modules: allModules = [], activeSemester = 'S1', getActiveScheduleModule } = useApp();
+  const { students, teachers, studentAttendance, updateStudentAttendance, loadAttendanceForSession, loadStudentAttendanceForMonth, loading, schedules, teacherAttendance, updateTeacherAttendance, loadTeacherAttendanceForDate, modules: allModules = [], activeSemester = 'S1', getActiveScheduleModule, activeAcademicYear } = useApp();
   const { showToast } = useToast();
 
   /* Tab state */
@@ -74,7 +74,11 @@ const StudentAttendance = () => {
     const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
     return days[new Date(selectedDate).getDay()];
   }, [selectedDate]);
-  const activeStudents = useMemo(() => (students || []).filter(isActiveStudent), [students]);
+  const activeStudents = useMemo(() => {
+    return (students || [])
+      .map(s => (activeAcademicYear ? getStudentAcademicSnapshot(s, activeAcademicYear) : (isActiveStudent(s) ? s : null)))
+      .filter(Boolean);
+  }, [students, activeAcademicYear]);
 
   const filteredStudents = useMemo(() => {
     return activeStudents.filter(s => {
@@ -771,8 +775,6 @@ const StudentAttendance = () => {
                       })}
                     </tbody>
                   </table>
-                </div>
-              )
             )}
           </div>
         </>
@@ -784,6 +786,13 @@ const StudentAttendance = () => {
           {/* Monthly filters */}
           <div className="glass-card attendance-premium-filter-card" style={{ padding: '20px', marginBottom: 'var(--space-5)' }}>
             <div className="app-filter-grid app-filter-grid--5" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'end' }}>
+              <div style={{ flex: '1.5', minWidth: '200px' }}>
+                <label style={labelStyle}>Recherche par nom</label>
+                <div style={{ position: 'relative' }}>
+                  <Search size={13} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)' }} />
+                  <input type="text" className="input-premium" style={{ width: '100%', paddingLeft: '34px' }} placeholder="Nom du stagiaire..." value={mSearch} onChange={e => setMSearch(e.target.value)} />
+                </div>
+              </div>
               <div style={{ flex: '1.2', minWidth: '160px' }}>
                 <label style={labelStyle}>Mois</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -796,23 +805,11 @@ const StudentAttendance = () => {
                 </div>
               </div>
               <div style={{ flex: '0.8', minWidth: '110px' }}>
-                <label style={labelStyle}>Année</label>
+                <label style={labelStyle}>Année (calendrier)</label>
                 <FilterSelect
                   value={mYear}
                   onChange={(val) => setMYear(Number(val))}
                   options={availableYears.map(y => ({ label: String(y), value: y }))}
-                  style={{ width: '100%' }}
-                />
-              </div>
-              <div style={{ flex: '1.2', minWidth: '160px' }}>
-                <label style={labelStyle}>Filière</label>
-                <FilterSelect
-                  value={mFilterFiliere}
-                  onChange={(val) => setMFilterFiliere(val)}
-                  options={[
-                    { label: "Toutes les filières", value: "" },
-                    ...allFilieres.map(f => ({ label: f, value: f }))
-                  ]}
                   style={{ width: '100%' }}
                 />
               </div>
@@ -828,12 +825,17 @@ const StudentAttendance = () => {
                   style={{ width: '100%' }}
                 />
               </div>
-              <div style={{ flex: '1.5', minWidth: '200px' }}>
-                <label style={labelStyle}>Rechercher</label>
-                <div style={{ position: 'relative' }}>
-                  <Search size={13} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)' }} />
-                  <input type="text" className="input-premium" style={{ width: '100%', paddingLeft: '34px' }} placeholder="Nom du stagiaire..." value={mSearch} onChange={e => setMSearch(e.target.value)} />
-                </div>
+              <div style={{ flex: '1.2', minWidth: '160px' }}>
+                <label style={labelStyle}>Filière</label>
+                <FilterSelect
+                  value={mFilterFiliere}
+                  onChange={(val) => setMFilterFiliere(val)}
+                  options={[
+                    { label: "Toutes les filières", value: "" },
+                    ...allFilieres.map(f => ({ label: f, value: f }))
+                  ]}
+                  style={{ width: '100%' }}
+                />
               </div>
             </div>
           </div>

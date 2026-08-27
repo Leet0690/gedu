@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { 
   collection, 
   addDoc, 
@@ -29,11 +29,13 @@ import { getStudentAttendanceWriteTarget } from '../utils/attendanceKeys';
 import { getScheduleModuleForSemester, normalizeSemester } from '../utils/scheduleSemester';
 import {
   STUDENT_STATUS,
+  getAvailableAcademicYears,
   getDefaultAcademicYearTransition,
   getPaymentAcademicYear,
   getStudentCurrentAcademicYear,
   isActiveStudent,
   isStudentCurrentlyInAcademicYear,
+  validateAcademicYear,
   validateAcademicYearTransition,
 } from '../utils/studentStatus';
 import { getNextStudyYear, isKnownStudyYear } from '../data/modules';
@@ -60,6 +62,7 @@ const FINANCE_CACHE_EXPENSES_KEY = 'ipfp_v2_finance_expenses';
 const CORE_CACHE_TTL = 6 * 60 * 60 * 1000;
 const FINANCE_CACHE_TTL = 60 * 60 * 1000;
 const ACTIVE_SEMESTER_KEY = 'ipfp_active_semester';
+const ACTIVE_ACADEMIC_YEAR_KEY = 'ipfp_active_academic_year';
 const pendingLoads = new Map();
 const makeToken = (length = 32) => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -266,6 +269,13 @@ export const AppProvider = ({ children }) => {
   const [activeSemester, setActiveSemesterState] = useState(() => {
     try { return normalizeSemester(localStorage.getItem(ACTIVE_SEMESTER_KEY)); } catch { return 'S1'; }
   });
+  const [activeAcademicYear, setActiveAcademicYearState] = useState(() => {
+    try {
+      const stored = localStorage.getItem(ACTIVE_ACADEMIC_YEAR_KEY);
+      if (stored && validateAcademicYear(stored)) return stored;
+    } catch { /* ignore */ }
+    return getDefaultAcademicYearTransition().fromAcademicYear;
+  });
   const [loading, setLoading] = useState(true);
   const studentAttendanceKeysRef = useRef(new Set());
   const teacherAttendanceKeysRef = useRef(new Set());
@@ -361,6 +371,17 @@ export const AppProvider = ({ children }) => {
   const getActiveScheduleModule = useCallback((session = {}) => {
     return getScheduleModuleForSemester(session, activeSemester, modules);
   }, [activeSemester, modules]);
+
+  const setActiveAcademicYear = useCallback((year) => {
+    if (!validateAcademicYear(year)) return;
+    setActiveAcademicYearState(year);
+    try { localStorage.setItem(ACTIVE_ACADEMIC_YEAR_KEY, year); } catch { /* ignore */ }
+  }, []);
+
+  const availableAcademicYearsList = useMemo(
+    () => getAvailableAcademicYears(students, payments),
+    [students, payments]
+  );
 
   // ──────────────────────────────────────────────────────────
   // OPTIMISATION FIREBASE (QUOTA) : Chargement ciblé et unique
@@ -709,6 +730,7 @@ export const AppProvider = ({ children }) => {
         operationId,
       };
       const classHistory = [...(Array.isArray(student.classHistory) ? student.classHistory : []), historyEntry];
+      const newToken = makeToken(32);
 
       const nextStudyYear = getNextStudyYear(student.diploma, student.year);
       if (!nextStudyYear) {
@@ -720,6 +742,7 @@ export const AppProvider = ({ children }) => {
             graduationAcademicYear: fromAcademicYear,
             graduatedAt: closedAt,
             classHistory,
+            token: newToken,
           },
           firestoreData: {
             status: STUDENT_STATUS.LAUREAT,
@@ -728,6 +751,7 @@ export const AppProvider = ({ children }) => {
             graduatedAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
             classHistory,
+            token: newToken,
           },
           type: 'graduated',
           archivedGrades,
@@ -744,6 +768,7 @@ export const AppProvider = ({ children }) => {
           promotedFromYear: student.year,
           promotedAt: closedAt,
           classHistory,
+          token: newToken,
         },
         firestoreData: {
           year: nextStudyYear,
@@ -754,6 +779,7 @@ export const AppProvider = ({ children }) => {
           promotedAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           classHistory,
+          token: newToken,
         },
         type: 'promoted',
         archivedGrades,
@@ -831,6 +857,23 @@ export const AppProvider = ({ children }) => {
       { merge: true }
     );
     await receiptCounterBatch.commit();
+
+    try {
+      const attStudentSnap = await getDocs(collection(db, 'student_attendance'));
+      const attTeacherSnap = await getDocs(collection(db, 'teacher_attendance'));
+      const allAttDocs = [...attStudentSnap.docs, ...attTeacherSnap.docs];
+      for (let i = 0; i < allAttDocs.length; i += 500) {
+        const batch = writeBatch(db);
+        allAttDocs.slice(i, i + 500).forEach(docSnap => batch.delete(docSnap.ref));
+        await batch.commit();
+      }
+      setStudentAttendance([]);
+      setTeacherAttendance([]);
+    } catch (e) {
+      console.error("Erreur suppression présences:", e);
+    }
+
+    setActiveAcademicYearState(toAcademicYear);
 
     // Improvement #7: Build breakdown by filière
     const breakdown = {};
@@ -1543,6 +1586,7 @@ export const AppProvider = ({ children }) => {
       ctSessions, addCtSession, updateCtSession, deleteCtSession,
       accessLogs, logAppAccess, loadAccessLogs,
       activeSemester, setActiveSemester, getActiveScheduleModule,
+      activeAcademicYear, setActiveAcademicYear, availableAcademicYearsList,
       confirmAction, notifications, markNotificationAsRead, clearNotifications
     }}>
       {children}

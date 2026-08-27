@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/cn';
@@ -272,7 +272,8 @@ const FinanceDashboard = () => {
     addExpense, deleteExpense,
     teacherAttendance, loadFinancialData, loadTeacherAttendanceForMonth,
     schedules, getActiveScheduleModule,
-    isDirectorAuth, loginDirector, logoutDirector, logout, confirmAction
+    isDirectorAuth, loginDirector, logoutDirector, logout, confirmAction,
+    activeAcademicYear
   } = useApp();
   const { showToast } = useToast();
   const activeStudents = useMemo(() => (students || []).filter(isActiveStudent), [students]);
@@ -283,13 +284,15 @@ const FinanceDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearch = useDebounce(searchTerm, 300);
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('');
-  const defaultAcademicYear = useMemo(
-    () => getDefaultAcademicYearTransition().fromAcademicYear,
-    []
-  );
+  const defaultAcademicYear = activeAcademicYear || getDefaultAcademicYearTransition().fromAcademicYear;
   const [paymentAcademicYearFilter, setPaymentAcademicYearFilter] = useState(
     () => defaultAcademicYear
   );
+  useEffect(() => {
+    if (activeAcademicYear) {
+      setPaymentAcademicYearFilter(activeAcademicYear);
+    }
+  }, [activeAcademicYear]);
   const [paymentMonthFilter, setPaymentMonthFilter] = useState(getCurrentMonthName);
   const availableAcademicYears = useMemo(() => getAvailableAcademicYears(students, payments), [students, payments]);
   const previousYearArrearsMap = useMemo(() => {
@@ -792,12 +795,13 @@ const FinanceDashboard = () => {
   }, [paymentAcademicStudents, paymentModalFilter.diploma, paymentModalFilter.major]);
   const modalStudents = useMemo(() => {
     return paymentAcademicStudents.filter(s => {
+      if (paymentModalFilter.year === 'Lauréat') return s.graduationAcademicYear === paymentData.academicYear;
       if (paymentModalFilter.diploma && s.diploma !== paymentModalFilter.diploma) return false;
       if (paymentModalFilter.major && s.major !== paymentModalFilter.major) return false;
       if (paymentModalFilter.year && s.year !== paymentModalFilter.year) return false;
       return true;
     });
-  }, [paymentAcademicStudents, paymentModalFilter]);
+  }, [paymentAcademicStudents, paymentModalFilter, paymentData.academicYear]);
   const selectedPaymentStudent = useMemo(
     () => paymentAcademicStudents.find(student => student.id === paymentData.studentId) || null,
     [paymentAcademicStudents, paymentData.studentId]
@@ -2458,6 +2462,14 @@ const FinanceDashboard = () => {
                   <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px', fontWeight: '600' }}>
                     Pour un arriéré, choisissez l'année concernée avant de sélectionner le stagiaire.
                   </p>
+                  {paymentData.academicYear && paymentData.academicYear !== defaultAcademicYear && (
+                    <div style={{ marginTop: '10px', padding: '8px 12px', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <AlertTriangle size={14} style={{ color: '#ca8a04', flexShrink: 0 }} />
+                      <span style={{ fontSize: '11px', color: '#854d0e', fontWeight: '600', lineHeight: 1.4 }}>
+                        Ce paiement sera enregistré pour l'année archivée <strong>{paymentData.academicYear}</strong>.
+                      </span>
+                    </div>
+                  )}
                 </div>
                 {!editingPayment && <div className="finance-payment-modal-panel">
                   
@@ -2469,7 +2481,10 @@ const FinanceDashboard = () => {
                         value={paymentModalFilter.diploma}
                         placeholder="Tous"
                         onChange={val => { setPaymentModalFilter(f => ({ ...f, diploma: val, major: '', year: '' })); setPaymentData(d => ({ ...d, studentId: '' })); }}
-                        options={[{ value: '', label: 'Tous' }, ...modalDiplomas.map(d => ({ value: d, label: d }))]}
+                        options={[
+                          { value: '', label: 'Tous' }, 
+                          ...modalDiplomas.map(d => ({ value: d, label: d }))
+                        ]}
                       />
                     </div>
                     <div>
@@ -2489,7 +2504,11 @@ const FinanceDashboard = () => {
                         value={paymentModalFilter.year}
                         placeholder="Toutes"
                         onChange={val => { setPaymentModalFilter(f => ({ ...f, year: val })); setPaymentData(d => ({ ...d, studentId: '' })); }}
-                        options={[{ value: '', label: 'Toutes' }, ...modalYears.map(y => ({ value: y, label: y }))]}
+                        options={[
+                          { value: '', label: 'Toutes' }, 
+                          ...modalYears.map(y => ({ value: y, label: y })),
+                          ...(paymentData.academicYear && paymentData.academicYear !== (activeAcademicYear || getDefaultAcademicYearTransition().fromAcademicYear) ? [{ label: "Lauréat (Diplômés)", value: "Lauréat" }] : [])
+                        ]}
                       />
                     </div>
                   </div>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import { useApp } from '../context/AppContext';
@@ -101,7 +101,7 @@ const MiniStat = ({ label, value, icon: Icon }) => (
 );
 
 const GradeManagement = () => {
-  const { students = [], teachers = [], grades = {}, batchUpdateGrades, loading = false, modules: allModules = [], confirmAction } = useApp() || {};
+  const { students = [], teachers = [], grades = {}, batchUpdateGrades, loading = false, modules: allModules = [], confirmAction, activeAcademicYear } = useApp() || {};
   const { showToast } = useToast();
   const [entryMode, setEntryMode] = useState('student');
   const [selectedStudentId, setSelectedStudentId] = useState('');
@@ -110,8 +110,14 @@ const GradeManagement = () => {
   const [filterMajor, setFilterMajor] = useState('');
   const [filterYear, setFilterYear] = useState('');
   const [filterAcademicYear, setFilterAcademicYear] = useState(
-    () => getDefaultAcademicYearTransition().fromAcademicYear
+    () => activeAcademicYear || getDefaultAcademicYearTransition().fromAcademicYear
   );
+
+  useEffect(() => {
+    if (activeAcademicYear) {
+      setFilterAcademicYear(activeAcademicYear);
+    }
+  }, [activeAcademicYear]);
   const [saved, setSaved] = useState(false);
   const [localGrades, setLocalGrades] = useState({});
   const [moduleLocalGrades, setModuleLocalGrades] = useState({});
@@ -151,12 +157,13 @@ const GradeManagement = () => {
 
   const filteredStudents = useMemo(() => {
     return academicStudents.filter(s => {
+      if (filterYear === 'Lauréat') return s.graduationAcademicYear === filterAcademicYear;
       if (filterDiploma && s.diploma !== filterDiploma) return false;
       if (filterMajor && s.major !== filterMajor) return false;
       if (filterYear && s.year !== filterYear) return false;
       return true;
     });
-  }, [academicStudents, filterDiploma, filterMajor, filterYear]);
+  }, [academicStudents, filterDiploma, filterMajor, filterYear, filterAcademicYear]);
 
   const selectedStudent = academicStudents.find(s => s.id === selectedStudentId);
   const supportsTwoYearFinalDocument = !!selectedStudent
@@ -585,6 +592,37 @@ const GradeManagement = () => {
         </div>
         <div className="grade-premium-filter-grid">
           <div className="grade-premium-filter-field">
+            <label style={lbl}>{entryMode === 'student' ? 'Recherche par nom (Stagiaire)' : 'Recherche par nom (Module)'}</label>
+            {entryMode === 'student' ? (
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="text"
+                  className="input-premium"
+                  placeholder="Tapez le nom..."
+                  style={{ width: '100%' }}
+                  onChange={(e) => {
+                    const val = e.target.value.toLowerCase();
+                    if (!val) {
+                      setSelectedStudentId('');
+                      return;
+                    }
+                    const s = filteredStudents.find(st => `${st.lastName} ${st.firstName}`.toLowerCase().includes(val));
+                    setSelectedStudentId(s ? s.id : '');
+                  }}
+                />
+              </div>
+            ) : (
+              <FilterSelect
+                value={selectedGradeModule}
+                onChange={handleGradeModuleSelection}
+                options={[
+                  { label: 'Sélectionner un module', value: '' },
+                  ...pdfModules.map(module => ({ label: module, value: module })),
+                ]}
+              />
+            )}
+          </div>
+          <div className="grade-premium-filter-field">
             <label style={lbl}>Année académique</label>
             <FilterSelect
               value={filterAcademicYear}
@@ -604,6 +642,19 @@ const GradeManagement = () => {
             />
           </div>
           <div className="grade-premium-filter-field">
+            <label style={lbl}>Année d'étude</label>
+            <FilterSelect
+              value={filterYear}
+              onChange={handleYearFilterChange}
+              options={[
+                { label: "-- Choisir l'année --", value: "" },
+                ...availableStudyYears.map(year => ({ label: year, value: year })),
+                ...(filterAcademicYear !== (activeAcademicYear || getDefaultAcademicYearTransition().fromAcademicYear)
+                  ? [{ label: "Lauréat (Diplômés)", value: "Lauréat" }] : [])
+              ]}
+            />
+          </div>
+          <div className="grade-premium-filter-field">
             <label style={lbl}>Filière</label>
             <FilterSelect
               value={filterMajor}
@@ -613,42 +664,6 @@ const GradeManagement = () => {
                 ...availableMajors.map(m => ({ label: m, value: m }))
               ]}
             />
-          </div>
-          <div className="grade-premium-filter-field">
-            <label style={lbl}>Année d'étude</label>
-            <FilterSelect
-              value={filterYear}
-              onChange={handleYearFilterChange}
-              options={[
-                { label: "-- Choisir l'année --", value: "" },
-                ...availableStudyYears.map(year => ({ label: year, value: year }))
-              ]}
-            />
-          </div>
-          <div className="grade-premium-filter-field">
-            <label style={lbl}>{entryMode === 'student' ? 'Stagiaire' : 'Module'}</label>
-            {entryMode === 'student' ? (
-              <FilterSelect
-                value={selectedStudentId}
-                onChange={(val) => setSelectedStudentId(val)}
-                options={[
-                  { label: "Sélectionner un stagiaire", value: "" },
-                  ...filteredStudents.map(s => ({
-                    label: `${s.lastName} ${s.firstName} [${getGroupAbbreviation(s.major, s.year)}]`,
-                    value: s.id
-                  }))
-                ]}
-              />
-            ) : (
-              <FilterSelect
-                value={selectedGradeModule}
-                onChange={handleGradeModuleSelection}
-                options={[
-                  { label: 'Sélectionner un module', value: '' },
-                  ...pdfModules.map(module => ({ label: module, value: module })),
-                ]}
-              />
-            )}
           </div>
         </div>
       </motion.div>

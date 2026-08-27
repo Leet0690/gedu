@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import Logo from '../components/Logo';
 import { SemesterToggle } from '../components/SemesterToggle';
+import { AcademicYearSelector } from '../components/AcademicYearSelector';
 import { preloadRoute } from '../routeLoaders';
 import { 
   LayoutDashboard, 
@@ -149,7 +150,7 @@ const SidebarCategory = ({ cat, isSidebarOpen, renderNavLink, location, isMobile
 };
 
 export default function DashboardLayout({ children }) {
-  const { logout, notifications, markNotificationAsRead, clearNotifications, activeSemester, setActiveSemester } = useApp();
+  const { logout, notifications, markNotificationAsRead, clearNotifications, activeSemester, setActiveSemester, activeAcademicYear, setActiveAcademicYear, availableAcademicYearsList } = useApp();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showNotifs, setShowNotifs] = useState(false);
@@ -340,6 +341,18 @@ export default function DashboardLayout({ children }) {
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {/* Academic Year Selector */}
+            {availableAcademicYearsList && availableAcademicYearsList.length > 0 && (
+              <div className="premium-topbar-semester">
+                <span className="premium-topbar-semester-label">Année académique</span>
+                <AcademicYearSelector
+                  activeYear={activeAcademicYear}
+                  availableYears={availableAcademicYearsList}
+                  onChange={setActiveAcademicYear}
+                />
+              </div>
+            )}
 
             {/* Semester Toggle Component */}
             {activeSemester && setActiveSemester && (

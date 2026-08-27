@@ -275,7 +275,14 @@ export const getStudentStudyCycleRange = (student = {}) => {
   if (!startYear) {
     const nowY = new Date().getFullYear();
     const nowM = new Date().getMonth();
-    startYear = nowM >= 8 ? nowY : nowY - 1;
+    let inferredFromY = nowM >= 8 ? nowY : nowY - 1;
+    
+    const yearLevel = (student.year || '').toLowerCase();
+    if (yearLevel.includes('2')) {
+      startYear = inferredFromY - 1;
+    } else {
+      startYear = inferredFromY;
+    }
   }
 
   const endYear = startYear + 2;

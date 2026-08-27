@@ -130,11 +130,23 @@ const getDateFromTimestamp = (timestamp) => {
 const formatActivityClock = (timestamp) => {
   const date = getDateFromTimestamp(timestamp);
   if (!date) return '';
-  return new Intl.DateTimeFormat('fr-FR', {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const isOlderThanOneDay = diffMs > 24 * 60 * 60 * 1000;
+  const timePart = new Intl.DateTimeFormat('fr-FR', {
     timeZone: ACTIVITY_TIME_ZONE,
     hour: '2-digit',
     minute: '2-digit',
   }).format(date);
+  if (isOlderThanOneDay) {
+    const datePart = new Intl.DateTimeFormat('fr-FR', {
+      timeZone: ACTIVITY_TIME_ZONE,
+      day: '2-digit',
+      month: '2-digit',
+    }).format(date);
+    return `${datePart} ${timePart}`;
+  }
+  return timePart;
 };
 
 const formatActivityDateTime = (timestamp) => {
@@ -958,7 +970,7 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
 };
 
 const AdminDashboard = () => {
-  const { students, teachers, payments, grades, schedules, modules: allModules, addStudent, addTeacher, deleteStudent, deleteTeacher, updateStudent, promoteAcademicYear, undoLastPromotion, updateTeacher, studentAttendance, teacherAttendance, loadStudentAttendanceForMonth, loadTeacherAttendanceForMonth, migrateTeacherTokens, loading, confirmAction, notifications, activeSemester, setActiveSemester, getActiveScheduleModule } = useApp();
+  const { students, teachers, payments, grades, schedules, modules: allModules, addStudent, addTeacher, deleteStudent, deleteTeacher, updateStudent, promoteAcademicYear, undoLastPromotion, updateTeacher, studentAttendance, teacherAttendance, loadStudentAttendanceForMonth, loadTeacherAttendanceForMonth, migrateTeacherTokens, loading, confirmAction, notifications, activeSemester, setActiveSemester, getActiveScheduleModule, activeAcademicYear, availableAcademicYearsList } = useApp();
   const { showToast } = useToast();
   const location = useLocation();
   const isDashboard = location.pathname === '/';
@@ -990,7 +1002,9 @@ const AdminDashboard = () => {
   const [yearFilter, setYearFilter] = useState('');
   const [academicYearFilter, setAcademicYearFilter] = useState('');
   const [moduleFilter, setModuleFilter] = useState('');
-  const availableAcademicYearsList = useMemo(() => getAvailableAcademicYears(students, payments || []), [students, payments]);
+
+  // Sync local academic year filter with global selector
+  useEffect(() => { setAcademicYearFilter(activeAcademicYear); }, [activeAcademicYear]);
 
   // Modal state
   const [modalMode, setModalMode] = useState(null);
@@ -1065,7 +1079,8 @@ const AdminDashboard = () => {
       const trimmedData = {
         ...addStudentForm,
         firstName: addStudentForm.firstName.trim(),
-        lastName: addStudentForm.lastName.trim()
+        lastName: addStudentForm.lastName.trim(),
+        academicYear: academicYearFilter
       };
       await addStudent(trimmedData);
       showToast('Stagiaire inscrit avec succès.', 'success');
@@ -1330,7 +1345,13 @@ const AdminDashboard = () => {
         }).filter(Boolean)
       : (teachers || []);
     if (diplomaFilter) data = data.filter(item => activeTab === 'students' ? item.diploma === diplomaFilter : (item.diplomas || []).includes(diplomaFilter));
-    if (yearFilter) data = data.filter(item => activeTab === 'students' ? item.year === yearFilter : (item.years || []).includes(yearFilter));
+    if (yearFilter) {
+      if (yearFilter === 'Lauréat') {
+        data = data.filter(item => activeTab === 'students' ? item.graduationAcademicYear === academicYearFilter : false);
+      } else {
+        data = data.filter(item => activeTab === 'students' ? item.year === yearFilter : (item.years || []).includes(yearFilter));
+      }
+    }
     if (categoryFilter) data = data.filter(item => activeTab === 'students' ? item.major === categoryFilter : (item.groups || []).includes(categoryFilter));
     if (activeTab === 'teachers' && moduleFilter) data = data.filter(item => (item.subjects || [item.subject]).includes(moduleFilter));
     return data;
@@ -1479,6 +1500,12 @@ const AdminDashboard = () => {
     return Math.round((presents / studentAttendance.length) * 100);
   }, [studentAttendance]);
 
+  const activeYearStudents = useMemo(() => {
+    return (students || [])
+      .map(student => (activeAcademicYear ? getStudentAcademicSnapshot(student, activeAcademicYear) : student))
+      .filter(Boolean);
+  }, [students, activeAcademicYear]);
+
   const teacherAttendanceRate = useMemo(() => {
     if (!teacherAttendance || teacherAttendance.length === 0) return null;
     const presents = teacherAttendance.filter(a => a.status === 'present').length;
@@ -1544,6 +1571,7 @@ const AdminDashboard = () => {
               <p>Suivez l'activité académique, les présences et les actions prioritaires.</p>
             </div>
             <div className="home-premium-hero-badges">
+              <span><BookOpen size={12} /> {activeAcademicYear}</span>
               <span><Calendar size={12} /> {currentMonthName}</span>
               <span><Layers size={12} /> {activeSemester || 'Semestre actif'}</span>
             </div>
@@ -1553,7 +1581,7 @@ const AdminDashboard = () => {
           </div>
 
           <div className="home-stats-grid">
-            <StatCard delay={0.05} icon={UsersIcon} tone="primary" value={(students || []).length} label="Total Stagiaires" />
+            <StatCard delay={0.05} icon={UsersIcon} tone="primary" value={activeYearStudents.length} label="Total Stagiaires" />
             <StatCard delay={0.1} icon={Presentation} tone="warning" value={(teachers || []).length} label="Total Formateurs" />
             <StatCard delay={0.15} icon={CalendarCheck} tone="success" value={studentAttendanceRate === null ? '—' : `${studentAttendanceRate}%`} label={`Présence Stagiaires — ${currentMonthName}`} />
             <StatCard delay={0.2} icon={BarChart3} tone="info" value={teacherAttendanceRate === null ? '—' : `${teacherAttendanceRate}%`} label={`Présence Formateurs — ${currentMonthName}`} />
@@ -1562,11 +1590,11 @@ const AdminDashboard = () => {
           {/* New Requested Order in Grid format to keep dimensions */}
           <div className="home-dashboard-widget-grid">
             <TodaySessionsWidget schedules={schedules || []} teachers={teachers || []} getScheduleModule={getActiveScheduleModule} activeSemester={activeSemester} setActiveSemester={setActiveSemester} />
-            <GradesBreakdownWidget students={students || []} grades={grades || {}} allModules={allModules || []} activeSemester={activeSemester} />
+            <GradesBreakdownWidget students={activeYearStudents} grades={grades || {}} allModules={allModules || []} activeSemester={activeSemester} />
           </div>
 
           <div className="home-dashboard-widget-grid">
-            <PendingTasksWidget students={students || []} teachers={teachers || []} grades={grades || {}} teacherAttendance={teacherAttendance || []} allModules={allModules || []} activeSemester={activeSemester} />
+            <PendingTasksWidget students={activeYearStudents} teachers={teachers || []} grades={grades || {}} teacherAttendance={teacherAttendance || []} allModules={allModules || []} activeSemester={activeSemester} />
             <ActivityFeedWidget notifications={notifications || []} />
           </div>
 
@@ -1585,6 +1613,22 @@ const AdminDashboard = () => {
               </div>
             </div>
 
+            {activeTab === 'students' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 165px', minWidth: '165px' }}>
+                <label style={labelStyle}>Année académique</label>
+                <FilterSelect
+                  style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }}
+                  value={academicYearFilter}
+                  onChange={(val) => setAcademicYearFilter(val)}
+                  placeholder="Toutes années académiques"
+                  options={[
+                    { value: '', label: 'Toutes les années académiques' },
+                    ...availableAcademicYearsList.map(y => ({ value: y, label: `Année ${y}` }))
+                  ]}
+                />
+              </div>
+            )}
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 165px', minWidth: '165px' }}>
               <label style={labelStyle}>Niveau</label>
               <FilterSelect
@@ -1593,7 +1637,10 @@ const AdminDashboard = () => {
                 onChange={(val) => { setDiplomaFilter(val); setCategoryFilter(''); setYearFilter(''); }}
                 placeholder={activeTab === 'students' ? "Choisir le niveau..." : "Tous niveaux"}
                 options={activeTab === 'students'
-                  ? [{ value: '', label: 'Choisir le niveau...' }, ...allDiplomas.map(d => ({ value: d, label: d }))]
+                  ? [
+                      { value: '', label: 'Choisir le niveau...' }, 
+                      ...allDiplomas.map(d => ({ value: d, label: d }))
+                    ]
                   : [{ value: '', label: 'Tous niveaux' }, ...allDiplomas.map(d => ({ value: d, label: d }))]
                 }
               />
@@ -1608,7 +1655,11 @@ const AdminDashboard = () => {
                 disabled={activeTab === 'students' && !diplomaFilter}
                 placeholder={activeTab === 'students' ? (diplomaFilter ? "Choisir l'année..." : "Sélectionner niveau") : "Toutes années"}
                 options={activeTab === 'students'
-                  ? [{ value: '', label: diplomaFilter ? "Choisir l'année..." : "Sélectionner niveau d'abord" }, ...availableYears.map(y => ({ value: y, label: y }))]
+                  ? [
+                      { value: '', label: diplomaFilter ? "Choisir l'année..." : "Sélectionner niveau d'abord" }, 
+                      ...availableYears.map(y => ({ value: y, label: y })),
+                      ...(academicYearFilter !== getDefaultAcademicYearTransition().fromAcademicYear ? [{ label: "Lauréat (Diplômés)", value: "Lauréat" }] : [])
+                    ]
                   : [{ value: '', label: 'Toutes années' }, ...availableYears.map(y => ({ value: y, label: y }))]
                 }
               />
@@ -1629,21 +1680,6 @@ const AdminDashboard = () => {
               />
             </div>
 
-            {activeTab === 'students' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 165px', minWidth: '165px' }}>
-                <label style={labelStyle}>Année académique</label>
-                <FilterSelect
-                  style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }}
-                  value={academicYearFilter}
-                  onChange={(val) => setAcademicYearFilter(val)}
-                  placeholder="Toutes années académiques"
-                  options={[
-                    { value: '', label: 'Toutes les années académiques' },
-                    ...availableAcademicYearsList.map(y => ({ value: y, label: `Année ${y}` }))
-                  ]}
-                />
-              </div>
-            )}
           </div>
 
           {activeTab === 'students' && !(diplomaFilter && yearFilter && categoryFilter) ? (
@@ -1939,6 +1975,14 @@ const AdminDashboard = () => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                     <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900' }}>Inscription Stagiaire</h2>
                   </div>
+                  {academicYearFilter && academicYearFilter !== getDefaultAcademicYearTransition().fromAcademicYear && (
+                    <div style={{ marginBottom: '16px', padding: '8px 12px', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <AlertTriangle size={14} style={{ color: '#ca8a04', flexShrink: 0 }} />
+                      <span style={{ fontSize: '11px', color: '#854d0e', fontWeight: '600', lineHeight: 1.4 }}>
+                        Ce stagiaire sera inscrit pour l'année archivée <strong>{academicYearFilter}</strong>.
+                      </span>
+                    </div>
+                  )}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                       <div style={fGroup}>

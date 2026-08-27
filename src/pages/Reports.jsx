@@ -529,15 +529,19 @@ const buildXlsxBlob = ({
 const Reports = () => {
   const {
     students = [], grades = {}, modules: allModules = [],
-    studentAttendance = [], loadStudentAttendanceForMonth
+    studentAttendance = [], loadStudentAttendanceForMonth,
+    activeAcademicYear
   } = useApp() || {};
 
   const [selectedDiploma, setSelectedDiploma] = useState(Object.keys(MODULES_DATA)[0]);
   const [selectedMajor, setSelectedMajor] = useState('');
   const [selectedYear, setSelectedYear] = useState('1ère année');
-  const [selectedAcademicYear, setSelectedAcademicYear] = useState(
-    () => getDefaultAcademicYearTransition().fromAcademicYear
-  );
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState(activeAcademicYear);
+
+  useEffect(() => {
+    setSelectedAcademicYear(activeAcademicYear);
+  }, [activeAcademicYear]);
+
   const [selectedModule, setSelectedModule] = useState('');
   const [rankSort, setRankSort] = useState('avg_desc');
   const [isExportingExcel, setIsExportingExcel] = useState(false);
@@ -589,9 +593,10 @@ const Reports = () => {
   }, [availableModules, selectedModule]);
 
   const analytics = useMemo(() => {
-    const filteredStudents = reportStudents.filter(s =>
-      s.diploma === selectedDiploma && s.major === selectedMajor && s.year === selectedYear
-    );
+    const filteredStudents = reportStudents.filter(s => {
+      if (selectedYear === 'Lauréat') return s.graduationAcademicYear === selectedAcademicYear;
+      return s.diploma === selectedDiploma && s.major === selectedMajor && s.year === selectedYear;
+    });
 
     const getModuleScore = (studentId, modName) => {
       const g = getGradeByModuleName(getStudentGrades(studentId), modName);
@@ -1297,15 +1302,28 @@ const Reports = () => {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <label style={labelStyle}>Niveau</label>
-          <FilterSelect value={selectedDiploma} onChange={val => { setSelectedDiploma(val); setSelectedYear(getStudyYearsForDiploma(val)[0]); }} options={Object.keys(MODULES_DATA).map(d => ({ label: d, value: d }))} style={{ minWidth: '180px' }} />
+          <FilterSelect 
+            value={selectedDiploma} 
+            onChange={val => { setSelectedDiploma(val); setSelectedYear(getStudyYearsForDiploma(val)[0]); }} 
+            options={Object.keys(MODULES_DATA).map(d => ({ label: d, value: d }))} 
+            style={{ minWidth: '180px' }} 
+          />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <label style={labelStyle}>Année d'étude</label>
+          <FilterSelect 
+            value={selectedYear} 
+            onChange={setSelectedYear} 
+            options={[
+              ...availableStudyYears.map(y => ({ label: y, value: y })),
+              ...(selectedAcademicYear !== (activeAcademicYear || getDefaultAcademicYearTransition().fromAcademicYear) ? [{ label: "Lauréat (Diplômés)", value: "Lauréat" }] : [])
+            ]} 
+            style={{ minWidth: '150px' }} 
+          />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <label style={labelStyle}>Filière</label>
           <FilterSelect value={selectedMajor} onChange={val => setSelectedMajor(val)} options={availableMajors.map(m => ({ label: m, value: m }))} style={{ minWidth: '200px' }} />
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={labelStyle}>Niveau d'étude</label>
-          <FilterSelect value={selectedYear} onChange={val => setSelectedYear(val)} options={availableStudyYears.map(year => ({ label: year, value: year }))} />
         </div>
         <button
           onClick={handleExportClassExcel}

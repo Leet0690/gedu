@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { FILIERES, getStudyYearsForMajor } from '../data/modules';
 import { FilterSelect } from '../components/ui/FilterSelect';
-import { isActiveStudent } from '../utils/studentStatus';
+import { isActiveStudent, getStudentAcademicSnapshot } from '../utils/studentStatus';
 import {
   CalendarRange, Download, Search, Filter,
   CheckCircle2, XCircle, Clock, Users, ChevronLeft, ChevronRight
@@ -51,7 +51,7 @@ const StatusCell = ({ status }) => {
 const labelStyle = { fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px', display: 'block' };
 
 const MonthlyAttendance = () => {
-  const { students, studentAttendance, loadStudentAttendanceForMonth, loading } = useApp();
+  const { students, studentAttendance, loadStudentAttendanceForMonth, loading, activeAcademicYear } = useApp();
 
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth());
@@ -69,7 +69,11 @@ const MonthlyAttendance = () => {
 
   const daysInMonth = useMemo(() => new Date(year, month + 1, 0).getDate(), [month, year]);
   const days = useMemo(() => Array.from({ length: daysInMonth }, (_, i) => i + 1), [daysInMonth]);
-  const activeStudents = useMemo(() => (students || []).filter(isActiveStudent), [students]);
+  const activeStudents = useMemo(() => {
+    return (students || [])
+      .map(s => (activeAcademicYear ? getStudentAcademicSnapshot(s, activeAcademicYear) : (isActiveStudent(s) ? s : null)))
+      .filter(Boolean);
+  }, [students, activeAcademicYear]);
 
   useEffect(() => {
     loadStudentAttendanceForMonth(month, year);
