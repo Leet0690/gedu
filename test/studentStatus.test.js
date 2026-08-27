@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   FIRST_YEAR,
   SECOND_YEAR,
+  getAvailableAcademicYears,
   getDefaultAcademicYearTransition,
   getPaymentAcademicYear,
   getStudentAcademicSnapshot,
@@ -73,6 +74,24 @@ test('legacy active students remain visible in the proposed year before closure'
   assert.ok(snapshot);
   assert.equal(snapshot.academicYear, '2025-2026');
   assert.equal(snapshot.year, SECOND_YEAR);
+});
+
+test('the next academic year is hidden until a closure transition exists', () => {
+  const legacyStudents = [{
+    id: 'legacy-live',
+    status: 'active',
+    academicYear: '2026-2027',
+    year: SECOND_YEAR,
+  }];
+  const beforeClosureDate = new Date(2026, 7, 27);
+  assert.deepEqual(getAvailableAcademicYears(legacyStudents, [], beforeClosureDate), ['2025-2026']);
+
+  const promotedStudents = [{
+    ...legacyStudents[0],
+    previousAcademicYear: '2025-2026',
+    classHistory: [{ academicYear: '2025-2026', year: FIRST_YEAR }],
+  }];
+  assert.deepEqual(getAvailableAcademicYears(promotedStudents, [], beforeClosureDate), ['2026-2027', '2025-2026']);
 });
 
 test('an explicit payment academic year has priority over receipt series and date', () => {

@@ -83,15 +83,22 @@ export const getPaymentAcademicYear = (payment = {}) => {
 };
 
 /** Get list of all unique academic years present in students & payments */
-export const getAvailableAcademicYears = (students = [], payments = []) => {
+export const getAvailableAcademicYears = (students = [], payments = [], date = new Date()) => {
   const yearsSet = new Set();
 
-  const currentDefaults = getDefaultAcademicYearTransition();
+  const currentDefaults = getDefaultAcademicYearTransition(date);
   yearsSet.add(currentDefaults.fromAcademicYear);
-  yearsSet.add(currentDefaults.toAcademicYear);
 
   (students || []).forEach(s => {
-    if (s.academicYear && validateAcademicYear(s.academicYear)) yearsSet.add(s.academicYear);
+    const hasClosureHistory = Array.isArray(s.classHistory) && s.classHistory.length > 0;
+    const hasExplicitTransition = hasClosureHistory || validateAcademicYear(s.previousAcademicYear);
+    if (
+      s.academicYear &&
+      validateAcademicYear(s.academicYear) &&
+      (s.academicYear <= currentDefaults.fromAcademicYear || hasExplicitTransition)
+    ) {
+      yearsSet.add(s.academicYear);
+    }
     if (s.graduationAcademicYear && validateAcademicYear(s.graduationAcademicYear)) yearsSet.add(s.graduationAcademicYear);
     if (Array.isArray(s.classHistory)) {
       s.classHistory.forEach(h => {
