@@ -309,6 +309,27 @@ export const getStudentAcademicSnapshot = (student = {}, targetAcademicYear = ''
   }
   if (!validateAcademicYear(targetAcademicYear)) return null;
 
+  // Before the first closure, legacy records may have no classHistory and may
+  // carry a missing/stale academicYear from an older registration workflow.
+  // Keep active students visible in the currently proposed school year so the
+  // historical class selector does not hide the live roster.
+  const hasClassHistory = Array.isArray(student.classHistory) && student.classHistory.length > 0;
+  const hasExplicitPreviousYear = validateAcademicYear(student.previousAcademicYear);
+  const currentProposedYear = getDefaultAcademicYearTransition().fromAcademicYear;
+  if (
+    targetAcademicYear === currentProposedYear &&
+    isActiveStudent(student) &&
+    !hasClassHistory &&
+    !hasExplicitPreviousYear
+  ) {
+    return {
+      ...student,
+      academicYear: targetAcademicYear,
+      academicStatus: student.status || STUDENT_STATUS.ACTIVE,
+      isHistoricalSnapshot: false,
+    };
+  }
+
   const historyEntry = (Array.isArray(student.classHistory) ? student.classHistory : [])
     .find(entry => entry?.academicYear === targetAcademicYear);
   if (historyEntry) {

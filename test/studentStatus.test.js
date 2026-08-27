@@ -59,6 +59,22 @@ test('historical selection does not project a first-year student into a future c
   assert.equal(getStudentAcademicSnapshot(student, '2026-2027'), null);
 });
 
+test('legacy active students remain visible in the proposed year before closure', () => {
+  const student = {
+    id: 'legacy-live',
+    status: 'active',
+    academicYear: '2026-2027',
+    diploma: 'Technicien SpÃ©cialisÃ©',
+    major: 'Gestion',
+    year: SECOND_YEAR,
+  };
+
+  const snapshot = getStudentAcademicSnapshot(student, '2025-2026');
+  assert.ok(snapshot);
+  assert.equal(snapshot.academicYear, '2025-2026');
+  assert.equal(snapshot.year, SECOND_YEAR);
+});
+
 test('an explicit payment academic year has priority over receipt series and date', () => {
   assert.equal(getPaymentAcademicYear({
     academicYear: '2024-2025',
