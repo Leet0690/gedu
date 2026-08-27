@@ -37,6 +37,60 @@ export const validateAcademicYear = (yearStr) => {
   return parseInt(endYear) === parseInt(startYear) + 1;
 };
 
+const formatLocalDate = (date) => {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+/** Resolve the academic year containing a local calendar date. */
+export const getAcademicYearForDate = (value) => {
+  const dateString = value instanceof Date ? formatLocalDate(value) : String(value || '');
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateString);
+  if (!match) return '';
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) return '';
+
+  const startYear = month >= 9 ? year : year - 1;
+  return `${startYear}-${startYear + 1}`;
+};
+
+/** Map a month index (0-11) to its calendar year within an academic year. */
+export const getCalendarYearForAcademicMonth = (academicYear, monthIndex) => {
+  if (!validateAcademicYear(academicYear) || !Number.isInteger(monthIndex) || monthIndex < 0 || monthIndex > 11) {
+    return null;
+  }
+  const [startYear, endYear] = academicYear.split('-').map(Number);
+  return monthIndex >= 8 ? startYear : endYear;
+};
+
+/** Attendance writes are limited to the writable academic year and non-future dates. */
+export const canEditAttendanceForAcademicYear = ({
+  selectedAcademicYear,
+  writableAcademicYear,
+  selectedDate,
+  today = new Date(),
+} = {}) => {
+  const todayString = today instanceof Date ? formatLocalDate(today) : String(today || '');
+  return (
+    validateAcademicYear(selectedAcademicYear) &&
+    selectedAcademicYear === writableAcademicYear &&
+    getAcademicYearForDate(selectedDate) === selectedAcademicYear &&
+    getAcademicYearForDate(todayString) !== '' &&
+    selectedDate <= todayString
+  );
+};
+
 /** Validate that toAcademicYear follows fromAcademicYear */
 export const validateAcademicYearTransition = (from, to) => {
   if (!validateAcademicYear(from) || !validateAcademicYear(to)) return false;

@@ -674,7 +674,9 @@ export const AppProvider = ({ children }) => {
   // --- STAGIAIRES ---
   const addStudent = async (studentData) => {
     const token = makeToken(32);
-    const academicYear = studentData.academicYear || getDefaultAcademicYearTransition().fromAcademicYear;
+    const academicYear = validateAcademicYear(studentData.academicYear)
+      ? studentData.academicYear
+      : getDefaultAcademicYearTransition().fromAcademicYear;
     const newStudent = { ...studentData, academicYear, token, createdAt: serverTimestamp() };
     const docRef = await addDoc(collection(db, 'students'), newStudent);
     setStudents(prev => [{ id: docRef.id, ...newStudent }, ...prev]);

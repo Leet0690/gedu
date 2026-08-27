@@ -3,7 +3,12 @@ import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { FILIERES, getStudyYearsForMajor } from '../data/modules';
 import { FilterSelect } from '../components/ui/FilterSelect';
-import { isActiveStudent, getStudentAcademicSnapshot } from '../utils/studentStatus';
+import {
+  getCalendarYearForAcademicMonth,
+  getDefaultAcademicYearTransition,
+  getStudentAcademicSnapshot,
+  isActiveStudent
+} from '../utils/studentStatus';
 import {
   CalendarRange, Download, Search, Filter,
   CheckCircle2, XCircle, Clock, Users, ChevronLeft, ChevronRight
@@ -55,18 +60,14 @@ const MonthlyAttendance = () => {
 
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth());
-  const [year, setYear] = useState(now.getFullYear());
+  const selectedAcademicYear = activeAcademicYear || getDefaultAcademicYearTransition().fromAcademicYear;
+  const year = getCalendarYearForAcademicMonth(selectedAcademicYear, month) || now.getFullYear();
   const [filterFiliere, setFilterFiliere] = useState('');
   const [filterAnnee, setFilterAnnee] = useState('');
   const [search, setSearch] = useState('');
 
   const allFilieres = useMemo(() => Array.from(new Set(Object.values(FILIERES).flat())), []);
   const allAnnees = useMemo(() => getStudyYearsForMajor(filterFiliere), [filterFiliere]);
-  const availableYears = useMemo(() => {
-    const y = now.getFullYear();
-    return [y - 1, y, y + 1];
-  }, []);
-
   const daysInMonth = useMemo(() => new Date(year, month + 1, 0).getDate(), [month, year]);
   const days = useMemo(() => Array.from({ length: daysInMonth }, (_, i) => i + 1), [daysInMonth]);
   const activeStudents = useMemo(() => {
@@ -134,8 +135,8 @@ const MonthlyAttendance = () => {
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
   };
 
-  const prevMonth = () => { if (month === 0) { setMonth(11); setYear(y => y - 1); } else setMonth(m => m - 1); };
-  const nextMonth = () => { if (month === 11) { setMonth(0); setYear(y => y + 1); } else setMonth(m => m + 1); };
+  const prevMonth = () => setMonth(current => current === 0 ? 11 : current - 1);
+  const nextMonth = () => setMonth(current => current === 11 ? 0 : current + 1);
 
   return (
     <div className="max-w-container section-padding">
@@ -173,8 +174,9 @@ const MonthlyAttendance = () => {
             <label style={labelStyle}>Année</label>
             <FilterSelect
               value={year}
-              onChange={(val) => setYear(Number(val))}
-              options={availableYears.map(y => ({ label: String(y), value: y }))}
+              onChange={() => {}}
+              disabled
+              options={[{ label: String(year), value: year }]}
               style={{ width: '100%' }}
             />
           </div>

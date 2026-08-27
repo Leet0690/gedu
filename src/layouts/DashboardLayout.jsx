@@ -6,6 +6,7 @@ import Logo from '../components/Logo';
 import { SemesterToggle } from '../components/SemesterToggle';
 import { AcademicYearSelector } from '../components/AcademicYearSelector';
 import { preloadRoute } from '../routeLoaders';
+import { isAcademicYearScopedPath } from '../utils/routeScopes';
 import { 
   LayoutDashboard, 
   Home,
@@ -156,6 +157,7 @@ export default function DashboardLayout({ children }) {
   const [showNotifs, setShowNotifs] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const location = useLocation();
+  const showAcademicYearSelector = isAcademicYearScopedPath(location.pathname);
   const scrollRef = useRef(null);
   const sidebarRef = useRef(null);
   const isOnline = useOnlineStatus();
@@ -343,7 +345,7 @@ export default function DashboardLayout({ children }) {
             </AnimatePresence>
 
             {/* Academic Year Selector */}
-            {availableAcademicYearsList && availableAcademicYearsList.length > 0 && (
+            {showAcademicYearSelector && availableAcademicYearsList && availableAcademicYearsList.length > 0 && (
               <div className="premium-topbar-semester">
                 <span className="premium-topbar-semester-label">Année académique</span>
                 <AcademicYearSelector

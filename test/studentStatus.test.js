@@ -4,7 +4,10 @@ import assert from 'node:assert/strict';
 import {
   FIRST_YEAR,
   SECOND_YEAR,
+  canEditAttendanceForAcademicYear,
+  getAcademicYearForDate,
   getAvailableAcademicYears,
+  getCalendarYearForAcademicMonth,
   getDefaultAcademicYearTransition,
   getPaymentAcademicYear,
   getStudentAcademicSnapshot,
@@ -13,6 +16,31 @@ import {
   isStudentVacationMonth,
   isStudentCurrentlyInAcademicYear,
 } from '../src/utils/studentStatus.js';
+
+test('calendar dates and months resolve inside September-to-August academic years', () => {
+  assert.equal(getAcademicYearForDate('2026-08-31'), '2025-2026');
+  assert.equal(getAcademicYearForDate('2026-09-01'), '2026-2027');
+  assert.equal(getAcademicYearForDate('2026-02-31'), '');
+  assert.equal(getCalendarYearForAcademicMonth('2024-2025', 8), 2024);
+  assert.equal(getCalendarYearForAcademicMonth('2024-2025', 7), 2025);
+});
+
+test('attendance editing is restricted to the writable year and valid non-future dates', () => {
+  const base = {
+    writableAcademicYear: '2025-2026',
+    selectedAcademicYear: '2025-2026',
+    today: '2026-08-27',
+  };
+
+  assert.equal(canEditAttendanceForAcademicYear({ ...base, selectedDate: '2026-08-27' }), true);
+  assert.equal(canEditAttendanceForAcademicYear({ ...base, selectedDate: '2026-08-28' }), false);
+  assert.equal(canEditAttendanceForAcademicYear({ ...base, selectedDate: '2025-08-31' }), false);
+  assert.equal(canEditAttendanceForAcademicYear({
+    ...base,
+    selectedAcademicYear: '2024-2025',
+    selectedDate: '2025-08-27',
+  }), false);
+});
 
 test('the proposed closure year changes in September, not in August', () => {
   assert.deepEqual(

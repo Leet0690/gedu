@@ -29,6 +29,7 @@ import Pagination from '../components/Pagination';
 import {
   STUDENT_STATUS,
   getDefaultAcademicYearTransition,
+  getCalendarYearForAcademicMonth,
   getStudentStatusLabel,
   isActiveStudent,
   isLaureatStudent,
@@ -41,6 +42,7 @@ import {
   getStudentCurrentAcademicYear,
   isStudentCurrentlyInAcademicYear
 } from '../utils/studentStatus';
+import { calculateStudentAttendanceRate, isFinalAttendanceStatus } from '../utils/attendanceKeys';
 import { 
   Plus, 
   Search, 
@@ -974,13 +976,23 @@ const AdminDashboard = () => {
   const { showToast } = useToast();
   const location = useLocation();
   const isDashboard = location.pathname === '/';
+  const dashboardMonthIndex = new Date().getMonth();
+  const currentCalendarYear = new Date().getFullYear();
+  const attendanceCalendarYear = getCalendarYearForAcademicMonth(activeAcademicYear, dashboardMonthIndex) || currentCalendarYear;
+  const attendanceMonthKey = `${attendanceCalendarYear}-${String(dashboardMonthIndex + 1).padStart(2, '0')}`;
+  const teacherAttendanceMonthKey = `${currentCalendarYear}-${String(dashboardMonthIndex + 1).padStart(2, '0')}`;
+  const operationalAcademicYear = availableAcademicYearsList?.[0] || getDefaultAcademicYearTransition().fromAcademicYear;
 
-  // Load attendance data for the current month on mount
+  // Load the equivalent calendar month for the selected academic year.
   useEffect(() => {
-    const now = new Date();
-    loadStudentAttendanceForMonth(now.getMonth(), now.getFullYear());
-    loadTeacherAttendanceForMonth(now.getMonth(), now.getFullYear());
-  }, [loadStudentAttendanceForMonth, loadTeacherAttendanceForMonth]);
+    if (!isDashboard) return;
+    loadStudentAttendanceForMonth(dashboardMonthIndex, attendanceCalendarYear);
+  }, [attendanceCalendarYear, dashboardMonthIndex, isDashboard, loadStudentAttendanceForMonth]);
+
+  useEffect(() => {
+    if (!isDashboard) return;
+    loadTeacherAttendanceForMonth(dashboardMonthIndex, currentCalendarYear);
+  }, [currentCalendarYear, dashboardMonthIndex, isDashboard, loadTeacherAttendanceForMonth]);
   
   const [localActiveTab, setLocalActiveTab] = useState('students');
   const activeTab = location.pathname.includes('teacher') ? 'teachers' 
@@ -993,7 +1005,6 @@ const AdminDashboard = () => {
     setDiplomaFilter('');
     setYearFilter('');
     setModuleFilter('');
-    setAcademicYearFilter('');
   }, [activeTab]);
 
   const [globalFilter, setGlobalFilter] = useState('');
@@ -1019,7 +1030,8 @@ const AdminDashboard = () => {
 
   // Add student & teacher form states and helper handlers
   const [addStudentForm, setAddStudentForm] = useState({
-    firstName: '', lastName: '', major: '', regNo: '', diploma: '', year: ''
+    firstName: '', lastName: '', major: '', regNo: '', diploma: '', year: '',
+    academicYear: operationalAcademicYear
   });
   const [addTeacherForm, setAddTeacherForm] = useState({
     name: '', diplomas: [], subjects: [], groups: [], years: [], hourlyRate: 0
@@ -1076,15 +1088,26 @@ const AdminDashboard = () => {
   const handleAddStudentSubmit = async (e) => {
     e.preventDefault();
     try {
+      const enrollmentAcademicYear = addStudentForm.academicYear || operationalAcademicYear;
+      if (enrollmentAcademicYear !== operationalAcademicYear) {
+        const confirmed = await confirmAction({
+          title: 'Inscription dans une année archivée',
+          message: `Le stagiaire sera inscrit dans l'année ${enrollmentAcademicYear}. Cette action alimente une archive. Continuer ?`,
+          type: 'warning',
+          confirmText: 'Confirmer l’inscription',
+          cancelText: 'Annuler'
+        });
+        if (!confirmed) return;
+      }
       const trimmedData = {
         ...addStudentForm,
         firstName: addStudentForm.firstName.trim(),
         lastName: addStudentForm.lastName.trim(),
-        academicYear: academicYearFilter
+        academicYear: enrollmentAcademicYear
       };
       await addStudent(trimmedData);
       showToast('Stagiaire inscrit avec succès.', 'success');
-      setAddStudentForm({ firstName: '', lastName: '', major: '', regNo: '', diploma: '', year: '' });
+      setAddStudentForm({ firstName: '', lastName: '', major: '', regNo: '', diploma: '', year: '', academicYear: operationalAcademicYear });
       closeModal();
     } catch (err) {
       console.error(err);
@@ -1494,23 +1517,31 @@ const AdminDashboard = () => {
 
   const currentMonthName = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'][new Date().getMonth()];
 
-  const studentAttendanceRate = useMemo(() => {
-    if (!studentAttendance || studentAttendance.length === 0) return null;
-    const presents = studentAttendance.filter(a => a.status === 'present').length;
-    return Math.round((presents / studentAttendance.length) * 100);
-  }, [studentAttendance]);
-
   const activeYearStudents = useMemo(() => {
     return (students || [])
       .map(student => (activeAcademicYear ? getStudentAcademicSnapshot(student, activeAcademicYear) : student))
       .filter(Boolean);
   }, [students, activeAcademicYear]);
 
+  const activeYearStudentIds = useMemo(
+    () => new Set(activeYearStudents.map(student => student.id)),
+    [activeYearStudents]
+  );
+
+  const studentAttendanceRate = useMemo(
+    () => calculateStudentAttendanceRate(studentAttendance, activeYearStudentIds, attendanceMonthKey),
+    [activeYearStudentIds, attendanceMonthKey, studentAttendance]
+  );
+
   const teacherAttendanceRate = useMemo(() => {
-    if (!teacherAttendance || teacherAttendance.length === 0) return null;
-    const presents = teacherAttendance.filter(a => a.status === 'present').length;
-    return Math.round((presents / teacherAttendance.length) * 100);
-  }, [teacherAttendance]);
+    const scopedRecords = (teacherAttendance || []).filter(record =>
+      String(record.date || '').startsWith(teacherAttendanceMonthKey) &&
+      isFinalAttendanceStatus(record.status)
+    );
+    if (scopedRecords.length === 0) return null;
+    const presents = scopedRecords.filter(record => record.status === 'present').length;
+    return Math.round((presents / scopedRecords.length) * 100);
+  }, [teacherAttendance, teacherAttendanceMonthKey]);
 
   return (
     <div className={`max-w-container section-padding admin-dashboard-shell ${isDashboard ? 'home-dashboard-page' : 'directory-premium-page'} ${!isDashboard ? `directory-premium-${activeTab}` : ''}`}>
@@ -1549,7 +1580,17 @@ const AdminDashboard = () => {
                 <RotateCw size={14} style={{ marginRight: '6px' }} /> Régénérer
               </button>
             )}
-            <button onClick={() => setModalMode(activeTab === 'students' ? 'add-student' : 'add-teacher')} className="btn-modern primary">
+            <button
+              onClick={() => {
+                if (activeTab === 'students') {
+                  setAddStudentForm({ firstName: '', lastName: '', major: '', regNo: '', diploma: '', year: '', academicYear: operationalAcademicYear });
+                  setModalMode('add-student');
+                } else {
+                  setModalMode('add-teacher');
+                }
+              }}
+              className="btn-modern primary"
+            >
               <Plus size={14} style={{ marginRight: '6px' }} /> Ajouter
             </button>
           </div>
@@ -1583,7 +1624,7 @@ const AdminDashboard = () => {
           <div className="home-stats-grid">
             <StatCard delay={0.05} icon={UsersIcon} tone="primary" value={activeYearStudents.length} label="Total Stagiaires" />
             <StatCard delay={0.1} icon={Presentation} tone="warning" value={(teachers || []).length} label="Total Formateurs" />
-            <StatCard delay={0.15} icon={CalendarCheck} tone="success" value={studentAttendanceRate === null ? '—' : `${studentAttendanceRate}%`} label={`Présence Stagiaires — ${currentMonthName}`} />
+            <StatCard delay={0.15} icon={CalendarCheck} tone="success" value={studentAttendanceRate === null ? '—' : `${studentAttendanceRate}%`} label={`Présence Stagiaires — ${currentMonthName} ${attendanceCalendarYear}`} />
             <StatCard delay={0.2} icon={BarChart3} tone="info" value={teacherAttendanceRate === null ? '—' : `${teacherAttendanceRate}%`} label={`Présence Formateurs — ${currentMonthName}`} />
           </div>
 
@@ -1975,15 +2016,26 @@ const AdminDashboard = () => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                     <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900' }}>Inscription Stagiaire</h2>
                   </div>
-                  {academicYearFilter && academicYearFilter !== getDefaultAcademicYearTransition().fromAcademicYear && (
+                  {addStudentForm.academicYear && addStudentForm.academicYear !== operationalAcademicYear && (
                     <div style={{ marginBottom: '16px', padding: '8px 12px', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <AlertTriangle size={14} style={{ color: '#ca8a04', flexShrink: 0 }} />
                       <span style={{ fontSize: '11px', color: '#854d0e', fontWeight: '600', lineHeight: 1.4 }}>
-                        Ce stagiaire sera inscrit pour l'année archivée <strong>{academicYearFilter}</strong>.
+                        L'année <strong>{addStudentForm.academicYear}</strong> est archivée. Une confirmation sera demandée avant l'inscription.
                       </span>
                     </div>
                   )}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={fGroup}>
+                      <label style={lbl}>Année académique d'inscription</label>
+                      <FilterSelect
+                        value={addStudentForm.academicYear}
+                        onChange={val => setAddStudentForm({ ...addStudentForm, academicYear: val })}
+                        options={Array.from(new Set([operationalAcademicYear, ...(availableAcademicYearsList || [])])).map(year => ({
+                          value: year,
+                          label: year === operationalAcademicYear ? `${year} — année active` : `${year} — archive`
+                        }))}
+                      />
+                    </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                       <div style={fGroup}>
                         <label style={lbl}>Nom</label>

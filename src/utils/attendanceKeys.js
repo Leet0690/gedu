@@ -31,6 +31,18 @@ export const makeAttendanceColumnKey = (date, moduleId, timeSlot = '') => {
 
 export const isFinalAttendanceStatus = status => status === 'present' || status === 'absent';
 
+export const calculateStudentAttendanceRate = (records = [], studentIds = [], monthKey = '') => {
+  const allowedStudentIds = studentIds instanceof Set ? studentIds : new Set(studentIds);
+  const scopedRecords = (records || []).filter(record =>
+    allowedStudentIds.has(record.studentId) &&
+    (!monthKey || String(record.date || '').startsWith(monthKey)) &&
+    isFinalAttendanceStatus(record.status)
+  );
+  if (scopedRecords.length === 0) return null;
+  const presents = scopedRecords.filter(record => record.status === 'present').length;
+  return Math.round((presents / scopedRecords.length) * 100);
+};
+
 export const findStudentAttendanceRecord = (
   records = [],
   studentId,

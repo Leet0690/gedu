@@ -7,13 +7,20 @@ import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import { DatePicker } from '../components/ui';
 import { FilterSelect } from '../components/ui/FilterSelect';
-import { isActiveStudent, getStudentAcademicSnapshot } from '../utils/studentStatus';
+import {
+  canEditAttendanceForAcademicYear,
+  getAcademicYearForDate,
+  getCalendarYearForAcademicMonth,
+  getDefaultAcademicYearTransition,
+  getStudentAcademicSnapshot,
+  isActiveStudent
+} from '../utils/studentStatus';
 import { useDebounce } from '../utils/useDebounce';
 import { findStudentAttendanceRecord, isFinalAttendanceStatus, makeAttendanceColumnKey, makeStudentAttendanceDocId } from '../utils/attendanceKeys';
 import {
   UserCheck, FileSpreadsheet, Search, CheckCircle2,
   XCircle, X, Clock, Users, Filter, Download, CalendarRange,
-  ChevronLeft, ChevronRight, AlertTriangle, CheckCheck
+  AlertTriangle, CheckCheck
 } from 'lucide-react';
 
 /* ─── Monthly-view helpers ─── */
@@ -53,9 +60,18 @@ const calcDuration = (timeStr) => {
   } catch { return 0; }
 };
 
+const formatLocalDate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const StudentAttendance = () => {
-  const { students, teachers, studentAttendance, updateStudentAttendance, loadAttendanceForSession, loadStudentAttendanceForMonth, loading, schedules, teacherAttendance, updateTeacherAttendance, loadTeacherAttendanceForDate, modules: allModules = [], activeSemester = 'S1', getActiveScheduleModule, activeAcademicYear } = useApp();
+  const { students, teachers, studentAttendance, updateStudentAttendance, loadAttendanceForSession, loadStudentAttendanceForMonth, loading, schedules, teacherAttendance, updateTeacherAttendance, loadTeacherAttendanceForDate, modules: allModules = [], activeSemester = 'S1', getActiveScheduleModule, activeAcademicYear, availableAcademicYearsList } = useApp();
   const { showToast } = useToast();
+  const todayDate = useMemo(() => formatLocalDate(new Date()), []);
+  const writableAcademicYear = availableAcademicYearsList?.[0] || getDefaultAcademicYearTransition().fromAcademicYear;
 
   /* Tab state */
   const [view, setView] = useState('daily');
@@ -66,9 +82,30 @@ const StudentAttendance = () => {
   const [filterYear, setFilterYear] = useState('');
   const [filterModule, setFilterModule] = useState('');
   const [filterTime, setFilterTime] = useState('');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(todayDate);
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearch = useDebounce(searchTerm, 300);
+  const selectedAcademicYear = activeAcademicYear || writableAcademicYear;
+  const selectedDateAcademicYear = getAcademicYearForDate(selectedDate);
+  const canEditAttendance = canEditAttendanceForAcademicYear({
+    selectedAcademicYear,
+    writableAcademicYear,
+    selectedDate,
+    today: todayDate,
+  });
+  const attendanceReadOnlyMessage = selectedAcademicYear !== writableAcademicYear
+    ? `L'année ${selectedAcademicYear} est archivée : consultation uniquement. Les emplois du temps affichés restent ceux actuellement configurés.`
+    : selectedDate > todayDate
+      ? 'Le pointage ne peut pas être enregistré pour une date future.'
+      : selectedDateAcademicYear !== selectedAcademicYear
+        ? `La date choisie n'appartient pas à l'année académique ${selectedAcademicYear}.`
+        : '';
+
+  const allowAttendanceWrite = () => {
+    if (canEditAttendance) return true;
+    showToast(attendanceReadOnlyMessage || 'Le pointage est disponible uniquement pour l’année académique active.', 'warning');
+    return false;
+  };
 
   const dayOfWeek = useMemo(() => {
     const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
@@ -295,6 +332,7 @@ const StudentAttendance = () => {
   }, [schedules, activeStudents, studentAttendance, teacherAttendance, dayOfWeek, selectedDate, updateTeacherAttendance, getActiveScheduleModule, canUseLegacyForSession]);
 
   const handleStatusChange = async (studentId, status) => {
+    if (!allowAttendanceWrite()) return;
     if (!filterModule) { showToast("Veuillez d'abord sélectionner un module.", 'warning'); return; }
     try {
       const safeModule = filterModule.replace(/[^a-zA-Z0-9]/g, '_');
@@ -313,6 +351,7 @@ const StudentAttendance = () => {
   const [bulkLoading, setBulkLoading] = useState(false);
 
   const handleMarkAllPresent = async () => {
+    if (!allowAttendanceWrite()) return;
     if (!filterModule) { showToast("Veuillez d'abord sélectionner un module.", 'warning'); return; }
     if (!filteredStudents.length) return;
     setBulkLoading(true);
@@ -343,6 +382,7 @@ const StudentAttendance = () => {
   };
 
   const handleClearStatus = async (studentId) => {
+    if (!allowAttendanceWrite()) return;
     if (!filterModule) return;
     const safeModule = filterModule.replace(/[^a-zA-Z0-9]/g, '_');
     const record = findStudentAttendanceRecord(studentAttendance, studentId, safeModule, selectedDate, selectedSession?.time);
@@ -352,11 +392,16 @@ const StudentAttendance = () => {
   };
 
   const handleCommentChange = async (studentId, comment) => {
+    if (!allowAttendanceWrite()) return;
     if (!filterModule) return;
     const safeModule = filterModule.replace(/[^a-zA-Z0-9]/g, '_');
     const record = findStudentAttendanceRecord(studentAttendance, studentId, safeModule, selectedDate, selectedSession?.time);
+    if (!record || !isFinalAttendanceStatus(record.status)) {
+      showToast("Sélectionnez d'abord un statut avant d'ajouter un commentaire.", 'warning');
+      return;
+    }
     const targetTime = record?.timeSlot || selectedSession?.time || '';
-    await updateStudentAttendance(studentId, filterModule, selectedDate, record?.status || 'present', comment, 'admin', targetTime, record?.id || '');
+    await updateStudentAttendance(studentId, filterModule, selectedDate, record.status, comment, 'admin', targetTime, record.id);
   };
 
   const exportDailyCSV = () => {
@@ -376,13 +421,11 @@ const StudentAttendance = () => {
   /* ── Monthly view state ── */
   const now = new Date();
   const [mMonth, setMMonth] = useState(now.getMonth());
-  const [mYear, setMYear] = useState(now.getFullYear());
+  const mYear = getCalendarYearForAcademicMonth(selectedAcademicYear, mMonth) || now.getFullYear();
   const [mFilterFiliere, setMFilterFiliere] = useState('');
   const [mFilterAnnee, setMFilterAnnee] = useState('');
   const [mSearch, setMSearch] = useState('');
   const allFilieres = useMemo(() => Array.from(new Set(Object.values(FILIERES).flat())), []);
-  const availableYears = useMemo(() => { const y = now.getFullYear(); return [y - 1, y, y + 1]; }, []);
-
   useEffect(() => {
     if (view === 'monthly') loadStudentAttendanceForMonth(mMonth, mYear);
   }, [view, mMonth, mYear, loadStudentAttendanceForMonth]);
@@ -520,9 +563,6 @@ const StudentAttendance = () => {
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
   };
 
-  const prevMonth = () => { if (mMonth === 0) { setMMonth(11); setMYear(y => y - 1); } else setMMonth(m => m - 1); };
-  const nextMonth = () => { if (mMonth === 11) { setMMonth(0); setMYear(y => y + 1); } else setMMonth(m => m + 1); };
-
   /* ── Alerts view state ── */
   const [alertThreshold, setAlertThreshold] = useState(10);
 
@@ -588,6 +628,28 @@ const StudentAttendance = () => {
       {/* ════ DAILY VIEW ════ */}
       {view === 'daily' && (
         <>
+          {!canEditAttendance && attendanceReadOnlyMessage && (
+            <div
+              role="status"
+              style={{
+                marginBottom: 'var(--space-4)',
+                padding: '12px 16px',
+                border: '1px solid rgba(234, 179, 8, 0.35)',
+                borderRadius: 'var(--radius-lg)',
+                background: 'rgba(234, 179, 8, 0.08)',
+                color: '#854d0e',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                fontSize: '12px',
+                fontWeight: '700',
+                lineHeight: 1.5,
+              }}
+            >
+              <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+              <span>{attendanceReadOnlyMessage}</span>
+            </div>
+          )}
           <div className="glass-card attendance-premium-filter-card" style={{ padding: 'var(--space-5)', marginBottom: 'var(--space-6)' }}>
             <div className="app-filter-grid app-filter-grid--6" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
               <div style={{ ...filterGroupStyle, flex: '1 1 220px', maxWidth: '300px' }}>
@@ -595,6 +657,7 @@ const StudentAttendance = () => {
                 <DatePicker
                   value={selectedDate}
                   onChange={setSelectedDate}
+                  max={todayDate}
                   title="Date de l'appel"
                   placeholder="Choisir une date"
                 />
@@ -670,9 +733,9 @@ const StudentAttendance = () => {
               <MiniStat label="Taux" value={stats.total > 0 ? `${Math.round((stats.presents / stats.total) * 100)}%` : '—'} />
               <button
                 onClick={handleMarkAllPresent}
-                disabled={bulkLoading}
+                disabled={bulkLoading || !canEditAttendance}
                 className="btn-modern primary"
-                style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 18px', fontSize: '13px', opacity: bulkLoading ? 0.7 : 1 }}
+                style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 18px', fontSize: '13px', opacity: bulkLoading || !canEditAttendance ? 0.55 : 1, cursor: bulkLoading || !canEditAttendance ? 'not-allowed' : 'pointer' }}
               >
                 <CheckCheck size={15} />
                 {bulkLoading ? 'Enregistrement...' : 'Tous Présents'}
@@ -760,14 +823,15 @@ const StudentAttendance = () => {
                             </td>
                             <td style={{ ...tdStyle, textAlign: 'center' }}>
                               <div style={{ display: 'inline-flex', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-xl)', padding: '4px', alignItems: 'center' }}>
-                                <StatusBtn active={status === 'present'} color="var(--success)" onClick={() => handleStatusChange(student.id, 'present')}>Présent</StatusBtn>
-                                <StatusBtn active={status === 'absent'} color="var(--danger)" onClick={() => handleStatusChange(student.id, 'absent')}>Absent</StatusBtn>
-                                {status && <button onClick={() => handleClearStatus(student.id)} style={{ marginLeft: '2px', padding: '4px 6px', border: 'none', borderRadius: 'var(--radius-md)', background: 'transparent', cursor: 'pointer', color: 'var(--text-faint)', display: 'flex', alignItems: 'center' }} title="Effacer"><X size={13} /></button>}
+                                <StatusBtn disabled={!canEditAttendance} active={status === 'present'} color="var(--success)" onClick={() => handleStatusChange(student.id, 'present')}>Présent</StatusBtn>
+                                <StatusBtn disabled={!canEditAttendance} active={status === 'absent'} color="var(--danger)" onClick={() => handleStatusChange(student.id, 'absent')}>Absent</StatusBtn>
+                                {status && <button disabled={!canEditAttendance} onClick={() => handleClearStatus(student.id)} style={{ marginLeft: '2px', padding: '4px 6px', border: 'none', borderRadius: 'var(--radius-md)', background: 'transparent', cursor: canEditAttendance ? 'pointer' : 'not-allowed', opacity: canEditAttendance ? 1 : 0.45, color: 'var(--text-faint)', display: 'flex', alignItems: 'center' }} title={canEditAttendance ? 'Effacer' : 'Consultation uniquement'}><X size={13} /></button>}
                               </div>
                             </td>
                             <td style={tdStyle}>
                               <input type="text" className="input-premium" placeholder="Note d'absence..."
                                 style={{ width: '100%', fontSize: '12px', background: 'transparent', border: '1px solid transparent' }}
+                                disabled={!canEditAttendance || !isFinalAttendanceStatus(status)}
                                 value={comment} onChange={(e) => handleCommentChange(student.id, e.target.value)} />
                             </td>
                           </tr>
@@ -810,8 +874,9 @@ const StudentAttendance = () => {
                 <label style={labelStyle}>Année (calendrier)</label>
                 <FilterSelect
                   value={mYear}
-                  onChange={(val) => setMYear(Number(val))}
-                  options={availableYears.map(y => ({ label: String(y), value: y }))}
+                  onChange={() => {}}
+                  disabled
+                  options={[{ label: String(mYear), value: mYear }]}
                   style={{ width: '100%' }}
                 />
               </div>
@@ -1044,8 +1109,8 @@ const StudentAttendance = () => {
   );
 };
 
-const StatusBtn = ({ active, color, children, onClick }) => (
-  <button onClick={onClick} style={{ padding: '6px 14px', border: 'none', borderRadius: 'var(--radius-lg)', fontSize: '11px', fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s', background: active ? color : 'transparent', color: active ? 'white' : 'var(--text-muted)' }}>
+const StatusBtn = ({ active, color, children, onClick, disabled = false }) => (
+  <button disabled={disabled} onClick={onClick} style={{ padding: '6px 14px', border: 'none', borderRadius: 'var(--radius-lg)', fontSize: '11px', fontWeight: '800', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.55 : 1, transition: 'all 0.2s', background: active ? color : 'transparent', color: active ? 'white' : 'var(--text-muted)' }}>
     {children}
   </button>
 );

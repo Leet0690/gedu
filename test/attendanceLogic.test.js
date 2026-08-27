@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  calculateStudentAttendanceRate,
   findStudentAttendanceRecord,
   getStudentAttendanceWriteTarget,
   isTeacherSessionComplete,
@@ -15,6 +16,19 @@ test('a shared teacher time slot does not complete an unmarked group', () => {
   assert.equal(isTeacherSessionComplete(sharedSlotRecord, true), true);
   assert.equal(isTeacherSessionComplete(sharedSlotRecord, false), false);
   assert.equal(isTeacherSessionComplete({ status: 'absent' }, false), true);
+});
+
+test('dashboard attendance rate isolates the selected cohort and calendar month', () => {
+  const records = [
+    { studentId: 's1', date: '2025-08-03', status: 'present' },
+    { studentId: 's1', date: '2025-08-04', status: 'absent' },
+    { studentId: 's1', date: '2024-08-03', status: 'present' },
+    { studentId: 's2', date: '2025-08-03', status: 'present' },
+    { studentId: 's1', date: '2025-08-05', status: '' },
+  ];
+
+  assert.equal(calculateStudentAttendanceRate(records, new Set(['s1']), '2025-08'), 50);
+  assert.equal(calculateStudentAttendanceRate(records, new Set(['missing']), '2025-08'), null);
 });
 
 test('student attendance lookup targets the exact session time', () => {
