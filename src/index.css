@@ -8171,8 +8171,23 @@ body:has(.app-modal-overlay) .app-modal-overlay {
 
 .grade-premium-filter-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
+  align-items: end;
+}
+
+.grade-premium-filter-field {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.grade-premium-filter-field > label {
+  min-height: 15px;
+  display: flex;
+  align-items: center;
+  line-height: 1.2;
 }
 
 .grade-premium-filter-card .finance-radix-select-trigger,
@@ -8180,6 +8195,12 @@ body:has(.app-modal-overlay) .app-modal-overlay {
   border-color: rgba(124, 58, 237, 0.12);
   background: rgba(255, 255, 255, 0.74);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.88);
+}
+
+.grade-premium-filter-grid .finance-radix-select-trigger {
+  width: 100%;
+  min-width: 0;
+  height: 44px;
 }
 
 .grade-premium-doc-panel {
@@ -8294,6 +8315,12 @@ body:has(.app-modal-overlay) .app-modal-overlay {
     padding-bottom: 4px;
   }
 
+  .grade-premium-filter-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
   .grade-premium-filter-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

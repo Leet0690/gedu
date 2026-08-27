@@ -584,7 +584,7 @@ const GradeManagement = () => {
           </div>
         </div>
         <div className="grade-premium-filter-grid">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div className="grade-premium-filter-field">
             <label style={lbl}>Année académique</label>
             <FilterSelect
               value={filterAcademicYear}
@@ -592,7 +592,7 @@ const GradeManagement = () => {
               options={availableAcademicYears.map(year => ({ label: year, value: year }))}
             />
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div className="grade-premium-filter-field">
             <label style={lbl}>Niveau</label>
             <FilterSelect
               value={filterDiploma}
@@ -603,7 +603,7 @@ const GradeManagement = () => {
               ]}
             />
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div className="grade-premium-filter-field">
             <label style={lbl}>Filière</label>
             <FilterSelect
               value={filterMajor}
@@ -614,7 +614,7 @@ const GradeManagement = () => {
               ]}
             />
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div className="grade-premium-filter-field">
             <label style={lbl}>Année d'étude</label>
             <FilterSelect
               value={filterYear}
@@ -625,7 +625,7 @@ const GradeManagement = () => {
               ]}
             />
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div className="grade-premium-filter-field">
             <label style={lbl}>{entryMode === 'student' ? 'Stagiaire' : 'Module'}</label>
             {entryMode === 'student' ? (
               <FilterSelect
