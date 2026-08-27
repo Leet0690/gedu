@@ -466,7 +466,7 @@ const ModuleManagement = () => {
             <p>Sélectionnez une classe, puis filtrez par semestre si besoin.</p>
           </div>
         </div>
-        <div className="module-premium-filter-grid">
+        <div className="module-premium-filter-grid app-filter-grid app-filter-grid--4">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <label style={labelStyle}>Niveau</label>
           <FilterSelect

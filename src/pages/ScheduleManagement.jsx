@@ -245,7 +245,7 @@ const ScheduleManagement = () => {
       </div>
 
       {/* Filter + Stats Bar */}
-      <div className="glass-card schedule-premium-filter-card" style={{ padding: '16px 20px', marginBottom: 'var(--space-5)', display: 'flex', alignItems: 'end', gap: '12px', flexWrap: 'wrap' }}>
+      <div className="glass-card schedule-premium-filter-card app-filter-grid app-filter-grid--4" style={{ padding: '16px 20px', marginBottom: 'var(--space-5)', display: 'flex', alignItems: 'end', gap: '12px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '0 1 220px' }}>
           <label style={labelStyle}>Niveau</label>
           <FilterSelect
@@ -275,7 +275,7 @@ const ScheduleManagement = () => {
             options={availableStudyYears.map(a => ({ label: a, value: a }))}
           />
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <div className="app-filter-actions" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '999px', background: 'var(--primary-ultra-light)', border: '1px solid rgba(176,104,185,0.15)' }}>
             <Users size={13} style={{ color: 'var(--primary)' }} />
             <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)' }}>{groupLabel}</span>

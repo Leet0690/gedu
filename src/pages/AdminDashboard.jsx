@@ -1576,7 +1576,7 @@ const AdminDashboard = () => {
 
       {!isDashboard && (
         <>
-          <div className="glass-card directory-premium-filter-card" style={{ display: 'flex', alignItems: 'end', gap: 'var(--space-3)', flexWrap: 'wrap', padding: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
+          <div className="glass-card directory-premium-filter-card app-filter-grid app-filter-grid--5" style={{ display: 'flex', alignItems: 'end', gap: 'var(--space-3)', flexWrap: 'wrap', padding: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 240px' }}>
               <label style={labelStyle}>Recherche</label>
               <div style={{ position: 'relative' }}>

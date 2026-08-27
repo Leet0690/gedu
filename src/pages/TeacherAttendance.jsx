@@ -328,7 +328,7 @@ const TeacherAttendance = () => {
       {view === 'daily' && (
         <>
           <div className="glass-card attendance-premium-filter-card" style={{ padding: 'var(--space-5)', marginBottom: 'var(--space-6)' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-4)' }}>
+            <div className="app-filter-grid app-filter-grid--3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-4)' }}>
               <div style={fGroup}>
                 <label style={labelStyle}>Date d'appel</label>
                 <DatePicker
@@ -455,7 +455,7 @@ const TeacherAttendance = () => {
       {view === 'monthly' && (
         <>
           <div className="glass-card attendance-premium-filter-card" style={{ padding: '20px', marginBottom: 'var(--space-5)' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', alignItems: 'end' }}>
+            <div className="app-filter-grid app-filter-grid--3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', alignItems: 'end' }}>
               <div>
                 <label style={labelStyle}>Mois</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

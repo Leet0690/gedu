@@ -211,7 +211,7 @@ const MonthlyAttendanceTeachers = () => {
 
       {/* Filters */}
       <div className="glass-card" style={{ padding: '20px', marginBottom: 'var(--space-5)' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', alignItems: 'end' }}>
+        <div className="app-filter-grid app-filter-grid--3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', alignItems: 'end' }}>
           <div>
             <label style={labelStyle}>Mois</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

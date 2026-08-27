@@ -926,7 +926,7 @@ const TeacherPortal = () => {
               <p style={{ fontSize: '10px', color: 'var(--text-muted)', margin: '2px 0 0' }}>Ciblez un groupe et un module pour saisir les notes.</p>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-4)' }}>
+          <div className="app-filter-grid app-filter-grid--4" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-4)' }}>
             <div style={fGroup}><label style={lbl}>Niveau</label><FilterSelect value={selectedDiploma} onChange={setSelectedDiploma} options={availableDiplomas.map(d => ({ label: d, value: d }))} /></div>
             <div style={fGroup}><label style={lbl}>Année</label><FilterSelect value={filterYear} onChange={setFilterYear} options={availableYears.map(y => ({ label: y, value: y }))} /></div>
             <div style={fGroup}><label style={lbl}>Filière</label><FilterSelect value={selectedGroup} onChange={setSelectedGroup} options={filteredGroups.map(g => ({ label: g, value: g }))} /></div>
