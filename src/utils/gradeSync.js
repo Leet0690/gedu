@@ -2,6 +2,55 @@ import { getModulesForFiliere } from '../data/modules.js';
 
 export const sanitizeGradeKey = (subject = '') => String(subject || '').replace(/\./g, '_');
 
+export const GRADE_ACADEMIC_YEARS_FIELD = 'academicYears';
+
+const isPlainObject = value => !!value && typeof value === 'object' && !Array.isArray(value);
+
+export const getLegacyGrades = (studentGrades = {}) => {
+  if (!isPlainObject(studentGrades)) return {};
+  return Object.fromEntries(
+    Object.entries(studentGrades).filter(([key]) => key !== GRADE_ACADEMIC_YEARS_FIELD)
+  );
+};
+
+/**
+ * Resolve one academic-year grade map while keeping old flat documents
+ * readable until their first versioned snapshot is created. Once versioning
+ * exists, an absent year stays empty instead of leaking notes from another year.
+ */
+export const getGradesForAcademicYear = (studentGrades = {}, academicYear = '') => {
+  if (!isPlainObject(studentGrades)) return {};
+
+  const legacyGrades = getLegacyGrades(studentGrades);
+  if (!academicYear) return legacyGrades;
+
+  const academicYears = studentGrades[GRADE_ACADEMIC_YEARS_FIELD];
+  if (!isPlainObject(academicYears) || Object.keys(academicYears).length === 0) {
+    return legacyGrades;
+  }
+
+  const versionedGrades = academicYears[academicYear];
+  return isPlainObject(versionedGrades) ? versionedGrades : {};
+};
+
+export const getGradeAcademicYears = (studentGrades = {}) =>
+  Object.keys(studentGrades?.[GRADE_ACADEMIC_YEARS_FIELD] || {}).sort((a, b) => b.localeCompare(a));
+
+/** Seed the first versioned year with legacy notes; later years start isolated. */
+export const getGradeBucketForWrite = (studentGrades = {}, academicYear = '') => {
+  if (!isPlainObject(studentGrades) || !academicYear) return {};
+  const academicYears = isPlainObject(studentGrades[GRADE_ACADEMIC_YEARS_FIELD])
+    ? studentGrades[GRADE_ACADEMIC_YEARS_FIELD]
+    : {};
+  const existingBucket = isPlainObject(academicYears[academicYear])
+    ? academicYears[academicYear]
+    : {};
+  const legacySeed = Object.keys(academicYears).length === 0
+    ? getLegacyGrades(studentGrades)
+    : {};
+  return { ...legacySeed, ...existingBucket };
+};
+
 export const getModuleName = (module) => typeof module === 'string'
   ? module
   : (module?.name || module?.module || module?.label || '');
@@ -90,12 +139,16 @@ export const mergeGradeRecords = (...records) => {
   return Object.keys(merged).length > 0 ? merged : null;
 };
 
-export const getGradeByModuleName = (studentGrades = {}, moduleName = '') => {
+export const getGradeByModuleName = (studentGrades = {}, moduleName = '', academicYear = '') => {
   if (!studentGrades || !moduleName) return null;
 
+  const resolvedGrades = academicYear
+    ? getGradesForAcademicYear(studentGrades, academicYear)
+    : studentGrades;
+
   const gradeRecords = getGradeKeyCandidates(moduleName)
-    .filter(key => Object.prototype.hasOwnProperty.call(studentGrades, key))
-    .map(key => studentGrades[key]);
+    .filter(key => Object.prototype.hasOwnProperty.call(resolvedGrades, key))
+    .map(key => resolvedGrades[key]);
 
   return mergeGradeRecords(...gradeRecords);
 };

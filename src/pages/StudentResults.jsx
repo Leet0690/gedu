@@ -2,14 +2,14 @@ import React, { useMemo, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
-import { getGradeByModuleName, getStudentGradeModules } from '../utils/gradeSync';
+import { getGradeByModuleName, getGradesForAcademicYear, getStudentGradeModules } from '../utils/gradeSync';
 import {
   calcCcAverage,
   calcModuleAverage,
   calcStudentSynthesisAverages,
   parseScore,
 } from '../utils/gradeCalculations';
-import { isActiveStudent, isLaureatStudent } from '../utils/studentStatus';
+import { getStudentCurrentAcademicYear, isActiveStudent, isLaureatStudent } from '../utils/studentStatus';
 import { getDiplomaAbbreviation } from '../data/modules';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
@@ -77,9 +77,12 @@ const StudentResults = () => {
   }, [student]);
 
   const resolvedStudentId = student?.id;
+  const studentAcademicYear = student ? getStudentCurrentAcademicYear(student) : '';
   const studentGrades = useMemo(
-    () => resolvedStudentId ? (grades[resolvedStudentId] || {}) : {},
-    [grades, resolvedStudentId]
+    () => resolvedStudentId
+      ? getGradesForAcademicYear(grades[resolvedStudentId] || {}, studentAcademicYear)
+      : {},
+    [grades, resolvedStudentId, studentAcademicYear]
   );
   const studentModules = useMemo(
     () => getStudentGradeModules(allModules, student),
@@ -123,7 +126,7 @@ const StudentResults = () => {
     });
     const peerAvgs = peers.map(s => {
       const { generalAverage: avg } = calcStudentSynthesisAverages(
-        grades[s.id] || {},
+        getGradesForAcademicYear(grades[s.id] || {}, getStudentCurrentAcademicYear(s)),
         studentModules
       );
       return { id: s.id, avg };
@@ -218,7 +221,7 @@ const StudentResults = () => {
                 <Compass size={13} style={{ opacity: 0.8 }} /> {student.major}
               </span>
               <span style={{ fontSize: '12px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <CalendarCheck size={13} style={{ opacity: 0.8 }} /> {student.year}
+                <CalendarCheck size={13} style={{ opacity: 0.8 }} /> {student.year} · {studentAcademicYear}
               </span>
             </div>
           </div>

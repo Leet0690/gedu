@@ -129,7 +129,7 @@ export const normalizeBulletinModules = (modules = [], grades = {}) => {
 /* ════════════════════════════════════════════════════════════════════
  *  1. FICHE DE SIGNATURE — Par module / par CC
  * ════════════════════════════════════════════════════════════════════ */
-export const generateFicheSignature = async ({ students, filiere, niveau, module, ccNumber, formateur, allGrades }) => {
+export const generateFicheSignature = async ({ students, filiere, niveau, anneeFormation = '', module, ccNumber, formateur, allGrades }) => {
   const logoDataUrl = await loadLogoDataUrl();
   const doc = new jsPDF();
   const w = doc.internal.pageSize.getWidth();
@@ -154,9 +154,9 @@ export const generateFicheSignature = async ({ students, filiere, niveau, module
   doc.setFont('helvetica', 'bold');
   doc.text(filiere || '', margin + 22, y + 7);
   doc.setFont('helvetica', 'normal');
-  doc.text('Niveau : ', margin + tableW / 2 + 3, y + 7);
+  doc.text('Niveau / Année : ', margin + tableW / 2 + 3, y + 7);
   doc.setFont('helvetica', 'bold');
-  doc.text(niveau || '', margin + tableW / 2 + 22, y + 7);
+  doc.text(`${niveau || ''} ${anneeFormation ? `- ${anneeFormation}` : ''}`, margin + tableW / 2 + 34, y + 7);
 
   // Row 2: Formateur | UF N°
   y += rowH;
@@ -229,7 +229,7 @@ export const generateFicheSignature = async ({ students, filiere, niveau, module
     doc.setFont('helvetica', 'normal');
     doc.text(`${student.lastName || ''} ${student.firstName || ''}`, margin + col1W + 3, y + 7);
 
-    const studentGrades = allGrades && allGrades[student.id] && allGrades[student.id][module] ? allGrades[student.id][module] : {};
+    const studentGrades = getGradeByModuleName(allGrades?.[student.id] || {}, module) || {};
     const gradeVal = studentGrades[`c${ccNumber}`];
     const displayGrade = gradeVal !== undefined && gradeVal !== '' ? `${parseFloat(gradeVal).toFixed(2).replace('.', ',')} / 20` : '..................../20';
 
@@ -295,7 +295,7 @@ export const generateFicheNotes = async ({ students, filiere, classe, anneeForma
   doc.setFontSize(9);
   doc.text(filiere || '', margin + col1H / 2, y + 8, { align: 'center' });
   doc.text(classe || '', margin + col1H + col2H / 2, y + 8, { align: 'center' });
-  doc.text(anneeFormation || '2025-2026', margin + col1H + col2H + col3H / 2, y + 8, { align: 'center' });
+  doc.text(anneeFormation || '', margin + col1H + col2H + col3H / 2, y + 8, { align: 'center' });
 
   y += rowH;
   doc.rect(margin, y, tableW / 2, rowH);
@@ -354,7 +354,7 @@ export const generateFicheNotes = async ({ students, filiere, classe, anneeForma
     doc.setFont('helvetica', 'normal');
     doc.text(`${student.lastName || ''} ${student.firstName || ''}`, margin + tCol1 + 3, y + 8);
 
-    const studentGrades = allGrades && allGrades[student.id] && allGrades[student.id][module] ? allGrades[student.id][module] : {};
+    const studentGrades = getGradeByModuleName(allGrades?.[student.id] || {}, module) || {};
     const valEFCFP = studentGrades.efcfp;
     const valEFCFT = studentGrades.efcft;
 
@@ -386,7 +386,7 @@ export const generateFicheNotes = async ({ students, filiere, classe, anneeForma
 /* ════════════════════════════════════════════════════════════════════
  *  3. RELEVÉ DES NOTES — Par stagiaire, toutes les notes
  * ════════════════════════════════════════════════════════════════════ */
-export const generateBulletinGlobal = async (student, allGrades, modules, { save = true } = {}) => {
+export const generateBulletinGlobal = async (student, allGrades, modules, { save = true, academicYear = '' } = {}) => {
   const logoDataUrl = await loadLogoDataUrl();
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const w = doc.internal.pageSize.getWidth();
@@ -459,7 +459,7 @@ export const generateBulletinGlobal = async (student, allGrades, modules, { save
   doc.rect(margin, y, tableW, infoH, 'FD');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
-  doc.text('ANNEE DE FORMATION : 2025-2026', w / 2, y + 5.5, { align: 'center' });
+  doc.text(`ANNEE DE FORMATION : ${academicYear || student.academicYear || ''}`, w / 2, y + 5.5, { align: 'center' });
 
   // ── Grades Table ──
   y += infoH + 2;
@@ -649,7 +649,7 @@ export const generateBulletinGlobal = async (student, allGrades, modules, { save
 /* ════════════════════════════════════════════════════════════════════
  *  4. NOTE D'OBTENTION DE DIPLÔME
  * ════════════════════════════════════════════════════════════════════ */
-export const generateNoteObtentionDiplome = async (student, allGrades, modules) => {
+export const generateNoteObtentionDiplome = async (student, allGrades, modules, { academicYear = '' } = {}) => {
   const logoDataUrl = await loadLogoDataUrl();
   const doc = new jsPDF();
   const w = doc.internal.pageSize.getWidth();
@@ -692,7 +692,7 @@ export const generateNoteObtentionDiplome = async (student, allGrades, modules) 
   doc.setFont('helvetica', 'bold');
   doc.text('Année de formation', margin + cL + 12, y + 6);
   doc.setFont('helvetica', 'normal');
-  doc.text('2024-2025', margin + cL + cR + 12, y + 6);
+  doc.text(academicYear || student.academicYear || '', margin + cL + cR + 12, y + 6);
 
   // Block: Filière | N° d'inscription
   doc.setFillColor(...lightBlue);
@@ -725,7 +725,8 @@ export const generateNoteObtentionDiplome = async (student, allGrades, modules) 
   // ── Compute averages ──
   let sumCC = 0, sumEFCFT = 0, sumEFCFP = 0, cnt = 0;
   modules.forEach(mod => {
-    const g = grades[mod] || {};
+    const moduleName = typeof mod === 'string' ? mod : (mod?.name || '');
+    const g = getGradeByModuleName(grades, moduleName) || {};
     const { c1, c2, c3, efcfp, efcft } = g;
     if (c1 && c2 && efcfp && efcft) {
       const n1 = parseFloat(c1), n2 = parseFloat(c2);

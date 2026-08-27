@@ -4,14 +4,23 @@ import { FilterSelect } from '../components/ui/FilterSelect';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { FILIERES, getClassCode, getNextStudyYear, getStudyYearsForDiploma } from '../data/modules';
-import { getGradeByModuleName, getStudentGradeModules, sanitizeGradeKey } from '../utils/gradeSync';
+import {
+  getGradeByModuleName,
+  getGradesForAcademicYear,
+  getStudentGradeModules,
+  sanitizeGradeKey,
+} from '../utils/gradeSync';
 import {
   calcCcAverage,
   calcModuleAverage,
   calcStudentSynthesisAverages,
   parseScore,
 } from '../utils/gradeCalculations';
-import { isActiveStudent } from '../utils/studentStatus';
+import {
+  getAvailableAcademicYears,
+  getDefaultAcademicYearTransition,
+  getStudentAcademicSnapshot,
+} from '../utils/studentStatus';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 
@@ -100,11 +109,40 @@ const GradeManagement = () => {
   const [filterDiploma, setFilterDiploma] = useState('');
   const [filterMajor, setFilterMajor] = useState('');
   const [filterYear, setFilterYear] = useState('');
+  const [filterAcademicYear, setFilterAcademicYear] = useState(
+    () => getDefaultAcademicYearTransition().fromAcademicYear
+  );
   const [saved, setSaved] = useState(false);
   const [localGrades, setLocalGrades] = useState({});
   const [moduleLocalGrades, setModuleLocalGrades] = useState({});
   const [moduleDirtyStudentIds, setModuleDirtyStudentIds] = useState(() => new Set());
-  const activeStudents = useMemo(() => (students || []).filter(isActiveStudent), [students]);
+  const availableAcademicYears = useMemo(
+    () => getAvailableAcademicYears(students, []),
+    [students]
+  );
+  const academicStudents = useMemo(() => (students || [])
+    .map(student => getStudentAcademicSnapshot(student, filterAcademicYear))
+    .filter(Boolean), [students, filterAcademicYear]);
+  const availableDiplomas = useMemo(() => Array.from(new Set([
+    ...Object.keys(FILIERES),
+    ...academicStudents.map(student => student.diploma).filter(Boolean),
+  ])), [academicStudents]);
+  const availableMajors = useMemo(() => {
+    const configuredMajors = filterDiploma ? (FILIERES[filterDiploma] || []) : Object.values(FILIERES).flat();
+    const historicalMajors = academicStudents
+      .filter(student => !filterDiploma || student.diploma === filterDiploma)
+      .map(student => student.major)
+      .filter(Boolean);
+    return Array.from(new Set([...configuredMajors, ...historicalMajors]));
+  }, [academicStudents, filterDiploma]);
+  const availableStudyYears = useMemo(() => {
+    const configuredYears = getStudyYearsForDiploma(filterDiploma);
+    const historicalYears = academicStudents
+      .filter(student => !filterDiploma || student.diploma === filterDiploma)
+      .map(student => student.year)
+      .filter(Boolean);
+    return Array.from(new Set([...configuredYears, ...historicalYears]));
+  }, [academicStudents, filterDiploma]);
 
   // ── PDF States ──
   const [showDocPanel, setShowDocPanel] = useState(false);
@@ -112,17 +150,15 @@ const GradeManagement = () => {
   const [pdfCC, setPdfCC] = useState('1');
 
   const filteredStudents = useMemo(() => {
-    return activeStudents.filter(s => {
+    return academicStudents.filter(s => {
       if (filterDiploma && s.diploma !== filterDiploma) return false;
       if (filterMajor && s.major !== filterMajor) return false;
       if (filterYear && s.year !== filterYear) return false;
       return true;
     });
-  }, [activeStudents, filterDiploma, filterMajor, filterYear]);
+  }, [academicStudents, filterDiploma, filterMajor, filterYear]);
 
-  const availableMajors = filterDiploma ? (FILIERES[filterDiploma] || []) : Array.from(new Set(activeStudents.map(s => s.major)));
-
-  const selectedStudent = activeStudents.find(s => s.id === selectedStudentId);
+  const selectedStudent = academicStudents.find(s => s.id === selectedStudentId);
   const supportsTwoYearFinalDocument = !!selectedStudent
     && getStudyYearsForDiploma(selectedStudent.diploma).length > 1
     && !getNextStudyYear(selectedStudent.diploma, selectedStudent.year);
@@ -133,8 +169,10 @@ const GradeManagement = () => {
   const modules = studentModules.map(m => m.name);
   
   React.useEffect(() => {
-    setLocalGrades(selectedStudent ? (grades[selectedStudent.id] || {}) : {});
-  }, [selectedStudent, grades]);
+    setLocalGrades(selectedStudent
+      ? getGradesForAcademicYear(grades[selectedStudent.id] || {}, filterAcademicYear)
+      : {});
+  }, [selectedStudent, grades, filterAcademicYear]);
 
   // Modules for PDF (based on filters, not selected student)
   const pdfModulesList = useMemo(() => {
@@ -164,13 +202,20 @@ const GradeManagement = () => {
 
   // Students for PDF (filtered)
   const pdfStudents = useMemo(() => {
-    return activeStudents.filter(s => {
+    return academicStudents.filter(s => {
       if (filterDiploma && s.diploma !== filterDiploma) return false;
       if (filterMajor && s.major !== filterMajor) return false;
       if (filterYear && s.year !== filterYear) return false;
       return true;
     }).sort((a, b) => (a.regNo || '').localeCompare(b.regNo || ''));
-  }, [activeStudents, filterDiploma, filterMajor, filterYear]);
+  }, [academicStudents, filterDiploma, filterMajor, filterYear]);
+
+  const academicGrades = useMemo(() => Object.fromEntries(
+    academicStudents.map(student => [
+      student.id,
+      getGradesForAcademicYear(grades[student.id] || {}, filterAcademicYear),
+    ])
+  ), [academicStudents, grades, filterAcademicYear]);
 
   React.useEffect(() => {
     if (!selectedGradeModule) {
@@ -183,12 +228,12 @@ const GradeManagement = () => {
     moduleStudents.forEach(student => {
       nextGrades[student.id] = {
         ...EMPTY_GRADE,
-        ...(getGradeByModuleName(grades[student.id], selectedGradeModule) || {}),
+        ...(getGradeByModuleName(academicGrades[student.id], selectedGradeModule) || {}),
       };
     });
     setModuleLocalGrades(nextGrades);
     setModuleDirtyStudentIds(new Set());
-  }, [grades, moduleStudents, selectedGradeModule]);
+  }, [academicGrades, moduleStudents, selectedGradeModule]);
 
   const canDiscardModuleDraft = async () => {
     if (moduleDirtyStudentIds.size === 0 || !confirmAction) return true;
@@ -197,6 +242,17 @@ const GradeManagement = () => {
       message: 'Des notes saisies par module ne sont pas encore enregistrées. Voulez-vous abandonner ces modifications ?',
       type: 'warning',
     });
+  };
+
+  const handleAcademicYearFilterChange = async (value) => {
+    if (!(await canDiscardModuleDraft())) return;
+    setFilterAcademicYear(value);
+    setFilterDiploma('');
+    setFilterMajor('');
+    setFilterYear('');
+    setSelectedStudentId('');
+    setSelectedGradeModule('');
+    setPdfModule('');
   };
 
   const handleDiplomaFilterChange = async (value) => {
@@ -276,6 +332,7 @@ const GradeManagement = () => {
 
     const updates = Object.keys(localGrades).map(moduleKey => ({
       studentId: selectedStudentId,
+      academicYear: filterAcademicYear,
       subject: moduleKey,
       gradeData: localGrades[moduleKey]
     }));
@@ -311,6 +368,7 @@ const GradeManagement = () => {
 
     await batchUpdateGrades(dirtyIds.map(studentId => ({
       studentId,
+      academicYear: filterAcademicYear,
       subject: selectedGradeModule,
       gradeData: { ...EMPTY_GRADE, ...(moduleLocalGrades[studentId] || {}) },
     })));
@@ -382,7 +440,8 @@ const GradeManagement = () => {
       module: pdfModule,
       ccNumber: pdfCC,
       formateur: findFormateur(pdfModule),
-      allGrades: grades,
+      anneeFormation: filterAcademicYear,
+      allGrades: academicGrades,
     });
     showToast('Fiche de signature générée', 'success');
   };
@@ -394,10 +453,10 @@ const GradeManagement = () => {
       students: pdfStudents,
       filiere: filterMajor,
       classe: filterYear || '',
-      anneeFormation: '2025-2026',
+      anneeFormation: filterAcademicYear,
       module: pdfModule,
       formateur: findFormateur(pdfModule),
-      allGrades: grades,
+      allGrades: academicGrades,
     });
     showToast('Fiche de notes générée', 'success');
   };
@@ -406,20 +465,25 @@ const GradeManagement = () => {
     if (!selectedStudent) return;
     const { generateBulletinGlobal } = await import('../utils/pdfGenerator');
     await generateBulletinGlobal(selectedStudent, {
-      ...grades,
+      ...academicGrades,
       [selectedStudent.id]: localGrades,
-    }, studentModules);
+    }, studentModules, { academicYear: filterAcademicYear });
     showToast('Bulletin généré', 'success');
   };
 
   const handleNoteObtentionDiplome = async () => {
     if (!selectedStudent) return;
     const { generateNoteObtentionDiplome } = await import('../utils/pdfGenerator');
-    await generateNoteObtentionDiplome(selectedStudent, grades, modules);
+    await generateNoteObtentionDiplome(
+      selectedStudent,
+      { ...academicGrades, [selectedStudent.id]: localGrades },
+      modules,
+      { academicYear: filterAcademicYear }
+    );
     showToast('Attestation générée', 'success');
   };
 
-  if (loading && activeStudents.length === 0) {
+  if (loading && students.length === 0) {
     return (
       <div className="max-w-container section-padding">
         <TableSkeleton rows={12} />
@@ -521,13 +585,21 @@ const GradeManagement = () => {
         </div>
         <div className="grade-premium-filter-grid">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={lbl}>Année académique</label>
+            <FilterSelect
+              value={filterAcademicYear}
+              onChange={handleAcademicYearFilterChange}
+              options={availableAcademicYears.map(year => ({ label: year, value: year }))}
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label style={lbl}>Niveau</label>
             <FilterSelect
               value={filterDiploma}
               onChange={handleDiplomaFilterChange}
               options={[
                 { label: "-- Choisir le niveau --", value: "" },
-                ...Object.keys(FILIERES).map(d => ({ label: d, value: d }))
+                ...availableDiplomas.map(d => ({ label: d, value: d }))
               ]}
             />
           </div>
@@ -543,13 +615,13 @@ const GradeManagement = () => {
             />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={lbl}>Année</label>
+            <label style={lbl}>Année d'étude</label>
             <FilterSelect
               value={filterYear}
               onChange={handleYearFilterChange}
               options={[
                 { label: "-- Choisir l'année --", value: "" },
-                ...getStudyYearsForDiploma(filterDiploma).map(year => ({ label: year, value: year }))
+                ...availableStudyYears.map(year => ({ label: year, value: year }))
               ]}
             />
           </div>
@@ -708,7 +780,7 @@ const GradeManagement = () => {
                       {selectedGradeModule}
                     </h3>
                     <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600', marginTop: '4px' }}>
-                      {filterMajor} · {filterYear} · saisie par module
+                      {filterMajor} · {filterYear} · {filterAcademicYear} · saisie par module
                     </p>
                   </div>
                 </div>
@@ -739,7 +811,7 @@ const GradeManagement = () => {
 
               {moduleStudents.length === 0 ? (
                 <div className="grade-premium-empty-shell">
-                  <EmptyState title="Aucun stagiaire" message="Aucun stagiaire actif ne correspond à cette classe." icon="search" />
+                  <EmptyState title="Aucun stagiaire" message={`Aucun stagiaire ne correspond à cette classe pour ${filterAcademicYear}.`} icon="search" />
                 </div>
               ) : (
                 <div className="glass-card grade-premium-table-shell">

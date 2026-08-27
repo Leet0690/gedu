@@ -20,10 +20,22 @@ import {
 import { db } from '../firebase';
 import ConfirmModal from '../components/ConfirmModal';
 import { useToast } from './ToastContext';
-import { sanitizeGradeKey } from '../utils/gradeSync';
+import {
+  GRADE_ACADEMIC_YEARS_FIELD,
+  getGradeBucketForWrite,
+  sanitizeGradeKey,
+} from '../utils/gradeSync';
 import { getStudentAttendanceWriteTarget } from '../utils/attendanceKeys';
 import { getScheduleModuleForSemester, normalizeSemester } from '../utils/scheduleSemester';
-import { STUDENT_STATUS, isActiveStudent, validateAcademicYearTransition } from '../utils/studentStatus';
+import {
+  STUDENT_STATUS,
+  getDefaultAcademicYearTransition,
+  getPaymentAcademicYear,
+  getStudentCurrentAcademicYear,
+  isActiveStudent,
+  isStudentCurrentlyInAcademicYear,
+  validateAcademicYearTransition,
+} from '../utils/studentStatus';
 import { getNextStudyYear, isKnownStudyYear } from '../data/modules';
 
 const AppContext = createContext();
@@ -641,7 +653,8 @@ export const AppProvider = ({ children }) => {
   // --- STAGIAIRES ---
   const addStudent = async (studentData) => {
     const token = makeToken(32);
-    const newStudent = { ...studentData, token, createdAt: serverTimestamp() };
+    const academicYear = studentData.academicYear || getDefaultAcademicYearTransition().fromAcademicYear;
+    const newStudent = { ...studentData, academicYear, token, createdAt: serverTimestamp() };
     const docRef = await addDoc(collection(db, 'students'), newStudent);
     setStudents(prev => [{ id: docRef.id, ...newStudent }, ...prev]);
     showToast(`Nouveau stagiaire ajouté : ${studentData.lastName}.`, 'success');
@@ -665,6 +678,7 @@ export const AppProvider = ({ children }) => {
     const operationId = `academic-year-${Date.now()}`;
     const candidates = (students || [])
       .filter(isActiveStudent)
+      .filter(student => isStudentCurrentlyInAcademicYear(student, fromAcademicYear))
       .filter(s => isKnownStudyYear(s.diploma, s.year));
 
     if (candidates.length === 0) {
@@ -683,6 +697,8 @@ export const AppProvider = ({ children }) => {
     }
 
     const updates = candidates.map(student => {
+      const studentGradeDocument = grades[student.id] || {};
+      const archivedGrades = getGradeBucketForWrite(studentGradeDocument, fromAcademicYear);
       const historyEntry = {
         academicYear: fromAcademicYear,
         diploma: student.diploma || '',
@@ -700,18 +716,21 @@ export const AppProvider = ({ children }) => {
           id: student.id,
           localData: {
             status: STUDENT_STATUS.LAUREAT,
+            academicYear: fromAcademicYear,
             graduationAcademicYear: fromAcademicYear,
             graduatedAt: closedAt,
             classHistory,
           },
           firestoreData: {
             status: STUDENT_STATUS.LAUREAT,
+            academicYear: fromAcademicYear,
             graduationAcademicYear: fromAcademicYear,
             graduatedAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
             classHistory,
           },
           type: 'graduated',
+          archivedGrades,
         };
       }
 
@@ -737,17 +756,27 @@ export const AppProvider = ({ children }) => {
           classHistory,
         },
         type: 'promoted',
+        archivedGrades,
       };
     });
 
     // Improvement #9: Progressive batch processing with error handling
     let processedIds = [];
     try {
-      for (let i = 0; i < updates.length; i += 450) {
-        const chunk = updates.slice(i, i + 450);
+      // A candidate can generate two writes (student + grade snapshot), so
+      // keep each batch safely below Firestore's 500-write limit.
+      for (let i = 0; i < updates.length; i += 225) {
+        const chunk = updates.slice(i, i + 225);
         const batch = writeBatch(db);
-        chunk.forEach(({ id, firestoreData }) => {
+        chunk.forEach(({ id, firestoreData, archivedGrades }) => {
           batch.update(doc(db, 'students', id), firestoreData);
+          if (Object.keys(archivedGrades || {}).length > 0) {
+            batch.set(doc(db, 'grades', id), {
+              [GRADE_ACADEMIC_YEARS_FIELD]: {
+                [fromAcademicYear]: archivedGrades,
+              },
+            }, { merge: true });
+          }
         });
         await batch.commit();
         // Update local state progressively after each successful batch
@@ -755,6 +784,21 @@ export const AppProvider = ({ children }) => {
         processedIds = [...processedIds, ...chunkIds];
         const chunkMap = new Map(chunk.map(item => [item.id, item.localData]));
         setStudents(prev => prev.map(student => chunkMap.has(student.id) ? { ...student, ...chunkMap.get(student.id) } : student));
+        setGrades(prev => {
+          const next = { ...prev };
+          chunk.forEach(({ id, archivedGrades }) => {
+            if (Object.keys(archivedGrades || {}).length === 0) return;
+            const studentGradeDocument = prev[id] || {};
+            next[id] = {
+              ...studentGradeDocument,
+              [GRADE_ACADEMIC_YEARS_FIELD]: {
+                ...(studentGradeDocument[GRADE_ACADEMIC_YEARS_FIELD] || {}),
+                [fromAcademicYear]: archivedGrades,
+              },
+            };
+          });
+          return next;
+        });
       }
     } catch (err) {
       console.error('Erreur batch cl\u00f4ture:', err);
@@ -848,6 +892,7 @@ export const AppProvider = ({ children }) => {
       const restoreData = {
         year: lastEntry.year,
         status: lastEntry.status || STUDENT_STATUS.ACTIVE,
+        academicYear: lastEntry.academicYear || '',
         classHistory: restoredHistory,
       };
 
@@ -855,7 +900,6 @@ export const AppProvider = ({ children }) => {
       const cleanFields = {
         graduationAcademicYear: '',
         graduatedAt: '',
-        academicYear: '',
         previousAcademicYear: '',
         promotedFromYear: '',
         promotedAt: '',
@@ -972,18 +1016,35 @@ export const AppProvider = ({ children }) => {
   };
 
   // --- NOTES ---
-  const updateGrades = async (studentId, subject, gradeData) => {
+  const resolveGradeAcademicYear = (studentId, academicYear = '') =>
+    academicYear || getStudentCurrentAcademicYear((students || []).find(student => student.id === studentId));
+
+  const updateGrades = async (studentId, subject, gradeData, academicYear = '') => {
     const safeSubject = sanitizeGradeKey(subject);
+    const resolvedAcademicYear = resolveGradeAcademicYear(studentId, academicYear);
+    const currentStudentGrades = grades[studentId] || {};
+    const nextGradeBucket = {
+      ...getGradeBucketForWrite(currentStudentGrades, resolvedAcademicYear),
+      [safeSubject]: gradeData,
+    };
     const gradeRef = doc(db, 'grades', studentId);
-    await setDoc(gradeRef, { [safeSubject]: gradeData }, { merge: true });
+    await setDoc(gradeRef, {
+      [GRADE_ACADEMIC_YEARS_FIELD]: {
+        [resolvedAcademicYear]: nextGradeBucket
+      }
+    }, { merge: true });
     
     setGrades(prev => {
-      if (prev[studentId]?.[safeSubject] === gradeData) return prev;
+      const currentStudentGrades = prev[studentId] || {};
+      const currentAcademicYears = currentStudentGrades[GRADE_ACADEMIC_YEARS_FIELD] || {};
       return {
         ...prev,
         [studentId]: {
-          ...(prev[studentId] || {}),
-          [safeSubject]: gradeData
+          ...currentStudentGrades,
+          [GRADE_ACADEMIC_YEARS_FIELD]: {
+            ...currentAcademicYears,
+            [resolvedAcademicYear]: nextGradeBucket,
+          },
         }
       };
     });
@@ -994,13 +1055,29 @@ export const AppProvider = ({ children }) => {
     const batch = writeBatch(db);
     const newGrades = { ...grades };
     
-    updates.forEach(({studentId, subject, gradeData}) => {
+    updates.forEach(({studentId, subject, gradeData, academicYear}) => {
       const safeSubject = sanitizeGradeKey(subject);
+      const resolvedAcademicYear = resolveGradeAcademicYear(studentId, academicYear);
+      const currentStudentGrades = newGrades[studentId] || {};
+      const nextGradeBucket = {
+        ...getGradeBucketForWrite(currentStudentGrades, resolvedAcademicYear),
+        [safeSubject]: gradeData,
+      };
       const gradeRef = doc(db, 'grades', studentId);
-      batch.set(gradeRef, { [safeSubject]: gradeData }, { merge: true });
-      
-      if (!newGrades[studentId]) newGrades[studentId] = {};
-      newGrades[studentId][safeSubject] = gradeData;
+      batch.set(gradeRef, {
+        [GRADE_ACADEMIC_YEARS_FIELD]: {
+          [resolvedAcademicYear]: nextGradeBucket
+        }
+      }, { merge: true });
+
+      const currentAcademicYears = currentStudentGrades[GRADE_ACADEMIC_YEARS_FIELD] || {};
+      newGrades[studentId] = {
+        ...currentStudentGrades,
+        [GRADE_ACADEMIC_YEARS_FIELD]: {
+          ...currentAcademicYears,
+          [resolvedAcademicYear]: nextGradeBucket,
+        },
+      };
     });
     
     await batch.commit();
@@ -1157,10 +1234,30 @@ export const AppProvider = ({ children }) => {
         getDocs(query(collection(db, 'payments'), orderBy('createdAt', 'desc'))),
         getDocs(query(collection(db, 'salaries'), orderBy('createdAt', 'desc'))),
         getDocs(query(collection(db, 'expenses'), orderBy('createdAt', 'desc')))
-      ]).then(([paySnap, salSnap, expSnap]) => {
-        const payments = paySnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      ]).then(async ([paySnap, salSnap, expSnap]) => {
+        const paymentBackfill = [];
+        const payments = paySnap.docs.map(paymentDoc => {
+          const payment = { id: paymentDoc.id, ...paymentDoc.data() };
+          const academicYear = getPaymentAcademicYear(payment);
+          if (academicYear && payment.academicYear !== academicYear) {
+            paymentBackfill.push({ ref: paymentDoc.ref, academicYear });
+          }
+          return academicYear ? { ...payment, academicYear } : payment;
+        });
         const salaries = salSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         const expenses = expSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        try {
+          for (let i = 0; i < paymentBackfill.length; i += 450) {
+            const batch = writeBatch(db);
+            paymentBackfill.slice(i, i + 450).forEach(({ ref, academicYear }) => {
+              batch.update(ref, { academicYear });
+            });
+            await batch.commit();
+          }
+        } catch (migrationError) {
+          // Reading and filtering still work from the normalized in-memory data.
+          console.warn('Impossible de compléter les années académiques des anciens paiements:', migrationError);
+        }
         writeCache(FINANCE_CACHE_PAYMENTS_KEY, payments);
         writeCache(FINANCE_CACHE_SALARIES_KEY, salaries);
         writeCache(FINANCE_CACHE_EXPENSES_KEY, expenses);
@@ -1197,10 +1294,12 @@ export const AppProvider = ({ children }) => {
       const counterData = counterSnapshot.exists() ? counterSnapshot.data() : {};
       const currentValue = Number(counterData?.value) || 0;
       const nextValue = counterSnapshot.exists() ? currentValue + 1 : existingFloor + 1;
+      const academicYear = getPaymentAcademicYear(paymentData) || counterData?.academicYear || '';
       newPayment = {
         ...paymentData,
+        academicYear,
         receiptNumber: `${prefix}${String(nextValue).padStart(4, '0')}`,
-        receiptAcademicYear: counterData?.academicYear || paymentData.academicYear || '',
+        receiptAcademicYear: counterData?.academicYear || academicYear,
         createdAt: serverTimestamp()
       };
       transaction.set(counterRef, { value: nextValue, updatedAt: serverTimestamp() }, { merge: true });
@@ -1214,8 +1313,11 @@ export const AppProvider = ({ children }) => {
   };
 
   const updatePayment = async (id, data) => {
-    await updateDoc(doc(db, 'payments', id), data);
-    setPayments(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
+    const currentPayment = payments.find(payment => payment.id === id) || {};
+    const academicYear = getPaymentAcademicYear({ ...currentPayment, ...data });
+    const normalizedData = academicYear ? { ...data, academicYear } : data;
+    await updateDoc(doc(db, 'payments', id), normalizedData);
+    setPayments(prev => prev.map(p => p.id === id ? { ...p, ...normalizedData } : p));
     localStorage.removeItem(FINANCE_CACHE_PAYMENTS_KEY);
     showToast('Paiement mis à jour', 'success');
   };

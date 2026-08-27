@@ -3,10 +3,44 @@ import assert from 'node:assert/strict';
 
 import {
   getGradeByModuleName,
+  getGradeBucketForWrite,
+  getGradesForAcademicYear,
   getModuleOrder,
   getStudentGradeModules,
   sortModulesByOrder,
 } from '../src/utils/gradeSync.js';
+
+test('legacy flat grades remain readable before the first academic-year snapshot', () => {
+  const grades = { Comptabilite: { c1: '12' } };
+
+  assert.deepEqual(
+    getGradesForAcademicYear(grades, '2025-2026'),
+    grades
+  );
+  assert.deepEqual(
+    getGradeBucketForWrite(grades, '2025-2026'),
+    grades
+  );
+});
+
+test('versioned grades are isolated by academic year', () => {
+  const grades = {
+    Legacy: { c1: '7' },
+    academicYears: {
+      '2024-2025': { Comptabilite: { c1: '11' } },
+      '2025-2026': { Comptabilite: { c1: '16' } },
+    },
+  };
+
+  assert.equal(getGradesForAcademicYear(grades, '2024-2025').Comptabilite.c1, '11');
+  assert.equal(getGradesForAcademicYear(grades, '2025-2026').Comptabilite.c1, '16');
+  assert.deepEqual(getGradesForAcademicYear(grades, '2026-2027'), {});
+  assert.deepEqual(getGradeBucketForWrite(grades, '2026-2027'), {});
+  assert.equal(
+    getGradeByModuleName(grades, 'Comptabilite', '2025-2026').c1,
+    '16'
+  );
+});
 
 test('getStudentGradeModules returns one row per module name for a student class', () => {
   const student = {

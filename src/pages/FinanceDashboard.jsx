@@ -11,7 +11,21 @@ import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
 import { DatePicker } from '../components/ui';
 import { FilterSelect } from '../components/ui/FilterSelect';
-import { isActiveStudent } from '../utils/studentStatus';
+import {
+  getPaymentStatusKey,
+  getPaymentStatusLabel,
+  hasDuplicateMonthlyPayment,
+} from '../utils/paymentUtils';
+import {
+  getAvailableAcademicYears,
+  getDefaultAcademicYearTransition,
+  getPaymentAcademicYear,
+  getStudentAcademicSnapshot,
+  getStudentCurrentAcademicYear,
+  getStudentPreviousYearBalance,
+  getStudentStudyCycleRange,
+  isActiveStudent,
+} from '../utils/studentStatus';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { 
   Lock, 
@@ -168,26 +182,6 @@ const getContinuousTeacherSalary = (training, revenue) => {
     : Math.round(revenue * value / 100);
 };
 
-const normalizeStatus = (value = '') =>
-  String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-
-const getPaymentStatusKey = (status) => {
-  const normalized = normalizeStatus(status || 'payé');
-  if (
-    normalized.includes('impaye') ||
-    normalized.includes('unpaid') ||
-    normalized.includes('non paye') ||
-    normalized.includes('a payer') ||
-    normalized.includes('a regler')
-  ) {
-    return 'unpaid';
-  }
-  return 'paid';
-};
-
-const getPaymentStatusLabel = (status) =>
-  getPaymentStatusKey(status) === 'unpaid' ? 'Impayé' : 'Payé';
-
 const formatDisplayDate = (date) => {
   if (!date) return 'Sans date';
   const parsed = new Date(`${date}T00:00:00`);
@@ -287,7 +281,32 @@ const FinanceDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearch = useDebounce(searchTerm, 300);
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('');
+  const defaultAcademicYear = useMemo(
+    () => getDefaultAcademicYearTransition().fromAcademicYear,
+    []
+  );
+  const [paymentAcademicYearFilter, setPaymentAcademicYearFilter] = useState(
+    () => defaultAcademicYear
+  );
   const [paymentMonthFilter, setPaymentMonthFilter] = useState(getCurrentMonthName);
+  const availableAcademicYears = useMemo(() => getAvailableAcademicYears(students, payments), [students, payments]);
+  const previousYearArrearsMap = useMemo(() => {
+    const map = {};
+    (students || []).forEach(student => {
+      const bal = getStudentPreviousYearBalance(student, payments);
+      if (bal.hasUnpaid) {
+        map[student.id] = bal;
+      }
+    });
+    return map;
+  }, [students, payments]);
+  const resolvePaymentStudent = (payment = {}) => {
+    if (payment.studentSnapshot) return { id: payment.studentId, ...payment.studentSnapshot };
+    const currentStudent = students.find(student => student.id === payment.studentId);
+    if (!currentStudent) return null;
+    const paymentAcademicYear = getPaymentAcademicYear(payment);
+    return getStudentAcademicSnapshot(currentStudent, paymentAcademicYear) || currentStudent;
+  };
   const [summaryMonthFilter, setSummaryMonthFilter] = useState(getCurrentMonthName);
   const [teacherSearchTerm, setTeacherSearchTerm] = useState('');
   const debouncedTeacherSearch = useDebounce(teacherSearchTerm, 300);
@@ -330,6 +349,7 @@ const FinanceDashboard = () => {
   const [editingPayment, setEditingPayment] = useState(null);
   const [paymentData, setPaymentData] = useState({
     studentId: '',
+    academicYear: defaultAcademicYear,
     amount: '',
     examFee: '',
     registrationFee: '',
@@ -371,6 +391,7 @@ const FinanceDashboard = () => {
     setPaymentModalFilter({ diploma: '', major: '', year: '' });
     setPaymentData({
       studentId: payment.studentId || '',
+      academicYear: getPaymentAcademicYear(payment) || defaultAcademicYear,
       amount: String(getPaymentBaseAmount(payment) || ''),
       examFee: String(findFee("Frais d'examen") || parseFloat(payment.examFee) || ''),
       registrationFee: String(findFee("Frais d'inscription") || parseFloat(payment.registrationFee) || ''),
@@ -385,14 +406,15 @@ const FinanceDashboard = () => {
 
   const exportPaymentsCSV = () => {
     const selectedMonth = paymentMonthFilter || currentMonthName;
-    const rows = [['Nom', 'Prénom', 'Filière', 'Mois', 'Montant (DH)', 'Date', 'Statut']];
+    const rows = [['Nom', 'Prénom', 'Filière', 'Année académique', 'Mois', 'Montant (DH)', 'Date', 'Statut']];
     filteredPayments.forEach(p => {
       if (p.isVirtualUnpaid) return;
-      const student = students.find(s => s.id === p.studentId);
+      const student = resolvePaymentStudent(p);
       rows.push([
         student?.lastName || '',
         student?.firstName || '',
         student?.major || '',
+        getPaymentAcademicYear(p),
         p.month,
         getPaymentTotal(p),
         p.date || '',
@@ -436,10 +458,15 @@ const FinanceDashboard = () => {
   };
 
   const openPaymentModal = (studentId = '') => {
+    const selectedStudent = students.find(student => student.id === studentId);
+    const academicYear = paymentAcademicYearFilter ||
+      (selectedStudent ? getStudentCurrentAcademicYear(selectedStudent) : '') ||
+      defaultAcademicYear;
     setEditingPayment(null);
     setPaymentModalFilter({ diploma: '', major: '', year: '' });
     setPaymentData({
       studentId,
+      academicYear,
       amount: '',
       examFee: '',
       registrationFee: '',
@@ -515,7 +542,7 @@ const FinanceDashboard = () => {
       doc.text(doc.splitTextToSize(`${student.firstName || ''} ${student.lastName || ''}`.trim(), 56)[0] || '-', margin + 3, offsetY + 32);
       doc.text(doc.splitTextToSize(`Filiere: ${student.major || '-'}`, 56)[0] || '-', margin + 3, offsetY + 37);
       doc.text(`Mois: ${payment.month}`, w / 2 + 3, offsetY + 32);
-      doc.text(`Mode: ${payment.paymentMethod || 'Espèces'}`, w / 2 + 3, offsetY + 37);
+      doc.text(`Annee: ${getPaymentAcademicYear(payment) || '-'} - ${payment.paymentMethod || 'Espèces'}`, w / 2 + 3, offsetY + 37);
 
       let y = offsetY + 47;
       doc.setFont('helvetica', 'bold'); doc.setFontSize(6);
@@ -640,15 +667,31 @@ const FinanceDashboard = () => {
 
   const monthlyPaymentRows = useMemo(() => {
     const selectedMonth = paymentMonthFilter || currentMonthName;
-    const activeStudentIds = new Set(activeStudents.map(student => student.id));
-    const paymentsForMonth = payments.filter(p =>
-      (p.month || '').toLowerCase() === selectedMonth.toLowerCase() &&
-      activeStudentIds.has(p.studentId)
-    );
+
+    // Filter real payments by month and optional academic year filter
+    const paymentsForMonth = payments.filter(p => {
+      const isMonthMatch = !selectedMonth || (p.month || '').toLowerCase() === selectedMonth.toLowerCase();
+      if (!isMonthMatch) return false;
+      if (paymentAcademicYearFilter) {
+        const pYear = getPaymentAcademicYear(p);
+        if (pYear !== paymentAcademicYearFilter) return false;
+      }
+      return true;
+    });
+
     const paidStudentIds = new Set(paymentsForMonth.map(p => p.studentId).filter(Boolean));
+
+    // Target students for virtual unpaid calculation
+    let candidateStudents = activeStudents;
+    if (paymentAcademicYearFilter) {
+      candidateStudents = (students || [])
+        .map(student => getStudentAcademicSnapshot(student, paymentAcademicYearFilter))
+        .filter(Boolean);
+    }
+
     const monthlyRows = [
       ...paymentsForMonth,
-      ...activeStudents
+      ...candidateStudents
         .filter(student => !paidStudentIds.has(student.id))
         .map(student => ({
           id: `unpaid-${student.id}-${selectedMonth}`,
@@ -657,12 +700,21 @@ const FinanceDashboard = () => {
           amount: 0,
           date: '-',
           status: 'impayé',
-          isVirtualUnpaid: true
+          isVirtualUnpaid: true,
+          academicYear: paymentAcademicYearFilter || student.academicYear || '',
+          studentSnapshot: {
+            firstName: student.firstName || '',
+            lastName: student.lastName || '',
+            regNo: student.regNo || '',
+            diploma: student.diploma || '',
+            major: student.major || '',
+            year: student.year || '',
+          },
         }))
     ];
 
     return monthlyRows;
-  }, [payments, activeStudents, paymentMonthFilter, currentMonthName]);
+  }, [payments, activeStudents, students, paymentMonthFilter, paymentAcademicYearFilter, currentMonthName]);
 
   const paymentStatusCounts = useMemo(() => {
     const paidStudentIds = new Set();
@@ -682,10 +734,15 @@ const FinanceDashboard = () => {
   }, [monthlyPaymentRows]);
 
   const filteredPayments = monthlyPaymentRows.filter(p => {
-    const student = students.find(s => s.id === p.studentId);
+    const student = resolvePaymentStudent(p);
     if (!student) return false;
     if (paymentStatusFilter && getPaymentStatusKey(p.status) !== paymentStatusFilter) return false;
-    const searchStr = `${student.firstName} ${student.lastName} ${p.month}`.toLowerCase();
+    if (paymentAcademicYearFilter) {
+      const pYear = p.isVirtualUnpaid ? (p.academicYear || student.academicYear) : getPaymentAcademicYear(p);
+      if (pYear && pYear !== paymentAcademicYearFilter) return false;
+    }
+    const pYear = getPaymentAcademicYear(p);
+    const searchStr = `${student.firstName} ${student.lastName} ${p.month} ${pYear} ${p.receiptNumber || ''}`.toLowerCase();
     return searchStr.includes(debouncedSearch.toLowerCase());
   });
 
@@ -697,25 +754,32 @@ const FinanceDashboard = () => {
     setPaymentsPage(prev => Math.min(prev, Math.max(1, totalPaymentsPages)));
   }, [totalPaymentsPages]);
 
-  const modalDiplomas = useMemo(() => [...new Set(activeStudents.map(s => s.diploma).filter(Boolean))].sort(), [activeStudents]);
+  const paymentAcademicStudents = useMemo(() => {
+    const targetAcademicYear = paymentData.academicYear || defaultAcademicYear;
+    return (students || [])
+      .map(student => getStudentAcademicSnapshot(student, targetAcademicYear))
+      .filter(Boolean);
+  }, [students, paymentData.academicYear, defaultAcademicYear]);
+
+  const modalDiplomas = useMemo(() => [...new Set(paymentAcademicStudents.map(s => s.diploma).filter(Boolean))].sort(), [paymentAcademicStudents]);
   const modalMajors = useMemo(() => {
-    const base = paymentModalFilter.diploma ? activeStudents.filter(s => s.diploma === paymentModalFilter.diploma) : activeStudents;
+    const base = paymentModalFilter.diploma ? paymentAcademicStudents.filter(s => s.diploma === paymentModalFilter.diploma) : paymentAcademicStudents;
     return [...new Set(base.map(s => s.major).filter(Boolean))].sort();
-  }, [activeStudents, paymentModalFilter.diploma]);
+  }, [paymentAcademicStudents, paymentModalFilter.diploma]);
   const modalYears = useMemo(() => {
-    let base = activeStudents;
+    let base = paymentAcademicStudents;
     if (paymentModalFilter.diploma) base = base.filter(s => s.diploma === paymentModalFilter.diploma);
     if (paymentModalFilter.major) base = base.filter(s => s.major === paymentModalFilter.major);
     return [...new Set(base.map(s => s.year).filter(Boolean))].sort();
-  }, [activeStudents, paymentModalFilter.diploma, paymentModalFilter.major]);
+  }, [paymentAcademicStudents, paymentModalFilter.diploma, paymentModalFilter.major]);
   const modalStudents = useMemo(() => {
-    return activeStudents.filter(s => {
+    return paymentAcademicStudents.filter(s => {
       if (paymentModalFilter.diploma && s.diploma !== paymentModalFilter.diploma) return false;
       if (paymentModalFilter.major && s.major !== paymentModalFilter.major) return false;
       if (paymentModalFilter.year && s.year !== paymentModalFilter.year) return false;
       return true;
     });
-  }, [activeStudents, paymentModalFilter]);
+  }, [paymentAcademicStudents, paymentModalFilter]);
 
   const calculatedSalaries = useMemo(() => {
     return teachers.map(t => {
@@ -726,7 +790,7 @@ const FinanceDashboard = () => {
       const isPaid = salaries.some(s => s.teacherId === t.id && s.month === monthName && s.year === salaryFilter.year);
       return { ...t, hours, hourlyRate, total, isPaid };
     });
-  }, [teachers, teacherAttendance, salaryFilter, salaries, schedules, getActiveScheduleModule]);
+  }, [teachers, teacherAttendance, salaryFilter, salaries, schedules, getActiveScheduleModule, months]);
 
   const filteredTeachers = useMemo(() => {
     const q = debouncedTeacherSearch.trim().toLowerCase();
@@ -884,7 +948,7 @@ const FinanceDashboard = () => {
       let overdue = 0;
       for (let i = 0; i < 6; i++) {
         const mIdx = (currentMonthIdx - i + 12) % 12;
-        
+
         // L'application a commencé en Mai (index 4). On ignore les mois précédents.
         if (mIdx < 4) {
           break;
@@ -1193,6 +1257,18 @@ const FinanceDashboard = () => {
                 />
               </div>
               <FilterSelect
+                value={paymentAcademicYearFilter}
+                placeholder="Année académique"
+                options={[
+                  { value: '', label: 'Toutes les années académiques' },
+                  ...availableAcademicYears.map(y => ({ value: y, label: `Année ${y}` }))
+                ]}
+                onChange={(value) => {
+                  setPaymentAcademicYearFilter(value);
+                  setPaymentsPage(1);
+                }}
+              />
+              <FilterSelect
                 value={paymentStatusFilter}
                 placeholder="Tous les statuts"
                 options={[
@@ -1214,13 +1290,14 @@ const FinanceDashboard = () => {
                   setPaymentsPage(1);
                 }}
               />
-              {(searchTerm || paymentStatusFilter || paymentMonthFilter !== currentMonthName) && (
+              {(searchTerm || paymentStatusFilter || paymentAcademicYearFilter !== defaultAcademicYear || paymentMonthFilter !== currentMonthName) && (
                 <button
                   className="action-btn finance-filter-reset"
                   aria-label="Réinitialiser les filtres"
                   onClick={() => {
                     setSearchTerm('');
                     setPaymentStatusFilter('');
+                    setPaymentAcademicYearFilter(defaultAcademicYear);
                     setPaymentMonthFilter(currentMonthName);
                     setPaymentsPage(1);
                   }}
@@ -1230,32 +1307,34 @@ const FinanceDashboard = () => {
               )}
             </div>
           </div>
-          <div className="finance-payment-status-inline">
-            <div
-              className="finance-payment-status-card finance-payment-status-paid"
-              data-tooltip={`Stagiaires payés · ${paymentMonthFilter}`}
-              aria-label={`Stagiaires payés: ${paymentStatusCounts.paid}`}
-            >
-              <Check size={15} />
-              <span className="finance-payment-status-text">Payés</span>
-              <span className="finance-payment-status-value">{paymentStatusCounts.paid.toLocaleString()}</span>
+          <div className="finance-payment-actions-group">
+            <div className="finance-payment-status-inline">
+              <div
+                className="finance-payment-status-card finance-payment-status-paid"
+                data-tooltip={`Stagiaires payés · ${paymentMonthFilter}`}
+                aria-label={`Stagiaires payés: ${paymentStatusCounts.paid}`}
+              >
+                <Check size={15} />
+                <span className="finance-payment-status-text">Payés</span>
+                <span className="finance-payment-status-value">{paymentStatusCounts.paid.toLocaleString()}</span>
+              </div>
+              <div
+                className="finance-payment-status-card finance-payment-status-unpaid"
+                data-tooltip={`Stagiaires impayés · ${paymentMonthFilter}`}
+                aria-label={`Stagiaires impayés: ${paymentStatusCounts.unpaid}`}
+              >
+                <RotateCcw size={14} />
+                <span className="finance-payment-status-text">Impayés</span>
+                <span className="finance-payment-status-value">{paymentStatusCounts.unpaid.toLocaleString()}</span>
+              </div>
             </div>
-            <div
-              className="finance-payment-status-card finance-payment-status-unpaid"
-              data-tooltip={`Stagiaires impayés · ${paymentMonthFilter}`}
-              aria-label={`Stagiaires impayés: ${paymentStatusCounts.unpaid}`}
+            <button
+              onClick={() => openPaymentModal()}
+              className="btn-modern primary finance-payment-add-button"
             >
-              <RotateCcw size={14} />
-              <span className="finance-payment-status-text">Impayés</span>
-              <span className="finance-payment-status-value">{paymentStatusCounts.unpaid.toLocaleString()}</span>
-            </div>
+              <Plus size={16} style={{ marginRight: '8px' }} /> Enregistrer Paiement
+            </button>
           </div>
-          <button
-            onClick={() => openPaymentModal()}
-            className="btn-modern primary finance-payment-add-button"
-          >
-            <Plus size={16} style={{ marginRight: '8px' }} /> Enregistrer Paiement
-          </button>
           </div>
 
           <div className="glass-card" style={{ overflow: 'hidden' }}>
@@ -1276,7 +1355,7 @@ const FinanceDashboard = () => {
                   {filteredPayments.length === 0 ? (
                     <tr><td colSpan="7"><EmptyState title="Aucun paiement" message="Aucune transaction trouvée pour cette recherche." icon="search" /></td></tr>
                   ) : paginatedPayments.map(p => {
-                    const student = students.find(s => s.id === p.studentId);
+                    const student = resolvePaymentStudent(p);
                     const paymentStatus = getPaymentStatusKey(p.status);
                     return (
                       <tr key={p.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
@@ -1287,7 +1366,9 @@ const FinanceDashboard = () => {
                         </td>
                         <td style={tdStyle}>
                           <p style={{ fontWeight: '700', fontSize: 'var(--text-sm)' }}>{student?.firstName} {student?.lastName}</p>
-                          <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{student?.major}</p>
+                          <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                            {student?.major} {student && <span style={{ fontWeight: '600', color: 'var(--primary)', marginLeft: '6px' }}>· Cycle {getStudentStudyCycleRange(student)}</span>}
+                          </p>
                           {overdueMap[student?.id] && (
                             <span style={{
                               display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '4px',
@@ -1298,8 +1379,23 @@ const FinanceDashboard = () => {
                               <AlertTriangle size={10} /> En retard · {overdueMap[student.id]} mois
                             </span>
                           )}
+                          {previousYearArrearsMap[student?.id] && (
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '4px', marginLeft: '4px',
+                              fontSize: '10px', fontWeight: '800', color: '#b45309',
+                              background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.25)',
+                              borderRadius: '999px', padding: '2px 8px'
+                            }}>
+                              <AlertTriangle size={10} /> Arriérés 1ère année ({previousYearArrearsMap[student.id].unpaidCount} mois)
+                            </span>
+                          )}
                         </td>
-                        <td style={tdStyle}><span style={{ fontWeight: '700' }}>{p.month}</span></td>
+                        <td style={tdStyle}>
+                          <span style={{ fontWeight: '700' }}>{p.month}</span>
+                          <span style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px', fontWeight: '600' }}>
+                            {p.isVirtualUnpaid ? (p.academicYear || student?.academicYear || '') : (getPaymentAcademicYear(p) || '')}
+                          </span>
+                        </td>
                         <td style={tdStyle}>
                           <span style={{ fontWeight: '900', color: p.isVirtualUnpaid ? '#a16207' : 'var(--success)' }}>{formatMoney(getPaymentTotal(p))} DH</span>
                           {!p.isVirtualUnpaid && getPaymentFeeItems(p).length > 0 && (
@@ -2306,6 +2402,26 @@ const FinanceDashboard = () => {
                 <button onClick={() => { setShowPaymentModal(false); setEditingPayment(null); }} className="close-button" aria-label="Fermer la fenêtre"><X size={20} /></button>
               </div>
               <div className="finance-payment-modal-stack">
+                <div className="finance-payment-modal-panel">
+                  <label style={lbl}>Année académique d'imputation</label>
+                  <FilterSelect
+                    style={{ width: '100%', marginTop: '6px' }}
+                    value={paymentData.academicYear || ''}
+                    placeholder="Sélectionner l'année académique..."
+                    onChange={value => {
+                      setPaymentData(current => ({
+                        ...current,
+                        academicYear: value,
+                        studentId: editingPayment ? current.studentId : '',
+                      }));
+                      if (!editingPayment) setPaymentModalFilter({ diploma: '', major: '', year: '' });
+                    }}
+                    options={availableAcademicYears.map(year => ({ value: year, label: year }))}
+                  />
+                  <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px', fontWeight: '600' }}>
+                    Pour un arriéré, choisissez l'année concernée avant de sélectionner le stagiaire.
+                  </p>
+                </div>
                 {!editingPayment && <div className="finance-payment-modal-panel">
                   
                   <div className="finance-payment-modal-grid finance-payment-modal-grid-three">
@@ -2362,20 +2478,45 @@ const FinanceDashboard = () => {
                       options={[{ value: '', label: 'Sélectionner un stagiaire...' }, ...modalStudents.map(s => ({ value: s.id, label: `${s.lastName} ${s.firstName}` }))]}
                     />
                   )}
+                  {paymentData.studentId && previousYearArrearsMap[paymentData.studentId] && (
+                    <div style={{
+                      background: 'rgba(245,158,11,0.08)',
+                      border: '1px solid rgba(245,158,11,0.25)',
+                      borderRadius: '10px',
+                      padding: '10px 14px',
+                      marginTop: '10px',
+                      color: '#92400e'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '800', fontSize: '12px' }}>
+                        <AlertTriangle size={14} style={{ color: '#d97706' }} />
+                        Attention : Arriérés de la 1ère année ({previousYearArrearsMap[paymentData.studentId].details.map(d => d.academicYear).join(', ')})
+                      </div>
+                      <p style={{ fontSize: '11px', marginTop: '4px', lineHeight: '1.4', fontWeight: '600' }}>
+                        Ce stagiaire a {previousYearArrearsMap[paymentData.studentId].unpaidCount} mois non réglés pour la 1ère année :{' '}
+                        {previousYearArrearsMap[paymentData.studentId].details.map(d => d.unpaidMonths.join(', ')).join('; ')}.
+                      </p>
+                    </div>
+                  )}
                 </div>
                 <div className="finance-payment-modal-grid finance-payment-modal-grid-three">
                   <div>
                     <label style={lbl}>Montant (DH)</label>
-                    <input type="number" className="input-premium" style={{ width: '100%', marginTop: '6px' }} value={paymentData.amount} onChange={(e) => setPaymentData({...paymentData, amount: e.target.value})} />
+                    <input
+                      type="number"
+                      className="input-premium"
+                      style={{ width: '100%', marginTop: '6px' }}
+                      value={paymentData.amount}
+                      onChange={(event) => setPaymentData({ ...paymentData, amount: event.target.value })}
+                    />
                   </div>
                   <div>
-                    <label style={lbl}>Mois Concerné</label>
-                    <FilterSelect 
+                    <label style={lbl}>Mois concerné</label>
+                    <FilterSelect
                       style={{ width: '100%', marginTop: '6px' }}
                       value={paymentData.month}
                       placeholder="Sélectionner un mois..."
-                      onChange={val => setPaymentData({...paymentData, month: val})}
-                      options={months.map(m => ({ value: m, label: m }))}
+                      onChange={value => setPaymentData({ ...paymentData, month: value })}
+                      options={months.map(month => ({ value: month, label: month }))}
                     />
                   </div>
                   <div>
@@ -2437,19 +2578,31 @@ const FinanceDashboard = () => {
                     <span style={{ fontSize: '16px', fontWeight: '900', color: 'var(--success)' }}>{formatMoney(paymentGrandTotal)} DH</span>
                   </div>
                 </div>
-                <button className="btn-modern primary finance-payment-submit-button" style={{ width: '100%', padding: '14px', justifyContent: 'center' }}
+                <button className="btn-modern primary finance-payment-submit-button"
+                  style={{ width: '100%', padding: '14px', justifyContent: 'center' }}
                   onClick={async () => {
                     if (!paymentData.studentId || paymentGrandTotal <= 0) return showToast('Stagiaire et montant requis', 'warning');
+                    if (!paymentData.academicYear) return showToast('Année académique requise', 'warning');
                     const fees = PAYMENT_FEE_FIELDS
                       .map(({ key, label }) => ({ key, label, amount: parseFloat(paymentData[key]) || 0 }))
                       .filter(fee => fee.amount > 0);
+                    const currentStudent = students.find(student => student.id === paymentData.studentId);
+                    const academicStudent = getStudentAcademicSnapshot(currentStudent, paymentData.academicYear) || currentStudent;
+                    const studentSnapshot = academicStudent ? {
+                      firstName: academicStudent.firstName || '',
+                      lastName: academicStudent.lastName || '',
+                      regNo: academicStudent.regNo || '',
+                      diploma: academicStudent.diploma || '',
+                      major: academicStudent.major || '',
+                      year: academicStudent.year || '',
+                    } : undefined;
                     if (editingPayment) {
-                      const alreadyPaidForMonth = payments.some(payment =>
-                        payment.id !== editingPayment.id &&
-                        payment.studentId === paymentData.studentId &&
-                        payment.month === paymentData.month &&
-                        getPaymentStatusKey(payment.status) === 'paid'
-                      );
+                      const alreadyPaidForMonth = hasDuplicateMonthlyPayment(payments, {
+                        studentId: paymentData.studentId,
+                        month: paymentData.month,
+                        academicYear: paymentData.academicYear,
+                        excludePaymentId: editingPayment.id,
+                      });
                       if (alreadyPaidForMonth) {
                         return showToast('Ce stagiaire a déjà payé ce mois.', 'warning');
                       }
@@ -2457,15 +2610,16 @@ const FinanceDashboard = () => {
                         ...paymentData,
                         tuitionAmount: paymentBaseAmount,
                         amount: paymentGrandTotal,
-                        fees
+                        fees,
+                        ...(studentSnapshot ? { studentSnapshot } : {}),
                       });
                       setEditingPayment(null);
                     } else {
-                      const alreadyPaidForMonth = payments.some(payment =>
-                        payment.studentId === paymentData.studentId &&
-                        payment.month === paymentData.month &&
-                        getPaymentStatusKey(payment.status) === 'paid'
-                      );
+                      const alreadyPaidForMonth = hasDuplicateMonthlyPayment(payments, {
+                        studentId: paymentData.studentId,
+                        month: paymentData.month,
+                        academicYear: paymentData.academicYear,
+                      });
                       if (alreadyPaidForMonth) {
                         return showToast('Ce stagiaire a déjà payé ce mois.', 'warning');
                       }
@@ -2473,11 +2627,23 @@ const FinanceDashboard = () => {
                         ...paymentData,
                         tuitionAmount: paymentBaseAmount,
                         amount: paymentGrandTotal,
-                        fees
+                        fees,
+                        ...(studentSnapshot ? { studentSnapshot } : {}),
                       });
                     }
                     setShowPaymentModal(false);
-                    setPaymentData({ studentId: '', amount: '', examFee: '', registrationFee: '', supportFee: '', month: currentMonthName, date: new Date().toISOString().split('T')[0], status: 'payé' });
+                    setPaymentData({
+                      studentId: '',
+                      academicYear: paymentAcademicYearFilter || defaultAcademicYear,
+                      amount: '',
+                      examFee: '',
+                      registrationFee: '',
+                      supportFee: '',
+                      month: currentMonthName,
+                      date: new Date().toISOString().split('T')[0],
+                      status: 'payé',
+                      paymentMethod: 'Espèces',
+                    });
                     setPaymentModalFilter({ diploma: '', major: '', year: '' });
                   }}><CreditCard size={18} style={{ marginRight: '8px' }} /> {editingPayment ? 'Enregistrer les modifications' : "Valider l'encaissement"}</button>
               </div>

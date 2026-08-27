@@ -8,7 +8,11 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, Cell, PieChart, Pie, Legend
 } from 'recharts';
-import { isActiveStudent } from '../utils/studentStatus';
+import {
+  getAvailableAcademicYears,
+  getDefaultAcademicYearTransition,
+  getStudentAcademicSnapshot,
+} from '../utils/studentStatus';
 import {
   ChartLine, Users, TrendingUp, TrendingDown, Download,
   Award, AlertTriangle, ChevronUp, ChevronDown, Minus,
@@ -26,7 +30,7 @@ import {
   isCompanyInternshipGradeMissing,
   STAGE_RESERVATION_NOTE,
 } from '../utils/bulletinUtils';
-import { dedupeModulesByName, getGradeByModuleName, sortModulesByOrder } from '../utils/gradeSync';
+import { dedupeModulesByName, getGradeByModuleName, getGradesForAcademicYear, sortModulesByOrder } from '../utils/gradeSync';
 
 const labelStyle = {
   fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)',
@@ -100,13 +104,6 @@ const safeFileNamePart = (value = '') =>
     .replace(/[^a-zA-Z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .toLowerCase() || 'classe';
-
-const getCurrentProfessionalYear = (date = new Date()) => {
-  const year = date.getFullYear();
-  const month = date.getMonth();
-  const startYear = month >= 8 ? year : year - 1;
-  return `${startYear}/${startYear + 1}`;
-};
 
 const getAutoExcelColumnWidth = (values, { min = 36, max = 220, charWidth = 5.2, padding = 12 } = {}) => {
   const longest = values.reduce((maxLength, value) => {
@@ -538,10 +535,20 @@ const Reports = () => {
   const [selectedDiploma, setSelectedDiploma] = useState(Object.keys(MODULES_DATA)[0]);
   const [selectedMajor, setSelectedMajor] = useState('');
   const [selectedYear, setSelectedYear] = useState('1ère année');
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState(
+    () => getDefaultAcademicYearTransition().fromAcademicYear
+  );
   const [selectedModule, setSelectedModule] = useState('');
   const [rankSort, setRankSort] = useState('avg_desc');
   const [isExportingExcel, setIsExportingExcel] = useState(false);
-  const activeStudents = useMemo(() => (students || []).filter(isActiveStudent), [students]);
+  const availableAcademicYears = useMemo(() => getAvailableAcademicYears(students, []), [students]);
+  const reportStudents = useMemo(() => (students || [])
+    .map(student => getStudentAcademicSnapshot(student, selectedAcademicYear))
+    .filter(Boolean), [students, selectedAcademicYear]);
+  const getStudentGrades = useCallback(
+    studentId => getGradesForAcademicYear(grades[studentId] || {}, selectedAcademicYear),
+    [grades, selectedAcademicYear]
+  );
 
   useEffect(() => {
     if (loadStudentAttendanceForMonth) {
@@ -582,12 +589,12 @@ const Reports = () => {
   }, [availableModules, selectedModule]);
 
   const analytics = useMemo(() => {
-    const filteredStudents = activeStudents.filter(s =>
+    const filteredStudents = reportStudents.filter(s =>
       s.diploma === selectedDiploma && s.major === selectedMajor && s.year === selectedYear
     );
 
     const getModuleScore = (studentId, modName) => {
-      const g = getGradeByModuleName(grades[studentId], modName);
+      const g = getGradeByModuleName(getStudentGrades(studentId), modName);
       if (!g) return null;
       const ccAverage = calcCcAverage(g);
       const efcfp = parseFloat(g.efcfp), efcft = parseFloat(g.efcft);
@@ -605,7 +612,7 @@ const Reports = () => {
 
     const computeWeightedAvg = (studentId) => {
       const { generalAverage } = calcStudentSynthesisAverages(
-        grades[studentId] || {},
+        getStudentGrades(studentId),
         availableModulesList
       );
       return generalAverage;
@@ -627,7 +634,7 @@ const Reports = () => {
     let avgC1 = 0, avgC2 = 0, avgC3 = 0, avgEFC = 0;
     let countC1 = 0, countC2 = 0, countC3 = 0, countEFC = 0;
     filteredStudents.forEach(s => {
-      const g = getGradeByModuleName(grades[s.id], selectedModule);
+      const g = getGradeByModuleName(getStudentGrades(s.id), selectedModule);
       if (g) {
         if (g.c1 && !isNaN(parseFloat(g.c1))) { avgC1 += parseFloat(g.c1); countC1++; }
         if (g.c2 && !isNaN(parseFloat(g.c2))) { avgC2 += parseFloat(g.c2); countC2++; }
@@ -680,7 +687,7 @@ const Reports = () => {
       bestModule: globalModuleData[0] || null,
       worstModule: globalModuleData[globalModuleData.length - 1] || null,
     };
-  }, [activeStudents, grades, selectedDiploma, selectedMajor, selectedYear, selectedModule, availableModules, availableModulesList, studentAttendance]);
+  }, [reportStudents, getStudentGrades, selectedDiploma, selectedMajor, selectedYear, selectedModule, availableModules, availableModulesList, studentAttendance]);
 
   const sortedRankings = useMemo(() => {
     const copy = [...(analytics.studentRankings || [])];
@@ -715,20 +722,20 @@ const Reports = () => {
       if (!groups.has(key)) groups.set(key, { diploma, major, year });
     };
 
-    activeStudents.forEach(addGroup);
+    reportStudents.forEach(addGroup);
     allModules.forEach(addGroup);
 
     return Array.from(groups.values())
       .map(group => ({
         ...group,
-        studentsCount: activeStudents.filter(s => s.diploma === group.diploma && s.major === group.major && s.year === group.year).length,
+        studentsCount: reportStudents.filter(s => s.diploma === group.diploma && s.major === group.major && s.year === group.year).length,
         modulesCount: allModules.filter(m => m.diploma === group.diploma && m.major === group.major && m.year === group.year).length,
       }))
       .sort((a, b) => `${a.diploma} ${a.major} ${a.year}`.localeCompare(`${b.diploma} ${b.major} ${b.year}`));
-  }, [activeStudents, allModules]);
+  }, [reportStudents, allModules]);
 
   const getReportModuleDetails = useCallback((studentId, moduleName) => {
-    const g = getGradeByModuleName(grades[studentId], moduleName);
+    const g = getGradeByModuleName(getStudentGrades(studentId), moduleName);
     const c1 = parseScore(g?.c1);
     const c2 = parseScore(g?.c2);
     const c3 = parseScore(g?.c3);
@@ -752,7 +759,7 @@ const Reports = () => {
     }
 
     return { c1, c2, c3, efcfp, efcft, ccAverage, score };
-  }, [grades]);
+  }, [getStudentGrades]);
 
   const getGroupModules = useCallback((group) => {
     return dedupeModulesByName(
@@ -765,8 +772,8 @@ const Reports = () => {
   }, [allModules]);
 
   const getGroupStudents = useCallback((group) =>
-    activeStudents.filter(s => s.diploma === group.diploma && s.major === group.major && s.year === group.year),
-  [activeStudents]);
+    reportStudents.filter(s => s.diploma === group.diploma && s.major === group.major && s.year === group.year),
+  [reportStudents]);
 
   const buildGroupStats = useCallback((group) => {
     const groupStudents = getGroupStudents(group);
@@ -774,7 +781,7 @@ const Reports = () => {
 
     const rankings = groupStudents.map(student => {
       const { generalAverage } = calcStudentSynthesisAverages(
-        grades[student.id] || {},
+        getStudentGrades(student.id),
         groupModules
       );
 
@@ -819,7 +826,7 @@ const Reports = () => {
       passCount: rankedWithAvg.filter(item => item.avg >= 10).length,
       failCount: rankedWithAvg.filter(item => item.avg < 10).length,
     };
-  }, [getGroupModules, getGroupStudents, getReportModuleDetails, grades, studentAttendance]);
+  }, [getGroupModules, getGroupStudents, getReportModuleDetails, getStudentGrades, studentAttendance]);
 
   const buildModuleStats = useCallback((group, moduleName) => {
     const groupStudents = getGroupStudents(group);
@@ -844,14 +851,14 @@ const Reports = () => {
   }, [getGroupStudents, getReportModuleDetails]);
 
   const getExcelModuleDetails = useCallback((studentId, moduleName) => {
-    const grade = getGradeByModuleName(grades[studentId], moduleName);
+    const grade = getGradeByModuleName(getStudentGrades(studentId), moduleName);
     const ccAverage = calcCcAverage(grade);
     const theoretical = parseScore(grade?.efcft);
     const practical = parseScore(grade?.efcfp);
     const moduleAverage = calcModuleAverage({ ccAverage, theoretical, practical });
 
     return { ccAverage, theoretical, practical, moduleAverage };
-  }, [grades]);
+  }, [getStudentGrades]);
 
   const handleExportClassExcel = useCallback(async () => {
     setIsExportingExcel(true);
@@ -923,12 +930,13 @@ const Reports = () => {
           };
         });
 
+        const resolvedStudentGrades = getStudentGrades(student.id);
         const { mcc, met, mep, generalAverage } = calcStudentSynthesisAverages(
-          grades[student.id] || {},
+          resolvedStudentGrades,
           classModules
         );
         const juryDecision = getJuryDecision(generalAverage);
-        const remark = isCompanyInternshipGradeMissing(classModules, grades[student.id] || {})
+        const remark = isCompanyInternshipGradeMissing(classModules, resolvedStudentGrades)
           ? STAGE_RESERVATION_NOTE
           : '';
         const mccLabel = formatExcelScore(mcc);
@@ -1012,7 +1020,7 @@ const Reports = () => {
           A4_LANDSCAPE_PRINTABLE_WIDTH_PX,
           printWidthPages
         );
-      const professionalYear = getCurrentProfessionalYear();
+      const professionalYear = selectedAcademicYear.replace('-', '/');
       const rows = [];
       const rowHeightsPx = [];
       const merges = [];
@@ -1170,7 +1178,7 @@ const Reports = () => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `synthese-des-notes-${safeFileNamePart(selectedMajor)}-${safeFileNamePart(selectedYear)}.xlsx`;
+      link.download = `synthese-des-notes-${safeFileNamePart(selectedMajor)}-${safeFileNamePart(selectedYear)}-${safeFileNamePart(selectedAcademicYear)}.xlsx`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -1180,7 +1188,7 @@ const Reports = () => {
     } finally {
       setIsExportingExcel(false);
     }
-  }, [getExcelModuleDetails, getGroupModules, getGroupStudents, grades, selectedDiploma, selectedMajor, selectedYear]);
+  }, [getExcelModuleDetails, getGroupModules, getGroupStudents, getStudentGrades, selectedAcademicYear, selectedDiploma, selectedMajor, selectedYear]);
 
   const reportGroupStats = useMemo(() =>
     allReportGroups.map(group => buildGroupStats(group)),
@@ -1279,6 +1287,15 @@ const Reports = () => {
       {/* Filter bar */}
       <div className="glass-card reports-premium-filter-card" style={{ padding: 'var(--space-5)', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)', alignItems: 'flex-end' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <label style={labelStyle}>Année académique</label>
+          <FilterSelect
+            value={selectedAcademicYear}
+            onChange={setSelectedAcademicYear}
+            options={availableAcademicYears.map(year => ({ label: year, value: year }))}
+            style={{ minWidth: '160px' }}
+          />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <label style={labelStyle}>Niveau</label>
           <FilterSelect value={selectedDiploma} onChange={val => { setSelectedDiploma(val); setSelectedYear(getStudyYearsForDiploma(val)[0]); }} options={Object.keys(MODULES_DATA).map(d => ({ label: d, value: d }))} style={{ minWidth: '180px' }} />
         </div>
@@ -1287,7 +1304,7 @@ const Reports = () => {
           <FilterSelect value={selectedMajor} onChange={val => setSelectedMajor(val)} options={availableMajors.map(m => ({ label: m, value: m }))} style={{ minWidth: '200px' }} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={labelStyle}>Année</label>
+          <label style={labelStyle}>Niveau d'étude</label>
           <FilterSelect value={selectedYear} onChange={val => setSelectedYear(val)} options={availableStudyYears.map(year => ({ label: year, value: year }))} />
         </div>
         <button

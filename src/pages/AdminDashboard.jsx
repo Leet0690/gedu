@@ -8,7 +8,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { generateBulletinGlobal } from '../utils/pdfGenerator';
-import { getStudentGradeModules } from '../utils/gradeSync';
+import { getGradeByModuleName, getGradesForAcademicYear, getStudentGradeModules } from '../utils/gradeSync';
 import {
   ALL_STUDY_YEARS,
   FILIERES,
@@ -33,7 +33,13 @@ import {
   isActiveStudent,
   isLaureatStudent,
   validateAcademicYearTransition,
-  hasExistingClosure
+  hasExistingClosure,
+  getAvailableAcademicYears,
+  getStudentPreviousYearBalance,
+  getStudentStudyCycleRange,
+  getStudentAcademicSnapshot,
+  getStudentCurrentAcademicYear,
+  isStudentCurrentlyInAcademicYear
 } from '../utils/studentStatus';
 import { 
   Plus, 
@@ -410,8 +416,12 @@ const PendingTasksWidget = ({ students, teachers, grades, teacherAttendance, all
       let entered = 0;
       const total = gs.length * mods.length;
       gs.forEach(s => {
+        const studentGrades = getGradesForAcademicYear(
+          grades[s.id] || {},
+          getStudentCurrentAcademicYear(s)
+        );
         mods.forEach(m => {
-          const g = grades[s.id]?.[m.replace(/\./g, '_')];
+          const g = getGradeByModuleName(studentGrades, m);
           if (g && (g.c1 || g.c2 || g.c3 || g.efcfp || g.efcft)) entered++;
         });
       });
@@ -528,8 +538,12 @@ const GradesBreakdownWidget = ({ students, grades, allModules, activeSemester })
         .map(m => m.name);
       const mods = configuredModules.length > 0 ? configuredModules : getModulesForStudent(s);
       g.total += mods.length;
+      const studentGrades = getGradesForAcademicYear(
+        grades[s.id] || {},
+        getStudentCurrentAcademicYear(s)
+      );
       mods.forEach(m => {
-        const gr = grades[s.id]?.[m.replace(/\./g, '_')];
+        const gr = getGradeByModuleName(studentGrades, m);
         if (gr && (gr.c1 || gr.c2 || gr.c3 || gr.efcfp || gr.efcft)) g.entered++;
       });
     });
@@ -944,7 +958,7 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
 };
 
 const AdminDashboard = () => {
-  const { students, teachers, grades, schedules, modules: allModules, addStudent, addTeacher, deleteStudent, deleteTeacher, updateStudent, promoteAcademicYear, undoLastPromotion, updateTeacher, studentAttendance, teacherAttendance, loadStudentAttendanceForMonth, loadTeacherAttendanceForMonth, migrateTeacherTokens, loading, confirmAction, notifications, activeSemester, setActiveSemester, getActiveScheduleModule } = useApp();
+  const { students, teachers, payments, grades, schedules, modules: allModules, addStudent, addTeacher, deleteStudent, deleteTeacher, updateStudent, promoteAcademicYear, undoLastPromotion, updateTeacher, studentAttendance, teacherAttendance, loadStudentAttendanceForMonth, loadTeacherAttendanceForMonth, migrateTeacherTokens, loading, confirmAction, notifications, activeSemester, setActiveSemester, getActiveScheduleModule } = useApp();
   const { showToast } = useToast();
   const location = useLocation();
   const isDashboard = location.pathname === '/';
@@ -967,13 +981,16 @@ const AdminDashboard = () => {
     setDiplomaFilter('');
     setYearFilter('');
     setModuleFilter('');
+    setAcademicYearFilter('');
   }, [activeTab]);
 
   const [globalFilter, setGlobalFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [diplomaFilter, setDiplomaFilter] = useState('');
   const [yearFilter, setYearFilter] = useState('');
+  const [academicYearFilter, setAcademicYearFilter] = useState('');
   const [moduleFilter, setModuleFilter] = useState('');
+  const availableAcademicYearsList = useMemo(() => getAvailableAcademicYears(students, payments || []), [students, payments]);
 
   // Modal state
   const [modalMode, setModalMode] = useState(null);
@@ -1086,7 +1103,9 @@ const AdminDashboard = () => {
 
   const activeStudents = useMemo(() => (students || []).filter(isActiveStudent), [students]);
   const promotionPreview = useMemo(() => {
-    const eligible = activeStudents.filter(s => isKnownStudyYear(s.diploma, s.year));
+    const eligible = activeStudents
+      .filter(student => isStudentCurrentlyInAcademicYear(student, promotionForm.fromAcademicYear))
+      .filter(s => isKnownStudyYear(s.diploma, s.year));
     // Improvement #7: Build breakdown by filière
     const filiereBreakdown = {};
     eligible.forEach(s => {
@@ -1101,7 +1120,7 @@ const AdminDashboard = () => {
       total: eligible.length,
       filiereBreakdown,
     };
-  }, [activeStudents]);
+  }, [activeStudents, promotionForm.fromAcademicYear]);
   const isYearFormatValid = useMemo(() => validateAcademicYearTransition(promotionForm.fromAcademicYear, promotionForm.toAcademicYear), [promotionForm]);
   const isAlreadyClosed = useMemo(() => hasExistingClosure(activeStudents, promotionForm.fromAcademicYear), [activeStudents, promotionForm.fromAcademicYear]);
 
@@ -1291,7 +1310,7 @@ const AdminDashboard = () => {
     if (data.length === 0) return showToast('Aucune donnée.', 'info');
     const headers = activeTab === 'students' ? "\uFEFFNom,Prénom,Matricule,Niveau,Filière,Année,Statut\n" : "\uFEFFNom,Module,Statut\n";
     const rows = data.map(item => {
-      if (activeTab === 'students') return `"${item.lastName}","${item.firstName}","${item.regNo}","${item.diploma || ''}","${item.major}","${item.year || ''}","ACTIF"`;
+      if (activeTab === 'students') return `"${item.lastName}","${item.firstName}","${item.regNo}","${item.diploma || ''}","${item.major}","${item.year || ''}","${getStudentStatusLabel(item.__sourceStudent || item)}"`;
       return `"${item.name || ''}","${item.subject || ''}","ACTIF"`;
     }).join('\n');
     const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
@@ -1302,13 +1321,20 @@ const AdminDashboard = () => {
   };
 
   const tableData = useMemo(() => {
-    let data = activeTab === 'students' ? (students || []) : (teachers || []);
+    let data = activeTab === 'students'
+      ? (students || []).map(student => {
+          const snapshot = academicYearFilter
+            ? getStudentAcademicSnapshot(student, academicYearFilter)
+            : getStudentAcademicSnapshot(student);
+          return snapshot ? { ...snapshot, __sourceStudent: student } : null;
+        }).filter(Boolean)
+      : (teachers || []);
     if (diplomaFilter) data = data.filter(item => activeTab === 'students' ? item.diploma === diplomaFilter : (item.diplomas || []).includes(diplomaFilter));
     if (yearFilter) data = data.filter(item => activeTab === 'students' ? item.year === yearFilter : (item.years || []).includes(yearFilter));
     if (categoryFilter) data = data.filter(item => activeTab === 'students' ? item.major === categoryFilter : (item.groups || []).includes(categoryFilter));
     if (activeTab === 'teachers' && moduleFilter) data = data.filter(item => (item.subjects || [item.subject]).includes(moduleFilter));
     return data;
-  }, [activeTab, students, teachers, categoryFilter, diplomaFilter, yearFilter, moduleFilter]);
+  }, [activeTab, students, teachers, categoryFilter, diplomaFilter, yearFilter, academicYearFilter, moduleFilter]);
 
   const columns = useMemo(() => [
     {
@@ -1327,10 +1353,30 @@ const AdminDashboard = () => {
             {activeTab === 'students' ? `${row.original.lastName} ${row.original.firstName}` : row.original.name}
           </h4>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-            <span className="badge-status success" style={{ fontSize: '9px' }}>ACTIF</span>
+            <span className={`badge-status ${isLaureatStudent(row.original.__sourceStudent || row.original) ? 'warning' : 'success'}`} style={{ fontSize: '9px' }}>
+              {getStudentStatusLabel(row.original.__sourceStudent || row.original)}
+            </span>
             <span style={{ fontSize: '11px', fontWeight: '500', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }}>
               {activeTab === 'students' ? row.original.major : (row.original.subjects || [row.original.subject]).slice(0, 2).join(', ')}
             </span>
+            {activeTab === 'students' && (
+              <span style={{
+                fontSize: '9px', fontWeight: '700', color: 'var(--primary)',
+                background: 'var(--primary-ultra-light)', border: '1px solid rgba(176,104,185,0.25)',
+                borderRadius: '4px', padding: '1px 6px'
+              }}>
+                Cycle {getStudentStudyCycleRange(row.original)}
+              </span>
+            )}
+            {activeTab === 'students' && getStudentPreviousYearBalance(row.original, payments || []).hasUnpaid && (
+              <span style={{
+                fontSize: '9px', fontWeight: '800', color: '#b45309',
+                background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.25)',
+                borderRadius: '4px', padding: '1px 6px'
+              }}>
+                Arriérés 1ère année ({getStudentPreviousYearBalance(row.original, payments || []).unpaidCount} mois)
+              </span>
+            )}
           </div>
         </div>
       ),
@@ -1397,13 +1443,22 @@ const AdminDashboard = () => {
             openQR(`${row.original.lastName} ${row.original.firstName}`, [{ label: 'Résultats', url: BASE + `/results/${tokenForLink}`, color: 'var(--primary)' }]);
           }} />}
           <ActionBtn icon={Eye} title="Détails" onClick={() => openDetails(row.original)} />
-          <ActionBtn icon={Edit3} title="Modifier" onClick={() => openEdit(row.original)} />
-          {activeTab === 'students' && <ActionBtn icon={Download} title="Bulletin" onClick={() => generateBulletinGlobal(row.original, grades, getStudentActiveModules(row.original))} />}
-          <ActionBtn icon={Trash2} title="Supprimer" color="#dc2626" onClick={() => handleDelete(row.original)} />
+          <ActionBtn icon={Edit3} title="Modifier le profil actuel" onClick={() => openEdit(row.original.__sourceStudent || row.original)} />
+          {activeTab === 'students' && <ActionBtn icon={Download} title="Bulletin" onClick={() => {
+            const academicYear = row.original.academicYear || academicYearFilter;
+            const resolvedGrades = getGradesForAcademicYear(grades[row.original.id] || {}, academicYear);
+            generateBulletinGlobal(
+              row.original,
+              { [row.original.id]: resolvedGrades },
+              getStudentActiveModules(row.original),
+              { academicYear }
+            );
+          }} />}
+          <ActionBtn icon={Trash2} title="Supprimer" color="#dc2626" onClick={() => handleDelete(row.original.__sourceStudent || row.original)} />
         </div>
       ),
     },
-  ], [activeTab, openDetails, openEdit, handleDelete, grades, getStudentActiveModules]);
+  ], [activeTab, academicYearFilter, openDetails, openEdit, handleDelete, grades, getStudentActiveModules, openQR, payments]);
 
   const table = useReactTable({
     data: tableData,
@@ -1530,7 +1585,7 @@ const AdminDashboard = () => {
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 150px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 165px', minWidth: '165px' }}>
               <label style={labelStyle}>Niveau</label>
               <FilterSelect
                 style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }}
@@ -1544,7 +1599,7 @@ const AdminDashboard = () => {
               />
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 140px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 165px', minWidth: '165px' }}>
               <label style={labelStyle}>Année</label>
               <FilterSelect
                 style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }}
@@ -1559,7 +1614,7 @@ const AdminDashboard = () => {
               />
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 160px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 165px', minWidth: '165px' }}>
               <label style={labelStyle}>Filière</label>
               <FilterSelect
                 style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }}
@@ -1573,6 +1628,22 @@ const AdminDashboard = () => {
                 }
               />
             </div>
+
+            {activeTab === 'students' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 165px', minWidth: '165px' }}>
+                <label style={labelStyle}>Année académique</label>
+                <FilterSelect
+                  style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }}
+                  value={academicYearFilter}
+                  onChange={(val) => setAcademicYearFilter(val)}
+                  placeholder="Toutes années académiques"
+                  options={[
+                    { value: '', label: 'Toutes les années académiques' },
+                    ...availableAcademicYearsList.map(y => ({ value: y, label: `Année ${y}` }))
+                  ]}
+                />
+              </div>
+            )}
           </div>
 
           {activeTab === 'students' && !(diplomaFilter && yearFilter && categoryFilter) ? (
@@ -1802,14 +1873,17 @@ const AdminDashboard = () => {
                     </div>
                     <div>
                       <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '800' }}>{selectedItem.lastName ? `${selectedItem.lastName} ${selectedItem.firstName}` : selectedItem.name}</h2>
-                      <span className="badge-status success">Dossier actif</span>
+                      <span className={`badge-status ${isLaureatStudent(selectedItem.__sourceStudent || selectedItem) ? 'warning' : 'success'}`}>
+                        {getStudentStatusLabel(selectedItem.__sourceStudent || selectedItem)}
+                        {selectedItem.isHistoricalSnapshot ? ` · classe ${selectedItem.academicYear}` : ''}
+                      </span>
                     </div>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', paddingTop: '24px', borderTop: '1px solid var(--border-light)' }}>
                     <InfoBox label="ID / Matricule" value={selectedItem.regNo || selectedItem.id.substring(0,8)} icon={Fingerprint} />
                     <InfoBox label="Filière / Module" value={selectedItem.major || (selectedItem.subjects || []).join(', ')} icon={Book} />
                     <InfoBox label="Année" value={selectedItem.year || 'N/A'} icon={Calendar} />
-                    <InfoBox label="Statut" value="ACTIF" icon={CheckCircle2} valueColor="var(--primary)" />
+                    <InfoBox label="Statut" value={getStudentStatusLabel(selectedItem.__sourceStudent || selectedItem)} icon={CheckCircle2} valueColor="var(--primary)" />
                   </div>
                   {activeTab === 'students' ? (() => {
                     const tokenForLink = selectedItem.token || selectedItem.id;

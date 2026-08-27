@@ -31,7 +31,8 @@ import {
   SlidersHorizontal
 } from 'lucide-react';
 import { FilterSelect } from '../components/ui/FilterSelect';
-import { isActiveStudent } from '../utils/studentStatus';
+import { getStudentCurrentAcademicYear, isActiveStudent } from '../utils/studentStatus';
+import { getGradeByModuleName } from '../utils/gradeSync';
 import { findStudentAttendanceRecord, isTeacherSessionComplete } from '../utils/attendanceKeys';
 
 const APP_VERSION = '2.5.1';
@@ -430,7 +431,11 @@ const TeacherPortal = () => {
   useEffect(() => {
     const lg = {};
     relevantStudents.forEach(s => {
-      lg[s.id] = grades[s.id]?.[selectedSubject?.replace(/\./g, '_')] || { c1: '', c2: '', c3: '', efcfp: '', efcft: '' };
+      lg[s.id] = getGradeByModuleName(
+        grades[s.id] || {},
+        selectedSubject,
+        getStudentCurrentAcademicYear(s)
+      ) || { c1: '', c2: '', c3: '', efcfp: '', efcft: '' };
     });
     setLocalGrades(lg);
   }, [relevantStudents, selectedSubject, grades]);
@@ -663,6 +668,7 @@ const TeacherPortal = () => {
 
     const updates = relevantStudents.map(student => ({
       studentId: student.id,
+      academicYear: getStudentCurrentAcademicYear(student),
       subject: selectedSubject,
       gradeData: localGrades[student.id] || { c1: '', c2: '', c3: '', efcfp: '', efcft: '' }
     }));
