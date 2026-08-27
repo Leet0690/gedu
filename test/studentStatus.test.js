@@ -8,6 +8,9 @@ import {
   getDefaultAcademicYearTransition,
   getPaymentAcademicYear,
   getStudentAcademicSnapshot,
+  getStudentPayableMonths,
+  getStudentPreviousYearBalance,
+  isStudentVacationMonth,
   isStudentCurrentlyInAcademicYear,
 } from '../src/utils/studentStatus.js';
 
@@ -102,4 +105,31 @@ test('an explicit payment academic year has priority over receipt series and dat
   }), '2024-2025');
   assert.equal(getPaymentAcademicYear({ date: '2026-08-26' }), '2025-2026');
   assert.equal(getPaymentAcademicYear({ date: '2026-09-01' }), '2026-2027');
+});
+
+test('vacation months depend on the student study year', () => {
+  const firstYear = { year: FIRST_YEAR };
+  const secondYear = { year: SECOND_YEAR };
+
+  assert.equal(isStudentVacationMonth(firstYear, 'Août'), true);
+  assert.equal(isStudentVacationMonth(firstYear, 'Septembre'), true);
+  assert.equal(isStudentVacationMonth(firstYear, 'Juillet'), false);
+  assert.equal(isStudentVacationMonth(secondYear, 'Juillet'), true);
+  assert.equal(isStudentVacationMonth(secondYear, 'Août'), true);
+  assert.equal(isStudentVacationMonth(secondYear, 'Septembre'), false);
+  assert.equal(getStudentPayableMonths(firstYear).length, 10);
+  assert.equal(getStudentPayableMonths(secondYear).length, 10);
+});
+
+test('vacation months never generate previous-year arrears', () => {
+  const student = {
+    id: 's-arrears',
+    classHistory: [{ academicYear: '2025-2026', year: FIRST_YEAR }],
+  };
+  const balance = getStudentPreviousYearBalance(student, []);
+
+  assert.equal(balance.unpaidCount, 10);
+  assert.equal(balance.details[0].unpaidMonths.includes('Août'), false);
+  assert.equal(balance.details[0].unpaidMonths.includes('Septembre'), false);
+  assert.equal(balance.details[0].unpaidMonths.includes('Juillet'), true);
 });

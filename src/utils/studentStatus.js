@@ -116,9 +116,32 @@ export const getAvailableAcademicYears = (students = [], payments = [], date = n
 };
 
 export const STANDARD_ACADEMIC_MONTHS = [
-  'Septembre', 'Octobre', 'Novembre', 'Décembre',
-  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin'
+  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
 ];
+
+const normalizeFrenchValue = (value = '') => String(value || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .trim()
+  .toLowerCase();
+
+/** Vacation months are not payable and must never generate arrears. */
+export const getStudentVacationMonths = (student = {}) => {
+  const studyYear = normalizeFrenchValue(student.year);
+  if (studyYear.includes('1')) return ['Août', 'Septembre'];
+  if (studyYear.includes('2')) return ['Juillet', 'Août'];
+  return [];
+};
+
+export const isStudentVacationMonth = (student = {}, month = '') => {
+  const normalizedMonth = normalizeFrenchValue(month);
+  return getStudentVacationMonths(student)
+    .some(vacationMonth => normalizeFrenchValue(vacationMonth) === normalizedMonth);
+};
+
+export const getStudentPayableMonths = (student = {}, months = STANDARD_ACADEMIC_MONTHS) =>
+  (months || []).filter(month => !isStudentVacationMonth(student, month));
 
 /** Analyze if a student has unpaid monthly balances from previous academic year(s) (e.g. 1st year arrears) */
 export const getStudentPreviousYearBalance = (student, payments = []) => {
@@ -147,7 +170,7 @@ export const getStudentPreviousYearBalance = (student, payments = []) => {
   historyEntries.forEach(entry => {
     const acYear = entry.academicYear;
     const yearLevel = entry.year || FIRST_YEAR;
-    const expectedMonths = STANDARD_ACADEMIC_MONTHS;
+    const expectedMonths = getStudentPayableMonths({ year: yearLevel });
 
     // Find all paid payments for this student in this past academic year
     const pastPayments = (payments || []).filter(p =>

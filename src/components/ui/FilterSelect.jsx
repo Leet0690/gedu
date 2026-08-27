@@ -14,6 +14,7 @@ export const FilterSelect = ({ value, onChange, placeholder, options, style, cla
         <SelectItem
           key={normalizeFilterValue(option?.value)}
           value={normalizeFilterValue(option?.value)}
+          disabled={option?.disabled}
           className="finance-radix-select-item"
         >
           {option?.label}

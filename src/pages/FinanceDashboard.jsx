@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/cn';
@@ -22,9 +22,11 @@ import {
   getPaymentAcademicYear,
   getStudentAcademicSnapshot,
   getStudentCurrentAcademicYear,
+  getStudentPayableMonths,
   getStudentPreviousYearBalance,
   getStudentStudyCycleRange,
   isActiveStudent,
+  isStudentVacationMonth,
 } from '../utils/studentStatus';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { 
@@ -41,6 +43,8 @@ import {
   Check, 
   ChevronLeft, 
   ChevronRight, 
+  ChevronUp,
+  ChevronDown,
   RotateCcw,
   BarChart3,
   PieChart,
@@ -346,6 +350,7 @@ const FinanceDashboard = () => {
 
   const [annualYear, setAnnualYear] = useState(new Date().getFullYear());
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const paymentModalRef = useRef(null);
   const [editingPayment, setEditingPayment] = useState(null);
   const [paymentData, setPaymentData] = useState({
     studentId: '',
@@ -378,6 +383,17 @@ const FinanceDashboard = () => {
   const currentMonthName = useMemo(() => getCurrentMonthName(), []);
   const currentMonthIndex = new Date().getMonth();
   const currentYear = new Date().getFullYear();
+
+  const getDefaultPaymentMonth = (student, preferredMonth = currentMonthName) => {
+    if (!student || !isStudentVacationMonth(student, preferredMonth)) return preferredMonth;
+    const payableMonths = new Set(getStudentPayableMonths(student, months));
+    const preferredIndex = months.indexOf(preferredMonth);
+    for (let offset = 1; offset <= months.length; offset += 1) {
+      const candidate = months[(Math.max(preferredIndex, 0) + offset) % months.length];
+      if (payableMonths.has(candidate)) return candidate;
+    }
+    return '';
+  };
 
   const availableYears = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -462,6 +478,10 @@ const FinanceDashboard = () => {
     const academicYear = paymentAcademicYearFilter ||
       (selectedStudent ? getStudentCurrentAcademicYear(selectedStudent) : '') ||
       defaultAcademicYear;
+    const academicStudent = selectedStudent
+      ? (getStudentAcademicSnapshot(selectedStudent, academicYear) || selectedStudent)
+      : null;
+    const preferredMonth = paymentMonthFilter || currentMonthName;
     setEditingPayment(null);
     setPaymentModalFilter({ diploma: '', major: '', year: '' });
     setPaymentData({
@@ -471,7 +491,7 @@ const FinanceDashboard = () => {
       examFee: '',
       registrationFee: '',
       supportFee: '',
-      month: paymentMonthFilter || currentMonthName,
+      month: getDefaultPaymentMonth(academicStudent, preferredMonth),
       date: new Date().toISOString().split('T')[0],
       status: 'payé',
       paymentMethod: 'Espèces'
@@ -692,6 +712,7 @@ const FinanceDashboard = () => {
     const monthlyRows = [
       ...paymentsForMonth,
       ...candidateStudents
+        .filter(student => !isStudentVacationMonth(student, selectedMonth))
         .filter(student => !paidStudentIds.has(student.id))
         .map(student => ({
           id: `unpaid-${student.id}-${selectedMonth}`,
@@ -780,6 +801,20 @@ const FinanceDashboard = () => {
       return true;
     });
   }, [paymentAcademicStudents, paymentModalFilter]);
+  const selectedPaymentStudent = useMemo(
+    () => paymentAcademicStudents.find(student => student.id === paymentData.studentId) || null,
+    [paymentAcademicStudents, paymentData.studentId]
+  );
+  const paymentMonthOptions = useMemo(() => months.map(month => {
+    const isVacation = !!selectedPaymentStudent && isStudentVacationMonth(selectedPaymentStudent, month);
+    return {
+      value: month,
+      label: isVacation ? `${month} · Vacances (non payable)` : month,
+      disabled: isVacation,
+    };
+  }), [months, selectedPaymentStudent]);
+  const selectedMonthIsVacation = !!selectedPaymentStudent &&
+    isStudentVacationMonth(selectedPaymentStudent, paymentData.month);
 
   const calculatedSalaries = useMemo(() => {
     return teachers.map(t => {
@@ -882,9 +917,10 @@ const FinanceDashboard = () => {
       .filter(e => isSelectedMonth(e.month))
       .reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0);
     const totalExpenses = totalSalaries + totalOtherExpenses;
-    const activeStudentIds = new Set(activeStudents.map(student => student.id));
+    const payableStudents = activeStudents.filter(student => !isStudentVacationMonth(student, selectedMonth));
+    const activeStudentIds = new Set(payableStudents.map(student => student.id));
     const paidStudentIds = new Set(monthPayments.map(p => p.studentId).filter(id => activeStudentIds.has(id)));
-    const totalStudents = activeStudents.length;
+    const totalStudents = payableStudents.length;
     const tauxRecouvrement = totalStudents > 0 ? Math.round((paidStudentIds.size / totalStudents) * 100) : 0;
     const continuousTotals = continuousTrainings.reduce((totals, training) => {
       const trainingRevenue = ctStudents
@@ -952,6 +988,10 @@ const FinanceDashboard = () => {
         // L'application a commencé en Mai (index 4). On ignore les mois précédents.
         if (mIdx < 4) {
           break;
+        }
+
+        if (isStudentVacationMonth(student, months[mIdx])) {
+          continue;
         }
 
         if (!paidMonthKeys.has(months[mIdx].toLowerCase())) {
@@ -2396,10 +2436,14 @@ const FinanceDashboard = () => {
         {showPaymentModal && (
           <div className="finance-payment-modal-overlay finance-admin-page finance-modal-portal-scope app-modal-overlay">
             <motion.div className="app-modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(6px)' }} onClick={() => setShowPaymentModal(false)} />
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="glass-premium finance-payment-modal app-modal-surface">
+            <motion.div ref={paymentModalRef} initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="glass-premium finance-payment-modal app-modal-surface">
               <div className="finance-payment-modal-header">
                 <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900' }}>{editingPayment ? 'Modifier le paiement' : 'Enregistrer un Paiement'}</h2>
-                <button onClick={() => { setShowPaymentModal(false); setEditingPayment(null); }} className="close-button" aria-label="Fermer la fenêtre"><X size={20} /></button>
+                <div className="finance-payment-modal-header-actions">
+                  <button type="button" onClick={() => paymentModalRef.current?.scrollTo({ top: 0, behavior: 'smooth' })} className="finance-payment-scroll-button" aria-label="Remonter en haut" title="Remonter en haut"><ChevronUp size={17} /></button>
+                  <button type="button" onClick={() => paymentModalRef.current?.scrollTo({ top: paymentModalRef.current.scrollHeight, behavior: 'smooth' })} className="finance-payment-scroll-button" aria-label="Descendre en bas" title="Descendre en bas"><ChevronDown size={17} /></button>
+                  <button onClick={() => { setShowPaymentModal(false); setEditingPayment(null); }} className="close-button" aria-label="Fermer la fenêtre"><X size={20} /></button>
+                </div>
               </div>
               <div className="finance-payment-modal-stack">
                 <div className="finance-payment-modal-panel">
@@ -2474,7 +2518,14 @@ const FinanceDashboard = () => {
                       style={{ width: '100%', marginTop: '6px' }}
                       value={paymentData.studentId}
                       placeholder="Sélectionner un stagiaire..."
-                      onChange={val => setPaymentData({...paymentData, studentId: val})}
+                      onChange={val => {
+                        const nextStudent = paymentAcademicStudents.find(student => student.id === val);
+                        setPaymentData(current => ({
+                          ...current,
+                          studentId: val,
+                          month: getDefaultPaymentMonth(nextStudent, current.month),
+                        }));
+                      }}
                       options={[{ value: '', label: 'Sélectionner un stagiaire...' }, ...modalStudents.map(s => ({ value: s.id, label: `${s.lastName} ${s.firstName}` }))]}
                     />
                   )}
@@ -2516,8 +2567,13 @@ const FinanceDashboard = () => {
                       value={paymentData.month}
                       placeholder="Sélectionner un mois..."
                       onChange={value => setPaymentData({ ...paymentData, month: value })}
-                      options={months.map(month => ({ value: month, label: month }))}
+                      options={paymentMonthOptions}
                     />
+                    {selectedMonthIsVacation && (
+                      <p className="finance-payment-vacation-warning">
+                        Ce mois est une période de vacances pour ce niveau. Aucun paiement ne peut être enregistré.
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label style={lbl}>Mode de paiement</label>
@@ -2579,10 +2635,12 @@ const FinanceDashboard = () => {
                   </div>
                 </div>
                 <button className="btn-modern primary finance-payment-submit-button"
-                  style={{ width: '100%', padding: '14px', justifyContent: 'center' }}
+                  disabled={selectedMonthIsVacation}
+                  style={{ width: '100%', padding: '14px', justifyContent: 'center', opacity: selectedMonthIsVacation ? 0.55 : 1, cursor: selectedMonthIsVacation ? 'not-allowed' : 'pointer' }}
                   onClick={async () => {
                     if (!paymentData.studentId || paymentGrandTotal <= 0) return showToast('Stagiaire et montant requis', 'warning');
                     if (!paymentData.academicYear) return showToast('Année académique requise', 'warning');
+                    if (selectedMonthIsVacation) return showToast('Paiement bloqué : ce mois est une période de vacances pour ce niveau.', 'warning');
                     const fees = PAYMENT_FEE_FIELDS
                       .map(({ key, label }) => ({ key, label, amount: parseFloat(paymentData[key]) || 0 }))
                       .filter(fee => fee.amount > 0);
