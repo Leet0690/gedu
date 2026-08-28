@@ -288,7 +288,7 @@ export default function DashboardLayout({ children }) {
         
         {/* Simple Flat Header */}
         <header className="premium-topbar flex h-[64px] shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6" style={{ zIndex: 30 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div className="premium-topbar-start" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             {/* Desktop toggler */}
             <button 
               className="premium-layout-toggle desktop-menu-btn"
@@ -318,11 +318,12 @@ export default function DashboardLayout({ children }) {
             </button>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div className="premium-topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             {/* Offline badge */}
             <AnimatePresence>
               {!isOnline && (
                 <motion.div
+                  className="premium-topbar-offline"
                   initial={{ opacity: 0, scale: 0.85, x: 10 }}
                   animate={{ opacity: 1, scale: 1, x: 0 }}
                   exit={{ opacity: 0, scale: 0.85, x: 10 }}
@@ -346,7 +347,7 @@ export default function DashboardLayout({ children }) {
 
             {/* Academic Year Selector */}
             {showAcademicYearSelector && availableAcademicYearsList && availableAcademicYearsList.length > 0 && (
-              <div className="premium-topbar-semester">
+              <div className="premium-topbar-semester premium-topbar-academic-year">
                 <span className="premium-topbar-semester-label">Année académique</span>
                 <AcademicYearSelector
                   activeYear={activeAcademicYear}

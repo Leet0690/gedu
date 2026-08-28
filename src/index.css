@@ -10530,6 +10530,105 @@ body:has(.app-modal-overlay) .app-modal-overlay {
   }
 }
 
+/* Academic year selector: keep the trigger compact and the open menu inside mobile viewports. */
+.academic-year-selector,
+.academic-year-selector__trigger,
+.academic-year-selector__value {
+  min-width: 0;
+}
+
+.academic-year-selector__trigger {
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+.academic-year-selector__menu {
+  width: min(13rem, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+}
+
+@media (max-width: 760px) {
+  .premium-topbar-start {
+    flex: 0 0 auto;
+    gap: 0 !important;
+  }
+
+  .premium-topbar-actions {
+    min-width: 0;
+    gap: 6px !important;
+  }
+
+  .premium-topbar-academic-year {
+    min-width: 0;
+    flex: 0 1 auto;
+  }
+
+  .premium-topbar-offline {
+    gap: 0 !important;
+    padding: 7px !important;
+  }
+
+  .premium-topbar-offline > span {
+    display: none !important;
+  }
+
+  .academic-year-selector__trigger {
+    gap: 4px !important;
+    padding: 6px 8px !important;
+  }
+
+  .academic-year-selector__menu {
+    position: fixed !important;
+    top: 68px !important;
+    right: 12px !important;
+    left: 12px !important;
+    width: auto !important;
+    max-width: none;
+    margin-top: 0 !important;
+    transform-origin: top center;
+  }
+
+  .academic-year-selector__list {
+    max-height: min(16rem, calc(100dvh - 150px)) !important;
+  }
+
+  .premium-topbar-profile {
+    gap: 0 !important;
+    padding: 0 !important;
+    border-left: 0 !important;
+  }
+
+  .premium-topbar-profile > div:nth-child(2) {
+    display: none !important;
+  }
+
+  .premium-topbar-logout {
+    width: 36px !important;
+    height: 36px !important;
+    margin-left: 0 !important;
+    border-radius: 12px !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .premium-topbar {
+    padding-inline: 8px !important;
+  }
+
+  .premium-topbar-actions {
+    gap: 4px !important;
+  }
+
+  .academic-year-selector__calendar {
+    display: none;
+  }
+
+  .academic-year-selector__menu {
+    right: 8px !important;
+    left: 8px !important;
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════════
    SCHEDULE GENERATION WIZARD
    ═══════════════════════════════════════════════════════════════ */
