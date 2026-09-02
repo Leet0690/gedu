@@ -34,7 +34,6 @@ import {
   isActiveStudent,
   isLaureatStudent,
   validateAcademicYearTransition,
-  hasExistingClosure,
   getStudentPreviousYearBalance,
   getStudentStudyCycleRange,
   getStudentAcademicSnapshot,
@@ -1162,7 +1161,6 @@ const AdminDashboard = () => {
     };
   }, [activeStudents, operationalAcademicYear, promotionForm.fromAcademicYear]);
   const isYearFormatValid = useMemo(() => validateAcademicYearTransition(promotionForm.fromAcademicYear, promotionForm.toAcademicYear), [promotionForm]);
-  const isAlreadyClosed = useMemo(() => hasExistingClosure(activeStudents, promotionForm.fromAcademicYear), [activeStudents, promotionForm.fromAcademicYear]);
 
   const allDiplomas = useMemo(() => Object.keys(FILIERES), []);
   const availableYears = useMemo(
@@ -1296,14 +1294,9 @@ const AdminDashboard = () => {
       showToast('Format d\u2019ann\u00e9e invalide.', 'error');
       return;
     }
-    if (isAlreadyClosed) {
-      showToast(`L\u2019ann\u00e9e ${promotionForm.fromAcademicYear} a d\u00e9j\u00e0 \u00e9t\u00e9 cl\u00f4tur\u00e9e.`, 'error');
-      return;
-    }
-
     const confirmed = await confirmAction({
       title: "Cl\u00f4turer l'ann\u00e9e scolaire ?",
-      message: `${promotionPreview.graduated} stagiaire(s) en fin de cycle deviendront lauréats et ${promotionPreview.promoted} stagiaire(s) passeront à l'année suivante. Les prochains numéros de reçus recommenceront à FD0001 pour les paiements et F0001 pour les formateurs.`,
+      message: `Une sauvegarde complète de la base sera créée avant toute modification. ${promotionPreview.graduated} stagiaire(s) en fin de cycle deviendront lauréats et ${promotionPreview.promoted} stagiaire(s) passeront à l'année suivante. La même base Firestore sera conservée et ${promotionForm.fromAcademicYear} restera consultable dans les archives.`,
       type: 'warning'
     });
     if (!confirmed) return;
@@ -1322,7 +1315,7 @@ const AdminDashboard = () => {
     } finally {
       setIsPromotingAcademicYear(false);
     }
-  }, [confirmAction, promoteAcademicYear, promotionForm, promotionPreview, isYearFormatValid, isAlreadyClosed, showToast]);
+  }, [confirmAction, promoteAcademicYear, promotionForm, promotionPreview, isYearFormatValid, showToast]);
 
   const handleUndoPromotion = useCallback(async () => {
     if (!promotionResult?.operationId) return;
@@ -2290,7 +2283,7 @@ const AdminDashboard = () => {
                   )}
 
                   <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-xl)', background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.18)', color: '#166534', fontSize: '12px', fontWeight: '700', lineHeight: 1.6, marginBottom: '20px' }}>
-                    Op&eacute;ration journalis&eacute;e. Les prochains re&ccedil;us commenceront par FD0001 pour les paiements et F0001 pour les formateurs.
+                    Sauvegarde compl&egrave;te cr&eacute;&eacute;e avant la cl&ocirc;ture ({promotionResult.backupDocumentCount || 0} documents). L&apos;ann&eacute;e reste disponible dans les archives.
                   </div>
 
                   <div style={{ display: 'flex', gap: '12px' }}>
@@ -2350,13 +2343,10 @@ const AdminDashboard = () => {
                     </div>
                   )}
 
-                  {/* Improvement #3: Double closure warning */}
-                  {isAlreadyClosed && (
-                    <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-xl)', background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.18)', color: '#991b1b', fontSize: '12px', fontWeight: '700', lineHeight: 1.6, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <AlertTriangle size={16} style={{ flexShrink: 0 }} />
-                      L&apos;ann&eacute;e {promotionForm.fromAcademicYear} a d&eacute;j&agrave; &eacute;t&eacute; cl&ocirc;tur&eacute;e. Cette op&eacute;ration est bloqu&eacute;e.
-                    </div>
-                  )}
+                  <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-xl)', background: 'rgba(14,165,233,0.06)', border: '1px solid rgba(14,165,233,0.2)', color: '#075985', fontSize: '12px', fontWeight: '700', lineHeight: 1.6, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Lock size={16} style={{ flexShrink: 0 }} />
+                    Une sauvegarde compl&egrave;te et v&eacute;rifi&eacute;e sera cr&eacute;&eacute;e avant toute modification. En cas d&apos;&eacute;chec, la cl&ocirc;ture sera bloqu&eacute;e.
+                  </div>
 
                   <div style={{ padding: '14px 16px', borderRadius: 'var(--radius-xl)', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.22)', color: '#92400e', fontSize: '12px', fontWeight: '700', lineHeight: 1.6, marginBottom: '24px' }}>
                     Les 2&egrave;me ann&eacute;e seront marqu&eacute;s comme laur&eacute;ats. Les 1&egrave;re ann&eacute;e passeront en 2&egrave;me ann&eacute;e. Un historique sera conserv&eacute; dans chaque dossier.
@@ -2364,8 +2354,8 @@ const AdminDashboard = () => {
 
                   {/* Improvement #2: Disable button when invalid */}
                   <div style={{ display: 'flex', gap: '12px' }}>
-                    <button type="button" className="btn-modern primary" style={{ flex: 1, justifyContent: 'center' }} disabled={isPromotingAcademicYear || promotionPreview.total === 0 || !isYearFormatValid || isAlreadyClosed} onClick={handlePromoteAcademicYear}>
-                      {isPromotingAcademicYear ? 'Cl\u00f4ture en cours...' : "Confirmer la cl\u00f4ture"}
+                    <button type="button" className="btn-modern primary" style={{ flex: 1, justifyContent: 'center' }} disabled={isPromotingAcademicYear || promotionPreview.total === 0 || !isYearFormatValid} onClick={handlePromoteAcademicYear}>
+                      {isPromotingAcademicYear ? 'Sauvegarde et cl\u00f4ture en cours...' : "Confirmer la cl\u00f4ture"}
                     </button>
                   </div>
                 </div>

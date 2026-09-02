@@ -10,7 +10,9 @@ import {
   query,
   orderBy,
   getDocs,
+  getDocsFromServer,
   getDoc,
+  getDocFromServer,
   where,
   limit,
   writeBatch,
@@ -63,6 +65,31 @@ const CORE_CACHE_TTL = 6 * 60 * 60 * 1000;
 const FINANCE_CACHE_TTL = 60 * 60 * 1000;
 const ACTIVE_SEMESTER_KEY = 'ipfp_active_semester';
 const OPERATIONAL_ACADEMIC_YEAR_KEY = 'ipfp_operational_academic_year_v1';
+const ACADEMIC_YEAR_BACKUPS_COLLECTION = 'academic_year_backups';
+const ACADEMIC_YEAR_BACKUP_SOURCE_COLLECTIONS = [
+  'students',
+  'teachers',
+  'grades',
+  'schedules',
+  'attendance_stagiaires',
+  'attendance_formateurs',
+  'payments',
+  'salaries',
+  'expenses',
+  'modules',
+  'settings',
+  'activity_logs',
+  'access_logs',
+  'operations',
+  'receipt_counters',
+  'continuousTrainings',
+  'continuousTrainingTypes',
+  'ctStudents',
+  'ctSessions',
+  'tokens',
+];
+const ACADEMIC_YEAR_BACKUP_BATCH_SIZE = 400;
+const ACADEMIC_YEAR_CLOSURE_LEASE_MS = 15 * 60 * 1000;
 const pendingLoads = new Map();
 
 const readCachedOperationalAcademicYear = () => {
@@ -73,6 +100,181 @@ const readCachedOperationalAcademicYear = () => {
     return INITIAL_OPERATIONAL_ACADEMIC_YEAR;
   }
 };
+
+const refreshAcademicYearClosureLease = async ({ operationId, attemptId, stage }) => {
+  const settingsRef = doc(db, 'settings', 'app');
+  await runTransaction(db, async transaction => {
+    const settingsSnapshot = await transaction.get(settingsRef);
+    const currentClosure = settingsSnapshot.data()?.academicYearClosure;
+    if (
+      currentClosure?.status !== 'in_progress' ||
+      currentClosure?.operationId !== operationId ||
+      currentClosure?.attemptId !== attemptId
+    ) {
+      const ownershipError = new Error('Cette tentative de cloture n est plus active.');
+      ownershipError.code = 'STALE_CLOSURE_ATTEMPT';
+      throw ownershipError;
+    }
+
+    transaction.update(settingsRef, {
+      academicYearClosure: {
+        ...currentClosure,
+        stage,
+        heartbeatAt: serverTimestamp(),
+      },
+    });
+  });
+};
+
+const createAcademicYearBackup = async ({
+  academicYear,
+  operationId,
+  attemptId,
+  settingsAppBackupData,
+}) => {
+  await refreshAcademicYearClosureLease({ operationId, attemptId, stage: 'backup' });
+  const backupId = operationId;
+  const backupRef = doc(db, ACADEMIC_YEAR_BACKUPS_COLLECTION, backupId);
+  const existingBackup = await getDocFromServer(backupRef);
+  if (
+    existingBackup.exists() &&
+    existingBackup.data()?.status === 'completed' &&
+    existingBackup.data()?.academicYear === academicYear
+  ) {
+    const data = existingBackup.data();
+    return {
+      backupId,
+      totalDocuments: Number(data.totalDocuments) || 0,
+      collectionCounts: data.collectionCounts || {},
+      reused: true,
+    };
+  }
+
+  await setDoc(backupRef, {
+    schemaVersion: 1,
+    status: 'creating',
+    academicYear,
+    operationId,
+    sourceCollections: ACADEMIC_YEAR_BACKUP_SOURCE_COLLECTIONS,
+    startedAt: serverTimestamp(),
+  }, { merge: true });
+
+  const collectionCounts = {};
+  const collectionDocumentIds = {};
+  let totalDocuments = 0;
+  let batch = writeBatch(db);
+  let pendingWrites = 0;
+
+  const flushBatch = async () => {
+    if (pendingWrites === 0) return;
+    await refreshAcademicYearClosureLease({ operationId, attemptId, stage: 'backup' });
+    await batch.commit();
+    batch = writeBatch(db);
+    pendingWrites = 0;
+  };
+
+  try {
+    for (const collectionName of ACADEMIC_YEAR_BACKUP_SOURCE_COLLECTIONS) {
+      const snapshot = await getDocsFromServer(collection(db, collectionName));
+      collectionCounts[collectionName] = snapshot.size;
+      collectionDocumentIds[collectionName] = snapshot.docs.map(sourceDocument => sourceDocument.id);
+      totalDocuments += snapshot.size;
+
+      for (const sourceDocument of snapshot.docs) {
+        const sourceData = collectionName === 'settings' && sourceDocument.id === 'app'
+          ? settingsAppBackupData
+          : sourceDocument.data();
+        batch.set(
+          doc(db, ACADEMIC_YEAR_BACKUPS_COLLECTION, backupId, collectionName, sourceDocument.id),
+          sourceData
+        );
+        pendingWrites += 1;
+        if (pendingWrites >= ACADEMIC_YEAR_BACKUP_BATCH_SIZE) {
+          await flushBatch();
+        }
+      }
+    }
+    await flushBatch();
+    await refreshAcademicYearClosureLease({ operationId, attemptId, stage: 'backup' });
+
+    for (const collectionName of ACADEMIC_YEAR_BACKUP_SOURCE_COLLECTIONS) {
+      const copiedSnapshot = await getDocsFromServer(
+        collection(db, ACADEMIC_YEAR_BACKUPS_COLLECTION, backupId, collectionName)
+      );
+      const copiedIds = new Set(copiedSnapshot.docs.map(copiedDocument => copiedDocument.id));
+      const expectedIds = collectionDocumentIds[collectionName];
+      if (
+        copiedSnapshot.size !== expectedIds.length ||
+        expectedIds.some(documentId => !copiedIds.has(documentId))
+      ) {
+        throw new Error(`Backup verification failed for ${collectionName}.`);
+      }
+    }
+    await refreshAcademicYearClosureLease({ operationId, attemptId, stage: 'backup' });
+
+    await setDoc(backupRef, {
+      status: 'completed',
+      academicYear,
+      operationId,
+      collectionCounts,
+      totalDocuments,
+      verifiedAt: serverTimestamp(),
+      completedAt: serverTimestamp(),
+    }, { merge: true });
+
+    return { backupId, totalDocuments, collectionCounts, reused: false };
+  } catch (error) {
+    try {
+      await setDoc(backupRef, {
+        status: 'failed',
+        failedAt: serverTimestamp(),
+        errorMessage: String(error?.message || 'Unknown backup error').slice(0, 500),
+      }, { merge: true });
+    } catch (manifestError) {
+      console.error('Impossible de marquer la sauvegarde comme échouée:', manifestError);
+    }
+    throw error;
+  }
+};
+
+const markAcademicYearClosureFailed = async ({
+  operationId,
+  attemptId,
+  failureStage,
+  error,
+  processedCount = 0,
+}) => {
+  const settingsRef = doc(db, 'settings', 'app');
+  try {
+    await runTransaction(db, async transaction => {
+      const settingsSnapshot = await transaction.get(settingsRef);
+      if (!settingsSnapshot.exists()) return;
+
+      const currentClosure = settingsSnapshot.data()?.academicYearClosure;
+      if (
+        currentClosure?.status !== 'in_progress' ||
+        currentClosure?.operationId !== operationId ||
+        currentClosure?.attemptId !== attemptId
+      ) {
+        return;
+      }
+
+      transaction.update(settingsRef, {
+        academicYearClosure: {
+          ...currentClosure,
+          status: 'failed',
+          failureStage,
+          processedCount,
+          failedAt: serverTimestamp(),
+          errorMessage: String(error?.message || error || 'Unknown closure error').slice(0, 500),
+        },
+      });
+    });
+  } catch (statusError) {
+    console.error('Impossible de marquer la cloture comme echouee:', statusError);
+  }
+};
+
 const makeToken = (length = 32) => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   const values = new Uint32Array(length);
@@ -784,9 +986,10 @@ export const AppProvider = ({ children }) => {
 
     const settingsRef = doc(db, 'settings', 'app');
     const proposedOperationId = `academic-year-${Date.now()}-${makeToken(8)}`;
-    let operationId;
+    const proposedAttemptId = `attempt-${Date.now()}-${makeToken(8)}`;
+    let closureReservation;
     try {
-      operationId = await runTransaction(db, async transaction => {
+      closureReservation = await runTransaction(db, async transaction => {
         const settingsSnapshot = await transaction.get(settingsRef);
         const settings = settingsSnapshot.exists() ? settingsSnapshot.data() : {};
         const serverAcademicYear = validateAcademicYear(settings?.operationalAcademicYear)
@@ -801,29 +1004,53 @@ export const AppProvider = ({ children }) => {
         }
 
         const pendingClosure = settings?.academicYearClosure;
-        if (pendingClosure?.status === 'in_progress') {
-          if (
-            pendingClosure.fromAcademicYear === fromAcademicYear &&
-            pendingClosure.toAcademicYear === toAcademicYear &&
-            pendingClosure.operationId
-          ) {
-            return pendingClosure.operationId;
-          }
+        const leaseTimestamp = pendingClosure?.heartbeatAt || pendingClosure?.startedAt;
+        const leaseUpdatedAt = typeof leaseTimestamp?.toMillis === 'function'
+          ? leaseTimestamp.toMillis()
+          : 0;
+        const isStaleInProgress = pendingClosure?.status === 'in_progress' &&
+          (!leaseUpdatedAt || Date.now() - leaseUpdatedAt >= ACADEMIC_YEAR_CLOSURE_LEASE_MS);
+        if (pendingClosure?.status === 'in_progress' && !isStaleInProgress) {
           const busyError = new Error('Une autre clôture est déjà en cours.');
           busyError.code = 'ACADEMIC_YEAR_CLOSURE_IN_PROGRESS';
           throw busyError;
         }
 
-        transaction.set(settingsRef, {
-          academicYearClosure: {
-            status: 'in_progress',
-            operationId: proposedOperationId,
-            fromAcademicYear,
-            toAcademicYear,
-            startedAt: serverTimestamp(),
-          },
-        }, { merge: true });
-        return proposedOperationId;
+        const isRetry = (pendingClosure?.status === 'failed' || isStaleInProgress) &&
+          pendingClosure.fromAcademicYear === fromAcademicYear &&
+          pendingClosure.toAcademicYear === toAcademicYear;
+        const previousClosure = (pendingClosure?.status === 'failed' || isStaleInProgress)
+          ? (pendingClosure.previousClosure || null)
+          : (pendingClosure || null);
+        const operationId = isRetry &&
+          (pendingClosure.failureStage === 'promotion' || pendingClosure.stage === 'promotion') &&
+          pendingClosure.operationId
+          ? pendingClosure.operationId
+          : proposedOperationId;
+        const settingsAppBackupData = { ...settings };
+        if (previousClosure) {
+          settingsAppBackupData.academicYearClosure = previousClosure;
+        } else {
+          delete settingsAppBackupData.academicYearClosure;
+        }
+        const nextClosure = {
+          status: 'in_progress',
+          operationId,
+          attemptId: proposedAttemptId,
+          fromAcademicYear,
+          toAcademicYear,
+          previousClosure,
+          stage: 'backup',
+          startedAt: serverTimestamp(),
+          heartbeatAt: serverTimestamp(),
+        };
+
+        if (settingsSnapshot.exists()) {
+          transaction.update(settingsRef, { academicYearClosure: nextClosure });
+        } else {
+          transaction.set(settingsRef, { academicYearClosure: nextClosure });
+        }
+        return { operationId, attemptId: proposedAttemptId, settingsAppBackupData };
       });
     } catch (error) {
       if (error?.code === 'STALE_OPERATIONAL_YEAR') {
@@ -834,6 +1061,43 @@ export const AppProvider = ({ children }) => {
         showToast('Une autre clôture académique est déjà en cours.', 'error');
         return { promotedCount: 0, graduatedCount: 0, error: 'CLOSURE_IN_PROGRESS' };
       }
+      throw error;
+    }
+    const { operationId, attemptId, settingsAppBackupData } = closureReservation;
+
+    showToast(`Sauvegarde complète de ${fromAcademicYear} en cours...`, 'info');
+    let backupResult;
+    try {
+      backupResult = await createAcademicYearBackup({
+        academicYear: fromAcademicYear,
+        operationId,
+        attemptId,
+        settingsAppBackupData,
+      });
+    } catch (error) {
+      console.error('Erreur sauvegarde pré-clôture:', error);
+      await markAcademicYearClosureFailed({
+        operationId,
+        attemptId,
+        failureStage: 'backup',
+        error,
+      });
+      showToast(
+        `La sauvegarde de ${fromAcademicYear} a échoué. Aucune donnée académique n'a été modifiée.`,
+        'error'
+      );
+      return { promotedCount: 0, graduatedCount: 0, error: 'BACKUP_FAILED' };
+    }
+
+    try {
+      await refreshAcademicYearClosureLease({ operationId, attemptId, stage: 'promotion' });
+    } catch (error) {
+      await markAcademicYearClosureFailed({
+        operationId,
+        attemptId,
+        failureStage: 'promotion',
+        error,
+      });
       throw error;
     }
 
@@ -949,7 +1213,7 @@ export const AppProvider = ({ children }) => {
             { ...receiptCounterReset, prefix: 'F' },
             { merge: true }
           );
-          batch.set(settingsRef, {
+          batch.update(settingsRef, {
             operationalAcademicYear: toAcademicYear,
             archivedAcademicYears: nextArchivedAcademicYears,
             academicYearUpdatedAt: serverTimestamp(),
@@ -957,12 +1221,14 @@ export const AppProvider = ({ children }) => {
             academicYearClosure: {
               status: 'completed',
               operationId,
+              backupId: backupResult.backupId,
               fromAcademicYear,
               toAcademicYear,
               completedAt: serverTimestamp(),
             },
-          }, { merge: true });
+          });
         }
+        await refreshAcademicYearClosureLease({ operationId, attemptId, stage: 'promotion' });
         await batch.commit();
         // Update local state progressively after each successful batch
         const chunkIds = chunk.map(c => c.id);
@@ -987,6 +1253,13 @@ export const AppProvider = ({ children }) => {
       }
     } catch (err) {
       console.error('Erreur batch cl\u00f4ture:', err);
+      await markAcademicYearClosureFailed({
+        operationId,
+        attemptId,
+        failureStage: 'promotion',
+        error: err,
+        processedCount: processedIds.length,
+      });
       if (processedIds.length > 0) {
         showToast(`Erreur partielle : ${processedIds.length}/${updates.length} stagiaires mis \u00e0 jour. Relancez la m\u00eame cl\u00f4ture pour terminer.`, 'error');
       }
@@ -1024,6 +1297,8 @@ export const AppProvider = ({ children }) => {
         promotedIds: updates.filter(u => u.type === 'promoted').map(u => u.id),
         graduatedIds: updates.filter(u => u.type === 'graduated').map(u => u.id),
         breakdown,
+        backupId: backupResult.backupId,
+        backupDocumentCount: backupResult.totalDocuments,
         receiptCountersReset: true,
         performedAt: serverTimestamp(),
         closedAt,
@@ -1032,8 +1307,16 @@ export const AppProvider = ({ children }) => {
       console.error('Erreur journalisation:', logErr);
     }
 
-    showToast(`${promotedCount} stagiaire(s) promu(s), ${graduatedCount} laur\u00e9at(s) archiv\u00e9(s). Les num\u00e9ros de re\u00e7us ont \u00e9t\u00e9 r\u00e9initialis\u00e9s.`, 'success');
-    return { promotedCount, graduatedCount, operationId, breakdown, receiptCountersReset: true };
+    showToast(`${promotedCount} stagiaire(s) promu(s), ${graduatedCount} laur\u00e9at(s) archiv\u00e9(s). Sauvegarde compl\u00e8te cr\u00e9\u00e9e avant cl\u00f4ture.`, 'success');
+    return {
+      promotedCount,
+      graduatedCount,
+      operationId,
+      breakdown,
+      backupId: backupResult.backupId,
+      backupDocumentCount: backupResult.totalDocuments,
+      receiptCountersReset: true,
+    };
   };
 
   // Improvement #6: Undo last promotion

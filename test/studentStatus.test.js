@@ -108,6 +108,22 @@ test('legacy active students remain visible in the proposed year before closure'
   assert.equal(snapshot.year, SECOND_YEAR);
 });
 
+test('a legacy second-year student keeps the stored level in the operational year', () => {
+  const student = {
+    id: 'legacy-second-year',
+    status: 'active',
+    regNo: 'TS-DI/25',
+    diploma: 'Technicien Spécialisé',
+    major: 'Développement Informatique',
+    year: SECOND_YEAR,
+  };
+
+  assert.equal(getStudentCurrentAcademicYear(student, '2025-2026'), '2025-2026');
+  const snapshot = getStudentAcademicSnapshot(student, '2025-2026', '2025-2026');
+  assert.ok(snapshot);
+  assert.equal(snapshot.year, SECOND_YEAR);
+});
+
 test('the next academic year is hidden until the manual closure changes the operational year', () => {
   const legacyStudents = [{
     id: 'legacy-live',

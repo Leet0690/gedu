@@ -391,6 +391,13 @@ export const getStudentCurrentAcademicYear = (
     return getNextAcademicYear(student.previousAcademicYear);
   }
 
+  // Legacy active records without a closure history represent the live roster.
+  // Their matricule can describe a different intake year, but must not move the
+  // current class into a future academic year before a manual closure.
+  if (isActiveStudent(student) && history.length === 0) {
+    return currentYear;
+  }
+
   const latestHistory = [...history]
     .filter(entry => validateAcademicYear(entry?.academicYear))
     .sort((a, b) => b.academicYear.localeCompare(a.academicYear))[0];
