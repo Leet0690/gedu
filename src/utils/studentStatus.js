@@ -290,7 +290,7 @@ export const extractEntryYearFromMatricule = (regNo) => {
   return null;
 };
 
-/** Calculate 2-year study cycle range string for a student (ex: "2025 - 2027") */
+/** Calculate the two-year study cycle from academic-year data and study level. */
 export const getStudentStudyCycleRange = (
   student = {},
   operationalAcademicYear = INITIAL_OPERATIONAL_ACADEMIC_YEAR
@@ -299,15 +299,7 @@ export const getStudentStudyCycleRange = (
 
   let startYear = null;
 
-  // Case A: Extract entry year directly from matricule (ex: /26 -> 2026, /25 -> 2025)
-  const matriculeYear = extractEntryYearFromMatricule(
-    student.regNo || student.registrationNumber || student.matricule
-  );
-  if (matriculeYear) {
-    startYear = matriculeYear;
-  }
-
-  // Case B: Has classHistory entries
+  // Case A: Has classHistory entries
   if (!startYear && Array.isArray(student.classHistory) && student.classHistory.length > 0) {
     const validHistoryYears = student.classHistory
       .map(h => h.academicYear)
@@ -320,7 +312,7 @@ export const getStudentStudyCycleRange = (
     }
   }
 
-  // Case C: Has academicYear
+  // Case B: Has academicYear
   if (!startYear && student.academicYear && validateAcademicYear(student.academicYear)) {
     const currentYear = validateAcademicYear(operationalAcademicYear)
       ? operationalAcademicYear
@@ -343,13 +335,14 @@ export const getStudentStudyCycleRange = (
     }
   }
 
-  // Case D: Has graduationAcademicYear (Lauréat)
+  // Case C: Has graduationAcademicYear (Lauréat)
   if (!startYear && student.graduationAcademicYear && validateAcademicYear(student.graduationAcademicYear)) {
     const gradEndYear = parseInt(student.graduationAcademicYear.split('-')[1]);
     startYear = gradEndYear - 2;
   }
 
-  // Fallback: use the manually managed operational year, never the calendar date.
+  // Fallback: use the manually managed operational year, never the matricule
+  // or the calendar date. A second-year student started one year earlier.
   if (!startYear) {
     const currentYear = validateAcademicYear(operationalAcademicYear)
       ? operationalAcademicYear

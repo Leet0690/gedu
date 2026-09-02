@@ -12,6 +12,7 @@ import {
   getPaymentAcademicYear,
   getStudentAcademicSnapshot,
   getStudentCurrentAcademicYear,
+  getStudentStudyCycleRange,
   getStudentPayableMonths,
   getStudentPreviousYearBalance,
   isStudentVacationMonth,
@@ -122,6 +123,17 @@ test('a legacy second-year student keeps the stored level in the operational yea
   const snapshot = getStudentAcademicSnapshot(student, '2025-2026', '2025-2026');
   assert.ok(snapshot);
   assert.equal(snapshot.year, SECOND_YEAR);
+});
+
+test('study cycle uses academic year and level, never the matricule', () => {
+  assert.equal(
+    getStudentStudyCycleRange({ regNo: 'TS-DI/25', year: SECOND_YEAR }, '2025-2026'),
+    '2024 - 2026'
+  );
+  assert.equal(
+    getStudentStudyCycleRange({ regNo: 'TS-DI/24', year: FIRST_YEAR }, '2025-2026'),
+    '2025 - 2027'
+  );
 });
 
 test('the next academic year is hidden until the manual closure changes the operational year', () => {
