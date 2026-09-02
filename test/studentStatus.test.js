@@ -5,12 +5,13 @@ import {
   FIRST_YEAR,
   SECOND_YEAR,
   canEditAttendanceForAcademicYear,
+  getAcademicYearTransition,
   getAcademicYearForDate,
   getAvailableAcademicYears,
   getCalendarYearForAcademicMonth,
-  getDefaultAcademicYearTransition,
   getPaymentAcademicYear,
   getStudentAcademicSnapshot,
+  getStudentCurrentAcademicYear,
   getStudentPayableMonths,
   getStudentPreviousYearBalance,
   isStudentVacationMonth,
@@ -42,13 +43,13 @@ test('attendance editing is restricted to the writable year and valid non-future
   }), false);
 });
 
-test('the proposed closure year changes in September, not in August', () => {
+test('the proposed closure is derived only from the operational academic year', () => {
   assert.deepEqual(
-    getDefaultAcademicYearTransition(new Date(2026, 7, 26)),
+    getAcademicYearTransition('2025-2026'),
     { fromAcademicYear: '2025-2026', toAcademicYear: '2026-2027' }
   );
   assert.deepEqual(
-    getDefaultAcademicYearTransition(new Date(2026, 8, 1)),
+    getAcademicYearTransition('2026-2027'),
     { fromAcademicYear: '2026-2027', toAcademicYear: '2027-2028' }
   );
 });
@@ -70,12 +71,12 @@ test('historical snapshots restore the class for the selected academic year', ()
     }],
   };
 
-  const snapshot = getStudentAcademicSnapshot(student, '2025-2026');
+  const snapshot = getStudentAcademicSnapshot(student, '2025-2026', '2026-2027');
   assert.equal(snapshot.year, FIRST_YEAR);
   assert.equal(snapshot.academicYear, '2025-2026');
   assert.equal(snapshot.isHistoricalSnapshot, true);
-  assert.equal(isStudentCurrentlyInAcademicYear(student, '2025-2026'), false);
-  assert.equal(isStudentCurrentlyInAcademicYear(student, '2026-2027'), true);
+  assert.equal(isStudentCurrentlyInAcademicYear(student, '2025-2026', '2026-2027'), false);
+  assert.equal(isStudentCurrentlyInAcademicYear(student, '2026-2027', '2026-2027'), true);
 });
 
 test('historical selection does not project a first-year student into a future class', () => {
@@ -88,7 +89,7 @@ test('historical selection does not project a first-year student into a future c
     year: FIRST_YEAR,
   };
 
-  assert.equal(getStudentAcademicSnapshot(student, '2026-2027'), null);
+  assert.equal(getStudentAcademicSnapshot(student, '2026-2027', '2025-2026'), null);
 });
 
 test('legacy active students remain visible in the proposed year before closure', () => {
@@ -101,28 +102,38 @@ test('legacy active students remain visible in the proposed year before closure'
     year: SECOND_YEAR,
   };
 
-  const snapshot = getStudentAcademicSnapshot(student, '2025-2026');
+  const snapshot = getStudentAcademicSnapshot(student, '2025-2026', '2025-2026');
   assert.ok(snapshot);
   assert.equal(snapshot.academicYear, '2025-2026');
   assert.equal(snapshot.year, SECOND_YEAR);
 });
 
-test('the next academic year is hidden until a closure transition exists', () => {
+test('the next academic year is hidden until the manual closure changes the operational year', () => {
   const legacyStudents = [{
     id: 'legacy-live',
     status: 'active',
     academicYear: '2026-2027',
     year: SECOND_YEAR,
   }];
-  const beforeClosureDate = new Date(2026, 7, 27);
-  assert.deepEqual(getAvailableAcademicYears(legacyStudents, [], beforeClosureDate), ['2025-2026']);
+  assert.equal(getStudentCurrentAcademicYear(legacyStudents[0], '2025-2026'), '2025-2026');
+  assert.deepEqual(
+    getAvailableAcademicYears(
+      legacyStudents,
+      [{ date: '2026-09-02' }],
+      '2025-2026'
+    ),
+    ['2025-2026']
+  );
 
   const promotedStudents = [{
     ...legacyStudents[0],
     previousAcademicYear: '2025-2026',
     classHistory: [{ academicYear: '2025-2026', year: FIRST_YEAR }],
   }];
-  assert.deepEqual(getAvailableAcademicYears(promotedStudents, [], beforeClosureDate), ['2026-2027', '2025-2026']);
+  assert.deepEqual(
+    getAvailableAcademicYears(promotedStudents, [], '2026-2027', ['2025-2026']),
+    ['2026-2027', '2025-2026']
+  );
 });
 
 test('an explicit payment academic year has priority over receipt series and date', () => {

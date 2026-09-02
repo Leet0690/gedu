@@ -100,7 +100,7 @@ const getRecordTimestamp = (record) => {
 const TeacherPortal = () => {
   const { teacherId } = useParams();
   const navigate = useNavigate();
-  const { teachers, students, updateGrades, batchUpdateGrades, grades, loading, studentAttendance, updateStudentAttendance, schedules, updateTeacherAttendance, loadAttendanceForSession, teacherAttendance, loadTeacherAttendanceForDate, confirmAction, modules: allModules = [], activeSemester, getActiveScheduleModule } = useApp();
+  const { teachers, students, updateGrades, batchUpdateGrades, grades, loading, studentAttendance, updateStudentAttendance, schedules, updateTeacherAttendance, loadAttendanceForSession, teacherAttendance, loadTeacherAttendanceForDate, confirmAction, modules: allModules = [], activeSemester, getActiveScheduleModule, operationalAcademicYear } = useApp();
   const { showToast } = useToast();
   
   const teacher = useMemo(() => {
@@ -434,11 +434,11 @@ const TeacherPortal = () => {
       lg[s.id] = getGradeByModuleName(
         grades[s.id] || {},
         selectedSubject,
-        getStudentCurrentAcademicYear(s)
+        getStudentCurrentAcademicYear(s, operationalAcademicYear)
       ) || { c1: '', c2: '', c3: '', efcfp: '', efcft: '' };
     });
     setLocalGrades(lg);
-  }, [relevantStudents, selectedSubject, grades]);
+  }, [relevantStudents, selectedSubject, grades, operationalAcademicYear]);
 
   const allAttended = useMemo(() => {
     if (!currentSession || !relevantStudents || relevantStudents.length === 0 || !currentAttendanceModule) return false;
@@ -668,7 +668,7 @@ const TeacherPortal = () => {
 
     const updates = relevantStudents.map(student => ({
       studentId: student.id,
-      academicYear: getStudentCurrentAcademicYear(student),
+      academicYear: getStudentCurrentAcademicYear(student, operationalAcademicYear),
       subject: selectedSubject,
       gradeData: localGrades[student.id] || { c1: '', c2: '', c3: '', efcfp: '', efcft: '' }
     }));

@@ -62,7 +62,7 @@ const Grade = ({ val }) => {
 
 const StudentResults = () => {
   const { studentId } = useParams();
-  const { students = [], grades = {}, loading = false, modules: allModules = [] } = useApp() || {};
+  const { students = [], grades = {}, loading = false, modules: allModules = [], operationalAcademicYear } = useApp() || {};
 
   const student = students.find(s => {
     if (!s) return false;
@@ -77,7 +77,7 @@ const StudentResults = () => {
   }, [student]);
 
   const resolvedStudentId = student?.id;
-  const studentAcademicYear = student ? getStudentCurrentAcademicYear(student) : '';
+  const studentAcademicYear = student ? getStudentCurrentAcademicYear(student, operationalAcademicYear) : '';
   const studentGrades = useMemo(
     () => resolvedStudentId
       ? getGradesForAcademicYear(grades[resolvedStudentId] || {}, studentAcademicYear)
@@ -126,7 +126,7 @@ const StudentResults = () => {
     });
     const peerAvgs = peers.map(s => {
       const { generalAverage: avg } = calcStudentSynthesisAverages(
-        getGradesForAcademicYear(grades[s.id] || {}, getStudentCurrentAcademicYear(s)),
+        getGradesForAcademicYear(grades[s.id] || {}, getStudentCurrentAcademicYear(s, operationalAcademicYear)),
         studentModules
       );
       return { id: s.id, avg };
@@ -137,7 +137,7 @@ const StudentResults = () => {
 
     const rank = peerAvgs.filter(p => p.avg > current.avg + 0.0001).length + 1;
     return { rank, total: peerAvgs.length };
-  }, [students, grades, student, studentModules]);
+  }, [students, grades, student, studentModules, operationalAcademicYear]);
 
   const chartData = useMemo(() =>
     moduleScores

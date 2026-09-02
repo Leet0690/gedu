@@ -28,14 +28,13 @@ import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
 import {
   STUDENT_STATUS,
-  getDefaultAcademicYearTransition,
+  getAcademicYearTransition,
   getCalendarYearForAcademicMonth,
   getStudentStatusLabel,
   isActiveStudent,
   isLaureatStudent,
   validateAcademicYearTransition,
   hasExistingClosure,
-  getAvailableAcademicYears,
   getStudentPreviousYearBalance,
   getStudentStudyCycleRange,
   getStudentAcademicSnapshot,
@@ -406,7 +405,7 @@ const SEVERITY_CONFIG = {
   info: { color: '#0ea5e9', bg: 'rgba(14,165,233,0.07)', border: 'rgba(14,165,233,0.18)', icon: Info },
 };
 
-const PendingTasksWidget = ({ students, teachers, grades, teacherAttendance, allModules, activeSemester }) => {
+const PendingTasksWidget = ({ students, teachers, grades, teacherAttendance, allModules, activeSemester, operationalAcademicYear }) => {
   const tasks = useMemo(() => {
     const items = [];
     const now = new Date();
@@ -432,7 +431,7 @@ const PendingTasksWidget = ({ students, teachers, grades, teacherAttendance, all
       gs.forEach(s => {
         const studentGrades = getGradesForAcademicYear(
           grades[s.id] || {},
-          getStudentCurrentAcademicYear(s)
+          getStudentCurrentAcademicYear(s, operationalAcademicYear)
         );
         mods.forEach(m => {
           const g = getGradeByModuleName(studentGrades, m);
@@ -469,7 +468,7 @@ const PendingTasksWidget = ({ students, teachers, grades, teacherAttendance, all
     }
 
     return items;
-  }, [students, teachers, grades, teacherAttendance, allModules, activeSemester]);
+  }, [students, teachers, grades, teacherAttendance, allModules, activeSemester, operationalAcademicYear]);
 
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
@@ -538,7 +537,7 @@ const PendingTasksWidget = ({ students, teachers, grades, teacherAttendance, all
   );
 };
 
-const GradesBreakdownWidget = ({ students, grades, allModules, activeSemester }) => {
+const GradesBreakdownWidget = ({ students, grades, allModules, activeSemester, operationalAcademicYear }) => {
   const groups = useMemo(() => {
     const map = {};
     (students || []).forEach(s => {
@@ -554,7 +553,7 @@ const GradesBreakdownWidget = ({ students, grades, allModules, activeSemester })
       g.total += mods.length;
       const studentGrades = getGradesForAcademicYear(
         grades[s.id] || {},
-        getStudentCurrentAcademicYear(s)
+        getStudentCurrentAcademicYear(s, operationalAcademicYear)
       );
       mods.forEach(m => {
         const gr = getGradeByModuleName(studentGrades, m);
@@ -566,7 +565,7 @@ const GradesBreakdownWidget = ({ students, grades, allModules, activeSemester })
       label: getGroupAbbreviation(g.major, g.year),
       pct: g.total > 0 ? Math.round((g.entered / g.total) * 100) : 0,
     })).sort((a, b) => a.pct - b.pct);
-  }, [students, grades, allModules, activeSemester]);
+  }, [students, grades, allModules, activeSemester, operationalAcademicYear]);
 
   const overall = useMemo(() => {
     if (groups.length === 0) return 0;
@@ -972,7 +971,7 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
 };
 
 const AdminDashboard = () => {
-  const { students, teachers, payments, grades, schedules, modules: allModules, addStudent, addTeacher, deleteStudent, deleteTeacher, updateStudent, promoteAcademicYear, undoLastPromotion, updateTeacher, studentAttendance, teacherAttendance, loadStudentAttendanceForMonth, loadTeacherAttendanceForMonth, migrateTeacherTokens, loading, confirmAction, notifications, activeSemester, setActiveSemester, getActiveScheduleModule, activeAcademicYear, availableAcademicYearsList } = useApp();
+  const { students, teachers, payments, grades, schedules, modules: allModules, addStudent, addTeacher, deleteStudent, deleteTeacher, updateStudent, promoteAcademicYear, undoLastPromotion, updateTeacher, studentAttendance, teacherAttendance, loadStudentAttendanceForMonth, loadTeacherAttendanceForMonth, migrateTeacherTokens, loading, confirmAction, notifications, activeSemester, setActiveSemester, getActiveScheduleModule, activeAcademicYear, operationalAcademicYear, availableAcademicYearsList } = useApp();
   const { showToast } = useToast();
   const location = useLocation();
   const isDashboard = location.pathname === '/';
@@ -981,7 +980,6 @@ const AdminDashboard = () => {
   const attendanceCalendarYear = getCalendarYearForAcademicMonth(activeAcademicYear, dashboardMonthIndex) || currentCalendarYear;
   const attendanceMonthKey = `${attendanceCalendarYear}-${String(dashboardMonthIndex + 1).padStart(2, '0')}`;
   const teacherAttendanceMonthKey = `${currentCalendarYear}-${String(dashboardMonthIndex + 1).padStart(2, '0')}`;
-  const operationalAcademicYear = availableAcademicYearsList?.[0] || getDefaultAcademicYearTransition().fromAcademicYear;
 
   // Load the equivalent calendar month for the selected academic year.
   useEffect(() => {
@@ -1024,7 +1022,7 @@ const AdminDashboard = () => {
   const [editModuleSearch, setEditModuleSearch] = useState('');
   
   const [promotionModalOpen, setPromotionModalOpen] = useState(false);
-  const [promotionForm, setPromotionForm] = useState(() => getDefaultAcademicYearTransition());
+  const [promotionForm, setPromotionForm] = useState(() => getAcademicYearTransition(operationalAcademicYear));
   const [isPromotingAcademicYear, setIsPromotingAcademicYear] = useState(false);
   const [promotionResult, setPromotionResult] = useState(null);
 
@@ -1142,7 +1140,11 @@ const AdminDashboard = () => {
   const activeStudents = useMemo(() => (students || []).filter(isActiveStudent), [students]);
   const promotionPreview = useMemo(() => {
     const eligible = activeStudents
-      .filter(student => isStudentCurrentlyInAcademicYear(student, promotionForm.fromAcademicYear))
+      .filter(student => isStudentCurrentlyInAcademicYear(
+        student,
+        promotionForm.fromAcademicYear,
+        operationalAcademicYear
+      ))
       .filter(s => isKnownStudyYear(s.diploma, s.year));
     // Improvement #7: Build breakdown by filière
     const filiereBreakdown = {};
@@ -1158,7 +1160,7 @@ const AdminDashboard = () => {
       total: eligible.length,
       filiereBreakdown,
     };
-  }, [activeStudents, promotionForm.fromAcademicYear]);
+  }, [activeStudents, operationalAcademicYear, promotionForm.fromAcademicYear]);
   const isYearFormatValid = useMemo(() => validateAcademicYearTransition(promotionForm.fromAcademicYear, promotionForm.toAcademicYear), [promotionForm]);
   const isAlreadyClosed = useMemo(() => hasExistingClosure(activeStudents, promotionForm.fromAcademicYear), [activeStudents, promotionForm.fromAcademicYear]);
 
@@ -1362,8 +1364,8 @@ const AdminDashboard = () => {
     let data = activeTab === 'students'
       ? (students || []).map(student => {
           const snapshot = academicYearFilter
-            ? getStudentAcademicSnapshot(student, academicYearFilter)
-            : getStudentAcademicSnapshot(student);
+            ? getStudentAcademicSnapshot(student, academicYearFilter, operationalAcademicYear)
+            : getStudentAcademicSnapshot(student, '', operationalAcademicYear);
           return snapshot ? { ...snapshot, __sourceStudent: student } : null;
         }).filter(Boolean)
       : (teachers || []);
@@ -1378,7 +1380,7 @@ const AdminDashboard = () => {
     if (categoryFilter) data = data.filter(item => activeTab === 'students' ? item.major === categoryFilter : (item.groups || []).includes(categoryFilter));
     if (activeTab === 'teachers' && moduleFilter) data = data.filter(item => (item.subjects || [item.subject]).includes(moduleFilter));
     return data;
-  }, [activeTab, students, teachers, categoryFilter, diplomaFilter, yearFilter, academicYearFilter, moduleFilter]);
+  }, [activeTab, students, teachers, categoryFilter, diplomaFilter, yearFilter, academicYearFilter, moduleFilter, operationalAcademicYear]);
 
   const columns = useMemo(() => [
     {
@@ -1409,7 +1411,7 @@ const AdminDashboard = () => {
                 background: 'var(--primary-ultra-light)', border: '1px solid rgba(176,104,185,0.25)',
                 borderRadius: '4px', padding: '1px 6px'
               }}>
-                Cycle {getStudentStudyCycleRange(row.original)}
+                Cycle {getStudentStudyCycleRange(row.original, operationalAcademicYear)}
               </span>
             )}
             {activeTab === 'students' && getStudentPreviousYearBalance(row.original, payments || []).hasUnpaid && (
@@ -1502,7 +1504,7 @@ const AdminDashboard = () => {
         </div>
       ),
     },
-  ], [activeTab, academicYearFilter, openDetails, openEdit, handleDelete, grades, getStudentActiveModules, openQR, payments]);
+  ], [activeTab, academicYearFilter, openDetails, openEdit, handleDelete, grades, getStudentActiveModules, openQR, operationalAcademicYear, payments]);
 
   const table = useReactTable({
     data: tableData,
@@ -1519,9 +1521,11 @@ const AdminDashboard = () => {
 
   const activeYearStudents = useMemo(() => {
     return (students || [])
-      .map(student => (activeAcademicYear ? getStudentAcademicSnapshot(student, activeAcademicYear) : student))
+      .map(student => (activeAcademicYear
+        ? getStudentAcademicSnapshot(student, activeAcademicYear, operationalAcademicYear)
+        : student))
       .filter(Boolean);
-  }, [students, activeAcademicYear]);
+  }, [students, activeAcademicYear, operationalAcademicYear]);
 
   const activeYearStudentIds = useMemo(
     () => new Set(activeYearStudents.map(student => student.id)),
@@ -1562,7 +1566,10 @@ const AdminDashboard = () => {
           </div>
           <div className="directory-premium-header-actions">
             {activeTab === 'students' && (
-              <button className="btn-modern" style={{ background: 'rgba(15,23,42,0.04)', color: 'var(--text-primary)' }} onClick={() => setPromotionModalOpen(true)}>
+              <button className="btn-modern" style={{ background: 'rgba(15,23,42,0.04)', color: 'var(--text-primary)' }} onClick={() => {
+                setPromotionForm(getAcademicYearTransition(operationalAcademicYear));
+                setPromotionModalOpen(true);
+              }}>
                 <GraduationCap size={14} style={{ marginRight: '6px' }} /> Cl&ocirc;turer l&apos;ann&eacute;e
               </button>
             )}
@@ -1631,11 +1638,11 @@ const AdminDashboard = () => {
           {/* New Requested Order in Grid format to keep dimensions */}
           <div className="home-dashboard-widget-grid">
             <TodaySessionsWidget schedules={schedules || []} teachers={teachers || []} getScheduleModule={getActiveScheduleModule} activeSemester={activeSemester} setActiveSemester={setActiveSemester} />
-            <GradesBreakdownWidget students={activeYearStudents} grades={grades || {}} allModules={allModules || []} activeSemester={activeSemester} />
+            <GradesBreakdownWidget students={activeYearStudents} grades={grades || {}} allModules={allModules || []} activeSemester={activeSemester} operationalAcademicYear={operationalAcademicYear} />
           </div>
 
           <div className="home-dashboard-widget-grid">
-            <PendingTasksWidget students={activeYearStudents} teachers={teachers || []} grades={grades || {}} teacherAttendance={teacherAttendance || []} allModules={allModules || []} activeSemester={activeSemester} />
+            <PendingTasksWidget students={activeYearStudents} teachers={teachers || []} grades={grades || {}} teacherAttendance={teacherAttendance || []} allModules={allModules || []} activeSemester={activeSemester} operationalAcademicYear={operationalAcademicYear} />
             <ActivityFeedWidget notifications={notifications || []} />
           </div>
 
@@ -1699,7 +1706,7 @@ const AdminDashboard = () => {
                   ? [
                       { value: '', label: diplomaFilter ? "Choisir l'année..." : "Sélectionner niveau d'abord" }, 
                       ...availableYears.map(y => ({ value: y, label: y })),
-                      ...(academicYearFilter !== getDefaultAcademicYearTransition().fromAcademicYear ? [{ label: "Lauréat (Diplômés)", value: "Lauréat" }] : [])
+                      ...(academicYearFilter !== operationalAcademicYear ? [{ label: "Lauréat (Diplômés)", value: "Lauréat" }] : [])
                     ]
                   : [{ value: '', label: 'Toutes années' }, ...availableYears.map(y => ({ value: y, label: y }))]
                 }

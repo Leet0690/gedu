@@ -17,8 +17,6 @@ import {
   hasDuplicateMonthlyPayment,
 } from '../utils/paymentUtils';
 import {
-  getAvailableAcademicYears,
-  getDefaultAcademicYearTransition,
   getPaymentAcademicYear,
   getStudentAcademicSnapshot,
   getStudentCurrentAcademicYear,
@@ -273,7 +271,7 @@ const FinanceDashboard = () => {
     teacherAttendance, loadFinancialData, loadTeacherAttendanceForMonth,
     schedules, getActiveScheduleModule,
     isDirectorAuth, loginDirector, logoutDirector, logout, confirmAction,
-    activeAcademicYear
+    activeAcademicYear, operationalAcademicYear, availableAcademicYearsList = []
   } = useApp();
   const { showToast } = useToast();
   const activeStudents = useMemo(() => (students || []).filter(isActiveStudent), [students]);
@@ -284,7 +282,7 @@ const FinanceDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearch = useDebounce(searchTerm, 300);
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('');
-  const defaultAcademicYear = activeAcademicYear || getDefaultAcademicYearTransition().fromAcademicYear;
+  const defaultAcademicYear = activeAcademicYear || operationalAcademicYear;
   const [paymentAcademicYearFilter, setPaymentAcademicYearFilter] = useState(
     () => defaultAcademicYear
   );
@@ -294,7 +292,7 @@ const FinanceDashboard = () => {
     }
   }, [activeAcademicYear]);
   const [paymentMonthFilter, setPaymentMonthFilter] = useState(getCurrentMonthName);
-  const availableAcademicYears = useMemo(() => getAvailableAcademicYears(students, payments), [students, payments]);
+  const availableAcademicYears = availableAcademicYearsList;
   const previousYearArrearsMap = useMemo(() => {
     const map = {};
     (students || []).forEach(student => {
@@ -310,7 +308,11 @@ const FinanceDashboard = () => {
     const currentStudent = students.find(student => student.id === payment.studentId);
     if (!currentStudent) return null;
     const paymentAcademicYear = getPaymentAcademicYear(payment);
-    return getStudentAcademicSnapshot(currentStudent, paymentAcademicYear) || currentStudent;
+    return getStudentAcademicSnapshot(
+      currentStudent,
+      paymentAcademicYear,
+      operationalAcademicYear
+    ) || currentStudent;
   };
   const [summaryMonthFilter, setSummaryMonthFilter] = useState(getCurrentMonthName);
   const [teacherSearchTerm, setTeacherSearchTerm] = useState('');
@@ -476,10 +478,10 @@ const FinanceDashboard = () => {
   const openPaymentModal = (studentId = '') => {
     const selectedStudent = students.find(student => student.id === studentId);
     const academicYear = paymentAcademicYearFilter ||
-      (selectedStudent ? getStudentCurrentAcademicYear(selectedStudent) : '') ||
+      (selectedStudent ? getStudentCurrentAcademicYear(selectedStudent, operationalAcademicYear) : '') ||
       defaultAcademicYear;
     const academicStudent = selectedStudent
-      ? (getStudentAcademicSnapshot(selectedStudent, academicYear) || selectedStudent)
+      ? (getStudentAcademicSnapshot(selectedStudent, academicYear, operationalAcademicYear) || selectedStudent)
       : null;
     const preferredMonth = paymentMonthFilter || currentMonthName;
     setEditingPayment(null);
@@ -705,7 +707,11 @@ const FinanceDashboard = () => {
     let candidateStudents = activeStudents;
     if (paymentAcademicYearFilter) {
       candidateStudents = (students || [])
-        .map(student => getStudentAcademicSnapshot(student, paymentAcademicYearFilter))
+        .map(student => getStudentAcademicSnapshot(
+          student,
+          paymentAcademicYearFilter,
+          operationalAcademicYear
+        ))
         .filter(Boolean);
     }
 
@@ -735,7 +741,7 @@ const FinanceDashboard = () => {
     ];
 
     return monthlyRows;
-  }, [payments, activeStudents, students, paymentMonthFilter, paymentAcademicYearFilter, currentMonthName]);
+  }, [payments, activeStudents, students, paymentMonthFilter, paymentAcademicYearFilter, currentMonthName, operationalAcademicYear]);
 
   const paymentStatusCounts = useMemo(() => {
     const paidStudentIds = new Set();
@@ -778,9 +784,13 @@ const FinanceDashboard = () => {
   const paymentAcademicStudents = useMemo(() => {
     const targetAcademicYear = paymentData.academicYear || defaultAcademicYear;
     return (students || [])
-      .map(student => getStudentAcademicSnapshot(student, targetAcademicYear))
+      .map(student => getStudentAcademicSnapshot(
+        student,
+        targetAcademicYear,
+        operationalAcademicYear
+      ))
       .filter(Boolean);
-  }, [students, paymentData.academicYear, defaultAcademicYear]);
+  }, [students, paymentData.academicYear, defaultAcademicYear, operationalAcademicYear]);
 
   const modalDiplomas = useMemo(() => [...new Set(paymentAcademicStudents.map(s => s.diploma).filter(Boolean))].sort(), [paymentAcademicStudents]);
   const modalMajors = useMemo(() => {
@@ -1410,7 +1420,7 @@ const FinanceDashboard = () => {
                         <td style={tdStyle}>
                           <p style={{ fontWeight: '700', fontSize: 'var(--text-sm)' }}>{student?.firstName} {student?.lastName}</p>
                           <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                            {student?.major} {student && <span style={{ fontWeight: '600', color: 'var(--primary)', marginLeft: '6px' }}>· Cycle {getStudentStudyCycleRange(student)}</span>}
+                            {student?.major} {student && <span style={{ fontWeight: '600', color: 'var(--primary)', marginLeft: '6px' }}>· Cycle {getStudentStudyCycleRange(student, operationalAcademicYear)}</span>}
                           </p>
                           {overdueMap[student?.id] && (
                             <span style={{
@@ -2464,7 +2474,7 @@ const FinanceDashboard = () => {
                   <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px', fontWeight: '600' }}>
                     Pour un arriéré, choisissez l'année concernée avant de sélectionner le stagiaire.
                   </p>
-                  {paymentData.academicYear && paymentData.academicYear !== defaultAcademicYear && (
+                  {paymentData.academicYear && paymentData.academicYear !== operationalAcademicYear && (
                     <div style={{ marginTop: '10px', padding: '8px 12px', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <AlertTriangle size={14} style={{ color: '#ca8a04', flexShrink: 0 }} />
                       <span style={{ fontSize: '11px', color: '#854d0e', fontWeight: '600', lineHeight: 1.4 }}>
@@ -2509,7 +2519,7 @@ const FinanceDashboard = () => {
                         options={[
                           { value: '', label: 'Toutes' }, 
                           ...modalYears.map(y => ({ value: y, label: y })),
-                          ...(paymentData.academicYear && paymentData.academicYear !== (activeAcademicYear || getDefaultAcademicYearTransition().fromAcademicYear) ? [{ label: "Lauréat (Diplômés)", value: "Lauréat" }] : [])
+                          ...(paymentData.academicYear && paymentData.academicYear !== operationalAcademicYear ? [{ label: "Lauréat (Diplômés)", value: "Lauréat" }] : [])
                         ]}
                       />
                     </div>
@@ -2659,7 +2669,11 @@ const FinanceDashboard = () => {
                       .map(({ key, label }) => ({ key, label, amount: parseFloat(paymentData[key]) || 0 }))
                       .filter(fee => fee.amount > 0);
                     const currentStudent = students.find(student => student.id === paymentData.studentId);
-                    const academicStudent = getStudentAcademicSnapshot(currentStudent, paymentData.academicYear) || currentStudent;
+                    const academicStudent = getStudentAcademicSnapshot(
+                      currentStudent,
+                      paymentData.academicYear,
+                      operationalAcademicYear
+                    ) || currentStudent;
                     const studentSnapshot = academicStudent ? {
                       firstName: academicStudent.firstName || '',
                       lastName: academicStudent.lastName || '',

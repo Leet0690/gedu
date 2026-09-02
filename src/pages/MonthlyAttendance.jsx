@@ -5,9 +5,7 @@ import { FILIERES, getStudyYearsForMajor } from '../data/modules';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import {
   getCalendarYearForAcademicMonth,
-  getDefaultAcademicYearTransition,
-  getStudentAcademicSnapshot,
-  isActiveStudent
+  getStudentAcademicSnapshot
 } from '../utils/studentStatus';
 import {
   CalendarRange, Download, Search, Filter,
@@ -56,12 +54,12 @@ const StatusCell = ({ status }) => {
 const labelStyle = { fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px', display: 'block' };
 
 const MonthlyAttendance = () => {
-  const { students, studentAttendance, loadStudentAttendanceForMonth, loading, activeAcademicYear } = useApp();
+  const { students, studentAttendance, loadStudentAttendanceForMonth, loading, activeAcademicYear, operationalAcademicYear } = useApp();
 
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth());
-  const selectedAcademicYear = activeAcademicYear || getDefaultAcademicYearTransition().fromAcademicYear;
-  const year = getCalendarYearForAcademicMonth(selectedAcademicYear, month) || now.getFullYear();
+  const selectedAcademicYear = activeAcademicYear || operationalAcademicYear;
+  const year = getCalendarYearForAcademicMonth(selectedAcademicYear, month);
   const [filterFiliere, setFilterFiliere] = useState('');
   const [filterAnnee, setFilterAnnee] = useState('');
   const [search, setSearch] = useState('');
@@ -72,9 +70,9 @@ const MonthlyAttendance = () => {
   const days = useMemo(() => Array.from({ length: daysInMonth }, (_, i) => i + 1), [daysInMonth]);
   const activeStudents = useMemo(() => {
     return (students || [])
-      .map(s => (activeAcademicYear ? getStudentAcademicSnapshot(s, activeAcademicYear) : (isActiveStudent(s) ? s : null)))
+      .map(s => getStudentAcademicSnapshot(s, selectedAcademicYear, operationalAcademicYear))
       .filter(Boolean);
-  }, [students, activeAcademicYear]);
+  }, [students, selectedAcademicYear, operationalAcademicYear]);
 
   useEffect(() => {
     loadStudentAttendanceForMonth(month, year);

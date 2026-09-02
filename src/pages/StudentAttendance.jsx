@@ -11,9 +11,7 @@ import {
   canEditAttendanceForAcademicYear,
   getAcademicYearForDate,
   getCalendarYearForAcademicMonth,
-  getDefaultAcademicYearTransition,
-  getStudentAcademicSnapshot,
-  isActiveStudent
+  getStudentAcademicSnapshot
 } from '../utils/studentStatus';
 import { useDebounce } from '../utils/useDebounce';
 import { findStudentAttendanceRecord, isFinalAttendanceStatus, makeAttendanceColumnKey, makeStudentAttendanceDocId } from '../utils/attendanceKeys';
@@ -68,10 +66,10 @@ const formatLocalDate = (date) => {
 };
 
 const StudentAttendance = () => {
-  const { students, teachers, studentAttendance, updateStudentAttendance, loadAttendanceForSession, loadStudentAttendanceForMonth, loading, schedules, teacherAttendance, updateTeacherAttendance, loadTeacherAttendanceForDate, modules: allModules = [], activeSemester = 'S1', getActiveScheduleModule, activeAcademicYear, availableAcademicYearsList } = useApp();
+  const { students, teachers, studentAttendance, updateStudentAttendance, loadAttendanceForSession, loadStudentAttendanceForMonth, loading, schedules, teacherAttendance, updateTeacherAttendance, loadTeacherAttendanceForDate, modules: allModules = [], activeSemester = 'S1', getActiveScheduleModule, activeAcademicYear, operationalAcademicYear } = useApp();
   const { showToast } = useToast();
   const todayDate = useMemo(() => formatLocalDate(new Date()), []);
-  const writableAcademicYear = availableAcademicYearsList?.[0] || getDefaultAcademicYearTransition().fromAcademicYear;
+  const writableAcademicYear = operationalAcademicYear;
 
   /* Tab state */
   const [view, setView] = useState('daily');
@@ -113,9 +111,9 @@ const StudentAttendance = () => {
   }, [selectedDate]);
   const activeStudents = useMemo(() => {
     return (students || [])
-      .map(s => (activeAcademicYear ? getStudentAcademicSnapshot(s, activeAcademicYear) : (isActiveStudent(s) ? s : null)))
+      .map(s => getStudentAcademicSnapshot(s, selectedAcademicYear, operationalAcademicYear))
       .filter(Boolean);
-  }, [students, activeAcademicYear]);
+  }, [students, selectedAcademicYear, operationalAcademicYear]);
 
   const filteredStudents = useMemo(() => {
     return activeStudents.filter(s => {
@@ -421,7 +419,7 @@ const StudentAttendance = () => {
   /* ── Monthly view state ── */
   const now = new Date();
   const [mMonth, setMMonth] = useState(now.getMonth());
-  const mYear = getCalendarYearForAcademicMonth(selectedAcademicYear, mMonth) || now.getFullYear();
+  const mYear = getCalendarYearForAcademicMonth(selectedAcademicYear, mMonth);
   const [mFilterFiliere, setMFilterFiliere] = useState('');
   const [mFilterAnnee, setMFilterAnnee] = useState('');
   const [mSearch, setMSearch] = useState('');

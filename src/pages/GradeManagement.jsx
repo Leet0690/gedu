@@ -19,8 +19,6 @@ import {
   parseScore,
 } from '../utils/gradeCalculations';
 import {
-  getAvailableAcademicYears,
-  getDefaultAcademicYearTransition,
   getStudentAcademicSnapshot,
 } from '../utils/studentStatus';
 import { TableSkeleton } from '../components/Skeleton';
@@ -109,7 +107,7 @@ const MiniStat = ({ label, value, icon: Icon }) => (
 );
 
 const GradeManagement = () => {
-  const { students = [], teachers = [], grades = {}, batchUpdateGrades, loading = false, modules: allModules = [], confirmAction, activeAcademicYear } = useApp() || {};
+  const { students = [], teachers = [], grades = {}, batchUpdateGrades, loading = false, modules: allModules = [], confirmAction, activeAcademicYear, operationalAcademicYear, availableAcademicYearsList = [] } = useApp() || {};
   const { showToast } = useToast();
   const [entryMode, setEntryMode] = useState('student');
   const [selectedStudentId, setSelectedStudentId] = useState('');
@@ -119,7 +117,7 @@ const GradeManagement = () => {
   const [filterMajor, setFilterMajor] = useState('');
   const [filterYear, setFilterYear] = useState('');
   const [filterAcademicYear, setFilterAcademicYear] = useState(
-    () => activeAcademicYear || getDefaultAcademicYearTransition().fromAcademicYear
+    () => activeAcademicYear || operationalAcademicYear
   );
 
   useEffect(() => {
@@ -131,13 +129,10 @@ const GradeManagement = () => {
   const [localGrades, setLocalGrades] = useState({});
   const [moduleLocalGrades, setModuleLocalGrades] = useState({});
   const [moduleDirtyStudentIds, setModuleDirtyStudentIds] = useState(() => new Set());
-  const availableAcademicYears = useMemo(
-    () => getAvailableAcademicYears(students, []),
-    [students]
-  );
+  const availableAcademicYears = availableAcademicYearsList;
   const academicStudents = useMemo(() => (students || [])
-    .map(student => getStudentAcademicSnapshot(student, filterAcademicYear))
-    .filter(Boolean), [students, filterAcademicYear]);
+    .map(student => getStudentAcademicSnapshot(student, filterAcademicYear, operationalAcademicYear))
+    .filter(Boolean), [students, filterAcademicYear, operationalAcademicYear]);
   const availableDiplomas = useMemo(() => Array.from(new Set([
     ...Object.keys(FILIERES),
     ...academicStudents.map(student => student.diploma).filter(Boolean),
@@ -686,7 +681,7 @@ const GradeManagement = () => {
               options={[
                 { label: "-- Choisir l'année --", value: "" },
                 ...availableStudyYears.map(year => ({ label: year, value: year })),
-                ...(filterAcademicYear !== (activeAcademicYear || getDefaultAcademicYearTransition().fromAcademicYear)
+                ...(filterAcademicYear !== operationalAcademicYear
                   ? [{ label: "Lauréat (Diplômés)", value: "Lauréat" }] : [])
               ]}
             />

@@ -9,8 +9,6 @@ import {
   LineChart, Line, Cell, PieChart, Pie, Legend
 } from 'recharts';
 import {
-  getAvailableAcademicYears,
-  getDefaultAcademicYearTransition,
   getStudentAcademicSnapshot,
 } from '../utils/studentStatus';
 import {
@@ -530,7 +528,7 @@ const Reports = () => {
   const {
     students = [], grades = {}, modules: allModules = [],
     studentAttendance = [], loadStudentAttendanceForMonth,
-    activeAcademicYear
+    activeAcademicYear, operationalAcademicYear, availableAcademicYearsList = []
   } = useApp() || {};
 
   const [selectedDiploma, setSelectedDiploma] = useState(Object.keys(MODULES_DATA)[0]);
@@ -545,10 +543,14 @@ const Reports = () => {
   const [selectedModule, setSelectedModule] = useState('');
   const [rankSort, setRankSort] = useState('avg_desc');
   const [isExportingExcel, setIsExportingExcel] = useState(false);
-  const availableAcademicYears = useMemo(() => getAvailableAcademicYears(students, []), [students]);
+  const availableAcademicYears = availableAcademicYearsList;
   const reportStudents = useMemo(() => (students || [])
-    .map(student => getStudentAcademicSnapshot(student, selectedAcademicYear))
-    .filter(Boolean), [students, selectedAcademicYear]);
+    .map(student => getStudentAcademicSnapshot(
+      student,
+      selectedAcademicYear,
+      operationalAcademicYear
+    ))
+    .filter(Boolean), [students, selectedAcademicYear, operationalAcademicYear]);
   const getStudentGrades = useCallback(
     studentId => getGradesForAcademicYear(grades[studentId] || {}, selectedAcademicYear),
     [grades, selectedAcademicYear]
@@ -1328,7 +1330,7 @@ const Reports = () => {
             onChange={setSelectedYear} 
             options={[
               ...availableStudyYears.map(y => ({ label: y, value: y })),
-              ...(selectedAcademicYear !== (activeAcademicYear || getDefaultAcademicYearTransition().fromAcademicYear) ? [{ label: "Lauréat (Diplômés)", value: "Lauréat" }] : [])
+              ...(selectedAcademicYear !== operationalAcademicYear ? [{ label: "Lauréat (Diplômés)", value: "Lauréat" }] : [])
             ]} 
             style={{ minWidth: '150px' }} 
           />

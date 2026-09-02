@@ -30,9 +30,9 @@ import { getScheduleModuleForSemester, normalizeSemester } from '../utils/schedu
 import {
   STUDENT_STATUS,
   getAvailableAcademicYears,
-  getDefaultAcademicYearTransition,
   getPaymentAcademicYear,
   getStudentCurrentAcademicYear,
+  INITIAL_OPERATIONAL_ACADEMIC_YEAR,
   isActiveStudent,
   isStudentCurrentlyInAcademicYear,
   validateAcademicYear,
@@ -62,8 +62,17 @@ const FINANCE_CACHE_EXPENSES_KEY = 'ipfp_v2_finance_expenses';
 const CORE_CACHE_TTL = 6 * 60 * 60 * 1000;
 const FINANCE_CACHE_TTL = 60 * 60 * 1000;
 const ACTIVE_SEMESTER_KEY = 'ipfp_active_semester';
-const ACTIVE_ACADEMIC_YEAR_KEY = 'ipfp_active_academic_year';
+const OPERATIONAL_ACADEMIC_YEAR_KEY = 'ipfp_operational_academic_year_v1';
 const pendingLoads = new Map();
+
+const readCachedOperationalAcademicYear = () => {
+  try {
+    const stored = localStorage.getItem(OPERATIONAL_ACADEMIC_YEAR_KEY);
+    return validateAcademicYear(stored) ? stored : INITIAL_OPERATIONAL_ACADEMIC_YEAR;
+  } catch {
+    return INITIAL_OPERATIONAL_ACADEMIC_YEAR;
+  }
+};
 const makeToken = (length = 32) => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   const values = new Uint32Array(length);
@@ -269,13 +278,12 @@ export const AppProvider = ({ children }) => {
   const [activeSemester, setActiveSemesterState] = useState(() => {
     try { return normalizeSemester(localStorage.getItem(ACTIVE_SEMESTER_KEY)); } catch { return 'S1'; }
   });
-  const [activeAcademicYear, setActiveAcademicYearState] = useState(() => {
-    try {
-      const stored = localStorage.getItem(ACTIVE_ACADEMIC_YEAR_KEY);
-      if (stored && validateAcademicYear(stored)) return stored;
-    } catch { /* ignore */ }
-    return getDefaultAcademicYearTransition().fromAcademicYear;
-  });
+  // The operational year is server-backed and changes only through closure/undo.
+  const [operationalAcademicYear, setOperationalAcademicYearState] = useState(readCachedOperationalAcademicYear);
+  const [archivedAcademicYears, setArchivedAcademicYears] = useState([]);
+  // The active year is only the local year currently being viewed.
+  const [activeAcademicYear, setActiveAcademicYearState] = useState(readCachedOperationalAcademicYear);
+  const operationalAcademicYearRef = useRef(operationalAcademicYear);
   const [loading, setLoading] = useState(true);
   const studentAttendanceKeysRef = useRef(new Set());
   const teacherAttendanceKeysRef = useRef(new Set());
@@ -328,25 +336,69 @@ export const AppProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    let isMounted = true;
-    const loadActiveSemester = async () => {
+    const settingsRef = doc(db, 'settings', 'app');
+    let bootstrapInProgress = false;
+
+    const unsubscribe = onSnapshot(settingsRef, snapshot => {
+      const settings = snapshot.exists() ? snapshot.data() : {};
+      const hasOperationalAcademicYear = validateAcademicYear(settings?.operationalAcademicYear);
+      const nextOperationalAcademicYear = hasOperationalAcademicYear
+        ? settings.operationalAcademicYear
+        : INITIAL_OPERATIONAL_ACADEMIC_YEAR;
+      const nextArchivedAcademicYears = Array.isArray(settings?.archivedAcademicYears)
+        ? settings.archivedAcademicYears.filter(year =>
+            validateAcademicYear(year) && year < nextOperationalAcademicYear
+          )
+        : [];
+      const previousOperationalAcademicYear = operationalAcademicYearRef.current;
+      const nextSemester = normalizeSemester(settings?.activeSemester);
+
+      operationalAcademicYearRef.current = nextOperationalAcademicYear;
+      setActiveSemesterState(nextSemester);
+      setOperationalAcademicYearState(nextOperationalAcademicYear);
+      setArchivedAcademicYears(nextArchivedAcademicYears);
+      setActiveAcademicYearState(currentYear => (
+        currentYear === previousOperationalAcademicYear ||
+        !validateAcademicYear(currentYear) ||
+        currentYear > nextOperationalAcademicYear
+          ? nextOperationalAcademicYear
+          : currentYear
+      ));
       try {
-        const snap = await getDoc(doc(db, 'settings', 'app'));
-        if (!isMounted || !snap.exists()) return;
-        const nextSemester = normalizeSemester(snap.data()?.activeSemester);
-        setActiveSemesterState(nextSemester);
-        try {
-          localStorage.setItem(ACTIVE_SEMESTER_KEY, nextSemester);
-        } catch {
-          // Storage can be unavailable in restrictive browser modes.
-        }
-      } catch (error) {
-        console.warn('Impossible de charger le semestre actif:', error);
+        localStorage.setItem(ACTIVE_SEMESTER_KEY, nextSemester);
+        localStorage.setItem(OPERATIONAL_ACADEMIC_YEAR_KEY, nextOperationalAcademicYear);
+      } catch {
+        // Storage can be unavailable in restrictive browser modes.
       }
-    };
-    loadActiveSemester();
-    return () => { isMounted = false; };
-  }, []);
+
+      if (!hasOperationalAcademicYear && (isAuthenticated || isDirectorAuth) && !bootstrapInProgress) {
+        bootstrapInProgress = true;
+        runTransaction(db, async transaction => {
+          const currentSnapshot = await transaction.get(settingsRef);
+          const currentSettings = currentSnapshot.exists() ? currentSnapshot.data() : {};
+          if (validateAcademicYear(currentSettings?.operationalAcademicYear)) return;
+          const bootstrapArchives = Array.isArray(currentSettings?.archivedAcademicYears)
+            ? currentSettings.archivedAcademicYears.filter(year =>
+                validateAcademicYear(year) && year < INITIAL_OPERATIONAL_ACADEMIC_YEAR
+              )
+            : [];
+          transaction.set(settingsRef, {
+            operationalAcademicYear: INITIAL_OPERATIONAL_ACADEMIC_YEAR,
+            archivedAcademicYears: bootstrapArchives,
+            academicYearUpdatedAt: serverTimestamp(),
+          }, { merge: true });
+        }).catch(error => {
+          console.warn("Impossible d'initialiser l'année académique active:", error);
+        }).finally(() => {
+          bootstrapInProgress = false;
+        });
+      }
+    }, error => {
+      console.warn('Impossible de charger les paramètres actifs:', error);
+    });
+
+    return unsubscribe;
+  }, [isAuthenticated, isDirectorAuth]);
 
   const setActiveSemester = useCallback(async (semester) => {
     const nextSemester = normalizeSemester(semester);
@@ -375,12 +427,16 @@ export const AppProvider = ({ children }) => {
   const setActiveAcademicYear = useCallback((year) => {
     if (!validateAcademicYear(year)) return;
     setActiveAcademicYearState(year);
-    try { localStorage.setItem(ACTIVE_ACADEMIC_YEAR_KEY, year); } catch { /* ignore */ }
   }, []);
 
   const availableAcademicYearsList = useMemo(
-    () => getAvailableAcademicYears(students, payments),
-    [students, payments]
+    () => getAvailableAcademicYears(
+      students,
+      payments,
+      operationalAcademicYear,
+      archivedAcademicYears
+    ),
+    [students, payments, operationalAcademicYear, archivedAcademicYears]
   );
 
   // ──────────────────────────────────────────────────────────
@@ -676,7 +732,7 @@ export const AppProvider = ({ children }) => {
     const token = makeToken(32);
     const academicYear = validateAcademicYear(studentData.academicYear)
       ? studentData.academicYear
-      : getDefaultAcademicYearTransition().fromAcademicYear;
+      : operationalAcademicYear;
     const newStudent = { ...studentData, academicYear, token, createdAt: serverTimestamp() };
     const docRef = await addDoc(collection(db, 'students'), newStudent);
     setStudents(prev => [{ id: docRef.id, ...newStudent }, ...prev]);
@@ -696,12 +752,19 @@ export const AppProvider = ({ children }) => {
       showToast('Format d\u2019ann\u00e9e invalide. Utilisez le format AAAA-AAAA (ex: 2025-2026).', 'error');
       return { promotedCount: 0, graduatedCount: 0, error: 'INVALID_FORMAT' };
     }
+    if (fromAcademicYear !== operationalAcademicYearRef.current) {
+      showToast(`L'année active est ${operationalAcademicYearRef.current}. Rechargez la clôture avant de continuer.`, 'error');
+      return { promotedCount: 0, graduatedCount: 0, error: 'STALE_OPERATIONAL_YEAR' };
+    }
 
     const closedAt = new Date().toISOString();
-    const operationId = `academic-year-${Date.now()}`;
     const candidates = (students || [])
       .filter(isActiveStudent)
-      .filter(student => isStudentCurrentlyInAcademicYear(student, fromAcademicYear))
+      .filter(student => isStudentCurrentlyInAcademicYear(
+        student,
+        fromAcademicYear,
+        operationalAcademicYearRef.current
+      ))
       .filter(s => isKnownStudyYear(s.diploma, s.year));
 
     if (candidates.length === 0) {
@@ -717,6 +780,61 @@ export const AppProvider = ({ children }) => {
     if (alreadyClosed) {
       showToast(`L\u2019ann\u00e9e ${fromAcademicYear} a d\u00e9j\u00e0 \u00e9t\u00e9 cl\u00f4tur\u00e9e pour certains stagiaires.`, 'error');
       return { promotedCount: 0, graduatedCount: 0, error: 'ALREADY_CLOSED' };
+    }
+
+    const settingsRef = doc(db, 'settings', 'app');
+    const proposedOperationId = `academic-year-${Date.now()}-${makeToken(8)}`;
+    let operationId;
+    try {
+      operationId = await runTransaction(db, async transaction => {
+        const settingsSnapshot = await transaction.get(settingsRef);
+        const settings = settingsSnapshot.exists() ? settingsSnapshot.data() : {};
+        const serverAcademicYear = validateAcademicYear(settings?.operationalAcademicYear)
+          ? settings.operationalAcademicYear
+          : INITIAL_OPERATIONAL_ACADEMIC_YEAR;
+
+        if (serverAcademicYear !== fromAcademicYear) {
+          const staleError = new Error(`L'année active est ${serverAcademicYear}.`);
+          staleError.code = 'STALE_OPERATIONAL_YEAR';
+          staleError.serverAcademicYear = serverAcademicYear;
+          throw staleError;
+        }
+
+        const pendingClosure = settings?.academicYearClosure;
+        if (pendingClosure?.status === 'in_progress') {
+          if (
+            pendingClosure.fromAcademicYear === fromAcademicYear &&
+            pendingClosure.toAcademicYear === toAcademicYear &&
+            pendingClosure.operationId
+          ) {
+            return pendingClosure.operationId;
+          }
+          const busyError = new Error('Une autre clôture est déjà en cours.');
+          busyError.code = 'ACADEMIC_YEAR_CLOSURE_IN_PROGRESS';
+          throw busyError;
+        }
+
+        transaction.set(settingsRef, {
+          academicYearClosure: {
+            status: 'in_progress',
+            operationId: proposedOperationId,
+            fromAcademicYear,
+            toAcademicYear,
+            startedAt: serverTimestamp(),
+          },
+        }, { merge: true });
+        return proposedOperationId;
+      });
+    } catch (error) {
+      if (error?.code === 'STALE_OPERATIONAL_YEAR') {
+        showToast(`L'année active est ${error.serverAcademicYear}. Rechargez la clôture avant de continuer.`, 'error');
+        return { promotedCount: 0, graduatedCount: 0, error: 'STALE_OPERATIONAL_YEAR' };
+      }
+      if (error?.code === 'ACADEMIC_YEAR_CLOSURE_IN_PROGRESS') {
+        showToast('Une autre clôture académique est déjà en cours.', 'error');
+        return { promotedCount: 0, graduatedCount: 0, error: 'CLOSURE_IN_PROGRESS' };
+      }
+      throw error;
     }
 
     const updates = candidates.map(student => {
@@ -788,6 +906,19 @@ export const AppProvider = ({ children }) => {
       };
     });
 
+    const promotedCount = updates.filter(item => item.type === 'promoted').length;
+    const graduatedCount = updates.filter(item => item.type === 'graduated').length;
+    const nextArchivedAcademicYears = Array.from(new Set([
+      ...availableAcademicYearsList.filter(year => year < toAcademicYear),
+      fromAcademicYear,
+    ])).sort((a, b) => b.localeCompare(a));
+    const receiptCounterReset = {
+      value: 0,
+      academicYear: toAcademicYear,
+      resetAt: serverTimestamp(),
+      resetByOperationId: operationId,
+    };
+
     // Improvement #9: Progressive batch processing with error handling
     let processedIds = [];
     try {
@@ -795,6 +926,7 @@ export const AppProvider = ({ children }) => {
       // keep each batch safely below Firestore's 500-write limit.
       for (let i = 0; i < updates.length; i += 225) {
         const chunk = updates.slice(i, i + 225);
+        const isFinalChunk = i + 225 >= updates.length;
         const batch = writeBatch(db);
         chunk.forEach(({ id, firestoreData, archivedGrades }) => {
           batch.update(doc(db, 'students', id), firestoreData);
@@ -806,6 +938,31 @@ export const AppProvider = ({ children }) => {
             }, { merge: true });
           }
         });
+        if (isFinalChunk) {
+          batch.set(
+            doc(db, RECEIPT_COUNTERS_COLLECTION, 'payment_FD'),
+            { ...receiptCounterReset, prefix: STUDENT_RECEIPT_PREFIX },
+            { merge: true }
+          );
+          batch.set(
+            doc(db, RECEIPT_COUNTERS_COLLECTION, 'salary_F'),
+            { ...receiptCounterReset, prefix: 'F' },
+            { merge: true }
+          );
+          batch.set(settingsRef, {
+            operationalAcademicYear: toAcademicYear,
+            archivedAcademicYears: nextArchivedAcademicYears,
+            academicYearUpdatedAt: serverTimestamp(),
+            lastAcademicYearOperationId: operationId,
+            academicYearClosure: {
+              status: 'completed',
+              operationId,
+              fromAcademicYear,
+              toAcademicYear,
+              completedAt: serverTimestamp(),
+            },
+          }, { merge: true });
+        }
         await batch.commit();
         // Update local state progressively after each successful batch
         const chunkIds = chunk.map(c => c.id);
@@ -831,36 +988,18 @@ export const AppProvider = ({ children }) => {
     } catch (err) {
       console.error('Erreur batch cl\u00f4ture:', err);
       if (processedIds.length > 0) {
-        showToast(`Erreur partielle : ${processedIds.length}/${updates.length} stagiaires mis \u00e0 jour. Certains dossiers n\u2019ont pas \u00e9t\u00e9 modifi\u00e9s.`, 'error');
+        showToast(`Erreur partielle : ${processedIds.length}/${updates.length} stagiaires mis \u00e0 jour. Relancez la m\u00eame cl\u00f4ture pour terminer.`, 'error');
       }
       throw err;
     }
 
     localStorage.removeItem(CORE_CACHE_KEY);
 
-    const promotedCount = updates.filter(item => item.type === 'promoted').length;
-    const graduatedCount = updates.filter(item => item.type === 'graduated').length;
-
-    const receiptCounterBatch = writeBatch(db);
-    const receiptCounterReset = {
-      value: 0,
-      academicYear: toAcademicYear,
-      resetAt: serverTimestamp(),
-      resetByOperationId: operationId,
-    };
-    receiptCounterBatch.set(
-      doc(db, RECEIPT_COUNTERS_COLLECTION, 'payment_FD'),
-      { ...receiptCounterReset, prefix: STUDENT_RECEIPT_PREFIX },
-      { merge: true }
-    );
-    receiptCounterBatch.set(
-      doc(db, RECEIPT_COUNTERS_COLLECTION, 'salary_F'),
-      { ...receiptCounterReset, prefix: 'F' },
-      { merge: true }
-    );
-    await receiptCounterBatch.commit();
-
+    operationalAcademicYearRef.current = toAcademicYear;
+    setOperationalAcademicYearState(toAcademicYear);
+    setArchivedAcademicYears(nextArchivedAcademicYears);
     setActiveAcademicYear(toAcademicYear);
+    try { localStorage.setItem(OPERATIONAL_ACADEMIC_YEAR_KEY, toAcademicYear); } catch { /* ignore */ }
 
     // Improvement #7: Build breakdown by filière
     const breakdown = {};
@@ -942,16 +1081,31 @@ export const AppProvider = ({ children }) => {
       };
     });
 
+    const restoredOperationalAcademicYear = affected[0].classHistory[affected[0].classHistory.length - 1].academicYear;
+    const restoredArchivedAcademicYears = availableAcademicYearsList
+      .filter(year => year < restoredOperationalAcademicYear);
+
     for (let i = 0; i < undoUpdates.length; i += 450) {
       const batch = writeBatch(db);
       undoUpdates.slice(i, i + 450).forEach(({ id, firestoreData }) => {
         batch.update(doc(db, 'students', id), firestoreData);
       });
+      if (i + 450 >= undoUpdates.length) {
+        batch.set(doc(db, 'settings', 'app'), {
+          operationalAcademicYear: restoredOperationalAcademicYear,
+          archivedAcademicYears: restoredArchivedAcademicYears,
+          academicYearUpdatedAt: serverTimestamp(),
+        }, { merge: true });
+      }
       await batch.commit();
     }
 
     const updateMap = new Map(undoUpdates.map(item => [item.id, item.localData]));
     setStudents(prev => prev.map(student => updateMap.has(student.id) ? { ...student, ...updateMap.get(student.id) } : student));
+    setOperationalAcademicYearState(restoredOperationalAcademicYear);
+    setArchivedAcademicYears(restoredArchivedAcademicYears);
+    setActiveAcademicYear(restoredOperationalAcademicYear);
+    try { localStorage.setItem(OPERATIONAL_ACADEMIC_YEAR_KEY, restoredOperationalAcademicYear); } catch { /* ignore */ }
     localStorage.removeItem(CORE_CACHE_KEY);
 
     showToast(`${affected.length} stagiaire(s) restaur\u00e9(s) \u00e0 leur \u00e9tat pr\u00e9c\u00e9dent.`, 'success');
@@ -1047,7 +1201,10 @@ export const AppProvider = ({ children }) => {
 
   // --- NOTES ---
   const resolveGradeAcademicYear = (studentId, academicYear = '') =>
-    academicYear || getStudentCurrentAcademicYear((students || []).find(student => student.id === studentId));
+    academicYear || getStudentCurrentAcademicYear(
+      (students || []).find(student => student.id === studentId),
+      operationalAcademicYear
+    );
 
   const updateGrades = async (studentId, subject, gradeData, academicYear = '') => {
     const safeSubject = sanitizeGradeKey(subject);
@@ -1573,7 +1730,7 @@ export const AppProvider = ({ children }) => {
       ctSessions, addCtSession, updateCtSession, deleteCtSession,
       accessLogs, logAppAccess, loadAccessLogs,
       activeSemester, setActiveSemester, getActiveScheduleModule,
-      activeAcademicYear, setActiveAcademicYear, availableAcademicYearsList,
+      activeAcademicYear, setActiveAcademicYear, operationalAcademicYear, availableAcademicYearsList,
       confirmAction, notifications, markNotificationAsRead, clearNotifications
     }}>
       {children}

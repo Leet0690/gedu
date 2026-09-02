@@ -1,12 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Check, CalendarDays } from 'lucide-react';
-import { getDefaultAcademicYearTransition } from '../utils/studentStatus';
 import { cn } from '../lib/cn';
 
-export const AcademicYearSelector = ({ activeYear, availableYears, onChange }) => {
+export const AcademicYearSelector = ({ activeYear, operationalYear, availableYears, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
-  const currentOfficialYear = getDefaultAcademicYearTransition().fromAcademicYear;
 
   // Close dropdown on click outside or escape key
   useEffect(() => {
@@ -38,7 +36,7 @@ export const AcademicYearSelector = ({ activeYear, availableYears, onChange }) =
         onClick={() => setIsOpen(!isOpen)}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        aria-label={`Année académique active : ${activeYear}`}
+        aria-label={`Année académique consultée : ${activeYear}`}
         className={cn(
           "academic-year-selector__trigger flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider transition-all duration-200 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-1",
           isOpen 
@@ -64,7 +62,7 @@ export const AcademicYearSelector = ({ activeYear, availableYears, onChange }) =
           <div className="academic-year-selector__list flex flex-col gap-1 max-h-64 overflow-y-auto no-scrollbar">
             {availableYears.map(year => {
               const isSelected = year === activeYear;
-              const isCurrent = year === currentOfficialYear;
+              const isCurrent = year === operationalYear;
               
               return (
                 <button
