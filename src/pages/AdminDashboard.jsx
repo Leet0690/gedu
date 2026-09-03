@@ -38,7 +38,9 @@ import {
   getStudentStudyCycleRange,
   getStudentAcademicSnapshot,
   getStudentCurrentAcademicYear,
-  isStudentCurrentlyInAcademicYear
+  isStudentCurrentlyInAcademicYear,
+  INITIAL_OPERATIONAL_ACADEMIC_YEAR,
+  filterSchedulesForAcademicYear
 } from '../utils/studentStatus';
 import { calculateStudentAttendanceRate, isFinalAttendanceStatus } from '../utils/attendanceKeys';
 import { 
@@ -1520,6 +1522,14 @@ const AdminDashboard = () => {
       .filter(Boolean);
   }, [students, activeAcademicYear, operationalAcademicYear]);
 
+  const activeYearSchedules = useMemo(() => {
+    return filterSchedulesForAcademicYear(
+      schedules,
+      activeAcademicYear,
+      INITIAL_OPERATIONAL_ACADEMIC_YEAR
+    );
+  }, [schedules, activeAcademicYear]);
+
   const activeYearStudentIds = useMemo(
     () => new Set(activeYearStudents.map(student => student.id)),
     [activeYearStudents]
@@ -1630,7 +1640,7 @@ const AdminDashboard = () => {
 
           {/* New Requested Order in Grid format to keep dimensions */}
           <div className="home-dashboard-widget-grid">
-            <TodaySessionsWidget schedules={schedules || []} teachers={teachers || []} getScheduleModule={getActiveScheduleModule} activeSemester={activeSemester} setActiveSemester={setActiveSemester} />
+            <TodaySessionsWidget schedules={activeYearSchedules} teachers={teachers || []} getScheduleModule={getActiveScheduleModule} activeSemester={activeSemester} setActiveSemester={setActiveSemester} />
             <GradesBreakdownWidget students={activeYearStudents} grades={grades || {}} allModules={allModules || []} activeSemester={activeSemester} operationalAcademicYear={operationalAcademicYear} />
           </div>
 
@@ -1639,7 +1649,7 @@ const AdminDashboard = () => {
             <ActivityFeedWidget notifications={notifications || []} />
           </div>
 
-          <ScheduleCalendar realSchedules={schedules || []} teachers={teachers || []} activeSemester={activeSemester} setActiveSemester={setActiveSemester} getScheduleModule={getActiveScheduleModule} />
+          <ScheduleCalendar realSchedules={activeYearSchedules} teachers={teachers || []} activeSemester={activeSemester} setActiveSemester={setActiveSemester} getScheduleModule={getActiveScheduleModule} />
         </div>
       )}
 

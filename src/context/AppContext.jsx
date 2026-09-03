@@ -1446,15 +1446,24 @@ export const AppProvider = ({ children }) => {
 
   // --- EMPLOI DU TEMPS ---
   const addSchedule = async (scheduleData) => {
-    const newSchedule = { ...scheduleData, createdAt: serverTimestamp() };
+    const newSchedule = {
+      academicYear: scheduleData.academicYear || operationalAcademicYear || INITIAL_OPERATIONAL_ACADEMIC_YEAR,
+      ...scheduleData,
+      createdAt: serverTimestamp(),
+    };
     const docRef = await addDoc(collection(db, 'schedules'), newSchedule);
     setSchedules(prev => [{ id: docRef.id, ...newSchedule }, ...prev]);
     showToast(`Séance de ${scheduleData.module} ajoutée.`, 'success');
   };
 
   const updateSchedule = async (id, data) => {
-    await updateDoc(doc(db, 'schedules', id), data);
-    setSchedules(prev => prev.map(s => s.id === id ? { ...s, ...data } : s));
+    const existing = schedules.find(s => s.id === id);
+    const updated = {
+      ...data,
+      academicYear: data.academicYear || existing?.academicYear || INITIAL_OPERATIONAL_ACADEMIC_YEAR,
+    };
+    await updateDoc(doc(db, 'schedules', id), updated);
+    setSchedules(prev => prev.map(s => s.id === id ? { ...s, ...updated } : s));
     showToast(`Séance de ${data.module} mise à jour.`, 'success');
   };
 

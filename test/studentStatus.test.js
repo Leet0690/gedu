@@ -17,6 +17,8 @@ import {
   getStudentPreviousYearBalance,
   isStudentVacationMonth,
   isStudentCurrentlyInAcademicYear,
+  getScheduleAcademicYear,
+  filterSchedulesForAcademicYear,
 } from '../src/utils/studentStatus.js';
 
 test('calendar dates and months resolve inside September-to-August academic years', () => {
@@ -199,4 +201,30 @@ test('vacation months never generate previous-year arrears', () => {
   assert.equal(balance.details[0].unpaidMonths.includes('Août'), false);
   assert.equal(balance.details[0].unpaidMonths.includes('Septembre'), false);
   assert.equal(balance.details[0].unpaidMonths.includes('Juillet'), true);
+});
+
+test('schedule timetable is scoped to academic year: 2025-2026 displays existing schedules, new operational year is empty', () => {
+  const legacySchedule1 = { id: 'sch-1', day: 'Lundi', time: '08:30-10:30', module: 'Dev Web' };
+  const legacySchedule2 = { id: 'sch-2', day: 'Mardi', time: '10:30-12:30', module: 'Algo', academicYear: '2025-2026' };
+  const futureSchedule = { id: 'sch-3', day: 'Mercredi', time: '14:00-16:00', module: 'React', academicYear: '2027-2028' };
+  const allSchedules = [legacySchedule1, legacySchedule2, futureSchedule];
+
+  // Legacy schedules without academicYear default to 2025-2026
+  assert.equal(getScheduleAcademicYear(legacySchedule1), '2025-2026');
+  assert.equal(getScheduleAcademicYear(legacySchedule2), '2025-2026');
+  assert.equal(getScheduleAcademicYear(futureSchedule), '2027-2028');
+
+  // When 2025-2026 is selected in Admin Dashboard: legacy + 2025-2026 schedules appear
+  const schedules2025 = filterSchedulesForAcademicYear(allSchedules, '2025-2026');
+  assert.equal(schedules2025.length, 2);
+  assert.deepEqual(schedules2025.map(s => s.id), ['sch-1', 'sch-2']);
+
+  // When current year 2026-2027 is selected in Admin Dashboard and has no schedules yet: returns empty array
+  const schedules2026 = filterSchedulesForAcademicYear(allSchedules, '2026-2027');
+  assert.equal(schedules2026.length, 0);
+
+  // Invalid or empty calls return empty array safely
+  assert.deepEqual(filterSchedulesForAcademicYear(null, '2025-2026'), []);
+  assert.deepEqual(filterSchedulesForAcademicYear([], '2025-2026'), []);
+  assert.deepEqual(filterSchedulesForAcademicYear(allSchedules, ''), []);
 });

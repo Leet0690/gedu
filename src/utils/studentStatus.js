@@ -512,3 +512,23 @@ export const isStudentCurrentlyInAcademicYear = (
   isActiveStudent(student) &&
   validateAcademicYear(targetAcademicYear) &&
   getStudentCurrentAcademicYear(student, operationalAcademicYear) === targetAcademicYear;
+
+/** Resolve the academic year of a schedule record, defaulting legacy schedules to 2025-2026. */
+export const getScheduleAcademicYear = (
+  schedule = {},
+  defaultYear = INITIAL_OPERATIONAL_ACADEMIC_YEAR
+) => {
+  return schedule?.academicYear || defaultYear;
+};
+
+/** Filter schedules to the active academic year (e.g. 2025-2026 displays existing schedules, current year displays empty if none created). */
+export const filterSchedulesForAcademicYear = (
+  schedules = [],
+  academicYear = INITIAL_OPERATIONAL_ACADEMIC_YEAR,
+  defaultYear = INITIAL_OPERATIONAL_ACADEMIC_YEAR
+) => {
+  if (!Array.isArray(schedules) || !academicYear) return [];
+  return schedules.filter(
+    (s) => getScheduleAcademicYear(s, defaultYear) === academicYear
+  );
+};

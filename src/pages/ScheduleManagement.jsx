@@ -103,7 +103,7 @@ const ScheduleManagement = () => {
   const { 
     teachers, schedules, addSchedule, updateSchedule, 
     deleteSchedule, modules: allModules, confirmAction,
-    activeSemester, getActiveScheduleModule
+    activeSemester, getActiveScheduleModule, operationalAcademicYear
   } = useApp();
   const { showToast } = useToast();
 
@@ -188,7 +188,8 @@ const ScheduleManagement = () => {
       time: normalizedTime,
       diploma,
       filiere,
-      annee
+      annee,
+      academicYear: editingSession?.academicYear || operationalAcademicYear || '2025-2026'
     };
     
     if (editingSession) {
