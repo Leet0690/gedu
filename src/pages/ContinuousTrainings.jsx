@@ -953,6 +953,8 @@ function EtudiantsTab({ trainings, ctStudents, onAddStudent, onEditStudent, onDe
 /* ── Planning tab ────────────────────────────────────────────── */
 
 function PlanningTab({ sessions, trainings, trainingTypes = [], onAddSession, onEditSession, onDeleteSession }) {
+  const { hasPermission } = useAdminAuth();
+  const canEdit = hasPermission('continuous', 'edit');
   const [viewMode, setViewMode] = useState('grid');
   const [trainingFilter, setTrainingFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -1313,14 +1315,14 @@ function PlanningTab({ sessions, trainings, trainingTypes = [], onAddSession, on
                                 {/* Action buttons */}
                                 <div style={{ position: 'absolute', top: '5px', right: '5px', display: 'flex', gap: '4px', zIndex: 15 }}>
                                   <button
-                                    onClick={(e) => { e.stopPropagation(); onEditSession(session); }}
+                                    disabled={!canEdit} onClick={(e) => { e.stopPropagation(); onEditSession(session); }}
                                     className="schedule-action-btn edit"
                                     title="Modifier"
                                   >
                                     <Edit3 size={10} />
                                   </button>
                                   <button
-                                    onClick={(e) => { e.stopPropagation(); onDeleteSession(session); }}
+                                    disabled={!canEdit} onClick={(e) => { e.stopPropagation(); onDeleteSession(session); }}
                                     className="schedule-action-btn delete"
                                     title="Supprimer"
                                   >
@@ -1575,6 +1577,7 @@ export default function ContinuousTrainings() {
     });
   };
   const saveTraining = async () => {
+    try {
     if (!tForm.name.trim()) { showToast('Nom requis', 'error'); return; }
     if (!tForm.type.trim()) { showToast('Type requis', 'error'); return; }
     if (tForm.type === 'langue' && tForm.languageAudience === 'ADULTES' && !tForm.languageAdultLevel) {
@@ -1601,10 +1604,19 @@ export default function ContinuousTrainings() {
     if (editingTraining) await updateContinuousTraining(editingTraining.id, data);
     else await addContinuousTraining(data);
     setTrainingModal(false);
+
+    } catch (error) {
+      if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');
+    }
   };
   const handleDeleteTraining = async tr => {
+    try {
     if (await confirmAction({ title: 'Supprimer', message: 'Supprimer cette formation ?', type: 'danger' })) {
       await deleteContinuousTraining(tr.id);
+    }
+
+    } catch (error) {
+      if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');
     }
   };
 
@@ -1623,6 +1635,7 @@ export default function ContinuousTrainings() {
     setTypeModal(true);
   };
   const saveType = async () => {
+    try {
     const name = normalizeTypeName(typeForm.name);
     if (!name) { showToast('Nom du type requis', 'error'); return; }
     if (isReservedTrainingTypeName(name)) { showToast('Ce nom est réservé aux types système', 'error'); return; }
@@ -1639,6 +1652,10 @@ export default function ContinuousTrainings() {
       await addContinuousTrainingType?.({ name });
     }
     setTypeModal(false);
+
+    } catch (error) {
+      if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');
+    }
   };
   const handleDeleteType = async type => {
     if (type.isSystem) { showToast('Les types système ne peuvent pas être supprimés', 'error'); return; }
@@ -1685,6 +1702,7 @@ export default function ContinuousTrainings() {
   };
   const removePaymentEntry = idx => setSForm(prev => ({ ...prev, payments: prev.payments.filter((_, i) => i !== idx) }));
   const saveStudent = async () => {
+    try {
     if (!sForm.firstName.trim() || !sForm.lastName.trim()) { showToast('Nom et prénom requis', 'error'); return; }
     if (!sForm.trainingId) { showToast('Sélectionnez une formation', 'error'); return; }
     let finalSForm = {
@@ -1704,10 +1722,19 @@ export default function ContinuousTrainings() {
     if (editingStudent) await updateCtStudent(editingStudent.id, finalSForm);
     else await addCtStudent(finalSForm);
     setStudentModal(false);
+
+    } catch (error) {
+      if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');
+    }
   };
   const handleDeleteStudent = async s => {
+    try {
     if (await confirmAction({ title: 'Supprimer', message: 'Supprimer cet étudiant ?', type: 'danger' })) {
       await deleteCtStudent(s.id);
+    }
+
+    } catch (error) {
+      if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');
     }
   };
 
@@ -1719,15 +1746,25 @@ export default function ContinuousTrainings() {
   const openAddSession = () => { setEditingSession(null); setSesForm({ ...emptySes, trainingId: continuousTrainings[0]?.id || '' }); setSessionModal(true); };
   const openEditSession = session => { setEditingSession(session); const { start, end } = parseTimeRange(session.time); setSesForm({ trainingId: session.trainingId, day: session.day, startTime: start, endTime: end, room: session.room || '' }); setSessionModal(true); };
   const saveSession = async () => {
+    try {
     if (!sesForm.trainingId) { showToast('Sélectionnez une formation', 'error'); return; }
     const time = `${sesForm.startTime}-${sesForm.endTime}`;
     if (editingSession) await updateCtSession(editingSession.id, { ...sesForm, time });
     else await addCtSession({ ...sesForm, time });
     setSessionModal(false);
+
+    } catch (error) {
+      if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');
+    }
   };
   const handleDeleteSession = async s => {
+    try {
     if (await confirmAction({ title: 'Supprimer', message: 'Supprimer cette séance ?', type: 'danger' })) {
       await deleteCtSession(s.id);
+    }
+
+    } catch (error) {
+      if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');
     }
   };
 

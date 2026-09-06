@@ -24,6 +24,15 @@ test('missing/disabled profiles deny access and server identity overrides profil
   assert.equal(result.user.uid, identity.uid);
   assert.equal(result.user.email, identity.email);
 });
+test('profile errors distinguish missing, disabled and malformed activation', () => {
+  assert.match(profileSessionState(snapshot(null), identity).error, /UID/);
+  assert.match(profileSessionState(snapshot({ isActive: false }), identity).error, /désactivé/);
+  for (const isActive of [undefined, null, 'true', 'false', 1]) {
+    const result = profileSessionState(snapshot({ isActive }), identity);
+    assert.equal(result.user, null);
+    assert.match(result.error, /booléen/);
+  }
+});
 test('login destinations are allowed internal routes, even with a forged return location', () => {
   const modules = [{ id: 'dashboard', path: '/' }, { id: 'students', path: '/admin/students' }, { id: 'finance', path: '/admin/finance' }];
   const user = { isActive: true, role: 'custom', permissions: { students: 'view' } };

@@ -564,6 +564,7 @@ const TeacherPortal = () => {
   }
 
   const handleValidateSession = async () => {
+    try {
     if (!currentSession || !allAttended) {
       setShowUnmarkedWarning(true);
       return;
@@ -583,9 +584,14 @@ const TeacherPortal = () => {
     if (nextSession) {
       setSelectedSessionId(nextSession.id);
     }
+
+    } catch (error) {
+      if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');
+    }
   };
 
   const handleDeclareAbsent = async () => {
+    try {
     if (!currentSession) return;
     const sessionLabel = `${currentSession.time} — ${getGroupAbbreviation(currentSession.filiere, currentSession.annee)}`;
     const confirmed = await confirmAction({
@@ -611,6 +617,10 @@ const TeacherPortal = () => {
     const nextSession = todaysSessions.find(s => s.id !== currentSession.id && !nextCompleted.has(s.id));
     if (nextSession) {
       setSelectedSessionId(nextSession.id);
+    }
+
+    } catch (error) {
+      if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');
     }
   };
 
@@ -653,6 +663,7 @@ const TeacherPortal = () => {
   };
 
   const handleSaveGrades = async () => {
+    try {
     let hasInvalid = false;
     relevantStudents.forEach(student => {
       const g = localGrades[student.id] || {};
@@ -680,25 +691,44 @@ const TeacherPortal = () => {
     showToast("Notes enregistrées avec succès.", 'success');
     setSuccess(true);
     setTimeout(() => setSuccess(false), 2500);
+
+    } catch (error) {
+      if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');
+    }
   };
 
   const handleAttendanceChange = async (studentId, status) => {
+    try {
     if (!currentAttendanceModule || !currentSession) return;
     const record = getStudentRecordForSession(studentId, currentSession, currentAttendanceModule);
     await updateStudentAttendance(studentId, currentAttendanceModule, selectedDate, status, record?.comment || '', teacher.id, currentSession.time, record?.id || '');
+
+    } catch (error) {
+      if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');
+    }
   };
 
   const handleClearAttendance = async (studentId) => {
+    try {
     if (!currentAttendanceModule || !currentSession) return;
     const record = getStudentRecordForSession(studentId, currentSession, currentAttendanceModule);
     if (!record) return;
     await updateStudentAttendance(studentId, currentAttendanceModule, selectedDate, '', record.comment || '', teacher.id, currentSession.time, record.id);
+
+    } catch (error) {
+      if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');
+    }
   };
 
   const handleAttendanceComment = async (studentId, comment) => {
+    try {
     if (!currentAttendanceModule || !currentSession) return;
     const record = getStudentRecordForSession(studentId, currentSession, currentAttendanceModule);
     await updateStudentAttendance(studentId, currentAttendanceModule, selectedDate, record?.status || 'present', comment, teacher.id, currentSession.time, record?.id || '');
+
+    } catch (error) {
+      if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');
+    }
   };
 
   const calcMoyenneCC = (g) => {

@@ -16,7 +16,7 @@ export const auditDocumentWrite = onDocumentWrittenWithAuthContext({
     event.data.before.exists ? event.data.before.data() : null,
     event.data.after.exists ? event.data.after.data() : null);
   if (!details) return;
-  const userId = event.authId || 'system';
+  const userId = event.authId || event.authType || 'unknown';
   const user = event.authType === 'unknown' && event.authId && !event.authId.includes('/')
     ? (await db.doc(`users/${event.authId}`).get()).data() : null;
   const eventKey = createHash('sha256').update(event.id).digest('hex');

@@ -462,12 +462,18 @@ const FinanceDashboard = () => {
   }, [isDirectorAuth, salaryFilter.month, salaryFilter.year, loadTeacherAttendanceForMonth]);
 
   const handleSaveRate = async (teacherId) => {
+    try {
+    if (!hasPermission('teachers', 'edit')) { showToast('Droit de modification des formateurs requis pour changer un tarif.', 'error'); return; }
     const newVal = document.getElementById(`rate-${teacherId}`).value;
     const rate = parseFloat(newVal);
     if (!isNaN(rate)) {
       await updateTeacher(teacherId, { hourlyRate: rate });
       showToast('Tarif mis à jour', 'success');
       setEditingTeacherId(null);
+    }
+
+    } catch (error) {
+      if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');
     }
   };
 
@@ -1448,10 +1454,15 @@ const FinanceDashboard = () => {
                                   whileHover={{ scale: 1.08, translateY: -1 }}
                                   whileTap={{ scale: 0.95 }}
                                   onClick={async () => {
+    try {
                                     if (await confirmAction({ title: "Supprimer paiement ?", message: "Voulez-vous supprimer ce reçu de paiement ?", type: "danger" })) {
                                       deletePayment(p.id);
                                     }
-                                  }}
+
+    } catch (error) {
+      if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');
+    }
+  }}
                                   style={{
                                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                                     width: '36px', height: '36px', borderRadius: '10px',
@@ -1581,6 +1592,7 @@ const FinanceDashboard = () => {
                   className="btn-modern primary finance-settle-all-button"
                   style={{ whiteSpace: 'nowrap', fontSize: '12px', padding: '8px 14px' }}
                   onClick={async () => {
+    try {
                     const unpaid = filteredTeachers.filter(t => !t.isPaid && t.total > 0);
                     if (unpaid.length === 0) return showToast('Aucun salaire à régler', 'warning');
                     if (!await confirmAction({ title: `Régler ${unpaid.length} formateur(s) ?`, message: `Valider ${unpaid.reduce((a, t) => a + t.total, 0).toLocaleString()} DH de salaires pour ${months[salaryFilter.month]} ${salaryFilter.year} ?`, type: 'warning' })) return;
@@ -1592,7 +1604,11 @@ const FinanceDashboard = () => {
                       });
                     }
                     showToast(`${unpaid.length} salaires validés`, 'success');
-                  }}
+
+    } catch (error) {
+      if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');
+    }
+  }}
                 >
                   <Check size={14} style={{ marginRight: '6px' }} /> Régler tous
                 </button>
@@ -1644,6 +1660,7 @@ const FinanceDashboard = () => {
                       <button
                         disabled={!canEdit || (s.total === 0)}
                         onClick={async () => {
+    try {
                           if (s.isPaid) {
                             if (await confirmAction({ title: "Annuler le paiement ?", message: `Marquer le salaire de ${s.name} comme non réglé ?`, type: "danger" })) {
                               const sal = salaries.find(sal => sal.teacherId === s.id && sal.month === months[salaryFilter.month] && sal.year === salaryFilter.year);
@@ -1664,7 +1681,11 @@ const FinanceDashboard = () => {
                               });
                             }
                           }
-                        }}
+
+    } catch (error) {
+      if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');
+    }
+  }}
                         style={{
                           display: 'inline-flex', alignItems: 'center', gap: '6px',
                           padding: '5px 14px', fontSize: '11px', fontWeight: '800',
@@ -1757,10 +1778,15 @@ const FinanceDashboard = () => {
                           whileHover={{ scale: 1.08, translateY: -1 }}
                           whileTap={{ scale: 0.95 }}
                           onClick={async () => {
+    try {
                             if (await confirmAction({ title: "Supprimer ?", message: "Voulez-vous supprimer cet historique ?", type: "danger" })) {
                               deleteSalary(s.id);
                             }
-                          }}
+
+    } catch (error) {
+      if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');
+    }
+  }}
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -1906,10 +1932,15 @@ const FinanceDashboard = () => {
                           whileHover={{ scale: 1.08, translateY: -1 }}
                           whileTap={{ scale: 0.95 }}
                           onClick={async () => {
+    try {
                             if (await confirmAction({ title: "Supprimer la charge ?", message: `Voulez-vous supprimer "${e.label}" ?`, type: "danger" })) {
                               deleteExpense(e.id);
                             }
-                          }}
+
+    } catch (error) {
+      if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');
+    }
+  }}
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -2353,11 +2384,16 @@ const FinanceDashboard = () => {
                 </div>
                 <button className="btn-modern primary" style={{ width: '100%', padding: '14px', justifyContent: 'center', marginTop: '4px', background: '#dc2626' }}
                   onClick={async () => {
+    try {
                     if (!expenseData.label || !expenseData.amount) return showToast('Libellé et montant requis', 'warning');
                     await addExpense(expenseData);
                     setShowExpenseModal(false);
                     setExpenseData({ ...expenseData, label: '', amount: '' });
-                  }}>
+
+    } catch (error) {
+      if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');
+    }
+  }}>
                   <Receipt size={18} style={{ marginRight: '8px' }} /> Enregistrer la charge
                 </button>
               </div>
@@ -2585,6 +2621,7 @@ const FinanceDashboard = () => {
                   disabled={!canEdit || (selectedMonthIsVacation)}
                   style={{ width: '100%', padding: '14px', justifyContent: 'center', opacity: selectedMonthIsVacation ? 0.55 : 1, cursor: selectedMonthIsVacation ? 'not-allowed' : 'pointer' }}
                   onClick={async () => {
+    try {
                     if (!paymentData.studentId || paymentGrandTotal <= 0) return showToast('Stagiaire et montant requis', 'warning');
                     if (!paymentData.academicYear) return showToast('Année académique requise', 'warning');
                     if (selectedMonthIsVacation) return showToast('Paiement bloqué : ce mois est une période de vacances pour ce niveau.', 'warning');
@@ -2654,7 +2691,11 @@ const FinanceDashboard = () => {
                       paymentMethod: 'Espèces',
                     });
                     setPaymentModalFilter({ diploma: '', major: '', year: '' });
-                  }}><CreditCard size={18} style={{ marginRight: '8px' }} /> {editingPayment ? 'Enregistrer les modifications' : "Valider l'encaissement"}</button>
+
+    } catch (error) {
+      if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');
+    }
+  }}><CreditCard size={18} style={{ marginRight: '8px' }} /> {editingPayment ? 'Enregistrer les modifications' : "Valider l'encaissement"}</button>
               </div>
             </motion.div>
           </div>

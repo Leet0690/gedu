@@ -2,7 +2,15 @@
 export function profileSessionState(snapshot, firebaseUser) {
   if (snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) return null;
   const profile = snapshot.exists() ? snapshot.data() : null;
-  if (profile?.isActive !== true) return { user: null, error: 'Compte non autorisé ou désactivé. Contactez votre administrateur.' };
+  if (!profile) return {
+    user: null,
+    error: 'Profil d’accès introuvable. Le document users doit avoir le même identifiant que l’UID du compte Firebase Authentication.',
+  };
+  if (profile.isActive === false) return { user: null, error: 'Ce compte est désactivé. Contactez votre administrateur.' };
+  if (profile.isActive !== true) return {
+    user: null,
+    error: 'Profil mal configuré : le champ isActive doit être un booléen égal à true dans Firestore.',
+  };
   return { user: { ...profile, uid: firebaseUser.uid, email: firebaseUser.email }, error: '' };
 }
 

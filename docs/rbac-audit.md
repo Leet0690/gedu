@@ -49,7 +49,7 @@ Les documents Firestore sont lus intégralement : les règles ne masquent pas ce
 1. Activer Email/Mot de passe dans Firebase Authentication et créer un compte nominatif initial. Les anciens mots de passe partagés ne permettent plus la connexion à cette version.
 2. Depuis un environnement privilégié disposant des Application Default Credentials, installer les dépendances en exécutant `npm ci` dans le dossier `functions`, puis, depuis la racine du dépôt, exécuter `node functions/bootstrap-admin.js PROJECT_ID FIREBASE_AUTH_UID`. Le script refuse d’écraser un profil ou d’amorcer un autre administrateur si un administrateur actif existe déjà. Aucun mot de passe par défaut n’est créé.
 3. Vérifier les profils existants : UID correspondant à Auth, `isActive` booléen, rôle valide et matrice complète. Révoquer/renouveler les anciens mots de passe partagés qui ont pu être présents dans les anciennes versions compilées.
-4. **Migrer les portails `/portal`, `/teacher` et `/results` avant de déployer cet ensemble.** Ils utilisent actuellement des recherches par jeton public, parfois avec repli sur un identifiant de document. Les nouvelles règles refusent ces accès anonymes et les mutations applicatives exigent un compte autorisé. Prévoir un échange de jeton validé côté serveur contre une session limitée au formateur/stagiaire, ou des comptes Firebase avec droits par groupe/document. Ne pas réintroduire une règle publique générale pour rétablir les portails. Cette migration des portails n’est pas implémentée ici et constitue un blocage de déploiement.
+4. **Migrer les portails `/portal`, `/teacher` et `/results` avant de déployer cet ensemble.** Ils utilisent actuellement des recherches par jeton public. Le repli sur un simple identifiant de document a été supprimé lors du second audit. Les nouvelles règles refusent ces accès anonymes et les mutations applicatives exigent un compte autorisé. Prévoir un échange de jeton validé côté serveur contre une session limitée au formateur/stagiaire, ou des comptes Firebase avec droits par groupe/document. Ne pas réintroduire une règle publique générale pour rétablir les portails. Cette migration des portails n’est pas implémentée ici et constitue un blocage de déploiement.
 5. Tester sur un projet de recette les inscriptions secondaires, emails de réinitialisation, changements de mot de passe et le déclencheur serveur. L’envoi réel d’emails et le fonctionnement Cloud Functions n’ont pas été testés dans le projet de production.
 6. Après cette recette et la migration des portails, déployer explicitement les règles/index et la fonction avec `firebase deploy --config firebase.rbac.json --only firestore,functions`, puis la version de l’application. Choisir une région de fonction adaptée à la base avant le déploiement. Vérifier les règles réellement publiées : celles actuellement en production n’ont pas été consultées pendant cet audit.
 
@@ -78,10 +78,20 @@ La séparation entre contrôle d’interface et autorisation serveur suit les [c
 ## Résultats de cette exécution
 
 - Compilation Vite/PWA : réussie.
-- ESLint : 0 erreur, 42 avertissements restant principalement liés à du code inutilisé et aux hooks existants.
-- Suite Node : 39 tests réussis, 1 échec, 1 groupe de tests émulateur ignoré sans variable locale.
+- ESLint : 0 erreur, 41 avertissements restant principalement liés à du code inutilisé et aux hooks existants.
+- Suite Node après le second audit et la correction de connexion : 49 tests réussis, 0 échec, 1 groupe de tests émulateur ignoré sans variable locale.
 - Exécution séparée des règles Firestore : 7 scénarios réussis (8 tests en comptant leur groupe), incluant les transactions valides et refusées et la modification de son propre nom avec journal atomique.
 - Fonction serveur : dépendances installées et verrouillées, contrôle de syntaxe et import du point d’entrée réussis. Déclenchement réel Cloud Functions non testé.
 - `git diff --check` : aucune erreur d’espacement restante.
 
-Le seul échec Node concerne `test/routeScopes.test.js` : pendant l’audit, une modification extérieure à ces corrections a remplacé le filtrage des routes par un sélecteur d’année toujours visible dans `src/utils/routeScopes.js`. Cette modification a été préservée. Une question a été adressée à l’utilisateur pour choisir le comportement attendu ; le test ne doit pas être modifié uniquement pour masquer cette divergence.
+Le second audit conserve le sélecteur d’année sur toutes les pages administratives, conformément à la modification présente dans le dépôt, et l’exclut des pages publiques. Le test vérifie désormais ce comportement et réussit.
+
+## Second audit et connexion par nom d’utilisateur
+
+- Les écritures refusées lèvent une erreur et ne déclenchent plus de faux messages de réussite. Les principaux formulaires concernés conservent leur état en cas d’échec.
+- Le changement de semestre attend la confirmation Firestore avant de modifier l’état local.
+- La session refuse les changements de permissions uniquement locaux, distingue les profils absents, désactivés ou mal configurés, et borne l’attente de vérification du profil.
+- La création et la connexion partagent une conversion unique du nom d’utilisateur vers l’identité Firebase. La liste des utilisateurs affiche l’identifiant à saisir et ne considère plus un profil sans `isActive: true` comme actif.
+- Le journal serveur couvre les créations/suppressions de documents vides et masque les identifiants de jetons. Les clients ne peuvent pas réserver les identifiants d’événements serveur.
+
+La procédure de correction d’un compte créé manuellement est dans [Connexion avec un nom d’utilisateur](connexion-utilisateurs.md). Le compte réel signalé n’a pas été inspecté ni modifié dans Firebase ; son UID et son profil doivent encore être vérifiés. Aucun test de connexion avec ses identifiants n’a été effectué.

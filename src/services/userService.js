@@ -2,6 +2,7 @@ import { collection, doc, getDocs, getDocFromServer, onSnapshot, writeBatch, run
 import { createUserWithEmailAndPassword, deleteUser, sendPasswordResetEmail, updatePassword } from 'firebase/auth';
 import { db, auth, createSecondaryAuth } from '../firebase';
 import { isAdministrator, normalizePermissions } from '../utils/permissions';
+import { toAuthEmail } from '../utils/loginIdentifier';
 
 export const APP_MODULES = [
   { id: 'dashboard', label: 'Tableau de bord', path: '/', category: 'Général' },
@@ -138,9 +139,8 @@ export const createUserAccount = async ({ email, password, displayName, role = '
   try {
     const actor = await requireAdmin();
     const cleanName = displayName?.trim();
-    const rawEmail = email?.trim().toLowerCase() || '';
-    const cleanEmail = rawEmail.includes('@') ? rawEmail : `${rawEmail}@ipfp.edu`;
-    if (!cleanName || !cleanEmail || typeof password !== 'string' || password.length < 6) throw new Error('Nom, identifiant et mot de passe valides requis.');
+    const cleanEmail = toAuthEmail(email);
+    if (!cleanName || cleanName.length > 160 || typeof password !== 'string' || password.length < 6) throw new Error('Nom (160 caractères maximum), identifiant et mot de passe valides requis.');
     const normalized = normalizePermissions(role, permissions || getPresetPermissions(role));
     secondary = await createSecondaryAuth();
     createdUser = (await createUserWithEmailAndPassword(secondary.secondaryAuth, cleanEmail, password)).user;

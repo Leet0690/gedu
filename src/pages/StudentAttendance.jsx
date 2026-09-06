@@ -390,6 +390,7 @@ const StudentAttendance = () => {
   };
 
   const handleClearStatus = async (studentId) => {
+    try {
     if (!allowAttendanceWrite()) return;
     if (!filterModule) return;
     const safeModule = filterModule.replace(/[^a-zA-Z0-9]/g, '_');
@@ -397,9 +398,14 @@ const StudentAttendance = () => {
     if (!record) return;
     await updateStudentAttendance(studentId, filterModule, selectedDate, '', record.comment || '', 'admin', record.timeSlot || selectedSession?.time || '', record.id);
     showToast('Pointage annulé.', 'info');
+
+    } catch (error) {
+      if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');
+    }
   };
 
   const handleCommentChange = async (studentId, comment) => {
+    try {
     if (!allowAttendanceWrite()) return;
     if (!filterModule) return;
     const safeModule = filterModule.replace(/[^a-zA-Z0-9]/g, '_');
@@ -410,6 +416,10 @@ const StudentAttendance = () => {
     }
     const targetTime = record?.timeSlot || selectedSession?.time || '';
     await updateStudentAttendance(studentId, filterModule, selectedDate, record.status, comment, 'admin', targetTime, record.id);
+
+    } catch (error) {
+      if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');
+    }
   };
 
   const exportDailyCSV = () => {

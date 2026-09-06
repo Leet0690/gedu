@@ -840,7 +840,7 @@ const GradeManagement = () => {
                   <MiniStat label="Complets" value={`${completedModuleStudents}/${moduleStudents.length}`} />
                   <button
                     onClick={canEdit ? handleSaveByModule : undefined} aria-disabled={!canEdit}
-                    disabled={moduleDirtyStudentIds.size === 0}
+                    disabled={!canEdit || moduleDirtyStudentIds.size === 0}
                     className="btn-modern primary"
                     style={{ padding: '12px 24px', opacity: moduleDirtyStudentIds.size === 0 ? 0.55 : 1 }}
                   >

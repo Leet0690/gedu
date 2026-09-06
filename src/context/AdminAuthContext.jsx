@@ -5,6 +5,7 @@ import { auth, db } from '../firebase';
 import { changeUserPasswordDirect } from '../services/userService';
 import { hasModulePermission, isAdministrator } from '../utils/permissions';
 import { profileSessionState } from '../utils/authSession';
+import { toAuthEmail } from '../utils/loginIdentifier';
 
 const AdminAuthContext = createContext();
 
@@ -60,7 +61,7 @@ export const AdminAuthProvider = ({ children }) => {
         setAuthError(confirmed.error);
         setLoading(false);
       }, error => {
-        if (currentGeneration !== generation) return;
+        if (currentGeneration !== generation || currentLogoutGeneration !== logoutGeneration.current) return;
         console.error('Impossible de vérifier le profil utilisateur :', error);
         clearTimeout(profileTimeout);
         setAdminUser(null);
@@ -71,25 +72,27 @@ export const AdminAuthProvider = ({ children }) => {
     return () => { generation++; clearTimeout(profileTimeout); unsubscribeProfile?.(); unsubscribeAuth(); };
   }, []);
 
-  const login = async (email, password) => {
+  const login = async (identifier, password) => {
     if (loginPending.current) return { success: false, error: 'Une connexion est déjà en cours.' };
     loginPending.current = true;
     setAuthError('');
     const startedGeneration = logoutGeneration.current;
     try {
-      const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
+      const credential = await signInWithEmailAndPassword(auth, toAuthEmail(identifier), password);
       if (startedGeneration !== logoutGeneration.current) {
         await signOut(auth);
         return { success: false, error: 'Connexion annulée.' };
       }
       const snapshot = await getDocFromServer(doc(db, 'users', credential.user.uid));
       if (startedGeneration !== logoutGeneration.current) return { success: false, error: 'Connexion annulée.' };
-      if (!snapshot.exists() || snapshot.data().isActive !== true) {
+      const confirmed = profileSessionState(snapshot, credential.user);
+      if (!confirmed?.user) {
+        const message = confirmed?.error || 'Votre profil n’a pas encore été confirmé par le serveur. Veuillez réessayer.';
         await signOut(auth);
-        setAuthError('Compte non autorisé ou désactivé. Contactez votre administrateur.');
-        return { success: false, error: 'Compte non autorisé ou désactivé. Contactez votre administrateur.' };
+        setAuthError(message);
+        return { success: false, error: message };
       }
-      const user = { ...snapshot.data(), uid: credential.user.uid, email: credential.user.email };
+      const user = confirmed.user;
       // Failure to update a diagnostic timestamp must not undo a valid login.
       void updateDoc(snapshot.ref, { lastLogin: serverTimestamp() }).catch(error => {
         console.warn('Dernière connexion non enregistrée :', error.code);
@@ -99,11 +102,19 @@ export const AdminAuthProvider = ({ children }) => {
     } catch (error) {
       setAdminUser(null);
       await signOut(auth).catch(() => {});
-      const message = error.code === 'auth/too-many-requests'
-        ? 'Trop de tentatives. Veuillez patienter avant de réessayer.'
-        : error.code === 'auth/network-request-failed' || error.code === 'unavailable'
-          ? 'Connexion au serveur impossible. Vérifiez votre connexion Internet.'
-          : 'Connexion impossible. Vérifiez vos identifiants et l’activation de votre compte.';
+      const message = {
+        'auth/invalid-identifier': error.message,
+        'auth/invalid-email': 'Nom d’utilisateur invalide.',
+        'auth/invalid-credential': 'Nom d’utilisateur ou mot de passe incorrect.',
+        'auth/user-not-found': 'Nom d’utilisateur ou mot de passe incorrect.',
+        'auth/wrong-password': 'Nom d’utilisateur ou mot de passe incorrect.',
+        'auth/user-disabled': 'Ce compte est désactivé. Contactez votre administrateur.',
+        'auth/operation-not-allowed': 'La connexion par mot de passe doit être activée dans Firebase Authentication.',
+        'auth/too-many-requests': 'Trop de tentatives. Veuillez patienter avant de réessayer.',
+        'auth/network-request-failed': 'Connexion au serveur impossible. Vérifiez votre connexion Internet.',
+        unavailable: 'Connexion au serveur impossible. Vérifiez votre connexion Internet.',
+        'permission-denied': 'La lecture du profil est refusée par Firestore. Faites vérifier les règles d’accès à votre profil.',
+      }[error.code] || 'Connexion impossible. Vérifiez vos identifiants et l’activation de votre compte.';
       setAuthError(message);
       return { success: false, error: message };
     } finally {

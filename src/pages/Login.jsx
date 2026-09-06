@@ -18,8 +18,6 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const EMAIL_DOMAIN = '@ipfp.edu';
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (loading) return;
@@ -27,9 +25,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const cleanInput = username.trim().toLowerCase();
-      const email = cleanInput.includes('@') ? cleanInput : `${cleanInput}${EMAIL_DOMAIN}`;
-      const res = await login(email, password);
+      const res = await login(username, password);
       if (res.success) {
         navigate(getLoginDestination(APP_MODULES, res.admin, hasModulePermission, location.state?.from), { replace: true });
       } else {
@@ -101,6 +97,8 @@ const Login = () => {
                   placeholder="Ex: admin"
                   required
                   autoComplete="username"
+                  autoCapitalize="none"
+                  spellCheck={false}
                   disabled={loading}
                 />
               </div>

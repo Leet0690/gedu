@@ -17,7 +17,7 @@ const PageLoader = () => (
 );
 
 export const ProtectedRoute = ({ children, pageKey, requiredLevel = 'view' }) => {
-  const { isAuthenticated, hasPermission, loading, adminUser } = useAdminAuth();
+  const { isAuthenticated, hasPermission, loading, adminUser, logout } = useAdminAuth();
 
   if (loading) {
     return <PageLoader />;
@@ -54,9 +54,9 @@ export const ProtectedRoute = ({ children, pageKey, requiredLevel = 'view' }) =>
           </p>
 
           <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
-            <Link to={APP_MODULES.find(module => hasPermission(module.id))?.path || '/login'} className="btn-modern secondary" style={{ textDecoration: 'none' }}>
+            {APP_MODULES.some(module => hasPermission(module.id)) ? <Link to={APP_MODULES.find(module => hasPermission(module.id)).path} className="btn-modern secondary" style={{ textDecoration: 'none' }}>
               <ArrowLeft size={16} style={{ marginRight: '6px' }} /> Retour à l'accueil
-            </Link>
+            </Link> : <button type="button" className="btn-modern secondary" onClick={logout}>Se déconnecter</button>}
           </div>
         </div>
       </div>

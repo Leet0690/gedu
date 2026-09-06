@@ -12,7 +12,7 @@ import {
   Search, 
   Edit3, 
   Filter, 
-  Mail, 
+  UserRound,
   Lock, 
   Eye, 
   EyeOff, 
@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { useToast } from '../context/ToastContext';
+import { getLoginIdentifier } from '../utils/loginIdentifier';
 import { 
   APP_MODULES, 
   ROLE_PRESETS, 
@@ -92,8 +93,8 @@ export default function UserManagement() {
       const matchesRole = roleFilter === 'ALL' || user.role === roleFilter;
       const matchesStatus = 
         statusFilter === 'ALL' || 
-        (statusFilter === 'ACTIVE' && user.isActive !== false) ||
-        (statusFilter === 'INACTIVE' && user.isActive === false);
+        (statusFilter === 'ACTIVE' && user.isActive === true) ||
+        (statusFilter === 'INACTIVE' && user.isActive !== true);
       return matchesSearch && matchesRole && matchesStatus;
     });
   }, [users, searchQuery, roleFilter, statusFilter]);
@@ -214,7 +215,7 @@ export default function UserManagement() {
   const handleToggleStatus = async (user) => {
     if (actionBusy) return;
     setActionBusy(true);
-    const currentStatus = user.isActive !== false;
+    const currentStatus = user.isActive === true;
     const res = await toggleUserStatus(user.id || user.uid, currentStatus);
     setActionBusy(false);
     if (!res.success) showToast(res.error, 'error');
@@ -309,7 +310,7 @@ export default function UserManagement() {
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Actifs</p>
             <h3 className="text-2xl font-black text-emerald-600 mt-1">
-              {users.filter(u => u.isActive !== false).length}
+              {users.filter(u => u.isActive === true).length}
             </h3>
           </div>
           <div className="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
@@ -319,9 +320,9 @@ export default function UserManagement() {
 
         <div className="glass-card p-4 flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Suspendus</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Inactifs</p>
             <h3 className="text-2xl font-black text-rose-500 mt-1">
-              {users.filter(u => u.isActive === false).length}
+              {users.filter(u => u.isActive !== true).length}
             </h3>
           </div>
           <div className="w-11 h-11 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center">
@@ -348,7 +349,7 @@ export default function UserManagement() {
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Rechercher par nom ou email..."
+            placeholder="Rechercher par nom ou identifiant..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="input-premium pl-10 pr-4 py-2 text-sm w-full"
@@ -380,7 +381,7 @@ export default function UserManagement() {
           >
             <option value="ALL">Tous les statuts</option>
             <option value="ACTIVE">Actifs uniquement</option>
-            <option value="INACTIVE">Suspendus uniquement</option>
+            <option value="INACTIVE">Inactifs uniquement</option>
           </select>
         </div>
       </div>
@@ -414,7 +415,7 @@ export default function UserManagement() {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
                 {filteredUsers.map((user) => {
                   const rolePreset = ROLE_PRESETS[user.role === 'super_admin' ? 'admin' : user.role] || ROLE_PRESETS.custom;
-                  const isActive = user.isActive !== false;
+                  const isActive = user.isActive === true;
                   const isCurrentLoggedUser = (adminUser?.uid && (user.id === adminUser.uid || user.uid === adminUser.uid));
 
                   // Count active permissions
@@ -442,8 +443,8 @@ export default function UserManagement() {
                               )}
                             </div>
                             <div className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
-                              <Mail size={12} />
-                              <span>{user.email}</span>
+                              <UserRound size={12} />
+                              <span>{getLoginIdentifier(user.email)}</span>
                             </div>
                           </div>
                         </div>
@@ -483,7 +484,7 @@ export default function UserManagement() {
                           ) : (
                             <>
                               <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                              Suspendu
+                              {user.isActive === false ? 'Suspendu' : 'À configurer'}
                             </>
                           )}
                         </button>
@@ -608,12 +609,15 @@ export default function UserManagement() {
 
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                      Nom d'utilisateur ou Email *
+                      Nom d'utilisateur *
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="aminata ou aminata@ipfp.edu"
+                      placeholder="Ex: aminata"
+                      autoComplete="username"
+                      autoCapitalize="none"
+                      spellCheck={false}
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       className="input-premium w-full py-2 px-3 text-sm"
@@ -824,7 +828,7 @@ export default function UserManagement() {
                     <h3 className="text-lg font-bold text-slate-900 dark:text-white">
                       Modifier les Droits : {editingUser.displayName}
                     </h3>
-                    <p className="text-xs text-slate-400">{editingUser.email}</p>
+                    <p className="text-xs text-slate-400">{getLoginIdentifier(editingUser.email)}</p>
                   </div>
                 </div>
                 <button
