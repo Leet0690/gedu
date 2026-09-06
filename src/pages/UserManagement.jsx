@@ -229,7 +229,7 @@ export default function UserManagement() {
     const res = await sendUserPasswordReset(email);
     setActionBusy(false);
     if (res.success) {
-      showToast(`Un email de réinitialisation a été envoyé à ${email}.`, 'success');
+      showToast(res.warning || `Un email de réinitialisation a été envoyé à ${email}.`, res.warning ? 'warning' : 'success');
       setResetModalUser(null);
     } else {
       showToast(res.error || "Erreur lors de l'envoi de l'email.", 'error');
@@ -608,12 +608,12 @@ export default function UserManagement() {
 
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                      Email de connexion *
+                      Nom d'utilisateur ou Email *
                     </label>
                     <input
-                      type="email"
+                      type="text"
                       required
-                      placeholder="aminata@ipfp.edu"
+                      placeholder="aminata ou aminata@ipfp.edu"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       className="input-premium w-full py-2 px-3 text-sm"

@@ -47,7 +47,7 @@ service cloud.firestore {
     }
     match /activity_logs/{id} {
       allow read: if permitted('logs', 'view') || (active() && resource.data.userId == request.auth.uid);
-      allow create: if attributed() && request.resource.data.timestamp == request.time &&
+      allow create: if !id.matches('server-.*') && attributed() && request.resource.data.timestamp == request.time &&
         request.resource.data.message is string && request.resource.data.message.size() <= 2000 &&
         request.resource.data.keys().hasOnly(['userId', 'userName', 'userRole', 'message', 'type', 'actionType', 'module', 'metadata', 'timestamp', 'createdAt']);
       allow update, delete: if false;

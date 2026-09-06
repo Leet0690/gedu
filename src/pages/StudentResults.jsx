@@ -67,7 +67,7 @@ const StudentResults = () => {
   const student = students.find(s => {
     if (!s) return false;
     const clean = (str) => String(str || '').toLowerCase().replace(/[^a-z0-9-]/g, '');
-    return clean(s.token) === clean(studentId) || clean(s.id) === clean(studentId);
+    return clean(s.token) === clean(studentId);
   });
 
   useEffect(() => {

@@ -3,19 +3,22 @@ import { motion } from 'framer-motion';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { APP_MODULES } from '../services/userService';
 import { hasModulePermission } from '../utils/permissions';
+import { getLoginDestination } from '../utils/authSession';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import Logo from '../components/Logo';
-import { Lock, Mail, ArrowRight, CircleAlert, Loader2, Eye, EyeOff, ShieldCheck, Sparkles, GraduationCap } from 'lucide-react';
+import { Lock, User, ArrowRight, CircleAlert, Loader2, Eye, EyeOff, ShieldCheck, Sparkles, GraduationCap } from 'lucide-react';
 
 const Login = () => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, adminUser, isAuthenticated } = useAdminAuth();
+  const { login, adminUser, isAuthenticated, authError } = useAdminAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const EMAIL_DOMAIN = '@ipfp.edu';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,20 +26,24 @@ const Login = () => {
     setError('');
     setLoading(true);
 
-    const res = await login(email, password);
-    if (res.success) {
-      const allowed = APP_MODULES.filter(module => hasModulePermission(res.admin, module.id));
-      const requested = location.state?.from;
-      navigate(allowed.find(module => module.path === requested)?.path || allowed[0]?.path || '/', { replace: true });
-    } else {
-      setError(res.error || 'Email ou mot de passe incorrect.');
+    try {
+      const cleanInput = username.trim().toLowerCase();
+      const email = cleanInput.includes('@') ? cleanInput : `${cleanInput}${EMAIL_DOMAIN}`;
+      const res = await login(email, password);
+      if (res.success) {
+        navigate(getLoginDestination(APP_MODULES, res.admin, hasModulePermission, location.state?.from), { replace: true });
+      } else {
+        setError(res.error || 'Identifiant ou mot de passe incorrect.');
+      }
+    } catch {
+      setError('Connexion impossible. Veuillez réessayer.');
+    } finally {
       setLoading(false);
     }
   };
 
   if (isAuthenticated) {
-    const allowed = APP_MODULES.filter(module => hasModulePermission(adminUser, module.id));
-    return <Navigate to={allowed.find(module => module.path === location.state?.from)?.path || allowed[0]?.path || '/'} replace />;
+    return <Navigate to={getLoginDestination(APP_MODULES, adminUser, hasModulePermission, location.state?.from)} replace />;
   }
 
   return (
@@ -79,18 +86,19 @@ const Login = () => {
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label className="login-premium-label">
-                Adresse email
+              <label htmlFor="login-username" className="login-premium-label">
+                Nom d'utilisateur
               </label>
               <div className="login-premium-input-wrap">
-                <Mail size={16} className="login-premium-input-icon" />
+                <User size={16} className="login-premium-input-icon" />
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  type="text"
+                  id="login-username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   className="input-premium login-premium-input"
                   style={{ opacity: loading ? 0.6 : 1 }}
-                  placeholder="admin@ipfp.edu"
+                  placeholder="Ex: admin"
                   required
                   autoComplete="username"
                   disabled={loading}
@@ -99,12 +107,13 @@ const Login = () => {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label className="login-premium-label">
+              <label htmlFor="login-password" className="login-premium-label">
                 Mot de passe
               </label>
               <div className="login-premium-input-wrap">
                 <Lock size={16} className="login-premium-input-icon" />
                 <input
+                  id="login-password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -126,8 +135,9 @@ const Login = () => {
               </div>
             </div>
 
-            {error && (
+            {(error || authError) && (
               <motion.div
+                role="alert"
                 initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
                 style={{
@@ -141,7 +151,7 @@ const Login = () => {
                   border: '1px solid var(--danger-bg)'
                 }}
               >
-                <CircleAlert size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} /> {error}
+                <CircleAlert size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} /> {error || authError}
               </motion.div>
             )}
 

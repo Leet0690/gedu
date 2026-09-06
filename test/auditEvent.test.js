@@ -18,3 +18,12 @@ test('audit events do not recurse and unchanged data does not produce noise', ()
   assert.equal(describeAuditChange('access_logs', 'id', null, { message: 'x' }), null);
   assert.equal(describeAuditChange('students', 'id', { name: 'A' }, { name: 'A' }), null);
 });
+
+test('empty-document lifecycle is audited, unknown collection names are ignored, and token IDs are redacted', () => {
+  assert.equal(describeAuditChange('students', 'empty', null, {}).actionType, 'CREATE');
+  assert.equal(describeAuditChange('students', 'empty', {}, null).actionType, 'DELETE');
+  assert.equal(describeAuditChange('students', 'empty', null, null), null);
+  assert.equal(describeAuditChange('constructor', 'id', null, { value: 1 }), null);
+  const result = describeAuditChange('tokens', 'sensitive-bearer-token', null, { owner: 'test' });
+  assert.equal(JSON.stringify(result).includes('sensitive-bearer-token'), false);
+});

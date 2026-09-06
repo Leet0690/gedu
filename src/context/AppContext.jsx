@@ -11,7 +11,6 @@ import {
   orderBy,
   getDocs,
   getDocsFromServer,
-  getDoc,
   getDocFromServer,
   where,
   limit,
@@ -20,7 +19,7 @@ import {
   runTransaction
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import { COLLECTION_MODULES } from '../utils/permissions';
+import { COLLECTION_MODULES, assertModuleEdit } from '../utils/permissions';
 import ConfirmModal from '../components/ConfirmModal';
 import { useToast } from './ToastContext';
 import { useAdminAuth } from './AdminAuthContext';
@@ -461,9 +460,11 @@ export const AppProvider = ({ children }) => {
   }, [originalShowToast, logActivity]);
 
   const requireEdit = module => {
-    if (module === 'administration' ? isAdmin : hasPermission(module, 'edit')) return true;
-    originalShowToast('Lecture seule : vous ne pouvez pas effectuer cette modification.', 'error');
-    return false;
+    try { assertModuleEdit(adminUser, module); }
+    catch (error) {
+      originalShowToast(error.message, 'error');
+      throw error;
+    }
   };
 
   const [students, setStudents] = useState([]);
@@ -592,23 +593,20 @@ export const AppProvider = ({ children }) => {
   }, [isAuthenticated, isDirectorAuth, isAdmin]);
 
   const setActiveSemester = useCallback(async (semester) => {
-    if (!isAdmin) { originalShowToast('Seul un administrateur peut modifier le semestre actif.', 'error'); return; }
+    if (!isAdmin) { originalShowToast('Seul un administrateur peut modifier le semestre actif.', 'error'); return false; }
     const nextSemester = normalizeSemester(semester);
-    setActiveSemesterState(nextSemester);
-    try {
-      localStorage.setItem(ACTIVE_SEMESTER_KEY, nextSemester);
-    } catch {
-      // Storage can be unavailable in restrictive browser modes.
-    }
     try {
       await setDoc(doc(db, 'settings', 'app'), {
-        activeSemester: nextSemester,
-        updatedAt: serverTimestamp()
+        activeSemester: nextSemester, updatedAt: serverTimestamp(),
       }, { merge: true });
-      showToast(`Semestre ${nextSemester} active.`, 'success');
+      setActiveSemesterState(nextSemester);
+      try { localStorage.setItem(ACTIVE_SEMESTER_KEY, nextSemester); } catch { /* Optional storage. */ }
+      showToast(`Semestre ${nextSemester} activé.`, 'success');
+      return true;
     } catch (error) {
       console.warn('Impossible de synchroniser le semestre actif:', error);
-      showToast(`Semestre ${nextSemester} active localement.`, 'warning');
+      originalShowToast('Le semestre n’a pas été modifié. Vérifiez la connexion et vos droits.', 'error');
+      return false;
     }
   }, [showToast, isAdmin, originalShowToast]);
 
@@ -702,11 +700,7 @@ export const AppProvider = ({ children }) => {
           const token = path.split('/').pop();
           const stuQuery = query(collection(db, 'students'), where('token', '==', token));
           const stuSnap = await getDocs(stuQuery);
-          let studentDoc = stuSnap.docs[0];
-          if (!studentDoc) {
-            const directDoc = await getDoc(doc(db, 'students', token));
-            if (directDoc.exists()) studentDoc = directDoc;
-          }
+          const studentDoc = stuSnap.docs[0];
 
           if (studentDoc && isMounted) {
             const studentData = studentDoc.data();
@@ -744,11 +738,7 @@ export const AppProvider = ({ children }) => {
             getDocs(query(collection(db, 'teachers'), where('tokenAttendance', '==', token)))
           ]);
           
-          let teacherDoc = tSnap1.docs[0] || tSnap2.docs[0];
-          if (!teacherDoc) {
-            const directDoc = await getDoc(doc(db, 'teachers', token));
-            if (directDoc.exists()) teacherDoc = directDoc;
-          }
+          const teacherDoc = tSnap1.docs[0] || tSnap2.docs[0];
 
           if (teacherDoc && isMounted) {
             const teacherData = teacherDoc.data();
@@ -806,9 +796,11 @@ export const AppProvider = ({ children }) => {
 
   useEffect(() => {
     if (!isAuthenticated && !isDirectorAuth) {
-      localStorage.removeItem(FINANCE_CACHE_PAYMENTS_KEY);
-      localStorage.removeItem(FINANCE_CACHE_SALARIES_KEY);
-      localStorage.removeItem(FINANCE_CACHE_EXPENSES_KEY);
+      try {
+        localStorage.removeItem(FINANCE_CACHE_PAYMENTS_KEY);
+        localStorage.removeItem(FINANCE_CACHE_SALARIES_KEY);
+        localStorage.removeItem(FINANCE_CACHE_EXPENSES_KEY);
+      } catch { /* Storage is optional, including in private browsing. */ }
       financeLoadedRef.current = false;
     }
   }, [isAuthenticated, isDirectorAuth]);
@@ -857,7 +849,7 @@ export const AppProvider = ({ children }) => {
 
   // --- STAGIAIRES ---
   const addStudent = async (studentData) => {
-    if (!requireEdit('students')) return false;
+    requireEdit('students');
     const token = makeToken(32);
     const academicYear = validateAcademicYear(studentData.academicYear)
       ? studentData.academicYear
@@ -870,14 +862,14 @@ export const AppProvider = ({ children }) => {
   };
 
   const updateStudent = async (id, data) => {
-    if (!requireEdit('students')) return false;
+    requireEdit('students');
     await updateDoc(doc(db, 'students', id), data);
     setStudents(prev => prev.map(s => s.id === id ? { ...s, ...data } : s));
     showToast(`Profil stagiaire mis Ã  jour.`, 'success');
   };
 
   const promoteAcademicYear = async ({ fromAcademicYear = '', toAcademicYear = '' } = {}) => {
-    if (!requireEdit('administration')) return false;
+    requireEdit('administration');
     // Improvement #1: Validate academic year format
     if (!validateAcademicYearTransition(fromAcademicYear, toAcademicYear)) {
       showToast('Format d\u2019ann\u00e9e invalide. Utilisez le format AAAA-AAAA (ex: 2025-2026).', 'error');
@@ -1250,7 +1242,7 @@ export const AppProvider = ({ children }) => {
 
   // Improvement #6: Undo last promotion
   const undoLastPromotion = async (operationId) => {
-    if (!requireEdit('administration')) return false;
+    requireEdit('administration');
     if (!operationId) {
       showToast('Aucune op\u00e9ration \u00e0 annuler.', 'info');
       return;
@@ -1326,7 +1318,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const deleteStudent = async (id) => {
-    if (!requireEdit('students')) return false;
+    requireEdit('students');
     await deleteDoc(doc(db, 'students', id));
     setStudents(prev => prev.filter(s => s.id !== id));
     showToast(`Stagiaire supprimÃ©.`, 'warning');
@@ -1334,7 +1326,7 @@ export const AppProvider = ({ children }) => {
 
   // --- FORMATEURS ---
   const addTeacher = async (teacherData) => {
-    if (!requireEdit('teachers')) return false;
+    requireEdit('teachers');
     const tokenGrades = makeToken(32);
     const tokenAttendance = makeToken(32);
     const newTeacher = { ...teacherData, tokenGrades, tokenAttendance, createdAt: serverTimestamp() };
@@ -1345,21 +1337,21 @@ export const AppProvider = ({ children }) => {
   };
 
   const updateTeacher = async (id, data) => {
-    if (!requireEdit('teachers')) return false;
+    requireEdit('teachers');
     await updateDoc(doc(db, 'teachers', id), data);
     setTeachers(prev => prev.map(t => t.id === id ? { ...t, ...data } : t));
     showToast(`Profil formateur mis Ã  jour.`, 'success');
   };
 
   const deleteTeacher = async (id) => {
-    if (!requireEdit('teachers')) return false;
+    requireEdit('teachers');
     await deleteDoc(doc(db, 'teachers', id));
     setTeachers(prev => prev.filter(t => t.id !== id));
     showToast(`Formateur supprimÃ©.`, 'warning');
   };
 
   const migrateTeacherTokens = async () => {
-    if (!requireEdit('administration')) return false;
+    requireEdit('administration');
     const batch = [];
     const updatedTeachers = [];
     teachers.forEach(t => {
@@ -1381,7 +1373,7 @@ export const AppProvider = ({ children }) => {
 
   // --- EMPLOI DU TEMPS ---
   const addSchedule = async (scheduleData) => {
-    if (!requireEdit('schedules')) return false;
+    requireEdit('schedules');
     const newSchedule = {
       ...scheduleData,
       academicYear: scheduleData.academicYear || activeAcademicYear || operationalAcademicYear || INITIAL_OPERATIONAL_ACADEMIC_YEAR,
@@ -1393,7 +1385,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const updateSchedule = async (id, data) => {
-    if (!requireEdit('schedules')) return false;
+    requireEdit('schedules');
     const existing = schedules.find(s => s.id === id);
     const updated = {
       ...data,
@@ -1405,14 +1397,14 @@ export const AppProvider = ({ children }) => {
   };
 
   const deleteSchedule = async (id) => {
-    if (!requireEdit('schedules')) return false;
+    requireEdit('schedules');
     await deleteDoc(doc(db, 'schedules', id));
     setSchedules(prev => prev.filter(s => s.id !== id));
     showToast(`SÃ©ance supprimÃ©e.`, 'warning');
   };
 
   const clearAllSchedules = async () => {
-    if (!requireEdit('schedules')) return false;
+    requireEdit('schedules');
     const snapshot = await getDocs(collection(db, 'schedules'));
     const ids = snapshot.docs.map(item => item.id);
     if (ids.length === 0) {
@@ -1438,7 +1430,7 @@ export const AppProvider = ({ children }) => {
     );
 
   const updateGrades = async (studentId, subject, gradeData, academicYear = '') => {
-    if (!requireEdit('grades')) return false;
+    requireEdit('grades');
     const safeSubject = sanitizeGradeKey(subject);
     const resolvedAcademicYear = resolveGradeAcademicYear(studentId, academicYear);
     const currentStudentGrades = grades[studentId] || {};
@@ -1471,7 +1463,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const batchUpdateGrades = async (updates) => {
-    if (!requireEdit('grades')) return false;
+    requireEdit('grades');
     const batch = writeBatch(db);
     const newGrades = { ...grades };
     
@@ -1507,7 +1499,7 @@ export const AppProvider = ({ children }) => {
 
   // --- PRESENCES ---
   const updateStudentAttendance = async (studentId, moduleId, date, status, comment, formateurId = 'admin', timeSlot = '', recordId = '') => {
-    if (!requireEdit('attendance_students')) return false;
+    requireEdit('attendance_students');
     const { canonicalId, previousId } = getStudentAttendanceWriteTarget(studentId, moduleId, date, timeSlot, recordId);
     if (!status) {
       const docId = recordId || canonicalId;
@@ -1616,7 +1608,7 @@ export const AppProvider = ({ children }) => {
   }, [showToast, hasPermission]);
 
   const updateTeacherAttendance = async (teacherId, date, status, comment, hours = 0, moduleId = '', timeSlot = '') => {
-    if (!requireEdit('attendance_teachers')) return false;
+    requireEdit('attendance_teachers');
     const safeModule = (moduleId || 'global').replace(/[^a-zA-Z0-9]/g, '_');
     const safeTime = (timeSlot || '').replace(/[^0-9]/g, '') || 'x';
     const docId = `${teacherId}_${safeModule}_${safeTime}_${date}`;
@@ -1695,7 +1687,7 @@ export const AppProvider = ({ children }) => {
   }, [showToast, hasPermission, authScope]);
 
   const addPayment = async (paymentData) => {
-    if (!requireEdit('finance')) return false;
+    requireEdit('finance');
     const prefix = STUDENT_RECEIPT_PREFIX;
     const existingFloor = Math.max(
       payments.length,
@@ -1729,7 +1721,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const updatePayment = async (id, data) => {
-    if (!requireEdit('finance')) return false;
+    requireEdit('finance');
     const currentPayment = payments.find(payment => payment.id === id) || {};
     const academicYear = getPaymentAcademicYear({ ...currentPayment, ...data });
     const normalizedData = academicYear ? { ...data, academicYear } : data;
@@ -1740,7 +1732,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const deletePayment = async (id) => {
-    if (!requireEdit('finance')) return false;
+    requireEdit('finance');
     await deleteDoc(doc(db, 'payments', id));
     setPayments(prev => prev.filter(p => p.id !== id));
     localStorage.removeItem(FINANCE_CACHE_PAYMENTS_KEY);
@@ -1748,7 +1740,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const addSalary = async (salaryData) => {
-    if (!requireEdit('finance')) return false;
+    requireEdit('finance');
     const prefix = 'F';
     const existingFloor = Math.max(
       salaries.length,
@@ -1780,7 +1772,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const updateSalary = async (id, data) => {
-    if (!requireEdit('finance')) return false;
+    requireEdit('finance');
     await updateDoc(doc(db, 'salaries', id), data);
     setSalaries(prev => prev.map(s => s.id === id ? { ...s, ...data } : s));
     localStorage.removeItem(FINANCE_CACHE_SALARIES_KEY);
@@ -1788,7 +1780,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const deleteSalary = async (id) => {
-    if (!requireEdit('finance')) return false;
+    requireEdit('finance');
     await deleteDoc(doc(db, 'salaries', id));
     setSalaries(prev => prev.filter(s => s.id !== id));
     localStorage.removeItem(FINANCE_CACHE_SALARIES_KEY);
@@ -1796,7 +1788,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const addExpense = async (expenseData) => {
-    if (!requireEdit('finance')) return false;
+    requireEdit('finance');
     const newExpense = { ...expenseData, createdAt: serverTimestamp() };
     const docRef = await addDoc(collection(db, 'expenses'), newExpense);
     setExpenses(prev => [{ id: docRef.id, ...newExpense }, ...prev]);
@@ -1805,7 +1797,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const deleteExpense = async (id) => {
-    if (!requireEdit('finance')) return false;
+    requireEdit('finance');
     await deleteDoc(doc(db, 'expenses', id));
     setExpenses(prev => prev.filter(e => e.id !== id));
     localStorage.removeItem(FINANCE_CACHE_EXPENSES_KEY);
@@ -1814,7 +1806,7 @@ export const AppProvider = ({ children }) => {
 
   // --- MODULES ---
   const addModule = async (moduleData) => {
-    if (!requireEdit('modules')) return false;
+    requireEdit('modules');
     const newModule = { ...moduleData, createdAt: serverTimestamp() };
     const docRef = await addDoc(collection(db, 'modules'), newModule);
     setModules(prev => [{ id: docRef.id, ...newModule }, ...prev]);
@@ -1822,14 +1814,14 @@ export const AppProvider = ({ children }) => {
   };
 
   const updateModule = async (id, data) => {
-    if (!requireEdit('modules')) return false;
+    requireEdit('modules');
     await updateDoc(doc(db, 'modules', id), data);
     setModules(prev => prev.map(m => m.id === id ? { ...m, ...data } : m));
     showToast(`Module mis Ã  jour.`, 'success');
   };
 
   const reorderModules = async (orderUpdates = []) => {
-    if (!requireEdit('modules')) return false;
+    requireEdit('modules');
     const validUpdates = (orderUpdates || [])
       .filter(item => item?.id && Number.isInteger(Number(item.order)) && Number(item.order) > 0)
       .map(item => ({ id: item.id, order: Number(item.order) }));
@@ -1850,7 +1842,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const deleteModule = async (id) => {
-    if (!requireEdit('modules')) return false;
+    requireEdit('modules');
     await deleteDoc(doc(db, 'modules', id));
     setModules(prev => prev.filter(m => m.id !== id));
     showToast(`Module supprimÃ©.`, 'warning');
@@ -1858,20 +1850,20 @@ export const AppProvider = ({ children }) => {
 
   // --- FORMATIONS CONTINUES ---
   const addContinuousTraining = async (data) => {
-    if (!requireEdit('continuous')) return false;
+    requireEdit('continuous');
     const docRef = await addDoc(collection(db, 'continuousTrainings'), { ...data, createdAt: serverTimestamp() });
     setContinuousTrainings(prev => [{ id: docRef.id, ...data }, ...prev]);
     showToast(`Formation continue crÃ©Ã©e : ${data.name || 'Sans nom'}`, 'success');
   };
   const updateContinuousTraining = async (id, data) => {
-    if (!requireEdit('continuous')) return false;
+    requireEdit('continuous');
     const current = continuousTrainings.find(item => item.id === id);
     await updateDoc(doc(db, 'continuousTrainings', id), data);
     setContinuousTrainings(prev => prev.map(item => item.id === id ? { ...item, ...data } : item));
     showToast(`Formation continue mise Ã  jour : ${data.name || current?.name || 'Sans nom'}`, 'success');
   };
   const deleteContinuousTraining = async (id) => {
-    if (!requireEdit('continuous')) return false;
+    requireEdit('continuous');
     const current = continuousTrainings.find(item => item.id === id);
     await deleteDoc(doc(db, 'continuousTrainings', id));
     setContinuousTrainings(prev => prev.filter(item => item.id !== id));
@@ -1880,7 +1872,7 @@ export const AppProvider = ({ children }) => {
   const sortContinuousTrainingTypes = items =>
     [...items].sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'fr', { sensitivity: 'base' }));
   const addContinuousTrainingType = async (data) => {
-    if (!requireEdit('continuous')) return false;
+    requireEdit('continuous');
     const name = String(data?.name || '').trim();
     const payload = { name, createdAt: serverTimestamp() };
     const docRef = await addDoc(collection(db, 'continuousTrainingTypes'), payload);
@@ -1888,7 +1880,7 @@ export const AppProvider = ({ children }) => {
     showToast(`Type de formation continue ajoutÃ© : ${name}`, 'success');
   };
   const renameContinuousTrainingType = async ({ id, oldName, name }) => {
-    if (!requireEdit('continuous')) return false;
+    requireEdit('continuous');
     const nextName = String(name || '').trim();
     const batch = writeBatch(db);
     let hasWrites = false;
@@ -1914,20 +1906,20 @@ export const AppProvider = ({ children }) => {
     showToast(`Type de formation continue modifiÃ© : ${nextName}`, 'success');
   };
   const deleteContinuousTrainingType = async (id) => {
-    if (!requireEdit('continuous')) return false;
+    requireEdit('continuous');
     const current = continuousTrainingTypes.find(item => item.id === id);
     await deleteDoc(doc(db, 'continuousTrainingTypes', id));
     setContinuousTrainingTypes(prev => prev.filter(item => item.id !== id));
     showToast(`Type de formation continue supprimÃ© : ${current?.name || 'Sans nom'}`, 'warning');
   };
   const addCtStudent = async (data) => {
-    if (!requireEdit('continuous')) return false;
+    requireEdit('continuous');
     const docRef = await addDoc(collection(db, 'ctStudents'), { ...data, createdAt: serverTimestamp() });
     setCtStudents(prev => [{ id: docRef.id, ...data }, ...prev]);
     showToast(`Stagiaire ajoutÃ© en formation continue : ${`${data.firstName || ''} ${data.lastName || ''}`.trim() || 'Sans nom'}`, 'success');
   };
   const updateCtStudent = async (id, data) => {
-    if (!requireEdit('continuous')) return false;
+    requireEdit('continuous');
     const current = ctStudents.find(item => item.id === id);
     await updateDoc(doc(db, 'ctStudents', id), data);
     setCtStudents(prev => prev.map(item => item.id === id ? { ...item, ...data } : item));
@@ -1935,7 +1927,7 @@ export const AppProvider = ({ children }) => {
     showToast(`Stagiaire de formation continue mis Ã  jour : ${studentName || 'Sans nom'}`, 'success');
   };
   const deleteCtStudent = async (id) => {
-    if (!requireEdit('continuous')) return false;
+    requireEdit('continuous');
     const current = ctStudents.find(item => item.id === id);
     await deleteDoc(doc(db, 'ctStudents', id));
     setCtStudents(prev => prev.filter(item => item.id !== id));
@@ -1943,14 +1935,14 @@ export const AppProvider = ({ children }) => {
     showToast(`Stagiaire de formation continue supprimÃ© : ${studentName || 'Sans nom'}`, 'warning');
   };
   const addCtSession = async (data) => {
-    if (!requireEdit('continuous')) return false;
+    requireEdit('continuous');
     const docRef = await addDoc(collection(db, 'ctSessions'), { ...data, createdAt: serverTimestamp() });
     setCtSessions(prev => [{ id: docRef.id, ...data }, ...prev]);
     const trainingName = continuousTrainings.find(training => training.id === data.trainingId)?.name || 'Formation continue';
     showToast(`SÃ©ance de formation continue planifiÃ©e : ${trainingName}`, 'success');
   };
   const updateCtSession = async (id, data) => {
-    if (!requireEdit('continuous')) return false;
+    requireEdit('continuous');
     const current = ctSessions.find(item => item.id === id);
     await updateDoc(doc(db, 'ctSessions', id), data);
     setCtSessions(prev => prev.map(item => item.id === id ? { ...item, ...data } : item));
@@ -1958,7 +1950,7 @@ export const AppProvider = ({ children }) => {
     showToast(`SÃ©ance de formation continue modifiÃ©e : ${trainingName}`, 'success');
   };
   const deleteCtSession = async (id) => {
-    if (!requireEdit('continuous')) return false;
+    requireEdit('continuous');
     const current = ctSessions.find(item => item.id === id);
     await deleteDoc(doc(db, 'ctSessions', id));
     setCtSessions(prev => prev.filter(item => item.id !== id));

@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 
 import { isAcademicYearScopedPath } from '../src/utils/routeScopes.js';
 
-test('academic year selector is shown only on year-scoped routes', () => {
-  const scopedRoutes = [
+test('academic year selection remains available throughout administration, excluding public routes', () => {
+  const administrationRoutes = [
     '/',
     '/admin/students',
     '/admin/grades',
@@ -12,8 +12,6 @@ test('academic year selector is shown only on year-scoped routes', () => {
     '/admin/monthly-attendance',
     '/admin/reports',
     '/admin/finance',
-  ];
-  const unscopedRoutes = [
     '/admin/teachers',
     '/admin/schedules',
     '/admin/schedule-generation',
@@ -22,9 +20,11 @@ test('academic year selector is shown only on year-scoped routes', () => {
     '/admin/monthly-attendance-teachers',
     '/admin/continuous',
     '/admin/logs',
+    '/admin/users',
   ];
+  const publicRoutes = ['', '/login', '/portal/test-token', '/teacher/test-token', '/results/test-token', '/administrator'];
 
-  scopedRoutes.forEach(path => assert.equal(isAcademicYearScopedPath(path), true, path));
-  unscopedRoutes.forEach(path => assert.equal(isAcademicYearScopedPath(path), false, path));
+  administrationRoutes.forEach(path => assert.equal(isAcademicYearScopedPath(path), true, path));
+  publicRoutes.forEach(path => assert.equal(isAcademicYearScopedPath(path), false, path));
   assert.equal(isAcademicYearScopedPath('/admin/finance/'), true);
 });

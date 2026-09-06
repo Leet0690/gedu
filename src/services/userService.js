@@ -138,10 +138,12 @@ export const createUserAccount = async ({ email, password, displayName, role = '
   try {
     const actor = await requireAdmin();
     const cleanName = displayName?.trim();
-    if (!cleanName || !email?.trim() || typeof password !== 'string' || password.length < 6) throw new Error('Nom, email et mot de passe valides requis.');
+    const rawEmail = email?.trim().toLowerCase() || '';
+    const cleanEmail = rawEmail.includes('@') ? rawEmail : `${rawEmail}@ipfp.edu`;
+    if (!cleanName || !cleanEmail || typeof password !== 'string' || password.length < 6) throw new Error('Nom, identifiant et mot de passe valides requis.');
     const normalized = normalizePermissions(role, permissions || getPresetPermissions(role));
     secondary = await createSecondaryAuth();
-    createdUser = (await createUserWithEmailAndPassword(secondary.secondaryAuth, email.trim().toLowerCase(), password)).user;
+    createdUser = (await createUserWithEmailAndPassword(secondary.secondaryAuth, cleanEmail, password)).user;
     const profile = { uid: createdUser.uid, email: createdUser.email, displayName: cleanName, role,
       permissions: normalized, isActive: true, createdAt: serverTimestamp(), lastLogin: null };
     const batch = writeBatch(db);

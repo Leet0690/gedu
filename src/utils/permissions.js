@@ -9,6 +9,13 @@ export function hasModulePermission(user, module, level = 'view') {
   return permission === 'edit' || (level === 'view' && permission === 'view');
 }
 
+export function assertModuleEdit(user, module) {
+  if (module === 'administration' ? isAdministrator(user) : hasModulePermission(user, module, 'edit')) return;
+  const error = new Error('Lecture seule : vous ne pouvez pas effectuer cette modification.');
+  error.code = 'permission-denied';
+  throw error;
+}
+
 export const COLLECTION_MODULES = {
   students: 'students', teachers: 'teachers', grades: 'grades', schedules: 'schedules',
   modules: 'modules', attendance_stagiaires: 'attendance_students',

@@ -104,7 +104,7 @@ const TeacherPortal = () => {
   const { showToast } = useToast();
   
   const teacher = useMemo(() => {
-    return teachers.find(t => t.tokenGrades === teacherId || t.tokenAttendance === teacherId || t.id === teacherId);
+    return teachers.find(t => t.tokenGrades === teacherId || t.tokenAttendance === teacherId);
   }, [teachers, teacherId]);
 
   const accessMode = useMemo(() => {

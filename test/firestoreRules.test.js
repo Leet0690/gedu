@@ -71,6 +71,8 @@ test('Firestore RBAC and audit enforce authorization on the server', { skip: !en
       await denied(setDoc(doc(reader, 'activity_logs', 'forged'), { ...event, userId: 'admin', userRole: 'admin' }));
       await denied(setDoc(doc(reader, 'activity_logs', 'forged-name'), { ...event, userName: 'admin' }));
       await denied(setDoc(doc(reader, 'activity_logs', 'forged-time'), { ...event, timestamp: 123 }));
+      await denied(setDoc(doc(reader, 'activity_logs', 'server-reserved'), event));
+      await denied(setDoc(doc(reader, 'activity_logs', 'forged-source'), { ...event, source: 'server' }));
       await denied(updateDoc(doc(admin, 'activity_logs', 'reader-event'), { message: 'Changed' }));
       await denied(deleteDoc(doc(admin, 'activity_logs', 'reader-event')));
       assert.equal((await getDocs(query(collection(reader, 'activity_logs'), where('userId', '==', 'reader')))).size, 1);

@@ -295,6 +295,7 @@ const StudentAttendance = () => {
   }, [selectedDate, loadTeacherAttendanceForDate]);
 
   const autoMarkTeacherIfReady = useCallback(async (matchingSession, extraRecords = []) => {
+    if (!hasPermission('attendance_teachers', 'edit')) return;
     if (!matchingSession?.teacherId || !matchingSession?.time) return;
 
     const allTeacherSessions = (schedules || []).filter(sc =>
@@ -336,7 +337,7 @@ const StudentAttendance = () => {
       const duration = calcDuration(matchingSession.time);
       await updateTeacherAttendance(matchingSession.teacherId, selectedDate, 'present', '', duration, matchingModule, matchingSession.time);
     }
-  }, [schedules, activeStudents, studentAttendance, teacherAttendance, dayOfWeek, selectedDate, updateTeacherAttendance, getActiveScheduleModule, canUseLegacyForSession]);
+  }, [schedules, activeStudents, studentAttendance, teacherAttendance, dayOfWeek, selectedDate, updateTeacherAttendance, getActiveScheduleModule, canUseLegacyForSession, hasPermission]);
 
   const handleStatusChange = async (studentId, status) => {
     if (!allowAttendanceWrite()) return;

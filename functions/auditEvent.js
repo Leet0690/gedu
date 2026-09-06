@@ -8,15 +8,17 @@ const COLLECTIONS = {
 };
 
 export function describeAuditChange(collectionId, documentId, before, after) {
-  if (!COLLECTIONS[collectionId]) return null; // Includes audit collections: no recursion.
+  if (!Object.hasOwn(COLLECTIONS, collectionId)) return null; // Includes audit collections: no recursion.
   const changedFields = [...new Set([...Object.keys(before || {}), ...Object.keys(after || {})])]
     .filter(key => JSON.stringify(before?.[key]) !== JSON.stringify(after?.[key]));
-  if (!changedFields.length) return null;
-  const actionType = !before ? 'CREATE' : !after ? 'DELETE' : 'UPDATE';
+  const actionType = before == null ? 'CREATE' : after == null ? 'DELETE' : 'UPDATE';
+  if (before == null && after == null) return null;
+  if (!changedFields.length && actionType === 'UPDATE') return null;
+  const safeDocumentId = collectionId === 'tokens' ? '[redacted]' : documentId;
   return {
     source: 'server', module: COLLECTIONS[collectionId], actionType, type: 'info',
-    message: `${actionType} : ${collectionId}/${documentId}`,
+    message: `${actionType} : ${collectionId}/${safeDocumentId}`,
     // Never copy passwords, tokens, student records or financial values to the audit log.
-    metadata: { collectionId, documentId, changedFields },
+    metadata: { collectionId, documentId: safeDocumentId, changedFields },
   };
 }
