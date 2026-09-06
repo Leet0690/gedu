@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAdminAuth } from '../context/AdminAuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { FilterSelect } from '../components/ui/FilterSelect';
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react';
 import { db } from '../firebase';
 import { writeBatch, doc, collection, serverTimestamp } from 'firebase/firestore';
+import { getScheduleAcademicYear, INITIAL_OPERATIONAL_ACADEMIC_YEAR } from '../utils/studentStatus';
 
 // ── Helpers ──
 const labelStyle = {
@@ -47,9 +49,11 @@ const STEPS = [
 const ScheduleGeneration = () => {
   const {
     teachers, schedules, modules: moduleCatalog,
-    activeSemester, addSchedule, confirmAction
+    activeSemester, addSchedule, confirmAction,
+    activeAcademicYear, operationalAcademicYear
   } = useApp();
   const { showToast } = useToast();
+  const targetAcademicYear = activeAcademicYear || operationalAcademicYear || INITIAL_OPERATIONAL_ACADEMIC_YEAR;
 
   // ── Wizard State ──
   const [currentStep, setCurrentStep] = useState(0);
@@ -188,7 +192,9 @@ const ScheduleGeneration = () => {
   }, [mergedPool, config, showToast]);
 
   // ── Step 4: Publish ──
+  const { hasPermission } = useAdminAuth();
   const handlePublish = useCallback(async () => {
+    if (!hasPermission('schedule_generation', 'edit') || !hasPermission('schedules', 'edit')) { showToast('Droits de modification requis pour la génération et les emplois du temps.', 'error'); return; }
     if (!generatedResult || generatedResult.scheduled.length === 0) return;
 
     const confirmed = await confirmAction({
@@ -209,7 +215,8 @@ const ScheduleGeneration = () => {
         const groupKeys = new Set(selectedGroups.map(g => `${g.diploma}|${g.filiere}|${g.annee}`));
         const toDelete = schedules.filter(s => {
           const d = s.diploma || getDiplomaForMajor(s.filiere);
-          return groupKeys.has(`${d}|${s.filiere}|${s.annee}`);
+          const matchYear = getScheduleAcademicYear(s, INITIAL_OPERATIONAL_ACADEMIC_YEAR) === targetAcademicYear;
+          return matchYear && groupKeys.has(`${d}|${s.filiere}|${s.annee}`);
         });
 
         if (toDelete.length > 0) {
@@ -241,6 +248,7 @@ const ScheduleGeneration = () => {
             annee: entry.annee,
             room: entry.room || '',
             type: entry.type || 'Cours',
+            academicYear: targetAcademicYear,
             createdAt: serverTimestamp()
           });
         });
@@ -257,7 +265,7 @@ const ScheduleGeneration = () => {
     } finally {
       setIsPublishing(false);
     }
-  }, [generatedResult, publishMode, selectedGroups, schedules, confirmAction, showToast]);
+  }, [generatedResult, publishMode, selectedGroups, schedules, confirmAction, showToast, hasPermission, targetAcademicYear]);
 
   // ── Preview data ──
   const previewByDay = useMemo(() => {

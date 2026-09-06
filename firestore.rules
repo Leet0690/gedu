@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function profile() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function active() { return request.auth != null && profile().isActive == true; }
+    function admin() { return active() && profile().role in ['admin', 'super_admin']; }
+    function permitted(module, level) {
+      return active() && (admin() || (module != 'users' &&
+        (profile().permissions.get(module, 'none') == 'edit' ||
+          (level == 'view' && profile().permissions.get(module, 'none') == 'view'))));
+    }
+    function validPermissions(p) {
+      return p is map && p.keys().hasOnly(['dashboard', 'students', 'teachers', 'continuous', 'finance', 'modules', 'grades', 'reports', 'schedules', 'schedule_generation', 'attendance_students', 'attendance_teachers', 'logs', 'users']) &&
+        p.dashboard in ['none', 'view', 'edit'] && p.students in ['none', 'view', 'edit'] &&
+        p.teachers in ['none', 'view', 'edit'] && p.continuous in ['none', 'view', 'edit'] &&
+        p.finance in ['none', 'view', 'edit'] && p.modules in ['none', 'view', 'edit'] &&
+        p.grades in ['none', 'view', 'edit'] && p.reports in ['none', 'view', 'edit'] &&
+        p.schedules in ['none', 'view', 'edit'] && p.schedule_generation in ['none', 'view', 'edit'] &&
+        p.attendance_students in ['none', 'view', 'edit'] && p.attendance_teachers in ['none', 'view', 'edit'] &&
+        p.logs in ['none', 'view', 'edit'] && p.users in ['none', 'view', 'edit'];
+    }
+    function validUser(uid) {
+      let u = request.resource.data;
+      return u.uid == uid && u.email is string && u.displayName is string && u.displayName.size() > 0 && u.displayName.size() <= 160 &&
+        u.isActive is bool && u.role in ['admin', 'super_admin', 'director', 'secretary', 'instructor', 'custom'] &&
+        validPermissions(u.permissions) && (u.role in ['admin', 'super_admin'] || u.permissions.users == 'none');
+    }
+    match /users/{uid} {
+      // Missing/inactive users may read only their own profile to show a useful login error.
+      allow get: if request.auth != null && (request.auth.uid == uid || admin());
+      allow list: if admin();
+      allow create: if admin() && validUser(uid) && request.resource.data.createdAt == request.time &&
+        request.resource.data.keys().hasOnly(['uid', 'email', 'displayName', 'role', 'permissions', 'isActive', 'createdAt', 'lastLogin']);
+      allow update: if (active() && request.auth.uid == uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastLogin']) && request.resource.data.lastLogin == request.time)
+        || (admin() && validUser(uid) && request.resource.data.updatedAt == request.time &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'role', 'permissions', 'isActive', 'updatedAt']) &&
+          (request.auth.uid != uid || request.resource.data.isActive == true) &&
+          (!(resource.data.isActive == true && resource.data.role in ['admin', 'super_admin']) ||
+            (request.resource.data.isActive == true && request.resource.data.role == resource.data.role)));
+      allow delete: if false;
+    }
+    function attributed() {
+      return active() && request.resource.data.userId == request.auth.uid &&
+        request.resource.data.userName == profile().displayName &&
+        request.resource.data.userRole == profile().role && request.resource.data.createdAt == request.time;
+    }
+    match /activity_logs/{id} {
+      allow read: if permitted('logs', 'view') || (active() && resource.data.userId == request.auth.uid);
+      allow create: if attributed() && request.resource.data.timestamp == request.time &&
+        request.resource.data.message is string && request.resource.data.message.size() <= 2000 &&
+        request.resource.data.keys().hasOnly(['userId', 'userName', 'userRole', 'message', 'type', 'actionType', 'module', 'metadata', 'timestamp', 'createdAt']);
+      allow update, delete: if false;
+    }
+    match /access_logs/{id} {
+      allow read: if permitted('logs', 'view');
+      allow create: if attributed() && request.resource.data.keys().hasOnly(['userId', 'userName', 'userRole', 'ipAddress', 'deviceName', 'browser', 'os', 'deviceType', 'screenSize', 'userAgent', 'path', 'hostname', 'accessType', 'date', 'time', 'loggedAt', 'createdAt']);
+      allow update, delete: if false;
+    }
+    match /settings/{id} { allow read: if active(); allow write: if admin(); }
+    match /operations/{id} { allow read, write: if admin(); }
+    match /academic_year_backups/{backup}/{document=**} { allow read, write: if admin(); }
+    match /tokens/{id} { allow read, write: if admin(); }
+    function moduleFor(name) {
+      return {'students': 'students', 'teachers': 'teachers', 'grades': 'grades', 'schedules': 'schedules',
+        'modules': 'modules', 'attendance_stagiaires': 'attendance_students', 'attendance_formateurs': 'attendance_teachers',
+        'payments': 'finance', 'salaries': 'finance', 'expenses': 'finance', 'receipt_counters': 'finance',
+        'continuousTrainings': 'continuous', 'continuousTrainingTypes': 'continuous', 'ctStudents': 'continuous', 'ctSessions': 'continuous'}.get(name, '');
+    }
+    match /{name}/{id} {
+      allow read: if moduleFor(name) != '' && permitted(moduleFor(name), 'view');
+      allow write: if moduleFor(name) != '' && permitted(moduleFor(name), 'edit');
+    }
+    // Default deny, including unauthenticated legacy bearer-link portals.
+    match /{document=**} { allow read, write: if false; }
+  }
+}

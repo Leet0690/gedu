@@ -1,3 +1,4 @@
+import { useAdminAuth } from '../context/AdminAuthContext';
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FilterSelect } from '../components/ui/FilterSelect';
@@ -85,10 +86,11 @@ const EMPTY_GRADE = { c1: '', c2: '', c3: '', efcfp: '', efcft: '' };
 
 /* ── Components ── */
 const GradeInput = ({ value, onChange, placeholder = '—' }) => {
+  const { hasPermission } = useAdminAuth();
   const num = parseFloat(value);
   const isInvalid = value !== '' && value !== undefined && !isNaN(num) && (num < 0 || num > 20);
   return (
-    <input type="number" step="0.25" className="input-premium"
+    <input disabled={!hasPermission('grades', 'edit')} type="number" step="0.25" className="input-premium"
       style={{ 
         width: '64px', textAlign: 'center', fontWeight: '700', padding: '6px 4px', fontSize: 'var(--text-sm)', margin: '0 auto',
         border: isInvalid ? '2px solid var(--danger)' : undefined,
@@ -107,6 +109,8 @@ const MiniStat = ({ label, value, icon: Icon }) => (
 );
 
 const GradeManagement = () => {
+  const { hasPermission } = useAdminAuth();
+  const canEdit = hasPermission('grades', 'edit');
   const { students = [], teachers = [], grades = {}, batchUpdateGrades, loading = false, modules: allModules = [], confirmAction, activeAcademicYear, operationalAcademicYear, availableAcademicYearsList = [] } = useApp() || {};
   const { showToast } = useToast();
   const [entryMode, setEntryMode] = useState('student');
@@ -835,7 +839,7 @@ const GradeManagement = () => {
                   <MiniStat label="Stagiaires" value={moduleStudents.length} />
                   <MiniStat label="Complets" value={`${completedModuleStudents}/${moduleStudents.length}`} />
                   <button
-                    onClick={handleSaveByModule}
+                    onClick={canEdit ? handleSaveByModule : undefined} aria-disabled={!canEdit}
                     disabled={moduleDirtyStudentIds.size === 0}
                     className="btn-modern primary"
                     style={{ padding: '12px 24px', opacity: moduleDirtyStudentIds.size === 0 ? 0.55 : 1 }}
@@ -973,7 +977,7 @@ const GradeManagement = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                 <MiniStat label="Moyenne" value={generalAvg()} />
                 <MiniStat label="Validés" value={`${completedModules}/${modules.length}`} />
-                <button onClick={handleSave} className="btn-modern primary" style={{ padding: '12px 24px' }}>
+                <button disabled={!canEdit} onClick={handleSave} className="btn-modern primary" style={{ padding: '12px 24px' }}>
                   <CloudUpload size={18} style={{ marginRight: '8px' }} /> Enregistrer
                 </button>
               </div>

@@ -20,8 +20,10 @@ import {
   runTransaction
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { COLLECTION_MODULES } from '../utils/permissions';
 import ConfirmModal from '../components/ConfirmModal';
 import { useToast } from './ToastContext';
+import { useAdminAuth } from './AdminAuthContext';
 import {
   GRADE_ACADEMIC_YEARS_FIELD,
   getGradeBucketForWrite,
@@ -54,15 +56,13 @@ const getReceiptNumberValue = (receiptNumber = '', prefix = '') => {
 
 export const useApp = () => useContext(AppContext);
 
-// ──────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Cache sessionStorage (TTL 30 min)
-// ──────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const CORE_CACHE_KEY = 'ipfp_v2_core_cache';
 const FINANCE_CACHE_PAYMENTS_KEY = 'ipfp_v2_finance_payments';
 const FINANCE_CACHE_SALARIES_KEY = 'ipfp_v2_finance_salaries';
 const FINANCE_CACHE_EXPENSES_KEY = 'ipfp_v2_finance_expenses';
-const CORE_CACHE_TTL = 6 * 60 * 60 * 1000;
-const FINANCE_CACHE_TTL = 60 * 60 * 1000;
 const ACTIVE_SEMESTER_KEY = 'ipfp_active_semester';
 const OPERATIONAL_ACADEMIC_YEAR_KEY = 'ipfp_operational_academic_year_v1';
 const ACADEMIC_YEAR_BACKUPS_COLLECTION = 'academic_year_backups';
@@ -231,7 +231,7 @@ const createAcademicYearBackup = async ({
         errorMessage: String(error?.message || 'Unknown backup error').slice(0, 500),
       }, { merge: true });
     } catch (manifestError) {
-      console.error('Impossible de marquer la sauvegarde comme échouée:', manifestError);
+      console.error('Impossible de marquer la sauvegarde comme Ã©chouÃ©e:', manifestError);
     }
     throw error;
   }
@@ -281,22 +281,6 @@ const makeToken = (length = 32) => {
   crypto.getRandomValues(values);
   return Array.from(values, (v) => chars[v % chars.length]).join('');
 };
-const readCache = (key, ttl) => {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (Date.now() - parsed.ts > ttl) return null;
-    return parsed.data;
-  } catch { return null; }
-};
-const writeCache = (key, data) => {
-  try {
-    localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data }));
-  } catch {
-    // Storage can be unavailable or full; remote data remains authoritative.
-  }
-};
 const mergeById = (current, incoming) => {
   const map = new Map((current || []).map(item => [item.id, item]));
   incoming.forEach(item => map.set(item.id, item));
@@ -310,7 +294,7 @@ const getTeacherAttendanceSlotKey = (record = {}) => {
 
 const getTimeSlotDuration = (timeStr = '') => {
   if (!timeStr) return 0;
-  const match = String(timeStr).match(/(\d{1,2})[h:]?(\d{2})?\s*[-–—]\s*(\d{1,2})[h:]?(\d{2})?/i);
+  const match = String(timeStr).match(/(\d{1,2})[h:]?(\d{2})?\s*[-â€“â€”]\s*(\d{1,2})[h:]?(\d{2})?/i);
   if (!match) return 0;
   const h1 = parseInt(match[1] || 0, 10);
   const m1 = parseInt(match[2] || 0, 10);
@@ -383,6 +367,8 @@ const fetchPublicIp = async () => {
   }
 };
 
+
+
 const buildAccessLogPayload = async ({ path = '', accessType = 'app' } = {}) => {
   const now = new Date();
   const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';
@@ -414,53 +400,71 @@ const buildAccessLogPayload = async ({ path = '', accessType = 'app' } = {}) => 
 
 export const AppProvider = ({ children }) => {
   const { showToast: originalShowToast } = useToast();
+  const { adminUser, isAuthenticated, isAdmin, hasPermission, login, logout } = useAdminAuth();
+  const isDirectorAuth = hasPermission('finance');
+  const authScope = JSON.stringify([adminUser?.uid, adminUser?.role, adminUser?.permissions]);
+  const readAllowed = useCallback((name, ...constraints) => hasPermission(COLLECTION_MODULES[name])
+    ? getDocs(query(collection(db, name), ...constraints))
+    : Promise.resolve({ docs: [] }), [hasPermission]);
+  useEffect(() => {
+    try { [CORE_CACHE_KEY, FINANCE_CACHE_PAYMENTS_KEY, FINANCE_CACHE_SALARIES_KEY, FINANCE_CACHE_EXPENSES_KEY].forEach(key => localStorage.removeItem(key)); } catch { /* Optional storage. */ }
+  }, []);
   const [notifications, setNotifications] = useState([]);
   
+  const [readNotificationIds, setReadNotificationIds] = useState(() => new Set());
+  const [activityError, setActivityError] = useState('');
   useEffect(() => {
-    const q = query(collection(db, 'activity_logs'), orderBy('timestamp', 'desc'), limit(20));
-    return onSnapshot(q, snapshot => {
-      setNotifications(snapshot.docs.map(item => ({ id: item.id, ...item.data() })));
+    if (!isAuthenticated) return;
+    const constraints = hasPermission('logs')
+      ? [orderBy('timestamp', 'desc'), limit(100)]
+      : [where('userId', '==', adminUser.uid), orderBy('timestamp', 'desc'), limit(100)];
+    return onSnapshot(query(collection(db, 'activity_logs'), ...constraints), snapshot => {
+      setNotifications(snapshot.docs.map(item => ({ ...item.data(), id: item.id })));
+      setActivityError('');
     }, error => {
-      console.error("Erreur lecture activité récente:", error);
+      setNotifications([]);
+      setActivityError('Le journal des activités est momentanément indisponible.');
+      console.error('Erreur lecture des activités :', error);
     });
-  }, []);
+  }, [isAuthenticated, hasPermission, adminUser?.uid]);
 
-  const markNotificationAsRead = useCallback(async (id) => {
-    try {
-      await updateDoc(doc(db, 'activity_logs', id), { read: true });
-    } catch (e) {
-      console.error("Erreur markRead:", e);
-    }
+  const markNotificationAsRead = useCallback(id => {
+    setReadNotificationIds(previous => new Set([...previous, id]));
   }, []);
-
-  const clearNotifications = useCallback(async () => {
-    if (notifications.length === 0) return;
-    try {
-      const batch = writeBatch(db);
-      notifications.forEach(n => {
-        batch.delete(doc(db, 'activity_logs', n.id));
-      });
-      await batch.commit();
-    } catch (e) {
-      console.error("Erreur clearNotifications:", e);
-    }
+  const clearNotifications = useCallback(() => {
+    setReadNotificationIds(new Set(notifications.map(item => item.id)));
   }, [notifications]);
+  const visibleNotifications = useMemo(() => notifications.map(item => ({
+    ...item, read: readNotificationIds.has(item.id),
+  })), [notifications, readNotificationIds]);
 
-  const showToast = useCallback(async (msg, type = 'info') => {
-    originalShowToast(msg, type);
-    if ((type === 'success' || type === 'warning') && !msg.toLowerCase().includes('connexion') && !msg.toLowerCase().includes('déconnexion')) {
-      try {
-        await addDoc(collection(db, 'activity_logs'), {
-          message: msg,
-          type,
-          timestamp: Date.now(),
-          read: false
-        });
-      } catch (err) {
-        console.error("Erreur enregistrement log:", err);
-      }
+  const logActivity = useCallback(async ({ message, type = 'info', actionType = 'GENERAL', module = 'app', metadata = {} }) => {
+    if (!adminUser?.uid || adminUser.isActive !== true) return false;
+    try {
+      await addDoc(collection(db, 'activity_logs'), {
+        message, type, actionType, module, metadata,
+        timestamp: serverTimestamp(), createdAt: serverTimestamp(),
+        userId: adminUser.uid, userName: adminUser.displayName || adminUser.email,
+        userRole: adminUser.role,
+      });
+      return true;
+    } catch (error) {
+      console.error('Erreur journalisation :', error);
+      originalShowToast('Action effectuée, mais journalisation impossible.', 'warning');
+      return false;
     }
-  }, [originalShowToast]);
+  }, [adminUser, originalShowToast]);
+
+  const showToast = useCallback((message, type = 'info') => {
+    originalShowToast(message, type);
+    if (type === 'success' || type === 'warning') void logActivity({ message, type });
+  }, [originalShowToast, logActivity]);
+
+  const requireEdit = module => {
+    if (module === 'administration' ? isAdmin : hasPermission(module, 'edit')) return true;
+    originalShowToast('Lecture seule : vous ne pouvez pas effectuer cette modification.', 'error');
+    return false;
+  };
 
   const [students, setStudents] = useState([]);
   const [teachers, setTeachers] = useState([]);
@@ -502,7 +506,7 @@ export const AppProvider = ({ children }) => {
       setConfirmState({
         isOpen: true,
         title: options.title || 'Confirmation',
-        message: options.message || 'Êtes-vous sûr de vouloir continuer ?',
+        message: options.message || 'ÃŠtes-vous sÃ»r de vouloir continuer ?',
         type: options.type || 'danger',
         confirmText: options.confirmText || '',
         cancelText: options.cancelText || '',
@@ -521,23 +525,8 @@ export const AppProvider = ({ children }) => {
     setConfirmState(prev => ({ ...prev, isOpen: false }));
   };
 
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return localStorage.getItem('eco_auth') === 'true';
-  });
-
-  const [isDirectorAuth, setIsDirectorAuth] = useState(() => {
-    return sessionStorage.getItem('ipfp_director_auth') === 'true';
-  });
-
   useEffect(() => {
-    const clearDirectorSession = () => {
-      sessionStorage.removeItem('ipfp_director_auth');
-    };
-    window.addEventListener('beforeunload', clearDirectorSession);
-    return () => window.removeEventListener('beforeunload', clearDirectorSession);
-  }, []);
-
-  useEffect(() => {
+    if (!isAuthenticated) return;
     const settingsRef = doc(db, 'settings', 'app');
     let bootstrapInProgress = false;
 
@@ -573,7 +562,7 @@ export const AppProvider = ({ children }) => {
         // Storage can be unavailable in restrictive browser modes.
       }
 
-      if (!hasOperationalAcademicYear && (isAuthenticated || isDirectorAuth) && !bootstrapInProgress) {
+      if (!hasOperationalAcademicYear && isAdmin && !bootstrapInProgress) {
         bootstrapInProgress = true;
         runTransaction(db, async transaction => {
           const currentSnapshot = await transaction.get(settingsRef);
@@ -590,19 +579,20 @@ export const AppProvider = ({ children }) => {
             academicYearUpdatedAt: serverTimestamp(),
           }, { merge: true });
         }).catch(error => {
-          console.warn("Impossible d'initialiser l'année académique active:", error);
+          console.warn("Impossible d'initialiser l'annÃ©e acadÃ©mique active:", error);
         }).finally(() => {
           bootstrapInProgress = false;
         });
       }
     }, error => {
-      console.warn('Impossible de charger les paramètres actifs:', error);
+      console.warn('Impossible de charger les paramÃ¨tres actifs:', error);
     });
 
     return unsubscribe;
-  }, [isAuthenticated, isDirectorAuth]);
+  }, [isAuthenticated, isDirectorAuth, isAdmin]);
 
   const setActiveSemester = useCallback(async (semester) => {
+    if (!isAdmin) { originalShowToast('Seul un administrateur peut modifier le semestre actif.', 'error'); return; }
     const nextSemester = normalizeSemester(semester);
     setActiveSemesterState(nextSemester);
     try {
@@ -620,7 +610,7 @@ export const AppProvider = ({ children }) => {
       console.warn('Impossible de synchroniser le semestre actif:', error);
       showToast(`Semestre ${nextSemester} active localement.`, 'warning');
     }
-  }, [showToast]);
+  }, [showToast, isAdmin, originalShowToast]);
 
   const getActiveScheduleModule = useCallback((session = {}) => {
     return getScheduleModuleForSemester(session, activeSemester, modules);
@@ -641,11 +631,11 @@ export const AppProvider = ({ children }) => {
     [students, payments, operationalAcademicYear, archivedAcademicYears]
   );
 
-  // ──────────────────────────────────────────────────────────
-  // OPTIMISATION FIREBASE (QUOTA) : Chargement ciblé et unique
-  // Remplacement des `onSnapshot` par `getDocs` pour réduire drastiquement
-  // les lectures de documents facturées par Firebase.
-  // ──────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // OPTIMISATION FIREBASE (QUOTA) : Chargement ciblÃ© et unique
+  // Remplacement des `onSnapshot` par `getDocs` pour rÃ©duire drastiquement
+  // les lectures de documents facturÃ©es par Firebase.
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
     let isMounted = true;
 
@@ -656,26 +646,15 @@ export const AppProvider = ({ children }) => {
         const isStudentPortal = path.startsWith('/results/');
 
         if (isAuthenticated || isDirectorAuth) {
-          // 1. Restore local cache immediately, then refresh from Firebase.
-          const cached = readCache(CORE_CACHE_KEY, CORE_CACHE_TTL);
-          if (cached && isMounted && Array.isArray(cached.students)) {
-            setStudents(cached.students || []);
-            setTeachers(cached.teachers || []);
-            setGrades(cached.grades || {});
-            setSchedules(cached.schedules || []);
-            setModules(cached.modules || []);
-            setLoading(false);
-          }
-
           // 2. Core admin refresh only: no attendance or finance reads here.
-          const coreLoadKey = 'admin-core';
+          const coreLoadKey = `admin-core:${authScope}`;
           if (!pendingLoads.has(coreLoadKey)) {
             pendingLoads.set(coreLoadKey, Promise.all([
-              getDocs(query(collection(db, 'students'), orderBy('createdAt', 'desc'))),
-              getDocs(query(collection(db, 'teachers'), orderBy('createdAt', 'desc'))),
-              getDocs(collection(db, 'grades')),
-              getDocs(query(collection(db, 'schedules'), orderBy('createdAt', 'desc'))),
-              getDocs(query(collection(db, 'modules'), orderBy('name', 'asc')))
+              readAllowed('students', orderBy('createdAt', 'desc')),
+              readAllowed('teachers', orderBy('createdAt', 'desc')),
+              readAllowed('grades'),
+              readAllowed('schedules', orderBy('createdAt', 'desc')),
+              readAllowed('modules', orderBy('name', 'asc'))
             ]).then(([stuSnap, teaSnap, graSnap, schSnap, modSnap]) => {
               const gradesData = {}; graSnap.docs.forEach(d => { gradesData[d.id] = d.data(); });
               const data = {
@@ -685,7 +664,6 @@ export const AppProvider = ({ children }) => {
                 schedules: schSnap.docs.map(d => ({ id: d.id, ...d.data() })),
                 modules: modSnap.docs.map(d => ({ id: d.id, ...d.data() }))
               };
-              writeCache(CORE_CACHE_KEY, data);
               return data;
             }).finally(() => {
               pendingLoads.delete(coreLoadKey);
@@ -703,10 +681,10 @@ export const AppProvider = ({ children }) => {
           setModules(coreData.modules || []);
 
           Promise.all([
-            getDocs(query(collection(db, 'continuousTrainings'), orderBy('createdAt', 'desc'))),
-            getDocs(collection(db, 'continuousTrainingTypes')),
-            getDocs(query(collection(db, 'ctStudents'), orderBy('createdAt', 'desc'))),
-            getDocs(query(collection(db, 'ctSessions'), orderBy('createdAt', 'desc')))
+            readAllowed('continuousTrainings', orderBy('createdAt', 'desc')),
+            readAllowed('continuousTrainingTypes'),
+            readAllowed('ctStudents', orderBy('createdAt', 'desc')),
+            readAllowed('ctSessions', orderBy('createdAt', 'desc'))
           ]).then(([ctSnap, ctTypeSnap, ctsSnap, ctSesSnap]) => {
             if (!isMounted) return;
             setContinuousTrainings(ctSnap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -720,7 +698,7 @@ export const AppProvider = ({ children }) => {
           }).catch(error => console.warn('Impossible de charger les formations continues:', error));
 
         } else if (isStudentPortal) {
-          // 2. Portail Stagiaire: Chargement EXCLUSIF des données de ce stagiaire
+          // 2. Portail Stagiaire: Chargement EXCLUSIF des donnÃ©es de ce stagiaire
           const token = path.split('/').pop();
           const stuQuery = query(collection(db, 'students'), where('token', '==', token));
           const stuSnap = await getDocs(stuQuery);
@@ -759,7 +737,7 @@ export const AppProvider = ({ children }) => {
             setModules(modSnap.docs.map(d => ({ id: d.id, ...d.data() })));
           }
         } else if (isTeacherPortal) {
-          // 3. Portail Formateur: Chargement ciblé pour le formateur
+          // 3. Portail Formateur: Chargement ciblÃ© pour le formateur
           const token = path.split('/').pop();
           const [tSnap1, tSnap2] = await Promise.all([
             getDocs(query(collection(db, 'teachers'), where('tokenGrades', '==', token))),
@@ -815,6 +793,7 @@ export const AppProvider = ({ children }) => {
         }
       } catch (error) {
         console.error("Erreur lors de la récupération des données:", error);
+        if (isMounted) originalShowToast("Impossible de charger certaines données. Vérifiez votre connexion et les autorisations Firebase.", 'error');
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -823,18 +802,7 @@ export const AppProvider = ({ children }) => {
     loadData();
 
     return () => { isMounted = false; };
-  }, [isAuthenticated, isDirectorAuth]);
-
-  // Sync cache on mutations (debounced to batch rapid changes)
-  const coreCacheRef = useRef({ students, teachers, grades, schedules, modules });
-  coreCacheRef.current = { students, teachers, grades, schedules, modules };
-  useEffect(() => {
-    if (loading || !(isAuthenticated || isDirectorAuth)) return;
-    const timer = setTimeout(() => {
-      writeCache(CORE_CACHE_KEY, coreCacheRef.current);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [students, teachers, grades, schedules, modules, loading, isAuthenticated, isDirectorAuth]);
+  }, [isAuthenticated, isDirectorAuth, authScope, readAllowed, originalShowToast]);
 
   useEffect(() => {
     if (!isAuthenticated && !isDirectorAuth) {
@@ -845,62 +813,15 @@ export const AppProvider = ({ children }) => {
     }
   }, [isAuthenticated, isDirectorAuth]);
 
-  useEffect(() => {
-    localStorage.setItem('eco_auth', isAuthenticated);
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    sessionStorage.setItem('ipfp_director_auth', isDirectorAuth);
-  }, [isDirectorAuth]);
-
-  const login = (password) => {
-    const adminPass = import.meta.env.VITE_ADMIN_PASSWORD;
-    const directorPass = import.meta.env.VITE_DIRECTOR_PASSWORD;
-    const cleanPassword = password.trim();
-
-    if (cleanPassword === adminPass || cleanPassword === directorPass) {
-      setIsAuthenticated(true);
-      if (cleanPassword === directorPass) {
-        setIsDirectorAuth(true);
-      }
-      showToast('Connexion réussie', 'success');
-      return true;
-    }
-    showToast('Mot de passe incorrect', 'error');
-    return false;
-  };
-
-  const loginDirector = (password) => {
-    const cleanPassword = password.trim();
-
-    if (cleanPassword === import.meta.env.VITE_DIRECTOR_PASSWORD) {
-      setIsDirectorAuth(true);
-      showToast('Accès Direction autorisé', 'success');
-      return true;
-    }
-    showToast('Mot de passe incorrect', 'error');
-    return false;
-  };
-
-  const logoutDirector = () => {
-    setIsDirectorAuth(false);
-    showToast('Déconnexion direction effectuée');
-  };
-  
-  const logout = () => {
-    setIsAuthenticated(false);
-    showToast('Déconnexion effectuée');
-  };
-
   const logAppAccess = useCallback(async (context = {}) => {
-    if (accessLoggedRef.current) return;
+    if (!isAuthenticated || accessLoggedRef.current) return;
 
     try {
-      if (sessionStorage.getItem(ACCESS_LOG_SESSION_KEY) === 'true') {
+      if (sessionStorage.getItem(ACCESS_LOG_SESSION_KEY) === adminUser.uid) {
         accessLoggedRef.current = true;
         return;
       }
-      sessionStorage.setItem(ACCESS_LOG_SESSION_KEY, 'true');
+      // Mark successful delivery only after the write completes.
     } catch {
       // sessionStorage can be unavailable in private browsing.
     }
@@ -908,15 +829,20 @@ export const AppProvider = ({ children }) => {
     accessLoggedRef.current = true;
 
     try {
-      const newLog = await buildAccessLogPayload(context);
+      const newLog = { ...await buildAccessLogPayload(context), userId: adminUser.uid, userName: adminUser.displayName, userRole: adminUser.role };
+      // Do not persist bearer tokens embedded in portal URLs.
+      newLog.path = newLog.path.replace(/\/(portal|teacher|results)\/[^/]+/g, '/$1/[redacted]');
       const docRef = await addDoc(collection(db, 'access_logs'), newLog);
+      try { sessionStorage.setItem(ACCESS_LOG_SESSION_KEY, adminUser.uid); } catch { /* Optional storage. */ }
       setAccessLogs(prev => [{ id: docRef.id, ...newLog }, ...prev].slice(0, ACCESS_LOG_LIMIT));
     } catch (error) {
+      accessLoggedRef.current = false;
       console.error('Error logging app access:', error);
     }
-  }, []);
+  }, [isAuthenticated, adminUser]);
 
   const loadAccessLogs = useCallback(async () => {
+    if (!hasPermission('logs')) return [];
     try {
       const snapshot = await getDocs(query(collection(db, 'access_logs'), orderBy('loggedAt', 'desc'), limit(ACCESS_LOG_LIMIT)));
       const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -924,13 +850,14 @@ export const AppProvider = ({ children }) => {
       return data;
     } catch (error) {
       console.error('Error loading access logs:', error);
-      showToast('Erreur de chargement du journal des accès', 'error');
+      showToast('Erreur de chargement du journal des accÃ¨s', 'error');
       return [];
     }
-  }, [showToast]);
+  }, [showToast, hasPermission]);
 
   // --- STAGIAIRES ---
   const addStudent = async (studentData) => {
+    if (!requireEdit('students')) return false;
     const token = makeToken(32);
     const academicYear = validateAcademicYear(studentData.academicYear)
       ? studentData.academicYear
@@ -938,24 +865,26 @@ export const AppProvider = ({ children }) => {
     const newStudent = { ...studentData, academicYear, token, createdAt: serverTimestamp() };
     const docRef = await addDoc(collection(db, 'students'), newStudent);
     setStudents(prev => [{ id: docRef.id, ...newStudent }, ...prev]);
-    showToast(`Nouveau stagiaire ajouté : ${studentData.lastName}.`, 'success');
+    showToast(`Nouveau stagiaire ajoutÃ© : ${studentData.lastName}.`, 'success');
     return token;
   };
 
   const updateStudent = async (id, data) => {
+    if (!requireEdit('students')) return false;
     await updateDoc(doc(db, 'students', id), data);
     setStudents(prev => prev.map(s => s.id === id ? { ...s, ...data } : s));
-    showToast(`Profil stagiaire mis à jour.`, 'success');
+    showToast(`Profil stagiaire mis Ã  jour.`, 'success');
   };
 
   const promoteAcademicYear = async ({ fromAcademicYear = '', toAcademicYear = '' } = {}) => {
+    if (!requireEdit('administration')) return false;
     // Improvement #1: Validate academic year format
     if (!validateAcademicYearTransition(fromAcademicYear, toAcademicYear)) {
       showToast('Format d\u2019ann\u00e9e invalide. Utilisez le format AAAA-AAAA (ex: 2025-2026).', 'error');
       return { promotedCount: 0, graduatedCount: 0, error: 'INVALID_FORMAT' };
     }
     if (fromAcademicYear !== operationalAcademicYearRef.current) {
-      showToast(`L'année active est ${operationalAcademicYearRef.current}. Rechargez la clôture avant de continuer.`, 'error');
+      showToast(`L'annÃ©e active est ${operationalAcademicYearRef.current}. Rechargez la clÃ´ture avant de continuer.`, 'error');
       return { promotedCount: 0, graduatedCount: 0, error: 'STALE_OPERATIONAL_YEAR' };
     }
 
@@ -997,7 +926,7 @@ export const AppProvider = ({ children }) => {
           : INITIAL_OPERATIONAL_ACADEMIC_YEAR;
 
         if (serverAcademicYear !== fromAcademicYear) {
-          const staleError = new Error(`L'année active est ${serverAcademicYear}.`);
+          const staleError = new Error(`L'annÃ©e active est ${serverAcademicYear}.`);
           staleError.code = 'STALE_OPERATIONAL_YEAR';
           staleError.serverAcademicYear = serverAcademicYear;
           throw staleError;
@@ -1011,7 +940,7 @@ export const AppProvider = ({ children }) => {
         const isStaleInProgress = pendingClosure?.status === 'in_progress' &&
           (!leaseUpdatedAt || Date.now() - leaseUpdatedAt >= ACADEMIC_YEAR_CLOSURE_LEASE_MS);
         if (pendingClosure?.status === 'in_progress' && !isStaleInProgress) {
-          const busyError = new Error('Une autre clôture est déjà en cours.');
+          const busyError = new Error('Une autre clÃ´ture est dÃ©jÃ  en cours.');
           busyError.code = 'ACADEMIC_YEAR_CLOSURE_IN_PROGRESS';
           throw busyError;
         }
@@ -1054,18 +983,18 @@ export const AppProvider = ({ children }) => {
       });
     } catch (error) {
       if (error?.code === 'STALE_OPERATIONAL_YEAR') {
-        showToast(`L'année active est ${error.serverAcademicYear}. Rechargez la clôture avant de continuer.`, 'error');
+        showToast(`L'annÃ©e active est ${error.serverAcademicYear}. Rechargez la clÃ´ture avant de continuer.`, 'error');
         return { promotedCount: 0, graduatedCount: 0, error: 'STALE_OPERATIONAL_YEAR' };
       }
       if (error?.code === 'ACADEMIC_YEAR_CLOSURE_IN_PROGRESS') {
-        showToast('Une autre clôture académique est déjà en cours.', 'error');
+        showToast('Une autre clÃ´ture acadÃ©mique est dÃ©jÃ  en cours.', 'error');
         return { promotedCount: 0, graduatedCount: 0, error: 'CLOSURE_IN_PROGRESS' };
       }
       throw error;
     }
     const { operationId, attemptId, settingsAppBackupData } = closureReservation;
 
-    showToast(`Sauvegarde complète de ${fromAcademicYear} en cours...`, 'info');
+    showToast(`Sauvegarde complÃ¨te de ${fromAcademicYear} en cours...`, 'info');
     let backupResult;
     try {
       backupResult = await createAcademicYearBackup({
@@ -1075,7 +1004,7 @@ export const AppProvider = ({ children }) => {
         settingsAppBackupData,
       });
     } catch (error) {
-      console.error('Erreur sauvegarde pré-clôture:', error);
+      console.error('Erreur sauvegarde prÃ©-clÃ´ture:', error);
       await markAcademicYearClosureFailed({
         operationId,
         attemptId,
@@ -1083,7 +1012,7 @@ export const AppProvider = ({ children }) => {
         error,
       });
       showToast(
-        `La sauvegarde de ${fromAcademicYear} a échoué. Aucune donnée académique n'a été modifiée.`,
+        `La sauvegarde de ${fromAcademicYear} a Ã©chouÃ©. Aucune donnÃ©e acadÃ©mique n'a Ã©tÃ© modifiÃ©e.`,
         'error'
       );
       return { promotedCount: 0, graduatedCount: 0, error: 'BACKUP_FAILED' };
@@ -1274,7 +1203,7 @@ export const AppProvider = ({ children }) => {
     setActiveAcademicYear(toAcademicYear);
     try { localStorage.setItem(OPERATIONAL_ACADEMIC_YEAR_KEY, toAcademicYear); } catch { /* ignore */ }
 
-    // Improvement #7: Build breakdown by filière
+    // Improvement #7: Build breakdown by filiÃ¨re
     const breakdown = {};
     updates.forEach(({ id, type }) => {
       const student = candidates.find(s => s.id === id);
@@ -1321,6 +1250,7 @@ export const AppProvider = ({ children }) => {
 
   // Improvement #6: Undo last promotion
   const undoLastPromotion = async (operationId) => {
+    if (!requireEdit('administration')) return false;
     if (!operationId) {
       showToast('Aucune op\u00e9ration \u00e0 annuler.', 'info');
       return;
@@ -1396,35 +1326,40 @@ export const AppProvider = ({ children }) => {
   };
 
   const deleteStudent = async (id) => {
+    if (!requireEdit('students')) return false;
     await deleteDoc(doc(db, 'students', id));
     setStudents(prev => prev.filter(s => s.id !== id));
-    showToast(`Stagiaire supprimé.`, 'warning');
+    showToast(`Stagiaire supprimÃ©.`, 'warning');
   };
 
   // --- FORMATEURS ---
   const addTeacher = async (teacherData) => {
+    if (!requireEdit('teachers')) return false;
     const tokenGrades = makeToken(32);
     const tokenAttendance = makeToken(32);
     const newTeacher = { ...teacherData, tokenGrades, tokenAttendance, createdAt: serverTimestamp() };
     const docRef = await addDoc(collection(db, 'teachers'), newTeacher);
     setTeachers(prev => [{ id: docRef.id, ...newTeacher }, ...prev]);
-    showToast(`Nouveau formateur ajouté : ${teacherData.name}.`, 'success');
+    showToast(`Nouveau formateur ajoutÃ© : ${teacherData.name}.`, 'success');
     return { tokenGrades, tokenAttendance };
   };
 
   const updateTeacher = async (id, data) => {
+    if (!requireEdit('teachers')) return false;
     await updateDoc(doc(db, 'teachers', id), data);
     setTeachers(prev => prev.map(t => t.id === id ? { ...t, ...data } : t));
-    showToast(`Profil formateur mis à jour.`, 'success');
+    showToast(`Profil formateur mis Ã  jour.`, 'success');
   };
 
   const deleteTeacher = async (id) => {
+    if (!requireEdit('teachers')) return false;
     await deleteDoc(doc(db, 'teachers', id));
     setTeachers(prev => prev.filter(t => t.id !== id));
-    showToast(`Formateur supprimé.`, 'warning');
+    showToast(`Formateur supprimÃ©.`, 'warning');
   };
 
   const migrateTeacherTokens = async () => {
+    if (!requireEdit('administration')) return false;
     const batch = [];
     const updatedTeachers = [];
     teachers.forEach(t => {
@@ -1440,15 +1375,16 @@ export const AppProvider = ({ children }) => {
     if (batch.length > 0) {
       await Promise.all(batch);
       setTeachers(updatedTeachers);
-      showToast(`${batch.length} formateurs mis à jour avec de nouveaux jetons.`, 'success');
+      showToast(`${batch.length} formateurs mis Ã  jour avec de nouveaux jetons.`, 'success');
     }
   };
 
   // --- EMPLOI DU TEMPS ---
   const addSchedule = async (scheduleData) => {
+    if (!requireEdit('schedules')) return false;
     const newSchedule = {
-      academicYear: scheduleData.academicYear || operationalAcademicYear || INITIAL_OPERATIONAL_ACADEMIC_YEAR,
       ...scheduleData,
+      academicYear: scheduleData.academicYear || activeAcademicYear || operationalAcademicYear || INITIAL_OPERATIONAL_ACADEMIC_YEAR,
       createdAt: serverTimestamp(),
     };
     const docRef = await addDoc(collection(db, 'schedules'), newSchedule);
@@ -1457,10 +1393,11 @@ export const AppProvider = ({ children }) => {
   };
 
   const updateSchedule = async (id, data) => {
+    if (!requireEdit('schedules')) return false;
     const existing = schedules.find(s => s.id === id);
     const updated = {
       ...data,
-      academicYear: data.academicYear || existing?.academicYear || INITIAL_OPERATIONAL_ACADEMIC_YEAR,
+      academicYear: data.academicYear || existing?.academicYear || activeAcademicYear || operationalAcademicYear || INITIAL_OPERATIONAL_ACADEMIC_YEAR,
     };
     await updateDoc(doc(db, 'schedules', id), updated);
     setSchedules(prev => prev.map(s => s.id === id ? { ...s, ...updated } : s));
@@ -1468,16 +1405,18 @@ export const AppProvider = ({ children }) => {
   };
 
   const deleteSchedule = async (id) => {
+    if (!requireEdit('schedules')) return false;
     await deleteDoc(doc(db, 'schedules', id));
     setSchedules(prev => prev.filter(s => s.id !== id));
-    showToast(`Séance supprimée.`, 'warning');
+    showToast(`SÃ©ance supprimÃ©e.`, 'warning');
   };
 
   const clearAllSchedules = async () => {
+    if (!requireEdit('schedules')) return false;
     const snapshot = await getDocs(collection(db, 'schedules'));
     const ids = snapshot.docs.map(item => item.id);
     if (ids.length === 0) {
-      showToast('Aucune séance à supprimer.', 'info');
+      showToast('Aucune sÃ©ance Ã  supprimer.', 'info');
       return;
     }
     for (let i = 0; i < ids.length; i += 450) {
@@ -1488,7 +1427,7 @@ export const AppProvider = ({ children }) => {
       await batch.commit();
     }
     setSchedules([]);
-    showToast(`Emploi du temps vidé.`, 'warning');
+    showToast(`Emploi du temps vidÃ©.`, 'warning');
   };
 
   // --- NOTES ---
@@ -1499,6 +1438,7 @@ export const AppProvider = ({ children }) => {
     );
 
   const updateGrades = async (studentId, subject, gradeData, academicYear = '') => {
+    if (!requireEdit('grades')) return false;
     const safeSubject = sanitizeGradeKey(subject);
     const resolvedAcademicYear = resolveGradeAcademicYear(studentId, academicYear);
     const currentStudentGrades = grades[studentId] || {};
@@ -1527,10 +1467,11 @@ export const AppProvider = ({ children }) => {
         }
       };
     });
-    showToast('Notes enregistrées', 'success');
+    showToast('Notes enregistrÃ©es', 'success');
   };
 
   const batchUpdateGrades = async (updates) => {
+    if (!requireEdit('grades')) return false;
     const batch = writeBatch(db);
     const newGrades = { ...grades };
     
@@ -1561,11 +1502,12 @@ export const AppProvider = ({ children }) => {
     
     await batch.commit();
     setGrades(newGrades);
-    showToast('Notes enregistrées avec succès', 'success');
+    showToast('Notes enregistrÃ©es avec succÃ¨s', 'success');
   };
 
   // --- PRESENCES ---
   const updateStudentAttendance = async (studentId, moduleId, date, status, comment, formateurId = 'admin', timeSlot = '', recordId = '') => {
+    if (!requireEdit('attendance_students')) return false;
     const { canonicalId, previousId } = getStudentAttendanceWriteTarget(studentId, moduleId, date, timeSlot, recordId);
     if (!status) {
       const docId = recordId || canonicalId;
@@ -1593,6 +1535,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const loadAttendanceForSession = useCallback(async (moduleId, date) => {
+    if (!hasPermission('attendance_students')) return;
     if (!moduleId || !date) return;
     const cacheKey = `${moduleId}:${date}`;
     if (studentAttendanceKeysRef.current.has(cacheKey)) return;
@@ -1604,11 +1547,12 @@ export const AppProvider = ({ children }) => {
       studentAttendanceKeysRef.current.add(cacheKey);
     } catch (e) {
       console.error("Error loading session attendance:", e);
-      showToast('Erreur de chargement des présences', 'error');
+      showToast('Erreur de chargement des prÃ©sences', 'error');
     }
-  }, [showToast]);
+  }, [showToast, hasPermission]);
 
   const loadStudentAttendanceForMonth = useCallback(async (monthIndex, year) => {
+    if (!hasPermission('attendance_students')) return;
     const { start, end } = getMonthBounds(monthIndex, year);
     const cacheKey = `student-month:${year}-${monthIndex}`;
     if (studentAttendanceKeysRef.current.has(cacheKey)) return;
@@ -1626,11 +1570,12 @@ export const AppProvider = ({ children }) => {
       studentAttendanceKeysRef.current.add(cacheKey);
     } catch (e) {
       console.error("Error loading monthly student attendance:", e);
-      showToast('Erreur de chargement des présences mensuelles', 'error');
+      showToast('Erreur de chargement des prÃ©sences mensuelles', 'error');
     }
-  }, [showToast]);
+  }, [showToast, hasPermission]);
 
   const loadTeacherAttendanceForDate = useCallback(async (date) => {
+    if (!hasPermission('attendance_teachers')) return;
     if (!date) return;
     const cacheKey = `date:${date}`;
     if (teacherAttendanceKeysRef.current.has(cacheKey)) return;
@@ -1642,11 +1587,12 @@ export const AppProvider = ({ children }) => {
       teacherAttendanceKeysRef.current.add(cacheKey);
     } catch (e) {
       console.error("Error loading teacher attendance:", e);
-      showToast('Erreur de chargement des présences formateurs', 'error');
+      showToast('Erreur de chargement des prÃ©sences formateurs', 'error');
     }
-  }, [showToast]);
+  }, [showToast, hasPermission]);
 
   const loadTeacherAttendanceForMonth = useCallback(async (monthIndex, year, { force = false } = {}) => {
+    if (!hasPermission('attendance_teachers')) return;
     const { start, end } = getMonthBounds(monthIndex, year);
     const cacheKey = `month:${year}-${monthIndex}`;
     if (teacherAttendanceKeysRef.current.has(cacheKey) && !force) return;
@@ -1667,9 +1613,10 @@ export const AppProvider = ({ children }) => {
       console.error("Error loading monthly teacher attendance:", e);
       showToast('Erreur de chargement des vacations mensuelles', 'error');
     }
-  }, [showToast]);
+  }, [showToast, hasPermission]);
 
   const updateTeacherAttendance = async (teacherId, date, status, comment, hours = 0, moduleId = '', timeSlot = '') => {
+    if (!requireEdit('attendance_teachers')) return false;
     const safeModule = (moduleId || 'global').replace(/[^a-zA-Z0-9]/g, '_');
     const safeTime = (timeSlot || '').replace(/[^0-9]/g, '') || 'x';
     const docId = `${teacherId}_${safeModule}_${safeTime}_${date}`;
@@ -1691,23 +1638,15 @@ export const AppProvider = ({ children }) => {
       }
       return [...deduped, updatedRecord];
     });
-    showToast('Présence formateur enregistrée', 'success');
+    showToast('PrÃ©sence formateur enregistrÃ©e', 'success');
   };
 
   // --- FINANCES ---
   const loadFinancialData = useCallback(async ({ force = false } = {}) => {
+    if (!hasPermission('finance')) return;
     if (financeLoadedRef.current && !force) return;
 
-    const cachedPayments = readCache(FINANCE_CACHE_PAYMENTS_KEY, FINANCE_CACHE_TTL);
-    const cachedSalaries = readCache(FINANCE_CACHE_SALARIES_KEY, FINANCE_CACHE_TTL);
-    const cachedExpenses = readCache(FINANCE_CACHE_EXPENSES_KEY, FINANCE_CACHE_TTL);
-    if (cachedPayments && cachedSalaries && cachedExpenses && !force) {
-      setPayments(cachedPayments);
-      setSalaries(cachedSalaries);
-      setExpenses(cachedExpenses);
-    }
-
-    const financeLoadKey = 'finance';
+    const financeLoadKey = `finance:${authScope}`;
     if (!pendingLoads.has(financeLoadKey)) {
       pendingLoads.set(financeLoadKey, Promise.all([
         getDocs(query(collection(db, 'payments'), orderBy('createdAt', 'desc'))),
@@ -1718,7 +1657,7 @@ export const AppProvider = ({ children }) => {
         const payments = paySnap.docs.map(paymentDoc => {
           const payment = { id: paymentDoc.id, ...paymentDoc.data() };
           const academicYear = getPaymentAcademicYear(payment);
-          if (academicYear && payment.academicYear !== academicYear) {
+          if (hasPermission('finance', 'edit') && academicYear && payment.academicYear !== academicYear) {
             paymentBackfill.push({ ref: paymentDoc.ref, academicYear });
           }
           return academicYear ? { ...payment, academicYear } : payment;
@@ -1735,11 +1674,8 @@ export const AppProvider = ({ children }) => {
           }
         } catch (migrationError) {
           // Reading and filtering still work from the normalized in-memory data.
-          console.warn('Impossible de compléter les années académiques des anciens paiements:', migrationError);
+          console.warn('Impossible de complÃ©ter les annÃ©es acadÃ©miques des anciens paiements:', migrationError);
         }
-        writeCache(FINANCE_CACHE_PAYMENTS_KEY, payments);
-        writeCache(FINANCE_CACHE_SALARIES_KEY, salaries);
-        writeCache(FINANCE_CACHE_EXPENSES_KEY, expenses);
         return { payments, salaries, expenses };
       }).finally(() => {
         pendingLoads.delete(financeLoadKey);
@@ -1756,9 +1692,10 @@ export const AppProvider = ({ children }) => {
       console.error("Error loading finance data:", e);
       showToast('Erreur de chargement financier', 'error');
     }
-  }, [showToast]);
+  }, [showToast, hasPermission, authScope]);
 
   const addPayment = async (paymentData) => {
+    if (!requireEdit('finance')) return false;
     const prefix = STUDENT_RECEIPT_PREFIX;
     const existingFloor = Math.max(
       payments.length,
@@ -1787,28 +1724,31 @@ export const AppProvider = ({ children }) => {
 
     setPayments(prev => [{ id: paymentRef.id, ...newPayment }, ...prev]);
     localStorage.removeItem(FINANCE_CACHE_PAYMENTS_KEY);
-    showToast('Paiement enregistré', 'success');
+    showToast('Paiement enregistrÃ©', 'success');
     return { id: paymentRef.id, ...newPayment };
   };
 
   const updatePayment = async (id, data) => {
+    if (!requireEdit('finance')) return false;
     const currentPayment = payments.find(payment => payment.id === id) || {};
     const academicYear = getPaymentAcademicYear({ ...currentPayment, ...data });
     const normalizedData = academicYear ? { ...data, academicYear } : data;
     await updateDoc(doc(db, 'payments', id), normalizedData);
     setPayments(prev => prev.map(p => p.id === id ? { ...p, ...normalizedData } : p));
     localStorage.removeItem(FINANCE_CACHE_PAYMENTS_KEY);
-    showToast('Paiement mis à jour', 'success');
+    showToast('Paiement mis Ã  jour', 'success');
   };
 
   const deletePayment = async (id) => {
+    if (!requireEdit('finance')) return false;
     await deleteDoc(doc(db, 'payments', id));
     setPayments(prev => prev.filter(p => p.id !== id));
     localStorage.removeItem(FINANCE_CACHE_PAYMENTS_KEY);
-    showToast('Paiement supprimé', 'warning');
+    showToast('Paiement supprimÃ©', 'warning');
   };
 
   const addSalary = async (salaryData) => {
+    if (!requireEdit('finance')) return false;
     const prefix = 'F';
     const existingFloor = Math.max(
       salaries.length,
@@ -1835,54 +1775,61 @@ export const AppProvider = ({ children }) => {
 
     setSalaries(prev => [{ id: salaryRef.id, ...newSalary }, ...prev]);
     localStorage.removeItem(FINANCE_CACHE_SALARIES_KEY);
-    showToast('Salaire enregistré', 'success');
+    showToast('Salaire enregistrÃ©', 'success');
     return { id: salaryRef.id, ...newSalary };
   };
 
   const updateSalary = async (id, data) => {
+    if (!requireEdit('finance')) return false;
     await updateDoc(doc(db, 'salaries', id), data);
     setSalaries(prev => prev.map(s => s.id === id ? { ...s, ...data } : s));
     localStorage.removeItem(FINANCE_CACHE_SALARIES_KEY);
-    showToast('Salaire mis à jour', 'success');
+    showToast('Salaire mis Ã  jour', 'success');
   };
 
   const deleteSalary = async (id) => {
+    if (!requireEdit('finance')) return false;
     await deleteDoc(doc(db, 'salaries', id));
     setSalaries(prev => prev.filter(s => s.id !== id));
     localStorage.removeItem(FINANCE_CACHE_SALARIES_KEY);
-    showToast('Salaire supprimé', 'warning');
+    showToast('Salaire supprimÃ©', 'warning');
   };
 
   const addExpense = async (expenseData) => {
+    if (!requireEdit('finance')) return false;
     const newExpense = { ...expenseData, createdAt: serverTimestamp() };
     const docRef = await addDoc(collection(db, 'expenses'), newExpense);
     setExpenses(prev => [{ id: docRef.id, ...newExpense }, ...prev]);
     localStorage.removeItem(FINANCE_CACHE_EXPENSES_KEY);
-    showToast('Charge enregistrée', 'success');
+    showToast('Charge enregistrÃ©e', 'success');
   };
 
   const deleteExpense = async (id) => {
+    if (!requireEdit('finance')) return false;
     await deleteDoc(doc(db, 'expenses', id));
     setExpenses(prev => prev.filter(e => e.id !== id));
     localStorage.removeItem(FINANCE_CACHE_EXPENSES_KEY);
-    showToast('Charge supprimée', 'warning');
+    showToast('Charge supprimÃ©e', 'warning');
   };
 
   // --- MODULES ---
   const addModule = async (moduleData) => {
+    if (!requireEdit('modules')) return false;
     const newModule = { ...moduleData, createdAt: serverTimestamp() };
     const docRef = await addDoc(collection(db, 'modules'), newModule);
     setModules(prev => [{ id: docRef.id, ...newModule }, ...prev]);
-    showToast(`Nouveau module ajouté : ${moduleData.name}.`, 'success');
+    showToast(`Nouveau module ajoutÃ© : ${moduleData.name}.`, 'success');
   };
 
   const updateModule = async (id, data) => {
+    if (!requireEdit('modules')) return false;
     await updateDoc(doc(db, 'modules', id), data);
     setModules(prev => prev.map(m => m.id === id ? { ...m, ...data } : m));
-    showToast(`Module mis à jour.`, 'success');
+    showToast(`Module mis Ã  jour.`, 'success');
   };
 
   const reorderModules = async (orderUpdates = []) => {
+    if (!requireEdit('modules')) return false;
     const validUpdates = (orderUpdates || [])
       .filter(item => item?.id && Number.isInteger(Number(item.order)) && Number(item.order) > 0)
       .map(item => ({ id: item.id, order: Number(item.order) }));
@@ -1903,39 +1850,45 @@ export const AppProvider = ({ children }) => {
   };
 
   const deleteModule = async (id) => {
+    if (!requireEdit('modules')) return false;
     await deleteDoc(doc(db, 'modules', id));
     setModules(prev => prev.filter(m => m.id !== id));
-    showToast(`Module supprimé.`, 'warning');
+    showToast(`Module supprimÃ©.`, 'warning');
   };
 
   // --- FORMATIONS CONTINUES ---
   const addContinuousTraining = async (data) => {
+    if (!requireEdit('continuous')) return false;
     const docRef = await addDoc(collection(db, 'continuousTrainings'), { ...data, createdAt: serverTimestamp() });
     setContinuousTrainings(prev => [{ id: docRef.id, ...data }, ...prev]);
-    showToast(`Formation continue créée : ${data.name || 'Sans nom'}`, 'success');
+    showToast(`Formation continue crÃ©Ã©e : ${data.name || 'Sans nom'}`, 'success');
   };
   const updateContinuousTraining = async (id, data) => {
+    if (!requireEdit('continuous')) return false;
     const current = continuousTrainings.find(item => item.id === id);
     await updateDoc(doc(db, 'continuousTrainings', id), data);
     setContinuousTrainings(prev => prev.map(item => item.id === id ? { ...item, ...data } : item));
-    showToast(`Formation continue mise à jour : ${data.name || current?.name || 'Sans nom'}`, 'success');
+    showToast(`Formation continue mise Ã  jour : ${data.name || current?.name || 'Sans nom'}`, 'success');
   };
   const deleteContinuousTraining = async (id) => {
+    if (!requireEdit('continuous')) return false;
     const current = continuousTrainings.find(item => item.id === id);
     await deleteDoc(doc(db, 'continuousTrainings', id));
     setContinuousTrainings(prev => prev.filter(item => item.id !== id));
-    showToast(`Formation continue supprimée : ${current?.name || 'Sans nom'}`, 'warning');
+    showToast(`Formation continue supprimÃ©e : ${current?.name || 'Sans nom'}`, 'warning');
   };
   const sortContinuousTrainingTypes = items =>
     [...items].sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'fr', { sensitivity: 'base' }));
   const addContinuousTrainingType = async (data) => {
+    if (!requireEdit('continuous')) return false;
     const name = String(data?.name || '').trim();
     const payload = { name, createdAt: serverTimestamp() };
     const docRef = await addDoc(collection(db, 'continuousTrainingTypes'), payload);
     setContinuousTrainingTypes(prev => sortContinuousTrainingTypes([{ id: docRef.id, name }, ...prev]));
-    showToast(`Type de formation continue ajouté : ${name}`, 'success');
+    showToast(`Type de formation continue ajoutÃ© : ${name}`, 'success');
   };
   const renameContinuousTrainingType = async ({ id, oldName, name }) => {
+    if (!requireEdit('continuous')) return false;
     const nextName = String(name || '').trim();
     const batch = writeBatch(db);
     let hasWrites = false;
@@ -1958,58 +1911,65 @@ export const AppProvider = ({ children }) => {
     if (oldName && oldName !== nextName) {
       setContinuousTrainings(prev => prev.map(item => item.type === oldName ? { ...item, type: nextName } : item));
     }
-    showToast(`Type de formation continue modifié : ${nextName}`, 'success');
+    showToast(`Type de formation continue modifiÃ© : ${nextName}`, 'success');
   };
   const deleteContinuousTrainingType = async (id) => {
+    if (!requireEdit('continuous')) return false;
     const current = continuousTrainingTypes.find(item => item.id === id);
     await deleteDoc(doc(db, 'continuousTrainingTypes', id));
     setContinuousTrainingTypes(prev => prev.filter(item => item.id !== id));
-    showToast(`Type de formation continue supprimé : ${current?.name || 'Sans nom'}`, 'warning');
+    showToast(`Type de formation continue supprimÃ© : ${current?.name || 'Sans nom'}`, 'warning');
   };
   const addCtStudent = async (data) => {
+    if (!requireEdit('continuous')) return false;
     const docRef = await addDoc(collection(db, 'ctStudents'), { ...data, createdAt: serverTimestamp() });
     setCtStudents(prev => [{ id: docRef.id, ...data }, ...prev]);
-    showToast(`Stagiaire ajouté en formation continue : ${`${data.firstName || ''} ${data.lastName || ''}`.trim() || 'Sans nom'}`, 'success');
+    showToast(`Stagiaire ajoutÃ© en formation continue : ${`${data.firstName || ''} ${data.lastName || ''}`.trim() || 'Sans nom'}`, 'success');
   };
   const updateCtStudent = async (id, data) => {
+    if (!requireEdit('continuous')) return false;
     const current = ctStudents.find(item => item.id === id);
     await updateDoc(doc(db, 'ctStudents', id), data);
     setCtStudents(prev => prev.map(item => item.id === id ? { ...item, ...data } : item));
     const studentName = `${data.firstName || current?.firstName || ''} ${data.lastName || current?.lastName || ''}`.trim();
-    showToast(`Stagiaire de formation continue mis à jour : ${studentName || 'Sans nom'}`, 'success');
+    showToast(`Stagiaire de formation continue mis Ã  jour : ${studentName || 'Sans nom'}`, 'success');
   };
   const deleteCtStudent = async (id) => {
+    if (!requireEdit('continuous')) return false;
     const current = ctStudents.find(item => item.id === id);
     await deleteDoc(doc(db, 'ctStudents', id));
     setCtStudents(prev => prev.filter(item => item.id !== id));
     const studentName = `${current?.firstName || ''} ${current?.lastName || ''}`.trim();
-    showToast(`Stagiaire de formation continue supprimé : ${studentName || 'Sans nom'}`, 'warning');
+    showToast(`Stagiaire de formation continue supprimÃ© : ${studentName || 'Sans nom'}`, 'warning');
   };
   const addCtSession = async (data) => {
+    if (!requireEdit('continuous')) return false;
     const docRef = await addDoc(collection(db, 'ctSessions'), { ...data, createdAt: serverTimestamp() });
     setCtSessions(prev => [{ id: docRef.id, ...data }, ...prev]);
     const trainingName = continuousTrainings.find(training => training.id === data.trainingId)?.name || 'Formation continue';
-    showToast(`Séance de formation continue planifiée : ${trainingName}`, 'success');
+    showToast(`SÃ©ance de formation continue planifiÃ©e : ${trainingName}`, 'success');
   };
   const updateCtSession = async (id, data) => {
+    if (!requireEdit('continuous')) return false;
     const current = ctSessions.find(item => item.id === id);
     await updateDoc(doc(db, 'ctSessions', id), data);
     setCtSessions(prev => prev.map(item => item.id === id ? { ...item, ...data } : item));
     const trainingName = continuousTrainings.find(training => training.id === (data.trainingId || current?.trainingId))?.name || 'Formation continue';
-    showToast(`Séance de formation continue modifiée : ${trainingName}`, 'success');
+    showToast(`SÃ©ance de formation continue modifiÃ©e : ${trainingName}`, 'success');
   };
   const deleteCtSession = async (id) => {
+    if (!requireEdit('continuous')) return false;
     const current = ctSessions.find(item => item.id === id);
     await deleteDoc(doc(db, 'ctSessions', id));
     setCtSessions(prev => prev.filter(item => item.id !== id));
     const trainingName = continuousTrainings.find(training => training.id === current?.trainingId)?.name || 'Formation continue';
-    showToast(`Séance de formation continue supprimée : ${trainingName}`, 'warning');
+    showToast(`SÃ©ance de formation continue supprimÃ©e : ${trainingName}`, 'warning');
   };
 
   return (
     <AppContext.Provider value={{
       students, teachers, grades, isAuthenticated, isDirectorAuth, loading,
-      login, logout, loginDirector, logoutDirector,
+      login, logout, showToast,
       addStudent, addTeacher, updateStudent, promoteAcademicYear, undoLastPromotion, updateTeacher, deleteStudent, deleteTeacher, updateGrades, batchUpdateGrades,
       studentAttendance, teacherAttendance, updateStudentAttendance, updateTeacherAttendance,
       loadAttendanceForSession, loadStudentAttendanceForMonth, loadTeacherAttendanceForDate, loadTeacherAttendanceForMonth,
@@ -2023,7 +1983,8 @@ export const AppProvider = ({ children }) => {
       accessLogs, logAppAccess, loadAccessLogs,
       activeSemester, setActiveSemester, getActiveScheduleModule,
       activeAcademicYear, setActiveAcademicYear, operationalAcademicYear, availableAcademicYearsList,
-      confirmAction, notifications, markNotificationAsRead, clearNotifications
+      confirmAction, notifications: visibleNotifications, activityError, markNotificationAsRead, clearNotifications,
+      logActivity
     }}>
       {children}
       <ConfirmModal 

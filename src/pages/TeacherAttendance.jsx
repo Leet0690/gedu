@@ -1,3 +1,4 @@
+import { useAdminAuth } from '../context/AdminAuthContext';
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
@@ -171,6 +172,8 @@ const mThStyle = { padding: '12px 4px', fontSize: '11px', fontWeight: '800', col
 const mTdStyle = { padding: '10px 8px', verticalAlign: 'middle' };
 
 const TeacherAttendance = () => {
+  const { hasPermission } = useAdminAuth();
+  const canEdit = hasPermission('attendance_teachers', 'edit');
   const { teachers, teacherAttendance, updateTeacherAttendance, loadTeacherAttendanceForDate, loadTeacherAttendanceForMonth, schedules, loading, getActiveScheduleModule, activeSemester } = useApp();
   const { showToast } = useToast();
 
@@ -402,7 +405,7 @@ const TeacherAttendance = () => {
                                 <input type="number" step="0.5" className="input-premium"
                                   style={{ width: '64px', textAlign: 'center', padding: '4px', fontSize: '12px', fontWeight: '900' }}
                                   value={pendingHours[row.docId] !== undefined ? pendingHours[row.docId] : (record?.hours !== undefined ? record.hours : row.duration)}
-                                  onChange={(e) => setPendingHours(p => ({ ...p, [row.docId]: e.target.value }))}
+                                  disabled={!canEdit} onChange={(e) => setPendingHours(p => ({ ...p, [row.docId]: e.target.value }))}
                                   onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
                                       handleHoursChange(row, parseFloat(pendingHours[row.docId]) || 0);
@@ -424,12 +427,12 @@ const TeacherAttendance = () => {
                             </td>
                             <td style={{ ...tdStyle, textAlign: 'center' }}>
                               <div className="teacher-attendance-status-actions">
-                                <StatusBtnDaily active={status === 'present'} color="var(--success)" onClick={() => handleStatusChange(row, 'present')}>Présent</StatusBtnDaily>
-                                <StatusBtnDaily active={status === 'absent'} color="var(--danger)" onClick={() => handleStatusChange(row, 'absent')}>Absent</StatusBtnDaily>
+                                <StatusBtnDaily disabled={!canEdit} active={status === 'present'} color="var(--success)" onClick={() => handleStatusChange(row, 'present')}>Présent</StatusBtnDaily>
+                                <StatusBtnDaily disabled={!canEdit} active={status === 'absent'} color="var(--danger)" onClick={() => handleStatusChange(row, 'absent')}>Absent</StatusBtnDaily>
                                 {status && (
                                   <button
                                     type="button"
-                                    onClick={() => handleStatusChange(row, '')}
+                                    disabled={!canEdit} onClick={() => handleStatusChange(row, '')}
                                     className="teacher-attendance-reset-button"
                                     title="Reinitialiser le statut"
                                     aria-label="Reinitialiser le statut"
@@ -579,8 +582,8 @@ const TeacherAttendance = () => {
   );
 };
 
-const StatusBtnDaily = ({ active, color, children, onClick }) => (
-  <button onClick={onClick} style={{ padding: '6px 14px', border: 'none', borderRadius: 'var(--radius-lg)', fontSize: '11px', fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s', background: active ? color : 'transparent', color: active ? 'white' : 'var(--text-muted)' }}>
+const StatusBtnDaily = ({ disabled, active, color, children, onClick }) => (
+  <button disabled={disabled} onClick={onClick} style={{ padding: '6px 14px', border: 'none', borderRadius: 'var(--radius-lg)', fontSize: '11px', fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s', background: active ? color : 'transparent', color: active ? 'white' : 'var(--text-muted)' }}>
     {children}
   </button>
 );

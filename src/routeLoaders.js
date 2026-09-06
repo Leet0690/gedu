@@ -15,6 +15,7 @@ const routeLoaders = {
   accessLogs: () => import('./pages/AccessLogs'),
   scheduleGeneration: () => import('./pages/ScheduleGeneration'),
   continuousTrainings: () => import('./pages/ContinuousTrainings'),
+  userManagement: () => import('./pages/UserManagement'),
 };
 
 const routeKeysByPath = {
@@ -35,6 +36,7 @@ const routeKeysByPath = {
   '/admin/logs': 'accessLogs',
   '/admin/access-logs': 'accessLogs',
   '/admin/schedule-generation': 'scheduleGeneration',
+  '/admin/users': 'userManagement',
 };
 
 const routePromises = new Map();

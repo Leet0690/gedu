@@ -1,9 +1,10 @@
 import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
-import { AdminAuthProvider } from './context/AdminAuthContext';
+import { AdminAuthProvider, useAdminAuth } from './context/AdminAuthContext';
 import DashboardLayout from './layouts/DashboardLayout';
 import PWAUpdatePrompt from './components/PWAUpdatePrompt';
+import ProtectedRoute from './components/ProtectedRoute';
 import { School, Link as LinkIcon } from 'lucide-react';
 import { loadRoute } from './routeLoaders';
 
@@ -23,6 +24,8 @@ const MonthlyAttendanceTeachers = lazy(() => loadRoute('monthlyAttendanceTeacher
 const AccessLogs               = lazy(() => loadRoute('accessLogs'));
 const ScheduleGeneration       = lazy(() => loadRoute('scheduleGeneration'));
 const ContinuousTrainings      = lazy(() => loadRoute('continuousTrainings'));
+const UserManagement           = lazy(() => loadRoute('userManagement'));
+
 const PageLoader = () => (
   <div className="app-loader-shell">
     <div className="app-loader" role="status" aria-label="Chargement">
@@ -64,15 +67,17 @@ const ScrollToTop = () => {
 };
 
 const AppContent = () => {
-  const { isAuthenticated, loading, logAppAccess } = useApp();
+  const { loading, logAppAccess } = useApp();
+  const { isAuthenticated: adminAuthIsAuthenticated, loading: authLoading } = useAdminAuth();
   const location = useLocation();
   const isPublicRoute = location.pathname.startsWith('/portal/') || location.pathname.startsWith('/results/') || location.pathname.startsWith('/teacher/');
+  const isAuthed = adminAuthIsAuthenticated;
 
   React.useEffect(() => {
     if (loading || !logAppAccess) return;
-    const accessType = isPublicRoute ? 'portail' : (isAuthenticated ? 'admin' : 'public');
+    const accessType = isPublicRoute ? 'portail' : (isAuthed ? 'admin' : 'public');
     logAppAccess({ path: location.pathname, accessType });
-  }, [isAuthenticated, isPublicRoute, loading, location.pathname, logAppAccess]);
+  }, [isAuthed, isPublicRoute, loading, location.pathname, logAppAccess]);
 
   if (isPortailDomain) {
     if (loading) return <PageLoader />;
@@ -93,27 +98,29 @@ const AppContent = () => {
     );
   }
 
-  if (!isAuthenticated && !isPublicRoute && location.pathname !== '/login') return <Navigate to="/login" />;
+  if (authLoading && !isPublicRoute) return <PageLoader />;
+  if (!isAuthed && !isPublicRoute && location.pathname !== '/login') return <Navigate to="/login" replace state={{ from: location.pathname }} />;
 
   const appRoutes = (
     <Suspense fallback={<PageLoader />}>
       <Routes>
-        <Route path="/" element={<AdminDashboard />} />
-        <Route path="/admin/students" element={<AdminDashboard />} />
-        <Route path="/admin/teachers" element={<AdminDashboard />} />
+        <Route path="/" element={<ProtectedRoute pageKey="dashboard"><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin/students" element={<ProtectedRoute pageKey="students"><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin/teachers" element={<ProtectedRoute pageKey="teachers"><AdminDashboard /></ProtectedRoute>} />
         <Route path="/login" element={<Login />} />
-        <Route path="/admin/schedules" element={<ScheduleManagement />} />
-        <Route path="/admin/grades" element={<GradeManagement />} />
-        <Route path="/admin/attendance-students" element={<StudentAttendance />} />
-        <Route path="/admin/monthly-attendance" element={<MonthlyAttendance />} />
-        <Route path="/admin/monthly-attendance-teachers" element={<MonthlyAttendanceTeachers />} />
-        <Route path="/admin/modules" element={<ModuleManagement />} />
-        <Route path="/admin/reports" element={<Reports />} />
-        <Route path="/admin/attendance-teachers" element={<TeacherAttendance />} />
-        <Route path="/admin/finance" element={<FinanceDashboard />} />
-        <Route path="/admin/continuous" element={<ContinuousTrainings />} />
-        <Route path="/admin/logs" element={<AccessLogs />} />
-        <Route path="/admin/schedule-generation" element={<ScheduleGeneration />} />
+        <Route path="/admin/schedules" element={<ProtectedRoute pageKey="schedules"><ScheduleManagement /></ProtectedRoute>} />
+        <Route path="/admin/grades" element={<ProtectedRoute pageKey="grades"><GradeManagement /></ProtectedRoute>} />
+        <Route path="/admin/attendance-students" element={<ProtectedRoute pageKey="attendance_students"><StudentAttendance /></ProtectedRoute>} />
+        <Route path="/admin/monthly-attendance" element={<ProtectedRoute pageKey="attendance_students"><MonthlyAttendance /></ProtectedRoute>} />
+        <Route path="/admin/monthly-attendance-teachers" element={<ProtectedRoute pageKey="attendance_teachers"><MonthlyAttendanceTeachers /></ProtectedRoute>} />
+        <Route path="/admin/modules" element={<ProtectedRoute pageKey="modules"><ModuleManagement /></ProtectedRoute>} />
+        <Route path="/admin/reports" element={<ProtectedRoute pageKey="reports"><Reports /></ProtectedRoute>} />
+        <Route path="/admin/attendance-teachers" element={<ProtectedRoute pageKey="attendance_teachers"><TeacherAttendance /></ProtectedRoute>} />
+        <Route path="/admin/finance" element={<ProtectedRoute pageKey="finance"><FinanceDashboard /></ProtectedRoute>} />
+        <Route path="/admin/continuous" element={<ProtectedRoute pageKey="continuous"><ContinuousTrainings /></ProtectedRoute>} />
+        <Route path="/admin/logs" element={<ProtectedRoute pageKey="logs"><AccessLogs /></ProtectedRoute>} />
+        <Route path="/admin/schedule-generation" element={<ProtectedRoute pageKey="schedule_generation"><ScheduleGeneration /></ProtectedRoute>} />
+        <Route path="/admin/users" element={<ProtectedRoute pageKey="users"><UserManagement /></ProtectedRoute>} />
         <Route path="/admin/access-logs" element={<Navigate to="/admin/logs" replace />} />
         <Route path="/portal/:teacherId" element={<TeacherPortal />} />
         <Route path="/teacher/:teacherId" element={<TeacherPortal />} />
@@ -123,16 +130,16 @@ const AppContent = () => {
     </Suspense>
   );
 
-  if (!isAuthenticated || isPublicRoute) return <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}><main style={{ flex: 1 }}>{appRoutes}</main></div>;
+  if (!isAuthed || isPublicRoute) return <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}><main style={{ flex: 1 }}>{appRoutes}</main></div>;
   return <DashboardLayout>{appRoutes}</DashboardLayout>;
 };
 
 const App = () => (
-  <AdminAuthProvider>
+  <>
     <ScrollToTop />
     <PWAUpdatePrompt />
     <AppContent />
-  </AdminAuthProvider>
+  </>
 );
 
 export default App;

@@ -1,3 +1,4 @@
+import { useAdminAuth } from '../context/AdminAuthContext';
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
@@ -328,10 +329,30 @@ const TodaySessionsWidget = ({ schedules, teachers, getScheduleModule, activeSem
 };
 
 const ActivityFeedWidget = ({ notifications }) => {
+  const { activityError } = useApp();
   const [visibleCount, setVisibleCount] = useState(10);
-  const recent = useMemo(() => {
-    return (notifications || []).filter(n => !n.message.includes('Accès Direction autorisé'));
+  const [userFilter, setUserFilter] = useState('ALL');
+
+  const uniqueUsers = useMemo(() => {
+    const map = new Map();
+    (notifications || []).forEach(n => {
+      const name = n.userName || (n.userId ? `Utilisateur (${n.userId.slice(0, 5)})` : null);
+      if (name && !map.has(n.userId || name)) {
+        map.set(n.userId || name, { id: n.userId || name, name, role: n.userRole });
+      }
+    });
+    return Array.from(map.values());
   }, [notifications]);
+
+  const recent = useMemo(() => {
+    return (notifications || [])
+      .filter(n => !n.message.includes('Accès Direction autorisé'))
+      .filter(n => {
+        if (userFilter === 'ALL') return true;
+        return (n.userId || n.userName) === userFilter;
+      });
+  }, [notifications, userFilter]);
+
   const visibleActivities = useMemo(() => recent.slice(0, visibleCount), [recent, visibleCount]);
   const hasMoreActivities = visibleCount < recent.length;
 
@@ -342,7 +363,7 @@ const ActivityFeedWidget = ({ notifications }) => {
       transition={{ delay: 0.16 }}
       className="glass-card home-widget home-widget-tall home-widget-activity"
     >
-      <div className="home-widget-header">
+      <div className="home-widget-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
         <div className="home-widget-heading">
           <div className="home-widget-icon home-tone-indigo">
             <Activity size={14} />
@@ -351,9 +372,35 @@ const ActivityFeedWidget = ({ notifications }) => {
             <span className="home-widget-title">
               Activité récente
             </span>
-            <p className="home-widget-subtitle">Dernières actions</p>
+            <p className="home-widget-subtitle">{activityError || '100 dernières activités accessibles'}</p>
           </div>
         </div>
+
+        {uniqueUsers.length > 0 && (
+          <div className="home-widget-filter">
+            <select
+              value={userFilter}
+              onChange={(e) => { setUserFilter(e.target.value); setVisibleCount(10); }}
+              className="input-premium"
+              style={{
+                fontSize: '11px',
+                padding: '3px 8px',
+                borderRadius: '8px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                maxWidth: '160px'
+              }}
+              title="Filtrer les activités par utilisateur"
+            >
+              <option value="ALL">Tous les membres ({notifications.length})</option>
+              {uniqueUsers.map(u => (
+                <option key={u.id} value={u.id}>
+                  {u.name} {u.role ? `(${u.role})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {recent.length === 0 ? (
@@ -376,6 +423,27 @@ const ActivityFeedWidget = ({ notifications }) => {
                   <Icon size={13} />
                 </div>
                 <div className="home-activity-content">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
+                    <span style={{
+                      fontSize: '10px',
+                      fontWeight: '800',
+                      color: 'var(--primary)',
+                      background: 'rgba(59, 130, 246, 0.1)',
+                      padding: '1px 6px',
+                      borderRadius: '4px',
+                      letterSpacing: '0.02em'
+                    }}>
+                      {notif.userName || 'Auteur non renseigné'}
+                    </span>
+                    <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>
+                      {notif.source === 'server' ? 'Événement serveur' : 'Événement application'}
+                    </span>
+                    {notif.userRole && (
+                      <span style={{ fontSize: '9.5px', color: 'var(--text-muted)', fontWeight: '600' }}>
+                        • {notif.userRole}
+                      </span>
+                    )}
+                  </div>
                   <p className="home-activity-message">
                     {notif.message}
                   </p>
@@ -972,6 +1040,7 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
 };
 
 const AdminDashboard = () => {
+  const { hasPermission, isAdmin } = useAdminAuth();
   const { students, teachers, payments, grades, schedules, modules: allModules, addStudent, addTeacher, deleteStudent, deleteTeacher, updateStudent, promoteAcademicYear, undoLastPromotion, updateTeacher, studentAttendance, teacherAttendance, loadStudentAttendanceForMonth, loadTeacherAttendanceForMonth, migrateTeacherTokens, loading, confirmAction, notifications, activeSemester, setActiveSemester, getActiveScheduleModule, activeAcademicYear, operationalAcademicYear, availableAcademicYearsList } = useApp();
   const { showToast } = useToast();
   const location = useLocation();
@@ -1484,7 +1553,7 @@ const AdminDashboard = () => {
             openQR(`${row.original.lastName} ${row.original.firstName}`, [{ label: 'Résultats', url: BASE + `/results/${tokenForLink}`, color: 'var(--primary)' }]);
           }} />}
           <ActionBtn icon={Eye} title="Détails" onClick={() => openDetails(row.original)} />
-          <ActionBtn icon={Edit3} title="Modifier le profil actuel" onClick={() => openEdit(row.original.__sourceStudent || row.original)} />
+          <ActionBtn disabled={!hasPermission(activeTab, 'edit')} icon={Edit3} title="Modifier le profil actuel" onClick={() => openEdit(row.original.__sourceStudent || row.original)} />
           {activeTab === 'students' && <ActionBtn icon={Download} title="Bulletin" onClick={() => {
             const academicYear = row.original.academicYear || academicYearFilter;
             const resolvedGrades = getGradesForAcademicYear(grades[row.original.id] || {}, academicYear);
@@ -1495,11 +1564,11 @@ const AdminDashboard = () => {
               { academicYear }
             );
           }} />}
-          <ActionBtn icon={Trash2} title="Supprimer" color="#dc2626" onClick={() => handleDelete(row.original.__sourceStudent || row.original)} />
+          <ActionBtn disabled={!hasPermission(activeTab, 'edit')} icon={Trash2} title="Supprimer" color="#dc2626" onClick={() => handleDelete(row.original.__sourceStudent || row.original)} />
         </div>
       ),
     },
-  ], [activeTab, academicYearFilter, openDetails, openEdit, handleDelete, grades, getStudentActiveModules, openQR, operationalAcademicYear, payments]);
+  ], [activeTab, academicYearFilter, openDetails, openEdit, handleDelete, grades, getStudentActiveModules, openQR, operationalAcademicYear, payments, hasPermission]);
 
   const table = useReactTable({
     data: tableData,
@@ -1568,7 +1637,7 @@ const AdminDashboard = () => {
             </p>
           </div>
           <div className="directory-premium-header-actions">
-            {activeTab === 'students' && (
+            {activeTab === 'students' && isAdmin && (
               <button className="btn-modern" style={{ background: 'rgba(15,23,42,0.04)', color: 'var(--text-primary)' }} onClick={() => {
                 setPromotionForm(getAcademicYearTransition(operationalAcademicYear));
                 setPromotionModalOpen(true);
@@ -1576,21 +1645,8 @@ const AdminDashboard = () => {
                 <GraduationCap size={14} style={{ marginRight: '6px' }} /> Cl&ocirc;turer l&apos;ann&eacute;e
               </button>
             )}
-            {activeTab === 'students' && (
-              <button className="btn-modern primary" style={{ background: '#6366f1' }} onClick={async () => {
-                if (await confirmAction({ 
-                  title: "Régénérer les liens ?", 
-                  message: "Voulez-vous regénérer tous les liens des stagiaires ?",
-                  type: "warning"
-                })) {
-                  // Logic handled in AppContext usually, but here for demo
-                  showToast("Liens régénérés !", 'success');
-                }
-              }}>
-                <RotateCw size={14} style={{ marginRight: '6px' }} /> Régénérer
-              </button>
-            )}
             <button
+              disabled={!hasPermission(activeTab, 'edit')}
               onClick={() => {
                 if (activeTab === 'students') {
                   setAddStudentForm({ firstName: '', lastName: '', major: '', regNo: '', diploma: '', year: '', academicYear: operationalAcademicYear });
@@ -2402,8 +2458,8 @@ const StatCard = ({ delay, icon: Icon, tone = 'primary', value, label }) => (
   </motion.div>
 );
 
-const ActionBtn = ({ icon: Icon, title, onClick, color = 'var(--text-muted)' }) => (
-  <button onClick={onClick} title={title} className="action-btn"
+const ActionBtn = ({ disabled, icon: Icon, title, onClick, color = 'var(--text-muted)' }) => (
+  <button disabled={disabled} onClick={onClick} title={title} className="action-btn"
     style={{ padding: '8px', borderRadius: 'var(--radius-md)', border: 'none', background: 'transparent', color, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
     <Icon size={16} />
   </button>

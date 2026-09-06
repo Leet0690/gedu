@@ -1,3 +1,4 @@
+import { useAdminAuth } from '../context/AdminAuthContext';
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -263,6 +264,8 @@ const GlobalStatCard = ({ title, amount, tone, icon: Icon, month, helper, delay 
 );
 
 const FinanceDashboard = () => {
+  const { hasPermission } = useAdminAuth();
+  const canEdit = hasPermission('finance', 'edit');
   const { 
     students, teachers, payments, salaries, expenses, loading,
     continuousTrainings = [], ctStudents = [],
@@ -270,14 +273,12 @@ const FinanceDashboard = () => {
     addExpense, deleteExpense,
     teacherAttendance, loadFinancialData, loadTeacherAttendanceForMonth,
     schedules, getActiveScheduleModule,
-    isDirectorAuth, loginDirector, logoutDirector, logout, confirmAction,
+    isDirectorAuth, logout, confirmAction,
     activeAcademicYear, operationalAcademicYear, availableAcademicYearsList = []
   } = useApp();
   const { showToast } = useToast();
   const activeStudents = useMemo(() => (students || []).filter(isActiveStudent), [students]);
 
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [activeTab, setActiveTab] = useState('payments');
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearch = useDebounce(searchTerm, 300);
@@ -459,11 +460,6 @@ const FinanceDashboard = () => {
       loadTeacherAttendanceForMonth(salaryFilter.month, salaryFilter.year);
     }
   }, [isDirectorAuth, salaryFilter.month, salaryFilter.year, loadTeacherAttendanceForMonth]);
-
-  const handleLogin = (e) => {
-    e.preventDefault();
-    loginDirector(password);
-  };
 
   const handleSaveRate = async (teacherId) => {
     const newVal = document.getElementById(`rate-${teacherId}`).value;
@@ -1108,79 +1104,6 @@ const FinanceDashboard = () => {
     [dailyExpenseStats]
   );
 
-  if (!isDirectorAuth) {
-    return (
-      <div className="finance-admin-page finance-access-premium-page" style={{
-        minHeight: 'calc(100vh - 150px)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '24px', position: 'relative', overflow: 'hidden', background: 'var(--bg-page)', borderRadius: '24px'
-      }}>
-        <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '40%', height: '40%', background: 'rgba(176, 104, 185, 0.04)', filter: 'blur(100px)', borderRadius: '50%' }}></div>
-        <div style={{ position: 'absolute', bottom: '-10%', right: '-10%', width: '40%', height: '40%', background: 'rgba(254, 205, 8, 0.03)', filter: 'blur(100px)', borderRadius: '50%' }}></div>
-
-        <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-          className="finance-access-premium-shell" style={{ width: '100%', maxWidth: '380px', position: 'relative', zIndex: 10 }}>
-          
-          <div className="finance-access-premium-heading" style={{ textAlign: 'center', marginBottom: '32px' }}>
-            <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
-              <div style={{ 
-                width: '56px', height: '56px', 
-                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(234, 179, 8, 0.15) 100%)', 
-                border: '1px solid rgba(139, 92, 246, 0.25)',
-                borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                color: '#8b5cf6'
-              }}>
-                <Lock size={24} />
-              </div>
-            </div>
-            <h1 style={{ fontSize: 'var(--text-xl)', fontWeight: '800', letterSpacing: '-0.02em', color: 'var(--text-primary)', marginBottom: '4px' }}>
-              ESPACE DIRECTION
-            </h1>
-            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', fontWeight: '400' }}>
-              Accès restreint à la gestion financière de l'IPFP
-            </p>
-          </div>
-
-          <div className="glass-premium finance-access-premium-card" style={{ padding: '28px', borderRadius: '24px' }}>
-            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', paddingLeft: '2px' }}>
-                  Mot de passe
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <Lock size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)' }} />
-                  <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
-                    className="input-premium" style={{ width: '100%', paddingLeft: '42px', paddingRight: '44px', paddingTop: '12px', paddingBottom: '12px' }}
-                    placeholder="••••••••" required autoFocus />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)}
-                    style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', display: 'flex' }}>
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-              </div>
-
-              <button type="submit" className="btn-modern primary"
-                style={{ width: '100%', justifyContent: 'center', padding: '12px', borderRadius: 'var(--radius-lg)', fontSize: 'var(--text-sm)', fontWeight: '700', letterSpacing: '0.02em' }}>
-                Déverrouiller <ArrowRight size={16} style={{ marginLeft: '6px' }} />
-              </button>
-            </form>
-          </div>
-
-          <div style={{ textAlign: 'center', marginTop: '24px' }}>
-            <button type="button" onClick={logout} 
-              style={{ 
-                background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: 'var(--text-xs)', 
-                fontWeight: '600', cursor: 'pointer', textDecoration: 'underline', transition: 'color 0.2s' 
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
-              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
-            >
-              Se déconnecter de l'application
-            </button>
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
 
   return (
     <div className="section-padding finance-admin-page">
@@ -1204,7 +1127,7 @@ const FinanceDashboard = () => {
             />
           </div>
           <button
-            onClick={logoutDirector}
+            onClick={logout}
             className="btn-modern"
             style={{
               background: 'rgba(234, 179, 8, 0.14)',
@@ -1382,7 +1305,7 @@ const FinanceDashboard = () => {
               </div>
             </div>
             <button
-              onClick={() => openPaymentModal()}
+              disabled={!canEdit} onClick={() => openPaymentModal()}
               className="btn-modern primary finance-payment-add-button"
             >
               <Plus size={16} style={{ marginRight: '8px' }} /> Enregistrer Paiement
@@ -1474,7 +1397,7 @@ const FinanceDashboard = () => {
                           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                             {p.isVirtualUnpaid ? (
                               <button
-                                onClick={() => openPaymentModal(p.studentId)}
+                                disabled={!canEdit} onClick={() => openPaymentModal(p.studentId)}
                                 className="btn-modern"
                                 style={{
                                   padding: '8px 12px',
@@ -1492,7 +1415,7 @@ const FinanceDashboard = () => {
                                 <motion.button
                                   whileHover={{ scale: 1.08, translateY: -1 }}
                                   whileTap={{ scale: 0.95 }}
-                                  onClick={() => openEditPaymentModal(p)}
+                                  disabled={!canEdit} onClick={() => openEditPaymentModal(p)}
                                   style={{
                                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                                     width: '36px', height: '36px', borderRadius: '10px',
@@ -1654,7 +1577,7 @@ const FinanceDashboard = () => {
                   <p style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>Action rapide</p>
                   <p style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>Valider tous les salaires calculés</p>
                 </div>
-                <button
+                <button disabled={!canEdit}
                   className="btn-modern primary finance-settle-all-button"
                   style={{ whiteSpace: 'nowrap', fontSize: '12px', padding: '8px 14px' }}
                   onClick={async () => {
@@ -1697,7 +1620,7 @@ const FinanceDashboard = () => {
                       {editingTeacherId === s.id ? (
                         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                           <input type="number" className="input-premium" style={{ width: '80px', padding: '6px' }} defaultValue={s.hourlyRate} id={`rate-${s.id}`} autoFocus />
-                          <button className="action-btn" onClick={() => handleSaveRate(s.id)} aria-label="Confirmer">
+                          <button className="action-btn" disabled={!canEdit} onClick={() => handleSaveRate(s.id)} aria-label="Confirmer">
                             <Check size={14} style={{ color: 'var(--success)' }} />
                           </button>
                           <button className="action-btn" onClick={() => setEditingTeacherId(null)} aria-label="Annuler">
@@ -1707,7 +1630,7 @@ const FinanceDashboard = () => {
                       ) : (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span style={{ fontWeight: '800', fontSize: '14px' }}>{s.hourlyRate} DH</span>
-                          <button onClick={() => setEditingTeacherId(s.id)}
+                          <button disabled={!canEdit} onClick={() => setEditingTeacherId(s.id)}
                             style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 9px', fontSize: '10px', fontWeight: '700', border: '1.5px solid var(--border)', borderRadius: 'var(--radius-pill)', background: 'var(--bg-subtle)', color: 'var(--text-secondary)', cursor: 'pointer', transition: 'all 0.15s' }}
                             onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.color = 'var(--primary)'; e.currentTarget.style.background = 'var(--primary-ultra-light)'; }}
                             onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.background = 'var(--bg-subtle)'; }}>
@@ -1719,7 +1642,7 @@ const FinanceDashboard = () => {
                     <td style={tdStyle}><span style={{ fontWeight: '900', color: 'var(--primary)' }}>{s.total.toLocaleString()} DH</span></td>
                     <td style={tdStyle}>
                       <button
-                        disabled={s.total === 0}
+                        disabled={!canEdit || (s.total === 0)}
                         onClick={async () => {
                           if (s.isPaid) {
                             if (await confirmAction({ title: "Annuler le paiement ?", message: `Marquer le salaire de ${s.name} comme non réglé ?`, type: "danger" })) {
@@ -1938,7 +1861,7 @@ const FinanceDashboard = () => {
                   {filteredExpensesTotal.toLocaleString()} DH
                 </p>
               </div>
-              <button onClick={() => setShowExpenseModal(true)} className="btn-modern primary finance-expense-add-button">
+              <button disabled={!canEdit} onClick={() => setShowExpenseModal(true)} className="btn-modern primary finance-expense-add-button">
                 <Plus size={16} style={{ marginRight: '8px' }} /> Ajouter
               </button>
             </div>
@@ -2338,7 +2261,7 @@ const FinanceDashboard = () => {
                         }}>
                           <AlertTriangle size={11} /> En retard · {overdueMap[student.id]} mois
                         </span>
-                        <button
+                        <button disabled={!canEdit}
                           className="btn-modern"
                           style={{ fontSize: '11px', padding: '6px 12px', background: 'rgba(220,38,38,0.08)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.2)' }}
                           onClick={() => { setActiveTab('payments'); openPaymentModal(student.id); }}
@@ -2659,7 +2582,7 @@ const FinanceDashboard = () => {
                   </div>
                 </div>
                 <button className="btn-modern primary finance-payment-submit-button"
-                  disabled={selectedMonthIsVacation}
+                  disabled={!canEdit || (selectedMonthIsVacation)}
                   style={{ width: '100%', padding: '14px', justifyContent: 'center', opacity: selectedMonthIsVacation ? 0.55 : 1, cursor: selectedMonthIsVacation ? 'not-allowed' : 'pointer' }}
                   onClick={async () => {
                     if (!paymentData.studentId || paymentGrandTotal <= 0) return showToast('Stagiaire et montant requis', 'warning');

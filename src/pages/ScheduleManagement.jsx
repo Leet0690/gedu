@@ -1,3 +1,4 @@
+import { useAdminAuth } from '../context/AdminAuthContext';
 import React, { useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FilterSelect } from '../components/ui/FilterSelect';
@@ -14,6 +15,7 @@ import {
   CalendarDays, Plus, Trash2, Clock, User, MapPin,
   X, Layers, Users, Calendar, Edit
 } from 'lucide-react';
+import { filterSchedulesForAcademicYear, INITIAL_OPERATIONAL_ACADEMIC_YEAR } from '../utils/studentStatus';
 
 const START_HOUR = 8;
 const END_HOUR = 19;
@@ -100,12 +102,17 @@ const labelStyle = {
 };
 
 const ScheduleManagement = () => {
+  const { hasPermission } = useAdminAuth();
+  const canEdit = hasPermission('schedules', 'edit');
   const { 
     teachers, schedules, addSchedule, updateSchedule, 
     deleteSchedule, modules: allModules, confirmAction,
-    activeSemester, getActiveScheduleModule, operationalAcademicYear
+    activeSemester, getActiveScheduleModule, operationalAcademicYear,
+    activeAcademicYear
   } = useApp();
   const { showToast } = useToast();
+
+  const currentAcademicYear = activeAcademicYear || operationalAcademicYear || INITIAL_OPERATIONAL_ACADEMIC_YEAR;
 
   const diplomas = useMemo(() => Object.keys(FILIERES), []);
   const defaultDiploma = diplomas.includes('Technicien Spécialisé') ? 'Technicien Spécialisé' : diplomas[0];
@@ -131,14 +138,20 @@ const ScheduleManagement = () => {
       S2: configured.filter(m => ['S2', 'Annuel'].includes(m.semester || 'S1')).map(m => m.name)
     };
   }, [diploma, filiere, annee, allModules]);
+
+  const yearSchedules = useMemo(
+    () => filterSchedulesForAcademicYear(schedules, currentAcademicYear, INITIAL_OPERATIONAL_ACADEMIC_YEAR),
+    [schedules, currentAcademicYear]
+  );
+
   const filteredSchedules = useMemo(
-    () => schedules.filter(s =>
+    () => yearSchedules.filter(s =>
       (s.diploma || getDiplomaForMajor(s.filiere)) === diploma &&
       s.filiere === filiere &&
       s.annee === annee &&
       Boolean(getActiveScheduleModule(s))
     ),
-    [schedules, diploma, filiere, annee, getActiveScheduleModule]
+    [yearSchedules, diploma, filiere, annee, getActiveScheduleModule]
   );
   const activeDays = useMemo(
     () => DAYS.filter(day => filteredSchedules.some(s => s.day === day)).length,
@@ -189,7 +202,7 @@ const ScheduleManagement = () => {
       diploma,
       filiere,
       annee,
-      academicYear: editingSession?.academicYear || operationalAcademicYear || '2025-2026'
+      academicYear: editingSession?.academicYear || currentAcademicYear
     };
     
     if (editingSession) {
@@ -237,7 +250,7 @@ const ScheduleManagement = () => {
           <h1>Emplois du Temps</h1>
           <p>Plannings hebdomadaires par filière et groupe.</p>
         </div>
-        <button onClick={openAdd} className="btn-modern primary schedule-premium-add">
+        <button disabled={!canEdit} onClick={openAdd} className="btn-modern primary schedule-premium-add">
           <Plus size={18} style={{ marginRight: '8px' }} /> Ajouter une séance
         </button>
         <div className="schedule-premium-header-orb" aria-hidden="true">
@@ -277,6 +290,10 @@ const ScheduleManagement = () => {
           />
         </div>
         <div className="app-filter-actions" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '999px', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)' }}>
+            <CalendarDays size={13} style={{ color: '#2563eb' }} />
+            <span style={{ fontSize: '12px', fontWeight: '800', color: '#2563eb' }}>{currentAcademicYear}</span>
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '999px', background: 'var(--primary-ultra-light)', border: '1px solid rgba(176,104,185,0.15)' }}>
             <Users size={13} style={{ color: 'var(--primary)' }} />
             <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)' }}>{groupLabel}</span>
@@ -291,6 +308,27 @@ const ScheduleManagement = () => {
           </div>
         </div>
       </div>
+
+      {/* Empty State Banner if no sessions exist for this group and academic year */}
+      {filteredSchedules.length === 0 && (
+        <div style={{
+          padding: '14px 20px',
+          marginBottom: 'var(--space-4)',
+          borderRadius: 'var(--radius-xl)',
+          background: 'rgba(59, 130, 246, 0.05)',
+          border: '1px solid rgba(59, 130, 246, 0.15)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          fontSize: '13px',
+          color: '#1e40af'
+        }}>
+          <CalendarDays size={18} style={{ color: '#2563eb', flexShrink: 0 }} />
+          <span>
+            Aucune séance enregistrée pour <strong>{groupLabel}</strong> ({semester}) pour l'année académique <strong>{currentAcademicYear}</strong>.
+          </span>
+        </div>
+      )}
 
       {/* Time Grid */}
       <div className="glass-card schedule-premium-grid-shell" style={{ padding: 0, overflow: 'hidden' }}>
@@ -429,14 +467,14 @@ const ScheduleManagement = () => {
                             {/* Action buttons */}
                             <div style={{ position: 'absolute', top: '5px', right: '5px', display: 'flex', gap: '4px', zIndex: 15 }}>
                               <button
-                                onClick={() => openEdit(session)}
+                                disabled={!canEdit} onClick={() => openEdit(session)}
                                 className="schedule-action-btn edit"
                                 title="Modifier"
                               >
                                 <Edit size={10} />
                               </button>
                               <button
-                                onClick={() => handleDelete(session.id)}
+                                disabled={!canEdit} onClick={() => handleDelete(session.id)}
                                 className="schedule-action-btn delete"
                                 title="Supprimer"
                               >
@@ -542,7 +580,7 @@ const ScheduleManagement = () => {
                     {editingSession ? 'Modifier la séance' : 'Ajouter une séance'}
                   </h3>
                   <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600', marginTop: '2px' }}>
-                    {diploma} · {filiere} · {annee} · {semester}
+                    {diploma} · {filiere} · {annee} · {semester} · {editingSession?.academicYear || currentAcademicYear}
                   </p>
                 </div>
                 <button onClick={() => setShowAddModal(false)} className="close-button" aria-label="Fermer la fenêtre" title="Fermer"><X size={20} /></button>

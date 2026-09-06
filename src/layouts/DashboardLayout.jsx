@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../context/AppContext';
+import { useAdminAuth } from '../context/AdminAuthContext';
+import { ROLE_PRESETS } from '../services/userService';
 import Logo from '../components/Logo';
 import { SemesterToggle } from '../components/SemesterToggle';
 import { AcademicYearSelector } from '../components/AcademicYearSelector';
@@ -33,7 +35,13 @@ import {
   WifiOff,
   Wand2,
   ArrowUp,
-  GraduationCap
+  GraduationCap,
+  ShieldCheck,
+  KeyRound,
+  Lock,
+  Eye,
+  EyeOff,
+  AlertCircle
 } from 'lucide-react';
 
 const useOnlineStatus = () => {
@@ -54,7 +62,7 @@ const NAV_CATEGORIES = [
     icon: LayoutDashboard,
     color: "text-blue-500",
     items: [
-      { to: "/", icon: Home, label: "Tableau de bord", color: "text-blue-500" },
+      { to: "/", icon: Home, label: "Tableau de bord", color: "text-blue-500", pageKey: 'dashboard' },
     ]
   },
   {
@@ -62,11 +70,11 @@ const NAV_CATEGORIES = [
     icon: Library,
     color: "text-violet-500",
     items: [
-      { to: "/admin/modules", icon: Boxes, label: "Modules", color: "text-violet-500" },
-      { to: "/admin/grades", icon: PenTool, label: "Notes", color: "text-amber-500" },
-      { to: "/admin/reports", icon: LineChart, label: "Rapports", color: "text-emerald-500" },
-      { to: "/admin/schedules", icon: CalendarDays, label: "Emplois du Temps", color: "text-orange-500" },
-      { to: "/admin/schedule-generation", icon: Wand2, label: "Génération (EDT)", color: "text-fuchsia-500" },
+      { to: "/admin/modules", icon: Boxes, label: "Modules", color: "text-violet-500", pageKey: 'modules' },
+      { to: "/admin/grades", icon: PenTool, label: "Notes", color: "text-amber-500", pageKey: 'grades' },
+      { to: "/admin/reports", icon: LineChart, label: "Rapports", color: "text-emerald-500", pageKey: 'reports' },
+      { to: "/admin/schedules", icon: CalendarDays, label: "Emplois du Temps", color: "text-orange-500", pageKey: 'schedules' },
+      { to: "/admin/schedule-generation", icon: Wand2, label: "Génération (EDT)", color: "text-fuchsia-500", pageKey: 'schedule_generation' },
     ]
   },
   {
@@ -74,8 +82,8 @@ const NAV_CATEGORIES = [
     icon: ClipboardList,
     color: "text-rose-500",
     items: [
-      { to: "/admin/attendance-students", icon: UserX, label: "Absences Stagiaires", color: "text-rose-500" },
-      { to: "/admin/attendance-teachers", icon: UserCheck, label: "Présences Formateurs", color: "text-teal-500" },
+      { to: "/admin/attendance-students", icon: UserX, label: "Absences Stagiaires", color: "text-rose-500", pageKey: 'attendance_students' },
+      { to: "/admin/attendance-teachers", icon: UserCheck, label: "Présences Formateurs", color: "text-teal-500", pageKey: 'attendance_teachers' },
     ]
   },
   {
@@ -83,10 +91,12 @@ const NAV_CATEGORIES = [
     icon: Settings,
     color: "text-indigo-500",
     items: [
-      { to: "/admin/students", icon: Users, label: "Stagiaires", color: "text-sky-500" },
-      { to: "/admin/teachers", icon: Presentation, label: "Formateurs", color: "text-indigo-500" },
-      { to: "/admin/continuous", icon: GraduationCap, label: "Formations Continues", color: "text-purple-500" },
-      { to: "/admin/finance", icon: Wallet, label: "Finance", color: "text-green-600" },
+      { to: "/admin/students", icon: Users, label: "Stagiaires", color: "text-sky-500", pageKey: 'students' },
+      { to: "/admin/teachers", icon: Presentation, label: "Formateurs", color: "text-indigo-500", pageKey: 'teachers' },
+      { to: "/admin/continuous", icon: GraduationCap, label: "Formations Continues", color: "text-purple-500", pageKey: 'continuous' },
+      { to: "/admin/finance", icon: Wallet, label: "Finance", color: "text-green-600", pageKey: 'finance' },
+      { to: "/admin/users", icon: ShieldCheck, label: "Utilisateurs & Droits", color: "text-blue-600", pageKey: 'users' },
+      { to: "/admin/logs", icon: ClipboardList, label: "Journaux d'accès", color: "text-slate-500", pageKey: 'logs' },
     ]
   }
 ];
@@ -106,6 +116,8 @@ const SidebarCategory = ({ cat, isSidebarOpen, renderNavLink, location, isMobile
   if (!isSidebarOpen && !isMobile) {
     return cat.items.map(item => renderNavLink(item));
   }
+
+
 
   return (
     <div className="premium-sidenav-category mb-2">
@@ -151,10 +163,10 @@ const SidebarCategory = ({ cat, isSidebarOpen, renderNavLink, location, isMobile
 };
 
 export default function DashboardLayout({ children }) {
-  const { logout, notifications, markNotificationAsRead, clearNotifications, activeSemester, setActiveSemester, activeAcademicYear, setActiveAcademicYear, operationalAcademicYear, availableAcademicYearsList } = useApp();
+  const { activeSemester, setActiveSemester, activeAcademicYear, setActiveAcademicYear, operationalAcademicYear, availableAcademicYearsList } = useApp();
+  const { adminUser, hasPermission, logout: adminAuthLogout, changePassword } = useAdminAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [showNotifs, setShowNotifs] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const location = useLocation();
   const showAcademicYearSelector = isAcademicYearScopedPath(location.pathname);
@@ -162,17 +174,63 @@ export default function DashboardLayout({ children }) {
   const sidebarRef = useRef(null);
   const isOnline = useOnlineStatus();
 
+  // Change password modal state
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
+  const [showPwd, setShowPwd] = useState(false);
+  const [pwdError, setPwdError] = useState('');
+  const [pwdSuccess, setPwdSuccess] = useState('');
+  const [pwdLoading, setPwdLoading] = useState(false);
+
+  const handleChangePasswordSubmit = async (e) => {
+    e.preventDefault();
+    setPwdError('');
+    setPwdSuccess('');
+    if (newPasswordInput.length < 6) {
+      setPwdError("Le mot de passe doit comporter au moins 6 caractères.");
+      return;
+    }
+    if (newPasswordInput !== confirmPasswordInput) {
+      setPwdError("Les deux mots de passe ne sont pas identiques.");
+      return;
+    }
+    setPwdLoading(true);
+    const res = await changePassword(newPasswordInput);
+    setPwdLoading(false);
+    if (res.success) {
+      setPwdSuccess("Mot de passe mis à jour avec succès !");
+      setTimeout(() => {
+        setIsChangePasswordModalOpen(false);
+        setNewPasswordInput('');
+        setConfirmPasswordInput('');
+        setPwdSuccess('');
+      }, 1500);
+    } else {
+      setPwdError(res.error || "Erreur lors du changement de mot de passe.");
+    }
+  };
+
+  // Filter navigation items by user permissions
+  const visibleNavCategories = useMemo(() => {
+    return NAV_CATEGORIES.map(cat => {
+      const visibleItems = cat.items.filter(item => {
+        if (!item.pageKey) return true;
+        return hasPermission(item.pageKey, 'view');
+      });
+      return {
+        ...cat,
+        items: visibleItems
+      };
+    }).filter(cat => cat.items.length > 0);
+  }, [hasPermission]);
+
   // Click outside to close sidebar (Desktop)
   useEffect(() => {
     const handleClickOutside = (e) => {
-      // Ignore on mobile (handled by overlay)
       if (window.innerWidth < 1024) return;
-      // Ignore if clicking inside sidebar
       if (sidebarRef.current && sidebarRef.current.contains(e.target)) return;
-      // Ignore if clicking the toggle button
       if (e.target.closest('.desktop-menu-btn')) return;
-      
-      // Close sidebar if open
       if (isSidebarOpen) {
         setIsSidebarOpen(false);
       }
@@ -201,12 +259,10 @@ export default function DashboardLayout({ children }) {
     scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const unreadCount = (notifications || []).filter(n => !n.read).length;
 
   const renderNavLink = (item, isMobile = false) => {
     const isActive = location.pathname === item.to;
     const isCollapsed = !isMobile && !isSidebarOpen;
-    
     return (
       <Link 
         key={item.to} 
@@ -277,7 +333,7 @@ export default function DashboardLayout({ children }) {
         </div>
 
         <nav className={`premium-sidenav-nav no-scrollbar flex flex-1 flex-col gap-1 p-4 ${isSidebarOpen ? 'overflow-y-auto' : 'overflow-visible'}`}>
-          {NAV_CATEGORIES.map((cat, ci) => (
+          {visibleNavCategories.map((cat, ci) => (
             <SidebarCategory key={ci} cat={cat} isSidebarOpen={isSidebarOpen} renderNavLink={renderNavLink} location={location} isMobile={false} />
           ))}
         </nav>
@@ -368,39 +424,72 @@ export default function DashboardLayout({ children }) {
 
             {/* User Profile Mini */}
             <div className="premium-topbar-profile" style={{ display: 'flex', alignItems: 'center', gap: '10px', paddingLeft: '16px', borderLeft: '1px solid var(--border)' }}>
-              <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', maxWidth: '180px', alignItems: 'center' }}>
+              <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', maxWidth: '160px' }}>
                 <span style={{ 
-                  fontSize: '10.5px', 
-                  fontWeight: '900', 
-                  textTransform: 'uppercase',
-                  background: 'linear-gradient(135deg, #8b5cf6 0%, #eab308 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  letterSpacing: '0.02em',
-                  lineHeight: '1.3'
+                  fontSize: '12px',
+                  fontWeight: '800',
+                  color: 'var(--text-primary)',
+                  letterSpacing: '-0.01em',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
                 }}>
-                  Institut polytechnique de la formation professionnelle privée
+                  {adminUser?.displayName || 'Administrateur'}
                 </span>
-                <span style={{ fontSize: '8.5px', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '1px' }}>
-                  Espace Direction
+                <span style={{
+                  fontSize: '9px',
+                  color: ROLE_PRESETS[adminUser?.role]?.color || 'var(--primary)',
+                  fontWeight: '800',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em'
+                }}>
+                  {ROLE_PRESETS[adminUser?.role]?.label || (adminUser?.role === 'admin' ? 'Super Admin' : 'Utilisateur')}
                 </span>
               </div>
-              <div style={{ 
-                width: '38px', height: '38px', borderRadius: '12px', 
-                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(234, 179, 8, 0.15) 100%)', 
-                border: '1px solid rgba(139, 92, 246, 0.25)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                color: '#8b5cf6', flexShrink: 0 
-              }}>
-                <School size={18} />
+
+              <div
+                style={{
+                  width: '36px', height: '36px', borderRadius: '10px',
+                  background: `${ROLE_PRESETS[adminUser?.role]?.color || '#3b82f6'}15`,
+                  border: `1px solid ${ROLE_PRESETS[adminUser?.role]?.color || '#3b82f6'}30`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: ROLE_PRESETS[adminUser?.role]?.color || '#3b82f6', flexShrink: 0,
+                  fontWeight: '800', fontSize: '13px'
+                }}
+                title={adminUser?.email}
+              >
+                {(adminUser?.displayName || adminUser?.email || 'A').charAt(0).toUpperCase()}
               </div>
+
+              {/* Change Password Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setPwdError('');
+                  setPwdSuccess('');
+                  setNewPasswordInput('');
+                  setConfirmPasswordInput('');
+                  setIsChangePasswordModalOpen(true);
+                }}
+                className="premium-topbar-logout"
+                data-tooltip="Modifier mon mot de passe"
+                aria-label="Modifier mon mot de passe"
+                title="Modifier mon mot de passe"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                <KeyRound size={17} />
+              </button>
 
               {/* Premium Logout Button */}
               <button
-                onClick={logout}
+                type="button"
+                onClick={async () => {
+                  if (adminAuthLogout) await adminAuthLogout();
+                }}
                 className="premium-topbar-logout"
                 data-tooltip="Se déconnecter"
                 aria-label="Se déconnecter"
+                title="Se déconnecter"
               >
                 <Power size={18} />
               </button>
@@ -491,11 +580,117 @@ export default function DashboardLayout({ children }) {
               </button>
             </div>
             <nav className="premium-sidenav-nav no-scrollbar flex flex-1 flex-col gap-1 overflow-y-auto p-4">
-              {NAV_CATEGORIES.map((cat, ci) => (
+              {visibleNavCategories.map((cat, ci) => (
                 <SidebarCategory key={ci} cat={cat} isSidebarOpen={true} renderNavLink={(item) => renderNavLink(item, true)} location={location} isMobile={true} />
               ))}
             </nav>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal: Change Password */}
+      <AnimatePresence>
+        {isChangePasswordModalOpen && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="glass-card max-w-md w-full p-6 shadow-2xl relative"
+            >
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3 mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                    <KeyRound size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                      Modifier mon Mot de Passe
+                    </h3>
+                    <p className="text-xs text-slate-400">{adminUser?.email}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsChangePasswordModalOpen(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {pwdError && (
+                <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs flex items-center gap-2">
+                  <AlertCircle size={16} />
+                  <span>{pwdError}</span>
+                </div>
+              )}
+
+              {pwdSuccess && (
+                <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs flex items-center gap-2">
+                  <ShieldCheck size={16} />
+                  <span>{pwdSuccess}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleChangePasswordSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    Nouveau mot de passe
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPwd ? 'text' : 'password'}
+                      required
+                      placeholder="Minimum 6 caractères"
+                      value={newPasswordInput}
+                      onChange={(e) => setNewPasswordInput(e.target.value)}
+                      className="input-premium w-full py-2 pl-3 pr-10 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPwd(!showPwd)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    Confirmer le nouveau mot de passe
+                  </label>
+                  <input
+                    type={showPwd ? 'text' : 'password'}
+                    required
+                    placeholder="Répétez le mot de passe"
+                    value={confirmPasswordInput}
+                    onChange={(e) => setConfirmPasswordInput(e.target.value)}
+                    className="input-premium w-full py-2 px-3 text-sm"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setIsChangePasswordModalOpen(false)}
+                    className="btn-modern secondary text-xs"
+                    disabled={pwdLoading}
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-modern primary text-xs"
+                    disabled={pwdLoading}
+                  >
+                    {pwdLoading ? 'Mise à jour...' : 'Mettre à jour'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

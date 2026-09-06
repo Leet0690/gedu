@@ -1,3 +1,4 @@
+import { useAdminAuth } from '../context/AdminAuthContext';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../context/AppContext';
@@ -9,9 +10,11 @@ import { DatePicker } from '../components/ui';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import {
   canEditAttendanceForAcademicYear,
+  filterSchedulesForAcademicYear,
   getAcademicYearForDate,
   getCalendarYearForAcademicMonth,
-  getStudentAcademicSnapshot
+  getStudentAcademicSnapshot,
+  INITIAL_OPERATIONAL_ACADEMIC_YEAR
 } from '../utils/studentStatus';
 import { useDebounce } from '../utils/useDebounce';
 import { findStudentAttendanceRecord, isFinalAttendanceStatus, makeAttendanceColumnKey, makeStudentAttendanceDocId } from '../utils/attendanceKeys';
@@ -66,7 +69,9 @@ const formatLocalDate = (date) => {
 };
 
 const StudentAttendance = () => {
-  const { students, teachers, studentAttendance, updateStudentAttendance, loadAttendanceForSession, loadStudentAttendanceForMonth, loading, schedules, teacherAttendance, updateTeacherAttendance, loadTeacherAttendanceForDate, modules: allModules = [], activeSemester = 'S1', getActiveScheduleModule, activeAcademicYear, operationalAcademicYear } = useApp();
+  const { hasPermission } = useAdminAuth();
+  const canEdit = hasPermission('attendance_students', 'edit');
+  const { students, teachers, studentAttendance, updateStudentAttendance, loadAttendanceForSession, loadStudentAttendanceForMonth, loading, schedules: rawSchedules, teacherAttendance, updateTeacherAttendance, loadTeacherAttendanceForDate, modules: allModules = [], activeSemester = 'S1', getActiveScheduleModule, activeAcademicYear, operationalAcademicYear } = useApp();
   const { showToast } = useToast();
   const todayDate = useMemo(() => formatLocalDate(new Date()), []);
   const writableAcademicYear = operationalAcademicYear;
@@ -84,8 +89,12 @@ const StudentAttendance = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearch = useDebounce(searchTerm, 300);
   const selectedAcademicYear = activeAcademicYear || writableAcademicYear;
+
+  const schedules = useMemo(() => {
+    return filterSchedulesForAcademicYear(rawSchedules, selectedAcademicYear, INITIAL_OPERATIONAL_ACADEMIC_YEAR);
+  }, [rawSchedules, selectedAcademicYear]);
   const selectedDateAcademicYear = getAcademicYearForDate(selectedDate);
-  const canEditAttendance = canEditAttendanceForAcademicYear({
+  const canEditAttendance = canEdit && canEditAttendanceForAcademicYear({
     selectedAcademicYear,
     writableAcademicYear,
     selectedDate,

@@ -1,17 +1,16 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp, deleteApp } from "firebase/app";
+import { getAuth, initializeAuth, inMemoryPersistence, signOut } from "firebase/auth";
 import { 
   initializeFirestore, 
   getFirestore,
-  persistentLocalCache, 
-  persistentMultipleTabManager,
-  CACHE_SIZE_UNLIMITED 
+  memoryLocalCache
 } from "firebase/firestore";
 
 if (!import.meta.env.VITE_FIREBASE_API_KEY) {
   throw new Error("Firebase config manquante. Définissez VITE_FIREBASE_API_KEY et les autres variables VITE_FIREBASE_*");
 }
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
@@ -26,10 +25,7 @@ const app = initializeApp(firebaseConfig);
 let _db;
 try {
   _db = initializeFirestore(app, {
-    localCache: persistentLocalCache({
-      tabManager: persistentMultipleTabManager(),
-      cacheSizeBytes: CACHE_SIZE_UNLIMITED
-    })
+    localCache: memoryLocalCache()
   });
 } catch (e) {
   console.warn("Firestore cache initialization failed:", e);
@@ -37,3 +33,24 @@ try {
 }
 
 export const db = _db;
+export const auth = getAuth(app);
+
+/**
+ * Creates an isolated secondary Firebase app for creating users without
+ * disrupting the current authenticated admin's session.
+ */
+export const createSecondaryAuth = async () => {
+  const secondaryAppName = `user-creator-${crypto.randomUUID()}`;
+  const secondaryApp = initializeApp(firebaseConfig, secondaryAppName);
+  const secondaryAuth = initializeAuth(secondaryApp, { persistence: inMemoryPersistence });
+  return {
+    secondaryAuth,
+    cleanup: async () => {
+      try {
+        try { await signOut(secondaryAuth); } finally { await deleteApp(secondaryApp); }
+      } catch (e) {
+        console.warn("Error deleting secondary app:", e);
+      }
+    }
+  };
+};

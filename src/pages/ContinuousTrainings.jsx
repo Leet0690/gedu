@@ -1,3 +1,4 @@
+import { useAdminAuth } from '../context/AdminAuthContext';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -266,6 +267,8 @@ function NativeSelect({ className, ...props }) {
 
 /* Colored action icon buttons */
 function ActionBtn({ onClick, title, variant = 'ghost', className, children, disabled = false }) {
+  const { hasPermission } = useAdminAuth();
+  disabled = disabled || (['edit', 'danger'].includes(variant) && !hasPermission('continuous', 'edit'));
   return (
     <button
       onClick={disabled ? undefined : onClick}
@@ -290,8 +293,9 @@ function ActionBtn({ onClick, title, variant = 'ghost', className, children, dis
 
 /* Gradient primary CTA buttons */
 function PrimaryBtn({ onClick, children, className, icon: Icon }) {
+  const { hasPermission } = useAdminAuth();
   return (
-    <button
+    <button disabled={!hasPermission('continuous', 'edit')}
       onClick={onClick}
       className={cn(
         'inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white',
@@ -1482,6 +1486,7 @@ function SalairesTab({ trainings, ctStudents }) {
 /* ── Main page ───────────────────────────────────────────────── */
 
 export default function ContinuousTrainings() {
+
   const navigate = useNavigate();
   const {
     teachers = [], confirmAction, showToast,

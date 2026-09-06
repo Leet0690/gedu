@@ -1,98 +1,90 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-
-const SESSION_KEY = 'admin_session';
-const SESSION_TOKEN_KEY = 'admin_session_token';
-
-const makeSessionToken = () => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  const values = new Uint32Array(20);
-  crypto.getRandomValues(values);
-  return Array.from(values, (v) => chars[v % chars.length]).join('');
-};
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
+import { doc, getDocFromServer, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { auth, db } from '../firebase';
+import { changeUserPasswordDirect } from '../services/userService';
+import { hasModulePermission, isAdministrator } from '../utils/permissions';
 
 const AdminAuthContext = createContext();
 
 export const AdminAuthProvider = ({ children }) => {
-  const [isAdmin, setIsAdmin] = useState(false);
   const [adminUser, setAdminUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  // Check if admin is already logged in (on app load)
   useEffect(() => {
-    const storedAdmin = localStorage.getItem(SESSION_KEY);
-    const storedToken = localStorage.getItem(SESSION_TOKEN_KEY);
-    if (storedAdmin && storedToken) {
-      try {
-        const parsed = JSON.parse(storedAdmin);
-        if (!parsed?.sessionToken || parsed.sessionToken !== storedToken) {
-          throw new Error('Session administrateur invalide');
+    try {
+      ['admin_session', 'admin_session_token', 'eco_auth', 'admin_lastLogin'].forEach(key => localStorage.removeItem(key));
+      sessionStorage.removeItem('ipfp_director_auth');
+    } catch { /* Storage may be unavailable. */ }
+    let unsubscribeProfile;
+    let generation = 0;
+    const unsubscribeAuth = onAuthStateChanged(auth, firebaseUser => {
+      const currentGeneration = ++generation;
+      unsubscribeProfile?.();
+      setAdminUser(null);
+      setLoading(Boolean(firebaseUser));
+      if (!firebaseUser) return;
+      unsubscribeProfile = onSnapshot(doc(db, 'users', firebaseUser.uid), { includeMetadataChanges: true }, snapshot => {
+        if (currentGeneration !== generation) return;
+        // Cached profiles cannot authorize a session before server confirmation.
+        if (snapshot.metadata.fromCache) {
+          setAdminUser(null);
+          setLoading(false);
+          return;
         }
-        setAdminUser(parsed);
-        setIsAdmin(true);
-      } catch (error) {
-        console.error('Failed to parse admin session:', error);
-        localStorage.removeItem(SESSION_KEY);
-        localStorage.removeItem(SESSION_TOKEN_KEY);
-      }
-    }
-    setLoading(false);
+        const profile = snapshot.data();
+        if (!snapshot.exists() || profile.isActive !== true) {
+          setAdminUser(null);
+          setLoading(false);
+          return;
+        }
+        setAdminUser({ ...profile, uid: firebaseUser.uid, email: firebaseUser.email });
+        setLoading(false);
+      }, error => {
+        if (currentGeneration !== generation) return;
+        console.error('Impossible de vérifier le profil utilisateur :', error);
+        setAdminUser(null);
+        setLoading(false);
+      });
+    });
+    return () => { generation++; unsubscribeProfile?.(); unsubscribeAuth(); };
   }, []);
 
   const login = async (email, password) => {
-    setLoading(true);
     try {
-      const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
-      const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD;
-      const DIRECTOR_PASSWORD = import.meta.env.VITE_DIRECTOR_PASSWORD;
-      const cleanPassword = password.trim();
-
-      if (email === ADMIN_EMAIL && (cleanPassword === ADMIN_PASSWORD || cleanPassword === DIRECTOR_PASSWORD)) {
-        const sessionToken = makeSessionToken();
-        const admin = {
-          id: cleanPassword === DIRECTOR_PASSWORD ? 'director_001' : 'admin_001',
-          email,
-          role: cleanPassword === DIRECTOR_PASSWORD ? 'director' : 'super_admin',
-          sessionToken,
-          createdAt: new Date().toISOString(),
-          lastLogin: new Date().toISOString()
-        };
-
-        setAdminUser(admin);
-        setIsAdmin(true);
-        localStorage.setItem(SESSION_KEY, JSON.stringify(admin));
-        localStorage.setItem(SESSION_TOKEN_KEY, sessionToken);
-        localStorage.setItem('admin_lastLogin', new Date().toISOString());
-
-        return { success: true, admin };
-      } else {
-        return { success: false, error: 'Email or password incorrect' };
+      const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
+      const snapshot = await getDocFromServer(doc(db, 'users', credential.user.uid));
+      if (!snapshot.exists() || snapshot.data().isActive !== true) {
+        await signOut(auth);
+        return { success: false, error: 'Compte non autorisé ou désactivé. Contactez votre administrateur.' };
       }
+      const user = { ...snapshot.data(), uid: credential.user.uid, email: credential.user.email };
+      await updateDoc(snapshot.ref, { lastLogin: serverTimestamp() });
+      // The profile listener is the only authority that updates the session.
+      return { success: true, admin: user };
     } catch (error) {
-      console.error('Login error:', error);
-      return { success: false, error: error.message };
-    } finally {
-      setLoading(false);
+      setAdminUser(null);
+      await signOut(auth).catch(() => {});
+      return { success: false, error: error.code === 'auth/too-many-requests'
+        ? 'Trop de tentatives. Veuillez patienter avant de réessayer.'
+        : error.code === 'auth/network-request-failed' || error.code === 'unavailable'
+          ? 'Connexion au serveur impossible. Vérifiez votre connexion Internet.'
+          : 'Connexion impossible. Vérifiez vos identifiants et l’activation de votre compte.' };
     }
   };
-
-  const logout = () => {
-    setIsAdmin(false);
+  const logout = useCallback(async () => {
     setAdminUser(null);
-    localStorage.removeItem(SESSION_KEY);
-    localStorage.removeItem(SESSION_TOKEN_KEY);
-    localStorage.removeItem('admin_lastLogin');
-  };
-
-  return (
-    <AdminAuthContext.Provider value={{ isAdmin, adminUser, login, logout, loading }}>
-      {children}
-    </AdminAuthContext.Provider>
-  );
+    await signOut(auth);
+  }, []);
+  const hasPermission = useCallback((module, level = 'view') => hasModulePermission(adminUser, module, level), [adminUser]);
+  return <AdminAuthContext.Provider value={{
+    adminUser, currentUser: adminUser, loading, login, logout,
+    isAuthenticated: adminUser?.isActive === true,
+    isAdmin: isAdministrator(adminUser), hasPermission, changePassword: changeUserPasswordDirect,
+  }}>{children}</AdminAuthContext.Provider>;
 };
 
 export const useAdminAuth = () => {
   const context = useContext(AdminAuthContext);
-  if (!context) {
-    throw new Error('useAdminAuth must be used within AdminAuthProvider');
-  }
+  if (!context) throw new Error('useAdminAuth must be used within AdminAuthProvider');
   return context;
 };

@@ -1,3 +1,4 @@
+import { useAdminAuth } from '../context/AdminAuthContext';
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FilterSelect } from '../components/ui/FilterSelect';
@@ -75,8 +76,8 @@ const getFormSemester = (module) => {
   return (module.semester || 'S1') === 'S2' ? 'S4' : 'S3';
 };
 
-const ActionBtn = ({ icon: Icon, title, onClick, color = 'var(--text-muted)' }) => (
-  <button onClick={onClick} title={title} className="action-btn"
+const ActionBtn = ({ disabled, icon: Icon, title, onClick, color = 'var(--text-muted)' }) => (
+  <button disabled={disabled} onClick={onClick} title={title} className="action-btn"
     style={{ padding: '8px', borderRadius: 'var(--radius-md)', border: 'none', background: 'transparent', color, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
     <Icon size={16} />
   </button>
@@ -123,6 +124,8 @@ const saveModuleFilters = (filters) => {
 };
 
 const ModuleManagement = () => {
+  const { hasPermission } = useAdminAuth();
+  const canEdit = hasPermission('modules', 'edit');
   const { modules, addModule, updateModule, deleteModule, reorderModules, loading, confirmAction } = useApp();
   const { showToast } = useToast();
 
@@ -448,7 +451,7 @@ const ModuleManagement = () => {
           <p>Configurez les matières et leurs coefficients pour chaque filière.</p>
         </div>
         <div className="module-premium-header-actions">
-          <button onClick={() => { resetForm(); setIsModalOpen(true); }} className="btn-modern primary">
+          <button disabled={!canEdit} onClick={() => { resetForm(); setIsModalOpen(true); }} className="btn-modern primary">
             <Plus size={16} style={{ marginRight: 'var(--space-2)' }} /> Ajouter Module
           </button>
         </div>
@@ -547,7 +550,7 @@ const ModuleManagement = () => {
                 paginatedModules.map((m) => {
                   const isDragging = draggedModuleId === m.id;
                   const isDragTarget = dragOverModuleId === m.id && draggedModuleId !== m.id;
-                  const canDrag = displayModules.length > 1 && !isSavingOrder;
+                  const canDrag = canEdit && displayModules.length > 1 && !isSavingOrder;
                   if (isDragging) {
                     return (
                       <tr
@@ -672,9 +675,9 @@ const ModuleManagement = () => {
                     </td>
                     <td style={{ padding: '16px', textAlign: 'right' }}>
                       <div style={{ display: 'flex', gap: '2px', justifyContent: 'flex-end' }}>
-                        <ActionBtn icon={Copy} title="Copier vers d'autres groupes" color="#6366f1" onClick={() => openCopyModal(m)} />
-                        <ActionBtn icon={Edit3} title="Modifier" onClick={() => handleEdit(m)} />
-                        <ActionBtn icon={Trash2} title="Supprimer" color="#dc2626" onClick={() => handleDelete(m)} />
+                        <ActionBtn disabled={!canEdit} icon={Copy} title="Copier vers d'autres groupes" color="#6366f1" onClick={() => openCopyModal(m)} />
+                        <ActionBtn disabled={!canEdit} icon={Edit3} title="Modifier" onClick={() => handleEdit(m)} />
+                        <ActionBtn disabled={!canEdit} icon={Trash2} title="Supprimer" color="#dc2626" onClick={() => handleDelete(m)} />
                       </div>
                     </td>
                   </tr>
