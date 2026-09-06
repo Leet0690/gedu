@@ -1,6 +1,6 @@
 # Audit et plan corrigé — RBAC et journal d’activité
 
-Audit du plan fourni et du travail déjà présent dans le dépôt, le 6 septembre 2026. Les modifications existantes ont été conservées et corrigées. Aucun compte réel, aucune donnée métier et aucun déploiement Firebase n’ont été modifiés.
+Audit du plan fourni et du travail déjà présent dans le dépôt, le 6 septembre 2026. Les modifications existantes ont été conservées et corrigées. L’audit initial a été effectué localement ; les opérations de provisionnement et de publication suivantes ont été demandées explicitement par le propriétaire.
 
 ## Conclusion
 
@@ -38,7 +38,7 @@ L’historique visible est limité aux 100 derniers événements accessibles, cl
 
 ## Rôles et dépendances entre pages
 
-`admin` désigne ici l’administrateur principal, avec compatibilité pour les profils historiques `super_admin`. Tous deux disposent des droits complets. Pour les autres rôles, la matrice enregistrée fait autorité ; une permission absente vaut `none`, et `users` reste réservé à l’administrateur. Les préréglages servent à initialiser la matrice, jamais à accorder silencieusement de nouveaux droits aux comptes existants.
+`admin` désigne ici l’administrateur principal, avec compatibilité pour les profils historiques `super_admin`. Tous deux disposent des droits complets. Pour les autres rôles, la matrice enregistrée fait autorité ; une permission absente vaut `none`. La permission `users` peut désormais être déléguée à un compte sans accès Finance. Les comptes administrateurs et ceux ayant accès Finance restent modifiables uniquement par un administrateur. Les préréglages servent à initialiser la matrice, jamais à accorder silencieusement de nouveaux droits aux comptes existants.
 
 Une page qui joint plusieurs collections a besoin de droits de lecture explicites sur ces données. Par exemple : notes = stagiaires + modules + notes ; présences = personnes + horaires + modules + présence concernée ; salaires = Finance + formateurs + présences formateurs. Une collection non autorisée n’est pas chargée, même si cela rend certains tableaux partiels. La publication d’horaires générés exige `edit` sur `schedule_generation` et `schedules`. Les clôtures d’année, paramètres globaux et sauvegardes sont réservés à l’administrateur.
 
@@ -79,8 +79,8 @@ La séparation entre contrôle d’interface et autorisation serveur suit les [c
 
 - Compilation Vite/PWA : réussie.
 - ESLint : 0 erreur, 41 avertissements restant principalement liés à du code inutilisé et aux hooks existants.
-- Suite Node après le second audit et la correction de connexion : 49 tests réussis, 0 échec, 1 groupe de tests émulateur ignoré sans variable locale.
-- Exécution séparée des règles Firestore : 7 scénarios réussis (8 tests en comptant leur groupe), incluant les transactions valides et refusées et la modification de son propre nom avec journal atomique.
+- Suite Node après l’ajout de la gestion déléguée : 51 tests réussis, 0 échec, 1 groupe de tests émulateur ignoré sans variable locale.
+- Exécutions séparées des règles Firestore stricte et compatible portails : 9 scénarios réussis par version (10 tests en comptant leur groupe), incluant gestion déléguée, refus Finance, refus de promotion administrateur, transactions et immutabilité du journal.
 - Fonction serveur : dépendances installées et verrouillées, contrôle de syntaxe et import du point d’entrée réussis. Déclenchement réel Cloud Functions non testé.
 - `git diff --check` : aucune erreur d’espacement restante.
 
@@ -94,4 +94,14 @@ Le second audit conserve le sélecteur d’année sur toutes les pages administr
 - La création et la connexion partagent une conversion unique du nom d’utilisateur vers l’identité Firebase. La liste des utilisateurs affiche l’identifiant à saisir et ne considère plus un profil sans `isActive: true` comme actif.
 - Le journal serveur couvre les créations/suppressions de documents vides et masque les identifiants de jetons. Les clients ne peuvent pas réserver les identifiants d’événements serveur.
 
-La procédure de correction d’un compte créé manuellement est dans [Connexion avec un nom d’utilisateur](connexion-utilisateurs.md). Le compte réel signalé n’a pas été inspecté ni modifié dans Firebase ; son UID et son profil doivent encore être vérifiés. Aucun test de connexion avec ses identifiants n’a été effectué.
+La procédure de correction d’un compte créé manuellement est dans [Connexion avec un nom d’utilisateur](connexion-utilisateurs.md). Après autorisation explicite, le profil du premier administrateur a été créé sous son UID Authentication et son activation ainsi que ses 14 permissions ont été relues dans Firestore.
+
+## Publication progressive des règles
+
+La lecture des règles réellement publiées a révélé une règle générale `allow read, write: if true`. La configuration `firebase.portal-compat.json` remplace ce mode public par les contrôles RBAC, avec une exception temporaire limitée aux lectures anonymes des collections racine `students`, `teachers`, `grades`, `schedules` et `modules` pour les anciens portails. Aucune écriture anonyme n’est conservée. Les utilisateurs, les quatre collections Finance, paramètres, sauvegardes, jetons et journaux ne bénéficient d’aucun accès public.
+
+Cette compatibilité conserve l’exposition historique des données scolaires ; elle ne sécurise pas complètement les portails. La migration vers des sessions validées côté serveur reste nécessaire avant d’utiliser exclusivement les règles strictes de `firebase.rbac.json`. Les montants inclus dans les formations continues et fiches formateurs appartiennent à ces modules, indépendamment du module Finance.
+
+Le générateur `node scripts/build-firestore-portal-compat.mjs` dérive les règles transitoires du fichier strict ; le déploiement des règles seules utilise `firebase deploy --config firebase.portal-compat.json --only firestore:rules --project ipfp-4802c`. Les deux variantes sont testées dans l’émulateur. L’application est publiée séparément via `firebase.json` sur les deux sites Hosting. La fonction d’audit serveur reste un déploiement distinct.
+
+Le workflow GitHub exige les secrets de configuration Firebase et le compte de service. Lorsqu’ils sont absents, utiliser une compilation locale avec la configuration du projet et une session Firebase autorisée ; ne pas publier une compilation dont la configuration Firebase est vide.

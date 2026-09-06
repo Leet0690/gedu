@@ -21,3 +21,25 @@ Depuis **Gestion Utilisateurs → Nouvel Utilisateur**, saisir le nom complet, l
 Pour le tout premier administrateur, le script `functions/bootstrap-admin.js` prépare un profil complet pour un compte Authentication déjà créé, depuis un environnement disposant d’identifiants serveur autorisés. La procédure figure dans [l’audit RBAC](rbac-audit.md). Le script ne modifie pas un profil existant et n’accorde jamais de droits depuis l’écran de connexion.
 
 Les adresses `@ipfp.edu` servent d’identifiants techniques : aucune boîte mail n’est créée automatiquement. Un lien de réinitialisation par email ne peut être reçu que si la boîte correspondante existe réellement.
+
+## Gestion déléguée sans Finance
+
+Un profil `secretary` peut recevoir `edit` sur tous les modules et `none` sur `finance`, y compris `edit` sur `users`. Ce profil accède à la gestion des comptes ordinaires. Il ne peut ni créer un administrateur, ni attribuer Finance, ni modifier/désactiver les comptes administrateurs ou les comptes qui possèdent déjà un accès Finance. Les contrôles portent sur le profil existant et sur le profil proposé, dans l’interface, le service et les règles Firestore.
+
+La gestion déléguée des utilisateurs ne se combine pas avec un droit Finance pour un compte non administrateur. Les paramètres globaux, clôtures et sauvegardes restent réservés à l’administrateur, car ils peuvent contenir ou modifier des données financières. Les droits `finance: none` concernent le module Finance et ses collections ; les montants présents dans les formations continues ou les fiches formateurs restent rattachés à ces modules.
+
+## Changement manuel de mot de passe par l'administrateur
+
+Depuis l'action **Changer le mot de passe** (icône clé) dans **Gestion Utilisateurs**, l'administrateur peut saisir directement un nouveau mot de passe pour le compte, sans envoi de lien par email :
+- Pour son **propre compte**, la modification s'applique immédiatement en session via l'authentification Firebase.
+- Pour un **autre compte**, la modification sécurisée sans lien passe par la Cloud Function `adminSetUserPassword` (lorsque déployée) ou par la commande locale d'administration :
+  ```bash
+  node functions/set-user-password.js PROJECT_ID NOM_UTILISATEUR_OU_EMAIL NOUVEAU_MOT_DE_PASSE
+  ```
+  Exemple :
+  ```bash
+  node functions/set-user-password.js ipfp-4802c aminata MonNouveauPass123
+  ```
+
+Les mots de passe de comptes réels ne doivent jamais être ajoutés au dépôt ni aux fichiers de configuration de déploiement.
+

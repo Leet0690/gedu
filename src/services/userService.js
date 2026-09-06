@@ -1,7 +1,7 @@
-import { collection, doc, getDocs, getDocFromServer, onSnapshot, writeBatch, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDocs, getDocsFromServer, getDocFromServer, query, where, limit, onSnapshot, writeBatch, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, deleteUser, sendPasswordResetEmail, updatePassword } from 'firebase/auth';
 import { db, auth, createSecondaryAuth } from '../firebase';
-import { isAdministrator, normalizePermissions } from '../utils/permissions';
+import { isAdministrator, canManageUsers, assertCanManageUserTarget, normalizePermissions } from '../utils/permissions';
 import { toAuthEmail } from '../utils/loginIdentifier';
 
 export const APP_MODULES = [
@@ -113,11 +113,11 @@ export const getUserProfile = async uid => {
   const snapshot = await getDocFromServer(doc(db, 'users', uid));
   return snapshot.exists() ? { ...snapshot.data(), id: uid, uid } : null;
 };
-const requireAdmin = async () => {
+const requireManager = async () => {
   const user = auth.currentUser;
   if (!user) throw new Error('Session invalide.');
   const profile = await getUserProfile(user.uid);
-  if (!isAdministrator(profile)) throw new Error('Action réservée à un administrateur actif.');
+  if (!canManageUsers(profile)) throw new Error('Vous ne disposez pas du droit de gérer les utilisateurs.');
   return profile;
 };
 const audit = (actor, actionType, targetId, message) => ({
@@ -137,11 +137,12 @@ export const createUserAccount = async ({ email, password, displayName, role = '
   let createdUser;
   let committed = false;
   try {
-    const actor = await requireAdmin();
+    const actor = await requireManager();
     const cleanName = displayName?.trim();
     const cleanEmail = toAuthEmail(email);
     if (!cleanName || cleanName.length > 160 || typeof password !== 'string' || password.length < 6) throw new Error('Nom (160 caractères maximum), identifiant et mot de passe valides requis.');
     const normalized = normalizePermissions(role, permissions || getPresetPermissions(role));
+    assertCanManageUserTarget(actor, { role, permissions: normalized });
     secondary = await createSecondaryAuth();
     createdUser = (await createUserWithEmailAndPassword(secondary.secondaryAuth, cleanEmail, password)).user;
     const profile = { uid: createdUser.uid, email: createdUser.email, displayName: cleanName, role,
@@ -168,16 +169,18 @@ export const createUserAccount = async ({ email, password, displayName, role = '
 
 export const updateUserProfile = async (uid, changes) => {
   try {
-    const actor = await requireAdmin();
+    const actor = await requireManager();
     await runTransaction(db, async transaction => {
       const ref = doc(db, 'users', uid);
       const snapshot = await transaction.get(ref);
       if (!snapshot.exists()) throw new Error('Utilisateur introuvable.');
       const existing = snapshot.data();
+      assertCanManageUserTarget(actor, existing);
+      if (changes.expectedIsActive !== undefined && existing.isActive !== changes.expectedIsActive) throw new Error('Le statut de ce compte a changé. Actualisez la liste avant de réessayer.');
       const updates = {};
       if (changes.displayName !== undefined) {
         updates.displayName = changes.displayName.trim();
-        if (!updates.displayName) throw new Error('Le nom est obligatoire.');
+        if (!updates.displayName || updates.displayName.length > 160) throw new Error('Le nom est obligatoire et limité à 160 caractères.');
       }
       if (changes.role !== undefined) updates.role = changes.role;
       if (changes.permissions !== undefined || changes.role !== undefined) updates.permissions = normalizePermissions(changes.role || existing.role, changes.permissions || existing.permissions);
@@ -185,6 +188,7 @@ export const updateUserProfile = async (uid, changes) => {
         if (typeof changes.isActive !== 'boolean') throw new Error('Statut invalide.');
         updates.isActive = changes.isActive;
       }
+      assertCanManageUserTarget(actor, { ...existing, ...updates });
       // Protect every active administrator: concurrent edits cannot remove the last one.
       if (isAdministrator(existing) && (updates.isActive === false || (updates.role && updates.role !== existing.role))) throw new Error('Un administrateur actif ne peut être désactivé ou rétrogradé depuis cette interface.');
       if (uid === actor.uid && updates.isActive === false) throw new Error('Vous ne pouvez pas désactiver votre propre compte.');
@@ -195,18 +199,24 @@ export const updateUserProfile = async (uid, changes) => {
   } catch (error) { return { success: false, error: errorMessage(error) }; }
 };
 export const toggleUserStatus = async (uid, currentStatus) => {
-  const result = await updateUserProfile(uid, { isActive: !currentStatus });
+  const result = await updateUserProfile(uid, { isActive: !currentStatus, expectedIsActive: currentStatus });
   return { ...result, newStatus: result.success ? !currentStatus : currentStatus };
 };
 // Preserve identity and audit history; deleting an Auth account requires a trusted server.
 export const deleteUserDoc = uid => updateUserProfile(uid, { isActive: false });
 export const sendUserPasswordReset = async email => {
   try {
-    const actor = await requireAdmin();
-    await sendPasswordResetEmail(auth, email.trim());
+    const actor = await requireManager();
+    const cleanEmail = toAuthEmail(email);
+    const matches = await getDocsFromServer(query(collection(db, 'users'), where('email', '==', cleanEmail), limit(2)));
+    if (matches.size !== 1) throw new Error('Le compte à réinitialiser doit correspondre à un profil utilisateur unique.');
+    const target = matches.docs[0];
+    assertCanManageUserTarget(actor, target.data());
+    await sendPasswordResetEmail(auth, cleanEmail);
     const batch = writeBatch(db);
-    batch.set(doc(collection(db, 'activity_logs')), audit(actor, 'PASSWORD_RESET_REQUESTED', email.trim(), 'Email de réinitialisation demandé.'));
-    await batch.commit();
+    batch.set(doc(collection(db, 'activity_logs')), audit(actor, 'PASSWORD_RESET_REQUESTED', target.id, 'Email de réinitialisation demandé.'));
+    try { await batch.commit(); }
+    catch { return { success: true, warning: 'Email envoyé, mais la journalisation a échoué.' }; }
     return { success: true };
   } catch (error) { return { success: false, error: errorMessage(error) }; }
 };
@@ -216,4 +226,58 @@ export const changeUserPasswordDirect = async newPassword => {
     await updatePassword(auth.currentUser, newPassword);
     return { success: true };
   } catch (error) { return { success: false, error: errorMessage(error) }; }
+};
+
+export const setUserPasswordByAdmin = async ({ uid, newPassword }) => {
+  try {
+    const actor = await requireManager();
+    if (!uid) throw new Error('Identifiant utilisateur invalide.');
+    if (typeof newPassword !== 'string' || newPassword.length < 6) {
+      throw new Error('Le mot de passe doit comporter au moins 6 caractères.');
+    }
+    const target = await getUserProfile(uid);
+    if (!target) throw new Error('Utilisateur introuvable.');
+    assertCanManageUserTarget(actor, target);
+
+    // Si l'administrateur modifie son propre mot de passe
+    if (actor.uid === uid) {
+      if (!auth.currentUser) throw new Error('Session invalide. Veuillez vous reconnecter.');
+      await updatePassword(auth.currentUser, newPassword);
+      const batch = writeBatch(db);
+      batch.set(doc(collection(db, 'activity_logs')), audit(actor, 'PASSWORD_CHANGED', uid, 'Mot de passe personnel modifié.'));
+      try { await batch.commit(); } catch { /* Ignore journalisation non bloquante */ }
+      return { success: true };
+    }
+
+    // Modification du mot de passe d'un tiers via Cloud Function privilégiée
+    try {
+      const { getFunctions, httpsCallable } = await import('firebase/functions');
+      const functions = getFunctions(undefined, 'europe-west1');
+      const callSetPassword = httpsCallable(functions, 'adminSetUserPassword');
+      const res = await callSetPassword({ targetUid: uid, newPassword });
+      if (res.data?.success) {
+        return { success: true };
+      }
+    } catch (fnErr) {
+      console.warn('Appel Cloud Function échoué :', fnErr);
+      const isMissingFunction = fnErr.code === 'functions/not-found' || 
+                                fnErr.code === 'functions/unavailable' || 
+                                fnErr.code === 'functions/unimplemented' ||
+                                fnErr.code === 'functions/internal' ||
+                                String(fnErr.message || '').includes('cors') ||
+                                String(fnErr.message || '').includes('Failed to fetch') ||
+                                String(fnErr.message || '').includes('not found');
+      if (isMissingFunction) {
+        const username = target.email ? target.email.split('@')[0] : target.displayName;
+        return {
+          success: false,
+          error: `Pour changer le mot de passe d’un tiers sans email, la Cloud Function doit être déployée (plan Blaze requis), ou exécutez la commande : node functions/set-user-password.js ipfp-4802c ${username} <mot_de_passe>`
+        };
+      }
+      return { success: false, error: errorMessage(fnErr) };
+    }
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
 };

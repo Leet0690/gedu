@@ -5,9 +5,13 @@ service cloud.firestore {
     function active() { return request.auth != null && profile().isActive == true; }
     function admin() { return active() && profile().role in ['admin', 'super_admin']; }
     function permitted(module, level) {
-      return active() && (admin() || (module != 'users' &&
+      return active() && (admin() || ((module != 'users' || profile().permissions.get('finance', 'none') == 'none') &&
         (profile().permissions.get(module, 'none') == 'edit' ||
           (level == 'view' && profile().permissions.get(module, 'none') == 'view'))));
+    }
+    function userManager() { return permitted('users', 'edit'); }
+    function manageable(u) {
+      return admin() || (userManager() && u.role in ['director', 'secretary', 'instructor', 'custom'] && u.permissions.get('finance', 'none') == 'none');
     }
     function validPermissions(p) {
       return p is map && p.keys().hasOnly(['dashboard', 'students', 'teachers', 'continuous', 'finance', 'modules', 'grades', 'reports', 'schedules', 'schedule_generation', 'attendance_students', 'attendance_teachers', 'logs', 'users']) &&
@@ -23,17 +27,17 @@ service cloud.firestore {
       let u = request.resource.data;
       return u.uid == uid && u.email is string && u.displayName is string && u.displayName.size() > 0 && u.displayName.size() <= 160 &&
         u.isActive is bool && u.role in ['admin', 'super_admin', 'director', 'secretary', 'instructor', 'custom'] &&
-        validPermissions(u.permissions) && (u.role in ['admin', 'super_admin'] || u.permissions.users == 'none');
+        validPermissions(u.permissions) && (u.role in ['admin', 'super_admin'] || u.permissions.users == 'none' || u.permissions.finance == 'none');
     }
     match /users/{uid} {
       // Missing/inactive users may read only their own profile to show a useful login error.
-      allow get: if request.auth != null && (request.auth.uid == uid || admin());
-      allow list: if admin();
-      allow create: if admin() && validUser(uid) && request.resource.data.createdAt == request.time &&
+      allow get: if request.auth != null && (request.auth.uid == uid || permitted('users', 'view'));
+      allow list: if permitted('users', 'view');
+      allow create: if userManager() && manageable(request.resource.data) && validUser(uid) && request.resource.data.createdAt == request.time &&
         request.resource.data.keys().hasOnly(['uid', 'email', 'displayName', 'role', 'permissions', 'isActive', 'createdAt', 'lastLogin']);
       allow update: if (active() && request.auth.uid == uid &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastLogin']) && request.resource.data.lastLogin == request.time)
-        || (admin() && validUser(uid) && request.resource.data.updatedAt == request.time &&
+        || (userManager() && manageable(resource.data) && manageable(request.resource.data) && validUser(uid) && request.resource.data.updatedAt == request.time &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'role', 'permissions', 'isActive', 'updatedAt']) &&
           (request.auth.uid != uid || request.resource.data.isActive == true) &&
           (!(resource.data.isActive == true && resource.data.role in ['admin', 'super_admin']) ||

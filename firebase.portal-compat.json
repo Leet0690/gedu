@@ -1,0 +1,7 @@
+{
+  "firestore": {
+    "rules": "artifacts/firestore.portal-compat.rules",
+    "indexes": "firestore.indexes.json",
+    "predeploy": ["node scripts/build-firestore-portal-compat.mjs"]
+  }
+}

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { initializeFirestore, connectFirestoreEmulator, doc, setDoc, updateDoc, deleteDoc, getDoc, getDocs, collection, query, where, serverTimestamp, writeBatch, terminate, setLogLevel } from 'firebase/firestore';
-import { normalizePermissions } from '../src/utils/permissions.js';
+import { MODULE_KEYS, normalizePermissions } from '../src/utils/permissions.js';
 
 const enabled = process.env.FIRESTORE_EMULATOR_HOST === '127.0.0.1:8085';
 test('Firestore RBAC and audit enforce authorization on the server', { skip: !enabled, timeout: 60000 }, async t => {
@@ -22,6 +22,8 @@ test('Firestore RBAC and audit enforce authorization on the server', { skip: !en
   const editor = database('editor');
   const stranger = database('stranger');
   const anonymous = database('anonymous');
+  const manager = database('manager');
+  const managerReader = database('manager-reader');
   const profile = (uid, role, permissions = {}) => ({ uid, email: `${uid}@example.test`, displayName: uid, role, isActive: true, permissions: normalizePermissions(role, permissions), createdAt: serverTimestamp(), lastLogin: null });
   const denied = promise => assert.rejects(promise, error => error.code === 'permission-denied');
   try {
@@ -31,11 +33,22 @@ test('Firestore RBAC and audit enforce authorization on the server', { skip: !en
       setDoc(doc(owner, 'users', 'admin'), profile('admin', 'admin')),
       setDoc(doc(owner, 'users', 'reader'), profile('reader', 'custom', { students: 'view' })),
       setDoc(doc(owner, 'users', 'editor'), profile('editor', 'custom', { students: 'edit' })),
+      setDoc(doc(owner, 'users', 'manager'), profile('manager', 'secretary', Object.fromEntries(MODULE_KEYS.map(key => [key, key === 'finance' ? 'none' : 'edit'])))),
+      setDoc(doc(owner, 'users', 'manager-reader'), profile('manager-reader', 'custom', { users: 'view' })),
+      setDoc(doc(owner, 'users', 'finance-user'), profile('finance-user', 'custom', { finance: 'edit' })),
       setDoc(doc(owner, 'students', 'sample'), { name: 'Fictional student' }),
       setDoc(doc(owner, 'payments', 'sample'), { amount: 1 }),
     ]);
     await t.test('anonymous access, absent profiles and self-bootstrap are denied', async () => {
-      await denied(getDoc(doc(anonymous, 'students', 'sample')));
+      if (process.env.IPFP_RULES_MODE === 'portal-compat') {
+        assert.equal((await getDoc(doc(anonymous, 'students', 'sample'))).exists(), true);
+      } else {
+        await denied(getDoc(doc(anonymous, 'students', 'sample')));
+      }
+      await denied(updateDoc(doc(anonymous, 'students', 'sample'), { name: 'Anonymous write' }));
+      await denied(getDoc(doc(anonymous, 'payments', 'sample')));
+      await denied(getDocs(collection(anonymous, 'users')));
+      await denied(setDoc(doc(anonymous, 'users', 'anonymous-admin'), profile('anonymous-admin', 'admin')));
       await denied(getDoc(doc(stranger, 'students', 'sample')));
       await denied(setDoc(doc(stranger, 'users', 'stranger'), profile('stranger', 'admin')));
     });
@@ -64,6 +77,35 @@ test('Firestore RBAC and audit enforce authorization on the server', { skip: !en
       await denied(updateDoc(doc(admin, 'users', 'admin'), { isActive: false, updatedAt: serverTimestamp() }));
       await denied(updateDoc(doc(admin, 'users', 'admin'), { role: 'custom', updatedAt: serverTimestamp() }));
       await denied(deleteDoc(doc(admin, 'users', 'admin')));
+    });
+    await t.test('delegated managers can manage nonfinancial users but cannot access finance or grant privileges', async () => {
+      assert.ok((await getDocs(collection(manager, 'users'))).size > 0);
+      await setDoc(doc(manager, 'users', 'delegated-user'), profile('delegated-user', 'secretary', { students: 'edit', users: 'edit' }));
+      await updateDoc(doc(manager, 'users', 'delegated-user'), { displayName: 'Updated by manager', updatedAt: serverTimestamp() });
+      await updateDoc(doc(manager, 'users', 'delegated-user'), { isActive: false, updatedAt: serverTimestamp() });
+      await updateDoc(doc(manager, 'users', 'delegated-user'), { isActive: true, updatedAt: serverTimestamp() });
+      await denied(getDoc(doc(manager, 'payments', 'sample')));
+      for (const name of ['payments', 'salaries', 'expenses', 'receipt_counters']) {
+        await denied(setDoc(doc(manager, name, 'denied-write'), { value: 1 }));
+        await denied(getDocs(collection(manager, name)));
+      }
+      await denied(setDoc(doc(manager, 'users', 'delegated-admin'), profile('delegated-admin', 'admin')));
+      await denied(setDoc(doc(manager, 'users', 'delegated-finance'), profile('delegated-finance', 'custom', { finance: 'view' })));
+      await denied(updateDoc(doc(manager, 'users', 'manager'), { role: 'admin', updatedAt: serverTimestamp() }));
+      await denied(updateDoc(doc(manager, 'users', 'manager'), { permissions: normalizePermissions('secretary', { finance: 'edit' }), updatedAt: serverTimestamp() }));
+      await denied(updateDoc(doc(manager, 'users', 'delegated-user'), { permissions: normalizePermissions('secretary', { finance: 'view' }), updatedAt: serverTimestamp() }));
+      await denied(updateDoc(doc(manager, 'users', 'admin'), { displayName: 'Hijacked admin', updatedAt: serverTimestamp() }));
+      await denied(updateDoc(doc(manager, 'users', 'finance-user'), { permissions: normalizePermissions('custom'), updatedAt: serverTimestamp() }));
+      await denied(updateDoc(doc(manager, 'users', 'finance-user'), { isActive: false, updatedAt: serverTimestamp() }));
+      await denied(updateDoc(doc(manager, 'users', 'manager'), { isActive: false, updatedAt: serverTimestamp() }));
+      for (const name of ['settings', 'operations', 'academic_year_backups', 'tokens']) {
+        await denied(setDoc(doc(manager, name, 'denied-admin-operation'), { value: 1 }));
+      }
+    });
+    await t.test('view-only user management cannot mutate users', async () => {
+      assert.ok((await getDocs(collection(managerReader, 'users'))).size > 0);
+      await denied(setDoc(doc(managerReader, 'users', 'reader-created'), profile('reader-created', 'custom')));
+      await denied(updateDoc(doc(managerReader, 'users', 'delegated-user'), { displayName: 'Forbidden', updatedAt: serverTimestamp() }));
     });
     const event = { userId: 'reader', userName: 'reader', userRole: 'custom', message: 'Test event', type: 'info', timestamp: serverTimestamp(), createdAt: serverTimestamp() };
     await t.test('audit attribution and timestamps cannot be forged; events cannot be erased', async () => {

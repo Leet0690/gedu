@@ -36,7 +36,7 @@ import {
   createUserAccount, 
   updateUserProfile, 
   toggleUserStatus, 
-  sendUserPasswordReset, 
+  setUserPasswordByAdmin,
   deleteUserDoc,
   getPresetPermissions 
 } from '../services/userService';
@@ -58,8 +58,15 @@ export default function UserManagement() {
   // Modals state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
-  const [resetModalUser, setResetModalUser] = useState(null);
+  const [passwordModalUser, setPasswordModalUser] = useState(null);
   const [deleteConfirmUser, setDeleteConfirmUser] = useState(null);
+
+  // Password change state
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showModalPassword, setShowModalPassword] = useState(false);
+  const [passwordModalError, setPasswordModalError] = useState('');
+  const [passwordModalSubmitting, setPasswordModalSubmitting] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -224,16 +231,40 @@ export default function UserManagement() {
     }
   };
 
-  const handleSendResetEmail = async (email) => {
-    if (actionBusy) return;
-    setActionBusy(true);
-    const res = await sendUserPasswordReset(email);
-    setActionBusy(false);
+  const handleOpenPasswordModal = (user) => {
+    setPasswordModalUser(user);
+    setNewPassword('');
+    setConfirmPassword('');
+    setShowModalPassword(false);
+    setPasswordModalError('');
+  };
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    if (passwordModalSubmitting || !passwordModalUser) return;
+    setPasswordModalError('');
+
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordModalError('Le mot de passe doit comporter au moins 6 caractères.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordModalError('Les deux mots de passe ne correspondent pas.');
+      return;
+    }
+
+    setPasswordModalSubmitting(true);
+    const res = await setUserPasswordByAdmin({
+      uid: passwordModalUser.id || passwordModalUser.uid,
+      newPassword
+    });
+    setPasswordModalSubmitting(false);
+
     if (res.success) {
-      showToast(res.warning || `Un email de réinitialisation a été envoyé à ${email}.`, res.warning ? 'warning' : 'success');
-      setResetModalUser(null);
+      showToast(`Mot de passe mis à jour avec succès pour ${passwordModalUser.displayName || 'l’utilisateur'}.`, 'success');
+      setPasswordModalUser(null);
     } else {
-      showToast(res.error || "Erreur lors de l'envoi de l'email.", 'error');
+      setPasswordModalError(res.error || 'Erreur lors de la modification du mot de passe.');
     }
   };
 
@@ -529,9 +560,9 @@ export default function UserManagement() {
                           </button>
 
                           <button
-                            onClick={() => setResetModalUser(user)}
+                            onClick={() => handleOpenPasswordModal(user)}
                             className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-amber-500 transition-colors"
-                            title="Réinitialiser le mot de passe"
+                            title="Changer le mot de passe"
                           >
                             <KeyRound size={16} />
                           </button>
@@ -600,7 +631,6 @@ export default function UserManagement() {
                     <input
                       type="text"
                       required
-                      placeholder="Ex: Aminata Diallo"
                       value={formData.displayName}
                       onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
                       className="input-premium w-full py-2 px-3 text-sm"
@@ -614,7 +644,6 @@ export default function UserManagement() {
                     <input
                       type="text"
                       required
-                      placeholder="Ex: aminata"
                       autoComplete="username"
                       autoCapitalize="none"
                       spellCheck={false}
@@ -1018,9 +1047,9 @@ export default function UserManagement() {
         )}
       </AnimatePresence>
 
-      {/* Modal: Password Reset */}
+      {/* Modal: Change Password Manually */}
       <AnimatePresence>
-        {resetModalUser && (
+        {passwordModalUser && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
@@ -1028,34 +1057,108 @@ export default function UserManagement() {
               exit={{ opacity: 0, scale: 0.95 }}
               className="glass-card max-w-md w-full p-6 shadow-2xl"
             >
-              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto mb-4">
-                <KeyRound size={24} />
-              </div>
-
-              <h3 className="text-lg font-bold text-center text-slate-900 dark:text-white mb-2">
-                Réinitialisation de Mot de Passe
-              </h3>
-
-              <p className="text-xs text-center text-slate-500 dark:text-slate-400 mb-6">
-                Envoyer un lien sécurisé par email à <strong>{resetModalUser.email}</strong> afin que l'utilisateur puisse choisir un nouveau mot de passe.
-              </p>
-
-              <div className="flex items-center justify-end gap-2">
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3 mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                    <KeyRound size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                      Changer le mot de passe
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Saisie manuelle directe (aucun lien envoyé).
+                    </p>
+                  </div>
+                </div>
                 <button
                   type="button"
-                  onClick={() => setResetModalUser(null)}
-                  className="btn-modern secondary flex-1"
+                  onClick={() => setPasswordModalUser(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
                 >
-                  Annuler
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSendResetEmail(resetModalUser.email)}
-                  className="btn-modern primary flex-1"
-                >
-                  Envoyer l'email
+                  <X size={18} />
                 </button>
               </div>
+
+              <div className="mb-4 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                    {passwordModalUser.displayName}
+                  </div>
+                  <div className="text-[11px] text-slate-400">
+                    Identifiant : <span className="font-semibold text-slate-600 dark:text-slate-300">{getLoginIdentifier(passwordModalUser.email)}</span>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                  {ROLE_PRESETS[passwordModalUser.role]?.label || passwordModalUser.role}
+                </span>
+              </div>
+
+              {passwordModalError && (
+                <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs flex items-center gap-2">
+                  <AlertCircle size={16} className="shrink-0" />
+                  <span>{passwordModalError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handlePasswordSubmit} className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    Nouveau mot de passe *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showModalPassword ? 'text' : 'password'}
+                      required
+                      placeholder="Au moins 6 caractères"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="input-premium w-full py-2 pl-3 pr-10 text-sm"
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowModalPassword(!showModalPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      {showModalPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    Confirmer le mot de passe *
+                  </label>
+                  <input
+                    type={showModalPassword ? 'text' : 'password'}
+                    required
+                    placeholder="Confirmer le nouveau mot de passe"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="input-premium w-full py-2 px-3 text-sm"
+                    autoComplete="new-password"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setPasswordModalUser(null)}
+                    className="btn-modern secondary flex-1"
+                    disabled={passwordModalSubmitting}
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={passwordModalSubmitting}
+                    className="btn-modern primary flex-1"
+                  >
+                    {passwordModalSubmitting ? 'Enregistrement...' : 'Enregistrer le mot de passe'}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}
