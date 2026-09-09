@@ -328,6 +328,27 @@ const TodaySessionsWidget = ({ schedules, teachers, getScheduleModule, activeSem
   );
 };
 
+const MOJIBAKE_MAP = [
+  ['Ã©', 'é'], ['Ã¨', 'è'], ['Ã ', 'à'], ['Ã§', 'ç'], ['Ãª', 'ê'],
+  ['Ã®', 'î'], ['Ã´', 'ô'], ['Ã¹', 'ù'], ['Ã¢', 'â'], ['Ã«', 'ë'],
+  ['Ã¯', 'ï'], ['Ã¼', 'ü'], ['Ã»', 'û'], ['Â·', '·'], ['Å"', 'œ'],
+];
+const fixMojibake = (text) => {
+  if (!text || typeof text !== 'string') return text || '';
+  let fixed = text;
+  for (const [bad, good] of MOJIBAKE_MAP) {
+    fixed = fixed.replaceAll(bad, good);
+  }
+  return fixed;
+};
+
+const isProfileMaintenance = (message) => {
+  const m = fixMojibake(message);
+  if (m.includes('Profil utilisateur mis à jour')) return true;
+  if (m.startsWith('UPDATE : users/')) return true;
+  return false;
+};
+
 const ActivityFeedWidget = ({ notifications }) => {
   const { activityError } = useApp();
   const [visibleCount, setVisibleCount] = useState(10);
@@ -346,9 +367,12 @@ const ActivityFeedWidget = ({ notifications }) => {
 
   const recent = useMemo(() => {
     return (notifications || [])
-      .filter(n => !n.message.includes('Accès Direction autorisé'))
-      .filter(n => !n.message.includes('Profil utilisateur mis à jour'))
-      .filter(n => !(n.message.startsWith('UPDATE : users/')))
+      .filter(n => {
+        const msg = fixMojibake(n.message || '');
+        if (msg.includes('Accès Direction autorisé')) return false;
+        if (isProfileMaintenance(n.message)) return false;
+        return true;
+      })
       .filter(n => {
         if (userFilter === 'ALL') return true;
         return (n.userId || n.userName) === userFilter;
@@ -413,7 +437,8 @@ const ActivityFeedWidget = ({ notifications }) => {
       ) : (
         <div className="home-widget-list home-activity-list">
           {visibleActivities.map((notif) => {
-            const { icon: Icon, tone } = getActivityVisual(notif.message);
+            const cleanMessage = fixMojibake(notif.message);
+            const { icon: Icon, tone } = getActivityVisual(cleanMessage);
             const activityClock = formatActivityClock(notif.timestamp);
             const activityDateTime = formatActivityDateTime(notif.timestamp);
             return (
@@ -447,7 +472,7 @@ const ActivityFeedWidget = ({ notifications }) => {
                     )}
                   </div>
                   <p className="home-activity-message">
-                    {notif.message}
+                    {cleanMessage}
                   </p>
                 </div>
                 <span className="home-activity-time" title={activityDateTime ? `${activityDateTime} ${ACTIVITY_TIME_ZONE_LABEL}` : undefined}>
