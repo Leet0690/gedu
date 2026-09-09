@@ -301,7 +301,7 @@ const TodaySessionsWidget = ({ schedules, teachers, getScheduleModule, activeSem
                 </div>
                 <div className="home-session-content">
                   <p className="home-session-module">
-                    {session.displayModule || 'Module non dÃ©fini'}
+                    {session.displayModule || 'Module non défini'}
                   </p>
                   <div className="home-session-meta">
                     {teacher && (
@@ -347,6 +347,8 @@ const ActivityFeedWidget = ({ notifications }) => {
   const recent = useMemo(() => {
     return (notifications || [])
       .filter(n => !n.message.includes('Accès Direction autorisé'))
+      .filter(n => !n.message.includes('Profil utilisateur mis à jour'))
+      .filter(n => !(n.message.startsWith('UPDATE : users/')))
       .filter(n => {
         if (userFilter === 'ALL') return true;
         return (n.userId || n.userName) === userFilter;

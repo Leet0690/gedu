@@ -230,7 +230,7 @@ const createAcademicYearBackup = async ({
         errorMessage: String(error?.message || 'Unknown backup error').slice(0, 500),
       }, { merge: true });
     } catch (manifestError) {
-      console.error('Impossible de marquer la sauvegarde comme Ã©chouÃ©e:', manifestError);
+      console.error('Impossible de marquer la sauvegarde comme échouée:', manifestError);
     }
     throw error;
   }
@@ -507,7 +507,7 @@ export const AppProvider = ({ children }) => {
       setConfirmState({
         isOpen: true,
         title: options.title || 'Confirmation',
-        message: options.message || 'ÃŠtes-vous sÃ»r de vouloir continuer ?',
+        message: options.message || 'ÃŠtes-vous sûr de vouloir continuer ?',
         type: options.type || 'danger',
         confirmText: options.confirmText || '',
         cancelText: options.cancelText || '',
@@ -580,13 +580,13 @@ export const AppProvider = ({ children }) => {
             academicYearUpdatedAt: serverTimestamp(),
           }, { merge: true });
         }).catch(error => {
-          console.warn("Impossible d'initialiser l'annÃ©e acadÃ©mique active:", error);
+          console.warn("Impossible d'initialiser l'année académique active:", error);
         }).finally(() => {
           bootstrapInProgress = false;
         });
       }
     }, error => {
-      console.warn('Impossible de charger les paramÃ¨tres actifs:', error);
+      console.warn('Impossible de charger les paramètres actifs:', error);
     });
 
     return unsubscribe;
@@ -630,9 +630,9 @@ export const AppProvider = ({ children }) => {
   );
 
   // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  // OPTIMISATION FIREBASE (QUOTA) : Chargement ciblÃ© et unique
-  // Remplacement des `onSnapshot` par `getDocs` pour rÃ©duire drastiquement
-  // les lectures de documents facturÃ©es par Firebase.
+  // OPTIMISATION FIREBASE (QUOTA) : Chargement ciblé et unique
+  // Remplacement des `onSnapshot` par `getDocs` pour réduire drastiquement
+  // les lectures de documents facturées par Firebase.
   // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
     let isMounted = true;
@@ -696,7 +696,7 @@ export const AppProvider = ({ children }) => {
           }).catch(error => console.warn('Impossible de charger les formations continues:', error));
 
         } else if (isStudentPortal) {
-          // 2. Portail Stagiaire: Chargement EXCLUSIF des donnÃ©es de ce stagiaire
+          // 2. Portail Stagiaire: Chargement EXCLUSIF des données de ce stagiaire
           const token = path.split('/').pop();
           const stuQuery = query(collection(db, 'students'), where('token', '==', token));
           const stuSnap = await getDocs(stuQuery);
@@ -731,7 +731,7 @@ export const AppProvider = ({ children }) => {
             setModules(modSnap.docs.map(d => ({ id: d.id, ...d.data() })));
           }
         } else if (isTeacherPortal) {
-          // 3. Portail Formateur: Chargement ciblÃ© pour le formateur
+          // 3. Portail Formateur: Chargement ciblé pour le formateur
           const token = path.split('/').pop();
           const [tSnap1, tSnap2] = await Promise.all([
             getDocs(query(collection(db, 'teachers'), where('tokenGrades', '==', token))),
@@ -842,7 +842,7 @@ export const AppProvider = ({ children }) => {
       return data;
     } catch (error) {
       console.error('Error loading access logs:', error);
-      showToast('Erreur de chargement du journal des accÃ¨s', 'error');
+      showToast('Erreur de chargement du journal des accès', 'error');
       return [];
     }
   }, [showToast, hasPermission]);
@@ -857,7 +857,7 @@ export const AppProvider = ({ children }) => {
     const newStudent = { ...studentData, academicYear, token, createdAt: serverTimestamp() };
     const docRef = await addDoc(collection(db, 'students'), newStudent);
     setStudents(prev => [{ id: docRef.id, ...newStudent }, ...prev]);
-    showToast(`Nouveau stagiaire ajoutÃ© : ${studentData.lastName}.`, 'success');
+    showToast(`Nouveau stagiaire ajouté : ${studentData.lastName}.`, 'success');
     return token;
   };
 
@@ -865,7 +865,7 @@ export const AppProvider = ({ children }) => {
     requireEdit('students');
     await updateDoc(doc(db, 'students', id), data);
     setStudents(prev => prev.map(s => s.id === id ? { ...s, ...data } : s));
-    showToast(`Profil stagiaire mis Ã  jour.`, 'success');
+    showToast(`Profil stagiaire mis à jour.`, 'success');
   };
 
   const promoteAcademicYear = async ({ fromAcademicYear = '', toAcademicYear = '' } = {}) => {
@@ -876,7 +876,7 @@ export const AppProvider = ({ children }) => {
       return { promotedCount: 0, graduatedCount: 0, error: 'INVALID_FORMAT' };
     }
     if (fromAcademicYear !== operationalAcademicYearRef.current) {
-      showToast(`L'annÃ©e active est ${operationalAcademicYearRef.current}. Rechargez la clÃ´ture avant de continuer.`, 'error');
+      showToast(`L'année active est ${operationalAcademicYearRef.current}. Rechargez la clôture avant de continuer.`, 'error');
       return { promotedCount: 0, graduatedCount: 0, error: 'STALE_OPERATIONAL_YEAR' };
     }
 
@@ -918,7 +918,7 @@ export const AppProvider = ({ children }) => {
           : INITIAL_OPERATIONAL_ACADEMIC_YEAR;
 
         if (serverAcademicYear !== fromAcademicYear) {
-          const staleError = new Error(`L'annÃ©e active est ${serverAcademicYear}.`);
+          const staleError = new Error(`L'année active est ${serverAcademicYear}.`);
           staleError.code = 'STALE_OPERATIONAL_YEAR';
           staleError.serverAcademicYear = serverAcademicYear;
           throw staleError;
@@ -932,7 +932,7 @@ export const AppProvider = ({ children }) => {
         const isStaleInProgress = pendingClosure?.status === 'in_progress' &&
           (!leaseUpdatedAt || Date.now() - leaseUpdatedAt >= ACADEMIC_YEAR_CLOSURE_LEASE_MS);
         if (pendingClosure?.status === 'in_progress' && !isStaleInProgress) {
-          const busyError = new Error('Une autre clÃ´ture est dÃ©jÃ  en cours.');
+          const busyError = new Error('Une autre clôture est déjà en cours.');
           busyError.code = 'ACADEMIC_YEAR_CLOSURE_IN_PROGRESS';
           throw busyError;
         }
@@ -975,18 +975,18 @@ export const AppProvider = ({ children }) => {
       });
     } catch (error) {
       if (error?.code === 'STALE_OPERATIONAL_YEAR') {
-        showToast(`L'annÃ©e active est ${error.serverAcademicYear}. Rechargez la clÃ´ture avant de continuer.`, 'error');
+        showToast(`L'année active est ${error.serverAcademicYear}. Rechargez la clôture avant de continuer.`, 'error');
         return { promotedCount: 0, graduatedCount: 0, error: 'STALE_OPERATIONAL_YEAR' };
       }
       if (error?.code === 'ACADEMIC_YEAR_CLOSURE_IN_PROGRESS') {
-        showToast('Une autre clÃ´ture acadÃ©mique est dÃ©jÃ  en cours.', 'error');
+        showToast('Une autre clôture académique est déjà en cours.', 'error');
         return { promotedCount: 0, graduatedCount: 0, error: 'CLOSURE_IN_PROGRESS' };
       }
       throw error;
     }
     const { operationId, attemptId, settingsAppBackupData } = closureReservation;
 
-    showToast(`Sauvegarde complÃ¨te de ${fromAcademicYear} en cours...`, 'info');
+    showToast(`Sauvegarde complète de ${fromAcademicYear} en cours...`, 'info');
     let backupResult;
     try {
       backupResult = await createAcademicYearBackup({
@@ -996,7 +996,7 @@ export const AppProvider = ({ children }) => {
         settingsAppBackupData,
       });
     } catch (error) {
-      console.error('Erreur sauvegarde prÃ©-clÃ´ture:', error);
+      console.error('Erreur sauvegarde pré-clôture:', error);
       await markAcademicYearClosureFailed({
         operationId,
         attemptId,
@@ -1004,7 +1004,7 @@ export const AppProvider = ({ children }) => {
         error,
       });
       showToast(
-        `La sauvegarde de ${fromAcademicYear} a Ã©chouÃ©. Aucune donnÃ©e acadÃ©mique n'a Ã©tÃ© modifiÃ©e.`,
+        `La sauvegarde de ${fromAcademicYear} a échoué. Aucune donnée académique n'a été modifiée.`,
         'error'
       );
       return { promotedCount: 0, graduatedCount: 0, error: 'BACKUP_FAILED' };
@@ -1195,7 +1195,7 @@ export const AppProvider = ({ children }) => {
     setActiveAcademicYear(toAcademicYear);
     try { localStorage.setItem(OPERATIONAL_ACADEMIC_YEAR_KEY, toAcademicYear); } catch { /* ignore */ }
 
-    // Improvement #7: Build breakdown by filiÃ¨re
+    // Improvement #7: Build breakdown by filière
     const breakdown = {};
     updates.forEach(({ id, type }) => {
       const student = candidates.find(s => s.id === id);
@@ -1321,7 +1321,7 @@ export const AppProvider = ({ children }) => {
     requireEdit('students');
     await deleteDoc(doc(db, 'students', id));
     setStudents(prev => prev.filter(s => s.id !== id));
-    showToast(`Stagiaire supprimÃ©.`, 'warning');
+    showToast(`Stagiaire supprimé.`, 'warning');
   };
 
   // --- FORMATEURS ---
@@ -1332,7 +1332,7 @@ export const AppProvider = ({ children }) => {
     const newTeacher = { ...teacherData, tokenGrades, tokenAttendance, createdAt: serverTimestamp() };
     const docRef = await addDoc(collection(db, 'teachers'), newTeacher);
     setTeachers(prev => [{ id: docRef.id, ...newTeacher }, ...prev]);
-    showToast(`Nouveau formateur ajoutÃ© : ${teacherData.name}.`, 'success');
+    showToast(`Nouveau formateur ajouté : ${teacherData.name}.`, 'success');
     return { tokenGrades, tokenAttendance };
   };
 
@@ -1340,14 +1340,14 @@ export const AppProvider = ({ children }) => {
     requireEdit('teachers');
     await updateDoc(doc(db, 'teachers', id), data);
     setTeachers(prev => prev.map(t => t.id === id ? { ...t, ...data } : t));
-    showToast(`Profil formateur mis Ã  jour.`, 'success');
+    showToast(`Profil formateur mis à jour.`, 'success');
   };
 
   const deleteTeacher = async (id) => {
     requireEdit('teachers');
     await deleteDoc(doc(db, 'teachers', id));
     setTeachers(prev => prev.filter(t => t.id !== id));
-    showToast(`Formateur supprimÃ©.`, 'warning');
+    showToast(`Formateur supprimé.`, 'warning');
   };
 
   const migrateTeacherTokens = async () => {
@@ -1367,7 +1367,7 @@ export const AppProvider = ({ children }) => {
     if (batch.length > 0) {
       await Promise.all(batch);
       setTeachers(updatedTeachers);
-      showToast(`${batch.length} formateurs mis Ã  jour avec de nouveaux jetons.`, 'success');
+      showToast(`${batch.length} formateurs mis à jour avec de nouveaux jetons.`, 'success');
     }
   };
 
@@ -1400,7 +1400,7 @@ export const AppProvider = ({ children }) => {
     requireEdit('schedules');
     await deleteDoc(doc(db, 'schedules', id));
     setSchedules(prev => prev.filter(s => s.id !== id));
-    showToast(`SÃ©ance supprimÃ©e.`, 'warning');
+    showToast(`Séance supprimée.`, 'warning');
   };
 
   const clearAllSchedules = async () => {
@@ -1408,7 +1408,7 @@ export const AppProvider = ({ children }) => {
     const snapshot = await getDocs(collection(db, 'schedules'));
     const ids = snapshot.docs.map(item => item.id);
     if (ids.length === 0) {
-      showToast('Aucune sÃ©ance Ã  supprimer.', 'info');
+      showToast('Aucune séance à supprimer.', 'info');
       return;
     }
     for (let i = 0; i < ids.length; i += 450) {
@@ -1419,7 +1419,7 @@ export const AppProvider = ({ children }) => {
       await batch.commit();
     }
     setSchedules([]);
-    showToast(`Emploi du temps vidÃ©.`, 'warning');
+    showToast(`Emploi du temps vidé.`, 'warning');
   };
 
   // --- NOTES ---
@@ -1459,7 +1459,7 @@ export const AppProvider = ({ children }) => {
         }
       };
     });
-    showToast('Notes enregistrÃ©es', 'success');
+    showToast('Notes enregistrées', 'success');
   };
 
   const batchUpdateGrades = async (updates) => {
@@ -1494,7 +1494,7 @@ export const AppProvider = ({ children }) => {
     
     await batch.commit();
     setGrades(newGrades);
-    showToast('Notes enregistrÃ©es avec succÃ¨s', 'success');
+    showToast('Notes enregistrées avec succès', 'success');
   };
 
   // --- PRESENCES ---
@@ -1539,7 +1539,7 @@ export const AppProvider = ({ children }) => {
       studentAttendanceKeysRef.current.add(cacheKey);
     } catch (e) {
       console.error("Error loading session attendance:", e);
-      showToast('Erreur de chargement des prÃ©sences', 'error');
+      showToast('Erreur de chargement des présences', 'error');
     }
   }, [showToast, hasPermission]);
 
@@ -1562,7 +1562,7 @@ export const AppProvider = ({ children }) => {
       studentAttendanceKeysRef.current.add(cacheKey);
     } catch (e) {
       console.error("Error loading monthly student attendance:", e);
-      showToast('Erreur de chargement des prÃ©sences mensuelles', 'error');
+      showToast('Erreur de chargement des présences mensuelles', 'error');
     }
   }, [showToast, hasPermission]);
 
@@ -1579,7 +1579,7 @@ export const AppProvider = ({ children }) => {
       teacherAttendanceKeysRef.current.add(cacheKey);
     } catch (e) {
       console.error("Error loading teacher attendance:", e);
-      showToast('Erreur de chargement des prÃ©sences formateurs', 'error');
+      showToast('Erreur de chargement des présences formateurs', 'error');
     }
   }, [showToast, hasPermission]);
 
@@ -1630,7 +1630,7 @@ export const AppProvider = ({ children }) => {
       }
       return [...deduped, updatedRecord];
     });
-    showToast('PrÃ©sence formateur enregistrÃ©e', 'success');
+    showToast('Présence formateur enregistrée', 'success');
   };
 
   // --- FINANCES ---
@@ -1666,7 +1666,7 @@ export const AppProvider = ({ children }) => {
           }
         } catch (migrationError) {
           // Reading and filtering still work from the normalized in-memory data.
-          console.warn('Impossible de complÃ©ter les annÃ©es acadÃ©miques des anciens paiements:', migrationError);
+          console.warn('Impossible de compléter les années académiques des anciens paiements:', migrationError);
         }
         return { payments, salaries, expenses };
       }).finally(() => {
@@ -1716,7 +1716,7 @@ export const AppProvider = ({ children }) => {
 
     setPayments(prev => [{ id: paymentRef.id, ...newPayment }, ...prev]);
     localStorage.removeItem(FINANCE_CACHE_PAYMENTS_KEY);
-    showToast('Paiement enregistrÃ©', 'success');
+    showToast('Paiement enregistré', 'success');
     return { id: paymentRef.id, ...newPayment };
   };
 
@@ -1728,7 +1728,7 @@ export const AppProvider = ({ children }) => {
     await updateDoc(doc(db, 'payments', id), normalizedData);
     setPayments(prev => prev.map(p => p.id === id ? { ...p, ...normalizedData } : p));
     localStorage.removeItem(FINANCE_CACHE_PAYMENTS_KEY);
-    showToast('Paiement mis Ã  jour', 'success');
+    showToast('Paiement mis à jour', 'success');
   };
 
   const deletePayment = async (id) => {
@@ -1736,7 +1736,7 @@ export const AppProvider = ({ children }) => {
     await deleteDoc(doc(db, 'payments', id));
     setPayments(prev => prev.filter(p => p.id !== id));
     localStorage.removeItem(FINANCE_CACHE_PAYMENTS_KEY);
-    showToast('Paiement supprimÃ©', 'warning');
+    showToast('Paiement supprimé', 'warning');
   };
 
   const addSalary = async (salaryData) => {
@@ -1767,7 +1767,7 @@ export const AppProvider = ({ children }) => {
 
     setSalaries(prev => [{ id: salaryRef.id, ...newSalary }, ...prev]);
     localStorage.removeItem(FINANCE_CACHE_SALARIES_KEY);
-    showToast('Salaire enregistrÃ©', 'success');
+    showToast('Salaire enregistré', 'success');
     return { id: salaryRef.id, ...newSalary };
   };
 
@@ -1776,7 +1776,7 @@ export const AppProvider = ({ children }) => {
     await updateDoc(doc(db, 'salaries', id), data);
     setSalaries(prev => prev.map(s => s.id === id ? { ...s, ...data } : s));
     localStorage.removeItem(FINANCE_CACHE_SALARIES_KEY);
-    showToast('Salaire mis Ã  jour', 'success');
+    showToast('Salaire mis à jour', 'success');
   };
 
   const deleteSalary = async (id) => {
@@ -1784,7 +1784,7 @@ export const AppProvider = ({ children }) => {
     await deleteDoc(doc(db, 'salaries', id));
     setSalaries(prev => prev.filter(s => s.id !== id));
     localStorage.removeItem(FINANCE_CACHE_SALARIES_KEY);
-    showToast('Salaire supprimÃ©', 'warning');
+    showToast('Salaire supprimé', 'warning');
   };
 
   const addExpense = async (expenseData) => {
@@ -1793,7 +1793,7 @@ export const AppProvider = ({ children }) => {
     const docRef = await addDoc(collection(db, 'expenses'), newExpense);
     setExpenses(prev => [{ id: docRef.id, ...newExpense }, ...prev]);
     localStorage.removeItem(FINANCE_CACHE_EXPENSES_KEY);
-    showToast('Charge enregistrÃ©e', 'success');
+    showToast('Charge enregistrée', 'success');
   };
 
   const deleteExpense = async (id) => {
@@ -1801,7 +1801,7 @@ export const AppProvider = ({ children }) => {
     await deleteDoc(doc(db, 'expenses', id));
     setExpenses(prev => prev.filter(e => e.id !== id));
     localStorage.removeItem(FINANCE_CACHE_EXPENSES_KEY);
-    showToast('Charge supprimÃ©e', 'warning');
+    showToast('Charge supprimée', 'warning');
   };
 
   // --- MODULES ---
@@ -1810,14 +1810,14 @@ export const AppProvider = ({ children }) => {
     const newModule = { ...moduleData, createdAt: serverTimestamp() };
     const docRef = await addDoc(collection(db, 'modules'), newModule);
     setModules(prev => [{ id: docRef.id, ...newModule }, ...prev]);
-    showToast(`Nouveau module ajoutÃ© : ${moduleData.name}.`, 'success');
+    showToast(`Nouveau module ajouté : ${moduleData.name}.`, 'success');
   };
 
   const updateModule = async (id, data) => {
     requireEdit('modules');
     await updateDoc(doc(db, 'modules', id), data);
     setModules(prev => prev.map(m => m.id === id ? { ...m, ...data } : m));
-    showToast(`Module mis Ã  jour.`, 'success');
+    showToast(`Module mis à jour.`, 'success');
   };
 
   const reorderModules = async (orderUpdates = []) => {
@@ -1845,7 +1845,7 @@ export const AppProvider = ({ children }) => {
     requireEdit('modules');
     await deleteDoc(doc(db, 'modules', id));
     setModules(prev => prev.filter(m => m.id !== id));
-    showToast(`Module supprimÃ©.`, 'warning');
+    showToast(`Module supprimé.`, 'warning');
   };
 
   // --- FORMATIONS CONTINUES ---
@@ -1853,21 +1853,21 @@ export const AppProvider = ({ children }) => {
     requireEdit('continuous');
     const docRef = await addDoc(collection(db, 'continuousTrainings'), { ...data, createdAt: serverTimestamp() });
     setContinuousTrainings(prev => [{ id: docRef.id, ...data }, ...prev]);
-    showToast(`Formation continue crÃ©Ã©e : ${data.name || 'Sans nom'}`, 'success');
+    showToast(`Formation continue créée : ${data.name || 'Sans nom'}`, 'success');
   };
   const updateContinuousTraining = async (id, data) => {
     requireEdit('continuous');
     const current = continuousTrainings.find(item => item.id === id);
     await updateDoc(doc(db, 'continuousTrainings', id), data);
     setContinuousTrainings(prev => prev.map(item => item.id === id ? { ...item, ...data } : item));
-    showToast(`Formation continue mise Ã  jour : ${data.name || current?.name || 'Sans nom'}`, 'success');
+    showToast(`Formation continue mise à jour : ${data.name || current?.name || 'Sans nom'}`, 'success');
   };
   const deleteContinuousTraining = async (id) => {
     requireEdit('continuous');
     const current = continuousTrainings.find(item => item.id === id);
     await deleteDoc(doc(db, 'continuousTrainings', id));
     setContinuousTrainings(prev => prev.filter(item => item.id !== id));
-    showToast(`Formation continue supprimÃ©e : ${current?.name || 'Sans nom'}`, 'warning');
+    showToast(`Formation continue supprimée : ${current?.name || 'Sans nom'}`, 'warning');
   };
   const sortContinuousTrainingTypes = items =>
     [...items].sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'fr', { sensitivity: 'base' }));
@@ -1877,7 +1877,7 @@ export const AppProvider = ({ children }) => {
     const payload = { name, createdAt: serverTimestamp() };
     const docRef = await addDoc(collection(db, 'continuousTrainingTypes'), payload);
     setContinuousTrainingTypes(prev => sortContinuousTrainingTypes([{ id: docRef.id, name }, ...prev]));
-    showToast(`Type de formation continue ajoutÃ© : ${name}`, 'success');
+    showToast(`Type de formation continue ajouté : ${name}`, 'success');
   };
   const renameContinuousTrainingType = async ({ id, oldName, name }) => {
     requireEdit('continuous');
@@ -1903,20 +1903,20 @@ export const AppProvider = ({ children }) => {
     if (oldName && oldName !== nextName) {
       setContinuousTrainings(prev => prev.map(item => item.type === oldName ? { ...item, type: nextName } : item));
     }
-    showToast(`Type de formation continue modifiÃ© : ${nextName}`, 'success');
+    showToast(`Type de formation continue modifié : ${nextName}`, 'success');
   };
   const deleteContinuousTrainingType = async (id) => {
     requireEdit('continuous');
     const current = continuousTrainingTypes.find(item => item.id === id);
     await deleteDoc(doc(db, 'continuousTrainingTypes', id));
     setContinuousTrainingTypes(prev => prev.filter(item => item.id !== id));
-    showToast(`Type de formation continue supprimÃ© : ${current?.name || 'Sans nom'}`, 'warning');
+    showToast(`Type de formation continue supprimé : ${current?.name || 'Sans nom'}`, 'warning');
   };
   const addCtStudent = async (data) => {
     requireEdit('continuous');
     const docRef = await addDoc(collection(db, 'ctStudents'), { ...data, createdAt: serverTimestamp() });
     setCtStudents(prev => [{ id: docRef.id, ...data }, ...prev]);
-    showToast(`Stagiaire ajoutÃ© en formation continue : ${`${data.firstName || ''} ${data.lastName || ''}`.trim() || 'Sans nom'}`, 'success');
+    showToast(`Stagiaire ajouté en formation continue : ${`${data.firstName || ''} ${data.lastName || ''}`.trim() || 'Sans nom'}`, 'success');
   };
   const updateCtStudent = async (id, data) => {
     requireEdit('continuous');
@@ -1924,7 +1924,7 @@ export const AppProvider = ({ children }) => {
     await updateDoc(doc(db, 'ctStudents', id), data);
     setCtStudents(prev => prev.map(item => item.id === id ? { ...item, ...data } : item));
     const studentName = `${data.firstName || current?.firstName || ''} ${data.lastName || current?.lastName || ''}`.trim();
-    showToast(`Stagiaire de formation continue mis Ã  jour : ${studentName || 'Sans nom'}`, 'success');
+    showToast(`Stagiaire de formation continue mis à jour : ${studentName || 'Sans nom'}`, 'success');
   };
   const deleteCtStudent = async (id) => {
     requireEdit('continuous');
@@ -1932,14 +1932,14 @@ export const AppProvider = ({ children }) => {
     await deleteDoc(doc(db, 'ctStudents', id));
     setCtStudents(prev => prev.filter(item => item.id !== id));
     const studentName = `${current?.firstName || ''} ${current?.lastName || ''}`.trim();
-    showToast(`Stagiaire de formation continue supprimÃ© : ${studentName || 'Sans nom'}`, 'warning');
+    showToast(`Stagiaire de formation continue supprimé : ${studentName || 'Sans nom'}`, 'warning');
   };
   const addCtSession = async (data) => {
     requireEdit('continuous');
     const docRef = await addDoc(collection(db, 'ctSessions'), { ...data, createdAt: serverTimestamp() });
     setCtSessions(prev => [{ id: docRef.id, ...data }, ...prev]);
     const trainingName = continuousTrainings.find(training => training.id === data.trainingId)?.name || 'Formation continue';
-    showToast(`SÃ©ance de formation continue planifiÃ©e : ${trainingName}`, 'success');
+    showToast(`Séance de formation continue planifiée : ${trainingName}`, 'success');
   };
   const updateCtSession = async (id, data) => {
     requireEdit('continuous');
@@ -1947,7 +1947,7 @@ export const AppProvider = ({ children }) => {
     await updateDoc(doc(db, 'ctSessions', id), data);
     setCtSessions(prev => prev.map(item => item.id === id ? { ...item, ...data } : item));
     const trainingName = continuousTrainings.find(training => training.id === (data.trainingId || current?.trainingId))?.name || 'Formation continue';
-    showToast(`SÃ©ance de formation continue modifiÃ©e : ${trainingName}`, 'success');
+    showToast(`Séance de formation continue modifiée : ${trainingName}`, 'success');
   };
   const deleteCtSession = async (id) => {
     requireEdit('continuous');
@@ -1955,7 +1955,7 @@ export const AppProvider = ({ children }) => {
     await deleteDoc(doc(db, 'ctSessions', id));
     setCtSessions(prev => prev.filter(item => item.id !== id));
     const trainingName = continuousTrainings.find(training => training.id === current?.trainingId)?.name || 'Formation continue';
-    showToast(`SÃ©ance de formation continue supprimÃ©e : ${trainingName}`, 'warning');
+    showToast(`Séance de formation continue supprimée : ${trainingName}`, 'warning');
   };
 
   return (

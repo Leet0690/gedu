@@ -1215,8 +1215,8 @@ const Reports = () => {
 
   const groupChartData = useMemo(() =>
     reportGroupStats.map(stats => ({
-      name: `${stats.group.major} ${stats.group.year}`.replace('annÃ©e', '').trim(),
-      fullName: `${stats.group.diploma} Â· ${stats.group.major} Â· ${stats.group.year}`,
+      name: `${stats.group.major} ${stats.group.year}`.replace('année', '').trim(),
+      fullName: `${stats.group.diploma} · ${stats.group.major} · ${stats.group.year}`,
       moyenne: stats.classAvg !== null ? parseFloat(stats.classAvg.toFixed(2)) : 0,
       stagiaires: stats.students.length,
       modules: stats.modules.length,
