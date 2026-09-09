@@ -357,6 +357,7 @@ const ActivityFeedWidget = ({ notifications }) => {
   const uniqueUsers = useMemo(() => {
     const map = new Map();
     (notifications || []).forEach(n => {
+      if (n.userRole === 'maintenance') return;
       const name = n.userName || (n.userId ? `Utilisateur (${n.userId.slice(0, 5)})` : null);
       if (name && !map.has(n.userId || name)) {
         map.set(n.userId || name, { id: n.userId || name, name, role: n.userRole });
@@ -368,6 +369,7 @@ const ActivityFeedWidget = ({ notifications }) => {
   const recent = useMemo(() => {
     return (notifications || [])
       .filter(n => {
+        if (n.userRole === 'maintenance') return false;
         const msg = fixMojibake(n.message || '');
         if (msg.includes('Accès Direction autorisé')) return false;
         if (isProfileMaintenance(n.message)) return false;
