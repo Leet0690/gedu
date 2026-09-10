@@ -143,7 +143,7 @@ export const MODULES_DATA = {
         'Logiciel de gestion comptable (sage-Saari 100)',
         'Comptabilité des sociétés',
         'Mathématiques Financières',
-        'Statistiques descriptive',
+        'Statistiques descriptives',
         'Management et Organisation des entreprises',
         'Droit de travail',
         'Entreprenariat',

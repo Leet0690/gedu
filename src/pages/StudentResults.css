@@ -1,0 +1,90 @@
+.student-results-year-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 6px;
+  max-width: 100%;
+  border: 1px solid var(--border-light);
+  border-radius: 22px;
+  background: var(--bg-card, #fff);
+  box-shadow: var(--shadow-sm);
+}
+
+.student-results-year-tab {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 12px 18px;
+  border: none;
+  border-radius: 16px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.student-results-year-tab:hover {
+  background: var(--primary-ultra-light);
+}
+
+.student-results-year-tab[aria-selected="true"] {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+}
+
+.student-results-year-tab:focus-visible,
+#student-results-year-panel:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
+}
+
+.student-results-year-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.student-results-year-badge {
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--primary-ultra-light);
+  color: var(--text-secondary);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.student-results-year-tab[aria-selected="true"] .student-results-year-badge {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.student-results-no-grades {
+  margin-bottom: var(--space-5);
+  color: var(--text-secondary);
+  text-align: center;
+  font-size: 14px;
+}
+
+@media (max-width: 480px) {
+  .student-results-year-tab {
+    padding: 10px;
+  }
+
+  .student-results-premium-page .grade-premium-header {
+    padding: 24px 20px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student-results-year-tab {
+    transition: none;
+  }
+}

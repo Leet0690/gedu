@@ -57,6 +57,10 @@ const gradeMigrations = [
       'Management et Organisation des entreprises',
     ],
   },
+  {
+    fromKey: 'Statistiques descriptive',
+    toModules: ['Statistiques descriptives'],
+  },
 ];
 
 const isFilled = (value) => value !== undefined && value !== null && value !== '';
@@ -116,14 +120,21 @@ async function readCollection(name) {
   return snapshot.docs.map(item => ({ id: item.id, ...item.data() }));
 }
 
+const majorKey = (item = {}) => `${item.diploma || ''}__${item.major || ''}`;
+
 async function migrateGrades(students, modules, gradesDocs) {
   const studentsById = new Map(students.map(student => [student.id, student]));
   const modulesByClass = new Map();
+  const modulesByMajor = new Map();
 
   modules.forEach(module => {
-    const key = classKey(module);
-    if (!modulesByClass.has(key)) modulesByClass.set(key, new Set());
-    modulesByClass.get(key).add(module.name);
+    const cKey = classKey(module);
+    if (!modulesByClass.has(cKey)) modulesByClass.set(cKey, new Set());
+    modulesByClass.get(cKey).add(module.name);
+
+    const mKey = majorKey(module);
+    if (!modulesByMajor.has(mKey)) modulesByMajor.set(mKey, new Set());
+    modulesByMajor.get(mKey).add(module.name);
   });
 
   let updatedDocs = 0;
@@ -136,20 +147,24 @@ async function migrateGrades(students, modules, gradesDocs) {
     if (!student) continue;
 
     const classModules = modulesByClass.get(classKey(student)) || new Set();
-    const setFields = new Map();
-    const deleteFields = new Set();
+    const allMajorModules = modulesByMajor.get(majorKey(student)) || new Set();
+    const candidateModules = new Set([...classModules, ...allMajorModules]);
+
+    const setFields = [];
+    const deleteFields = [];
     let hasUpdates = false;
 
+    // 1. Root grades
     for (const { fromKey, toModules } of gradeMigrations) {
       if (!Object.prototype.hasOwnProperty.call(gradeDoc, fromKey)) continue;
       if (!hasEnteredGrade(gradeDoc[fromKey])) {
-        deleteFields.add(fromKey);
+        deleteFields.push(new FieldPath(fromKey));
         hasUpdates = true;
         console.log(`Nettoyage vide: ${displayStudent(student)} | ${fromKey}`);
         continue;
       }
 
-      const toModule = toModules.find(candidate => classModules.has(candidate));
+      const toModule = toModules.find(candidate => candidateModules.has(candidate));
       if (!toModule) {
         skippedKeys++;
         console.log(`Ignoré: ${displayStudent(student)} | ${displayClass(student)} | ${fromKey} (module cible absent)`);
@@ -158,7 +173,7 @@ async function migrateGrades(students, modules, gradesDocs) {
 
       const toKey = sanitizeGradeKey(toModule);
       const sourceGrade = gradeDoc[fromKey];
-      const targetGrade = setFields.get(toKey) || gradeDoc[toKey] || {};
+      const targetGrade = gradeDoc[toKey] || {};
       const conflicts = getConflicts(targetGrade, sourceGrade);
       if (conflicts.length) {
         conflictCount++;
@@ -167,21 +182,63 @@ async function migrateGrades(students, modules, gradesDocs) {
         console.log(`Migration: ${displayStudent(student)} | ${fromKey} -> ${toKey}`);
       }
 
-      setFields.set(toKey, mergeGrade(targetGrade, sourceGrade));
-      deleteFields.add(fromKey);
+      setFields.push({ path: new FieldPath(toKey), value: mergeGrade(targetGrade, sourceGrade) });
+      deleteFields.push(new FieldPath(fromKey));
       hasUpdates = true;
       migratedKeys++;
+    }
+
+    // 2. Partitioned academicYears grades
+    const academicYears = gradeDoc.academicYears && typeof gradeDoc.academicYears === 'object'
+      ? gradeDoc.academicYears
+      : null;
+    if (academicYears) {
+      for (const [ay, ayGrades] of Object.entries(academicYears)) {
+        if (!ayGrades || typeof ayGrades !== 'object') continue;
+        for (const { fromKey, toModules } of gradeMigrations) {
+          if (!Object.prototype.hasOwnProperty.call(ayGrades, fromKey)) continue;
+          if (!hasEnteredGrade(ayGrades[fromKey])) {
+            deleteFields.push(new FieldPath('academicYears', ay, fromKey));
+            hasUpdates = true;
+            console.log(`Nettoyage vide [${ay}]: ${displayStudent(student)} | ${fromKey}`);
+            continue;
+          }
+
+          const toModule = toModules.find(candidate => candidateModules.has(candidate));
+          if (!toModule) {
+            skippedKeys++;
+            console.log(`Ignoré [${ay}]: ${displayStudent(student)} | ${displayClass(student)} | ${fromKey} (module cible absent)`);
+            continue;
+          }
+
+          const toKey = sanitizeGradeKey(toModule);
+          const sourceGrade = ayGrades[fromKey];
+          const targetGrade = ayGrades[toKey] || {};
+          const conflicts = getConflicts(targetGrade, sourceGrade);
+          if (conflicts.length) {
+            conflictCount++;
+            console.log(`Conflit conservé côté officiel [${ay}]: ${displayStudent(student)} | ${fromKey} -> ${toKey} | ${conflicts.join('; ')}`);
+          } else {
+            console.log(`Migration [${ay}]: ${displayStudent(student)} | ${fromKey} -> ${toKey}`);
+          }
+
+          setFields.push({ path: new FieldPath('academicYears', ay, toKey), value: mergeGrade(targetGrade, sourceGrade) });
+          deleteFields.push(new FieldPath('academicYears', ay, fromKey));
+          hasUpdates = true;
+          migratedKeys++;
+        }
+      }
     }
 
     if (hasUpdates) {
       updatedDocs++;
       if (!dryRun) {
         const updateArgs = [];
-        setFields.forEach((value, key) => {
-          updateArgs.push(new FieldPath(key), value);
+        setFields.forEach(({ path, value }) => {
+          updateArgs.push(path, value);
         });
-        deleteFields.forEach(key => {
-          updateArgs.push(new FieldPath(key), deleteField());
+        deleteFields.forEach(path => {
+          updateArgs.push(path, deleteField());
         });
         await updateDoc(doc(db, 'grades', gradeDoc.id), ...updateArgs);
       }

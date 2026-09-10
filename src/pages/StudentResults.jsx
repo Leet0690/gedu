@@ -1,18 +1,28 @@
 import React, { useMemo, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
-import { getGradeByModuleName, getGradesForAcademicYear, getStudentGradeModules } from '../utils/gradeSync';
+import { getGradeByModuleName, getStudentGradeModules } from '../utils/gradeSync';
+import {
+  getStudentResultsGrades,
+  getStudentResultsRank,
+  hasStudentResultsGrades,
+  selectStudentStudyYear,
+} from '../utils/studentResults';
 import {
   calcCcAverage,
   calcModuleAverage,
   calcStudentSynthesisAverages,
   parseScore,
 } from '../utils/gradeCalculations';
-import { getStudentCurrentAcademicYear, isActiveStudent, isLaureatStudent } from '../utils/studentStatus';
+import {
+  getStudentAvailableStudyYears,
+  getStudentAcademicSnapshot,
+} from '../utils/studentStatus';
 import { getDiplomaAbbreviation } from '../data/modules';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
+import './StudentResults.css';
 import {
   BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, Tooltip, CartesianGrid
 } from 'recharts';
@@ -21,7 +31,6 @@ import {
   Award,
   CalendarCheck,
   CheckCircle,
-  BookOpen,
   Lock,
   TrendingUp,
   TrendingDown,
@@ -30,7 +39,6 @@ import {
   Sparkles,
   User,
   Compass,
-  ArrowLeft,
   FileText
 } from 'lucide-react';
 
@@ -62,31 +70,41 @@ const Grade = ({ val }) => {
 
 const StudentResults = () => {
   const { studentId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { students = [], grades = {}, loading = false, modules: allModules = [], operationalAcademicYear } = useApp() || {};
 
-  const student = students.find(s => {
-    if (!s) return false;
-    const clean = (str) => String(str || '').toLowerCase().replace(/[^a-z0-9-]/g, '');
-    return clean(s.token) === clean(studentId);
-  });
+  const student = students.find(s => s?.token && s.token === studentId);
+
+  const availableYears = useMemo(
+    () => (student ? getStudentAvailableStudyYears(student, operationalAcademicYear) : []),
+    [student, operationalAcademicYear]
+  );
+
+  const activeStudyYear = selectStudentStudyYear(availableYears, searchParams.get('year'));
+
+  const activeStudentSnapshot = useMemo(() => {
+    if (!student || !activeStudyYear) return null;
+    return getStudentAcademicSnapshot(student, activeStudyYear.academicYear, operationalAcademicYear);
+  }, [student, activeStudyYear, operationalAcademicYear]);
 
   useEffect(() => {
     if (student) {
-      document.title = `${student.lastName || ''} ${student.firstName || ''} - Résultats IPFP`.trim() || 'Résultats Stagiaire';
+      const yearLabel = activeStudyYear?.label ? ` (${activeStudyYear.label})` : '';
+      document.title = `${student.lastName || ''} ${student.firstName || ''}${yearLabel} - Résultats IPFP`.trim() || 'Résultats Stagiaire';
     }
-  }, [student]);
+  }, [student, activeStudyYear]);
 
   const resolvedStudentId = student?.id;
-  const studentAcademicYear = student ? getStudentCurrentAcademicYear(student, operationalAcademicYear) : '';
-  const studentGrades = useMemo(
-    () => resolvedStudentId
-      ? getGradesForAcademicYear(grades[resolvedStudentId] || {}, studentAcademicYear)
-      : {},
-    [grades, resolvedStudentId, studentAcademicYear]
-  );
+  const studentAcademicYear = activeStudyYear?.academicYear || '';
+
+  const studentGrades = useMemo(() => {
+    if (!resolvedStudentId || !activeStudyYear) return {};
+    return getStudentResultsGrades(grades[resolvedStudentId] || {}, activeStudyYear);
+  }, [grades, resolvedStudentId, activeStudyYear]);
+
   const studentModules = useMemo(
-    () => getStudentGradeModules(allModules, student),
-    [allModules, student]
+    () => getStudentGradeModules(allModules, activeStudentSnapshot),
+    [allModules, activeStudentSnapshot]
   );
   const moduleNames = studentModules.map(m => m.name || '');
 
@@ -105,39 +123,44 @@ const StudentResults = () => {
     return { mod, g, cc, score, fp, ft, hasGrades, passed };
   }), [studentModules, studentGrades]);
 
-  const { generalAverage: generalAvgNum } = calcStudentSynthesisAverages(studentGrades, studentModules);
+  const hasRecordedGrades = hasStudentResultsGrades(studentGrades, studentModules);
+  const generalAvgNum = hasRecordedGrades
+    ? calcStudentSynthesisAverages(studentGrades, studentModules).generalAverage
+    : null;
   const generalAvg = generalAvgNum !== null ? generalAvgNum.toFixed(2) : '—';
   const completedModules = moduleScores.filter(s => s.hasGrades).length;
+  const validatedModules = moduleScores.filter(s => s.passed).length;
 
-  const classRank = useMemo(() => {
-    if (!student) return { rank: null, total: 0 };
-    const studentIsLaureat = isLaureatStudent(student);
-    const peers = students.filter(s => {
-      const sameClass = s.diploma === student.diploma && s.major === student.major && s.year === student.year;
-      if (!sameClass) return false;
-      if (studentIsLaureat) {
-        if (!isLaureatStudent(s)) return false;
-        if (student.graduationAcademicYear) return s.graduationAcademicYear === student.graduationAcademicYear;
-        return true;
+  const classRank = useMemo(() => getStudentResultsRank({
+    students,
+    grades,
+    allModules,
+    studentSnapshot: activeStudentSnapshot,
+    operationalAcademicYear,
+  }), [students, grades, activeStudentSnapshot, allModules, operationalAcademicYear]);
+
+  const handleSelectYear = (key) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('year', key);
+        return next;
       }
-      if (!isActiveStudent(s)) return false;
-      if (student.academicYear && s.academicYear) return s.academicYear === student.academicYear;
-      return true;
-    });
-    const peerAvgs = peers.map(s => {
-      const { generalAverage: avg } = calcStudentSynthesisAverages(
-        getGradesForAcademicYear(grades[s.id] || {}, getStudentCurrentAcademicYear(s, operationalAcademicYear)),
-        studentModules
-      );
-      return { id: s.id, avg };
-    }).filter(p => p.avg !== null);
+    );
+  };
 
-    const current = peerAvgs.find(p => p.id === student.id);
-    if (!current) return { rank: null, total: peerAvgs.length };
-
-    const rank = peerAvgs.filter(p => p.avg > current.avg + 0.0001).length + 1;
-    return { rank, total: peerAvgs.length };
-  }, [students, grades, student, studentModules, operationalAcademicYear]);
+  const handleYearKeyDown = (event) => {
+    const currentIndex = availableYears.findIndex(year => year.key === activeStudyYear?.key);
+    let nextIndex;
+    if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % availableYears.length;
+    else if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + availableYears.length) % availableYears.length;
+    else if (event.key === 'Home') nextIndex = 0;
+    else if (event.key === 'End') nextIndex = availableYears.length - 1;
+    else return;
+    event.preventDefault();
+    handleSelectYear(availableYears[nextIndex].key);
+    event.currentTarget.querySelectorAll('[role="tab"]')[nextIndex]?.focus();
+  };
 
   const chartData = useMemo(() =>
     moduleScores
@@ -155,7 +178,7 @@ const StudentResults = () => {
     ? `${classRank.rank}${classRank.rank === 1 ? 'er' : 'ème'} / ${classRank.total}`
     : '—';
 
-  if (loading && students.length === 0) {
+  if (loading) {
     return <div className="max-w-container section-padding"><TableSkeleton rows={10} /></div>;
   }
 
@@ -191,7 +214,7 @@ const StudentResults = () => {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', gap: '24px', zIndex: 2 }}>
-          <div style={{ flex: 1, minWidth: '280px' }}>
+          <div style={{ flex: 1, minWidth: 'min(280px, 100%)' }}>
             <span 
               className="grade-premium-eyebrow" 
               style={{ 
@@ -218,10 +241,10 @@ const StudentResults = () => {
                 <User size={13} style={{ opacity: 0.8 }} /> Matricule: {student.regNo}
               </span>
               <span style={{ fontSize: '12px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Compass size={13} style={{ opacity: 0.8 }} /> {student.major}
+                <Compass size={13} style={{ opacity: 0.8 }} /> {activeStudentSnapshot?.major || student.major}
               </span>
               <span style={{ fontSize: '12px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <CalendarCheck size={13} style={{ opacity: 0.8 }} /> {student.year} · {studentAcademicYear}
+                <CalendarCheck size={13} style={{ opacity: 0.8 }} /> {activeStudentSnapshot?.year || student.year} · {studentAcademicYear}
               </span>
             </div>
           </div>
@@ -252,11 +275,71 @@ const StudentResults = () => {
         </div>
       </motion.div>
 
+      {/* Year Selector Tabs (when student has multiple study years available) */}
+      {availableYears.length > 1 && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 'var(--space-6)',
+          }}
+        >
+          <div
+            className="student-results-year-tabs"
+            role="tablist"
+            aria-label="Année d'étude à consulter"
+            onKeyDown={handleYearKeyDown}
+          >
+            {availableYears.map((yr) => {
+              const isSelected = activeStudyYear?.key === yr.key;
+              return (
+                <button
+                  key={yr.key}
+                  id={`student-results-year-${yr.key}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={isSelected}
+                  aria-controls="student-results-year-panel"
+                  tabIndex={isSelected ? 0 : -1}
+                  className="student-results-year-tab"
+                  onClick={() => handleSelectYear(yr.key)}
+                >
+                  <span className="student-results-year-label">
+                    <CalendarCheck size={14} aria-hidden="true" />
+                    {yr.label}
+                  </span>
+                  {yr.academicYear && (
+                    <span className="student-results-year-badge">
+                      {yr.academicYear}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
+
+      <section
+        id="student-results-year-panel"
+        role={availableYears.length > 1 ? 'tabpanel' : undefined}
+        aria-labelledby={availableYears.length > 1 ? `student-results-year-${activeStudyYear.key}` : undefined}
+        tabIndex={availableYears.length > 1 ? 0 : undefined}
+      >
+      {!hasRecordedGrades && moduleNames.length > 0 && (
+        <p className="student-results-no-grades" role="status">
+          Aucune note saisie pour l'année {studentAcademicYear}.
+        </p>
+      )}
+
       {/* Grid of Key Metrics */}
       <div 
         style={{ 
           display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))',
           gap: 'var(--space-4)', 
           marginBottom: 'var(--space-6)' 
         }}
@@ -264,27 +347,27 @@ const StudentResults = () => {
         <MetricCard 
           icon={CheckCircle} 
           label="Modules validés" 
-          value={`${completedModules} / ${moduleNames.length}`} 
-          desc="Cours complétés sur la formation"
+          value={`${validatedModules} / ${moduleNames.length}`}
+          desc={`${completedModules} module(s) évalué(s) cette année`}
         />
         <MetricCard 
           icon={Medal} 
           label="Classement" 
           value={rankLabel} 
-          desc="Rang au sein de votre promotion"
-          color={classRank.rank === 1 ? '#eab308' : classRank.rank <= 3 ? '#94a3b8' : undefined}
+          desc={`Rang de la promotion ${studentAcademicYear}`}
+          color={classRank.rank === 1 ? '#eab308' : classRank.rank && classRank.rank <= 3 ? '#94a3b8' : undefined}
         />
         <MetricCard 
           icon={Award} 
           label="Qualification" 
-          value={getDiplomaAbbreviation(student.diploma)} 
-          desc={student.diploma}
+          value={getDiplomaAbbreviation(activeStudentSnapshot?.diploma || student.diploma)}
+          desc={activeStudentSnapshot?.diploma || student.diploma}
         />
         <MetricCard 
           icon={isAdmitted ? TrendingUp : TrendingDown} 
           label="Statut Décisionnel" 
           value={completedModules === moduleNames.length && moduleNames.length > 0 ? (isAdmitted ? 'Admis' : 'Non Admis') : 'En Cours'}
-          desc="Statut de l'année académique"
+          desc={`Statut de l'année (${activeStudentSnapshot?.academicYear || activeStudentSnapshot?.year || ''})`}
           color={completedModules === moduleNames.length && moduleNames.length > 0 ? (isAdmitted ? 'var(--success)' : 'var(--danger)') : 'var(--warning)'}
         />
       </div>
@@ -521,6 +604,8 @@ const StudentResults = () => {
           </div>
         </motion.div>
       )}
+
+      </section>
 
       {/* Footer System Watermark */}
       <div style={{ textAlign: 'center', marginTop: 'var(--space-10)', opacity: 0.35 }}>

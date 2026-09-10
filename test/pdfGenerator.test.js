@@ -26,6 +26,24 @@ test('normalizeBulletinModules does not add a duplicate Laravel row from legacy 
   );
 });
 
+test('normalizeBulletinModules does not add a duplicate Statistiques descriptive row from legacy grade keys', () => {
+  const modules = [{
+    name: 'Statistiques descriptives',
+    coefficient: 2,
+    order: 5,
+    year: '1ère année',
+  }];
+  const grades = {
+    'Statistiques descriptives': { c1: '18', c2: '10', efcft: '18', efcfp: '12' },
+    'Statistiques descriptive': { c1: '18', c2: '10' },
+  };
+
+  assert.deepEqual(
+    normalizeBulletinModules(modules, grades).map(module => module.name),
+    ['Statistiques descriptives']
+  );
+});
+
 test('generateBulletinGlobal renders the largest configured bulletin on one page', async () => {
   const originalFetch = globalThis.fetch;
   const originalFileReader = globalThis.FileReader;

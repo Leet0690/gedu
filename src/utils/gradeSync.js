@@ -76,6 +76,10 @@ const gradeAliasGroups = [
     target: 'Frameworks web : Laravel (back end)',
     aliases: ['Framework web : Laravel (back end)'],
   },
+  {
+    target: 'Statistiques descriptives',
+    aliases: ['Statistiques descriptive', 'Statistique descriptive'],
+  },
 ];
 
 const normalizeGradeName = (value = '') =>

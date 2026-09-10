@@ -1,3 +1,5 @@
+import { getStudyYearsForDiploma } from '../data/modules.js';
+
 export const STUDENT_STATUS = {
   ACTIVE: 'active',
   LAUREAT: 'laureat',
@@ -17,6 +19,22 @@ export const isActiveStudent = (student = {}) => !isLaureatStudent(student);
 
 export const getStudentStatusLabel = (student = {}) =>
   isLaureatStudent(student) ? 'LAUR\u00c9AT' : 'ACTIF';
+
+const normalizeStudyYear = (year) => {
+  const value = String(year || '');
+  if (value.includes('1')) return FIRST_YEAR;
+  if (value.includes('2')) return SECOND_YEAR;
+  return '';
+};
+
+const getStudentCurrentStudyYear = (student = {}) => {
+  const storedYear = normalizeStudyYear(student.year);
+  if (storedYear) return storedYear;
+  if (isLaureatStudent(student)) {
+    return getStudyYearsForDiploma(student.diploma).at(-1);
+  }
+  return FIRST_YEAR;
+};
 
 /** Validate academic year format: must be "YYYY-YYYY" with consecutive years */
 export const validateAcademicYear = (yearStr) => {
@@ -368,17 +386,18 @@ export const getStudentCurrentAcademicYear = (
   const currentYear = validateAcademicYear(operationalAcademicYear)
     ? operationalAcademicYear
     : INITIAL_OPERATIONAL_ACADEMIC_YEAR;
-  const history = Array.isArray(student.classHistory) ? student.classHistory : [];
+  const history = (Array.isArray(student.classHistory) ? student.classHistory : [])
+    .filter(entry => validateAcademicYear(entry?.academicYear));
   const hasExplicitTransition = history.length > 0 || validateAcademicYear(student.previousAcademicYear);
 
+  if (isLaureatStudent(student) && validateAcademicYear(student.graduationAcademicYear)) {
+    return student.graduationAcademicYear;
+  }
   if (validateAcademicYear(student.academicYear)) {
     if (isActiveStudent(student) && student.academicYear > currentYear && !hasExplicitTransition) {
       return currentYear;
     }
     return student.academicYear;
-  }
-  if (isLaureatStudent(student) && validateAcademicYear(student.graduationAcademicYear)) {
-    return student.graduationAcademicYear;
   }
   if (validateAcademicYear(student.previousAcademicYear)) {
     return getNextAcademicYear(student.previousAcademicYear);
@@ -392,25 +411,15 @@ export const getStudentCurrentAcademicYear = (
   }
 
   const latestHistory = [...history]
-    .filter(entry => validateAcademicYear(entry?.academicYear))
     .sort((a, b) => b.academicYear.localeCompare(a.academicYear))[0];
   if (latestHistory) {
-    const currentLevel = String(student.year || '').toLowerCase();
-    const historyLevel = String(latestHistory.year || '').toLowerCase();
-    if (currentLevel.includes('2') && historyLevel.includes('1')) {
+    const currentLevel = getStudentCurrentStudyYear(student);
+    const historyLevel = normalizeStudyYear(latestHistory.year);
+    if (currentLevel === SECOND_YEAR && historyLevel === FIRST_YEAR) {
       return getNextAcademicYear(latestHistory.academicYear);
     }
+    if (isActiveStudent(student) && latestHistory.academicYear < currentYear) return currentYear;
     return latestHistory.academicYear;
-  }
-
-  const range = getStudentStudyCycleRange(student, currentYear)
-    .split('-')
-    .map(part => Number(part.trim()));
-  if (range.length === 2 && range.every(Number.isFinite)) {
-    const start = range[0];
-    return String(student.year || '').includes('2')
-      ? `${start + 1}-${start + 2}`
-      : `${start}-${start + 1}`;
   }
 
   return currentYear;
@@ -427,10 +436,13 @@ export const getStudentAcademicSnapshot = (
 ) => {
   if (!student) return null;
   const currentAcademicYear = getStudentCurrentAcademicYear(student, operationalAcademicYear);
+  const currentStudyYear = getStudentCurrentStudyYear(student);
   if (!targetAcademicYear) {
     return {
       ...student,
+      year: currentStudyYear,
       academicYear: currentAcademicYear,
+      academicStatus: student.status || STUDENT_STATUS.ACTIVE,
       isHistoricalSnapshot: false,
     };
   }
@@ -443,9 +455,9 @@ export const getStudentAcademicSnapshot = (
       ...student,
       diploma: historyEntry.diploma || student.diploma || '',
       major: historyEntry.major || student.major || '',
-      year: historyEntry.year || student.year || '',
+      year: normalizeStudyYear(historyEntry.year) || currentStudyYear,
       academicYear: targetAcademicYear,
-      academicStatus: historyEntry.status || STUDENT_STATUS.ACTIVE,
+      academicStatus: (currentAcademicYear === targetAcademicYear ? student.status : historyEntry.status) || STUDENT_STATUS.ACTIVE,
       isHistoricalSnapshot: currentAcademicYear !== targetAcademicYear,
     };
   }
@@ -456,6 +468,7 @@ export const getStudentAcademicSnapshot = (
   ) {
     return {
       ...student,
+      year: currentStudyYear,
       academicYear: targetAcademicYear,
       academicStatus: student.status || STUDENT_STATUS.ACTIVE,
       isHistoricalSnapshot: false,
@@ -465,30 +478,38 @@ export const getStudentAcademicSnapshot = (
   if (student.previousAcademicYear === targetAcademicYear) {
     return {
       ...student,
-      year: student.promotedFromYear || FIRST_YEAR,
+      year: normalizeStudyYear(student.promotedFromYear) || FIRST_YEAR,
       academicYear: targetAcademicYear,
       academicStatus: STUDENT_STATUS.ACTIVE,
       isHistoricalSnapshot: true,
     };
   }
 
-  // Legacy records may not have academicYear/classHistory. Infer the two-year
-  // class from the matricule or study-cycle range without mutating the record.
-  // Only infer backwards: a future class must be created by an actual closure.
-  const targetStart = Number(targetAcademicYear.split('-')[0]);
-  const currentStart = Number(currentAcademicYear.split('-')[0]);
-  const range = getStudentStudyCycleRange(student, operationalAcademicYear)
-    .split('-')
-    .map(part => Number(part.trim()));
-  if (range.length === 2 && range.every(Number.isFinite)) {
-    const [cycleStart, cycleEnd] = range;
-    if (targetStart >= cycleStart && targetStart < cycleEnd && targetStart <= currentStart) {
+  // Infer only the missing first year before the earliest known second year.
+  // Explicit history takes precedence, including repeated years and gaps.
+  // A first-year student must never gain a fictitious second-year snapshot.
+  if (currentStudyYear === SECOND_YEAR && targetAcademicYear < currentAcademicYear) {
+    const history = (Array.isArray(student.classHistory) ? student.classHistory : [])
+      .filter(entry => validateAcademicYear(entry?.academicYear) && entry.academicYear < currentAcademicYear);
+    const hasFirstYearHistory = history.some(entry => normalizeStudyYear(entry.year) === FIRST_YEAR) ||
+      (validateAcademicYear(student.previousAcademicYear) && student.previousAcademicYear < currentAcademicYear &&
+        normalizeStudyYear(student.promotedFromYear) !== SECOND_YEAR);
+    const secondAcademicYears = [
+      currentAcademicYear,
+      ...history.filter(entry => normalizeStudyYear(entry.year) === SECOND_YEAR).map(entry => entry.academicYear),
+      ...(normalizeStudyYear(student.promotedFromYear) === SECOND_YEAR &&
+        validateAcademicYear(student.previousAcademicYear) && student.previousAcademicYear < currentAcademicYear
+        ? [student.previousAcademicYear] : []),
+    ].sort();
+    const secondStart = Number(secondAcademicYears[0].split('-')[0]);
+    const inferredFirstAcademicYear = `${secondStart - 1}-${secondStart}`;
+    if (!hasFirstYearHistory && targetAcademicYear === inferredFirstAcademicYear) {
       return {
         ...student,
-        year: targetStart === cycleStart ? FIRST_YEAR : SECOND_YEAR,
+        year: FIRST_YEAR,
         academicYear: targetAcademicYear,
         academicStatus: STUDENT_STATUS.ACTIVE,
-        isHistoricalSnapshot: currentAcademicYear !== targetAcademicYear,
+        isHistoricalSnapshot: true,
       };
     }
   }
@@ -531,4 +552,44 @@ export const filterSchedulesForAcademicYear = (
   return schedules.filter(
     (s) => getScheduleAcademicYear(s, defaultYear) === academicYear
   );
+};
+
+/**
+ * Return one selectable academic year per study level, backed by its snapshot.
+ * Repeated levels use the latest recorded attempt; one-year diplomas stay single-year.
+ */
+export const getStudentAvailableStudyYears = (
+  student = {},
+  operationalAcademicYear = INITIAL_OPERATIONAL_ACADEMIC_YEAR
+) => {
+  if (!student || typeof student !== 'object' || Object.keys(student).length === 0) return [];
+
+  const currentAcademicYear = getStudentCurrentAcademicYear(student, operationalAcademicYear);
+  const currentSnapshot = getStudentAcademicSnapshot(student, currentAcademicYear, operationalAcademicYear);
+  const currentLevel = normalizeStudyYear(currentSnapshot?.year);
+  const makeOption = (yearLevel, academicYear) => ({
+    key: yearLevel === FIRST_YEAR ? '1' : '2',
+    yearLevel,
+    academicYear,
+    label: yearLevel === FIRST_YEAR ? '1ère Année' : '2ème Année',
+    isCurrent: academicYear === currentAcademicYear,
+  });
+  if (currentLevel !== SECOND_YEAR) return [makeOption(FIRST_YEAR, currentAcademicYear)];
+
+  const history = Array.isArray(student.classHistory) ? student.classHistory : [];
+  const recordedYears = [currentAcademicYear, student.previousAcademicYear, ...history.map(entry => entry?.academicYear)]
+    .filter(validateAcademicYear);
+  const candidates = [...new Set(recordedYears.flatMap(academicYear => {
+    const start = Number(academicYear.split('-')[0]);
+    return [academicYear, `${start - 1}-${start}`];
+  }))].filter(academicYear => validateAcademicYear(academicYear) && academicYear < currentAcademicYear)
+    .sort((a, b) => b.localeCompare(a));
+  const firstAcademicYear = candidates.find(academicYear =>
+    normalizeStudyYear(getStudentAcademicSnapshot(student, academicYear, operationalAcademicYear)?.year) === FIRST_YEAR
+  );
+
+  return [
+    ...(firstAcademicYear ? [makeOption(FIRST_YEAR, firstAcademicYear)] : []),
+    makeOption(SECOND_YEAR, currentAcademicYear),
+  ];
 };

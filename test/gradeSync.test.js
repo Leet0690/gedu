@@ -160,6 +160,30 @@ test('getModuleOrder resolves the Laravel singular/plural alias against the offi
   );
 });
 
+test('getGradeByModuleName merges singular and plural Statistiques descriptives module keys', () => {
+  const grades = {
+    'Statistiques descriptive': { c1: '18', c2: '10' },
+    'Statistiques descriptives': { efcft: '18', efcfp: '12' },
+  };
+
+  assert.deepEqual(
+    getGradeByModuleName(grades, 'Statistiques descriptives'),
+    { c1: '18', c2: '10', efcft: '18', efcfp: '12' }
+  );
+});
+
+test('getModuleOrder resolves the Statistiques descriptives alias against official catalog order', () => {
+  assert.equal(
+    getModuleOrder({
+      name: 'Statistiques descriptives',
+      diploma: 'Technicien',
+      major: 'Gestion Informatisée',
+      year: '1ère année',
+    }),
+    5
+  );
+});
+
 test('sortModulesByOrder uses creation order when no explicit or catalog order exists', () => {
   const modules = [
     { name: 'Alpha', createdAt: { seconds: 20, nanoseconds: 0 } },

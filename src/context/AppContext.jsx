@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { 
   collection, 
   addDoc, 
@@ -34,6 +35,8 @@ import {
   STUDENT_STATUS,
   getAvailableAcademicYears,
   getPaymentAcademicYear,
+  getStudentAcademicSnapshot,
+  getStudentAvailableStudyYears,
   getStudentCurrentAcademicYear,
   INITIAL_OPERATIONAL_ACADEMIC_YEAR,
   isActiveStudent,
@@ -398,9 +401,13 @@ const buildAccessLogPayload = async ({ path = '', accessType = 'app' } = {}) => 
 };
 
 export const AppProvider = ({ children }) => {
+  const { pathname } = useLocation();
   const { showToast: originalShowToast } = useToast();
   const { adminUser, isAuthenticated, isAdmin, hasPermission, login, logout } = useAdminAuth();
   const isDirectorAuth = hasPermission('finance');
+  const portalPath = !isAuthenticated && !isDirectorAuth && /^\/(results|portal|teacher)\//.test(pathname)
+    ? pathname
+    : '';
   const authScope = JSON.stringify([adminUser?.uid, adminUser?.role, adminUser?.permissions]);
   const readAllowed = useCallback((name, ...constraints) => hasPermission(COLLECTION_MODULES[name])
     ? getDocs(query(collection(db, name), ...constraints))
@@ -639,9 +646,18 @@ export const AppProvider = ({ children }) => {
 
     const loadData = async () => {
       try {
-        const path = window.location.pathname;
+        const path = portalPath;
         const isTeacherPortal = path.startsWith('/portal/') || path.startsWith('/teacher/');
         const isStudentPortal = path.startsWith('/results/');
+
+        if (portalPath) {
+          setLoading(true);
+          setStudents([]);
+          setTeachers([]);
+          setGrades({});
+          setSchedules([]);
+          setModules([]);
+        }
 
         if (isAuthenticated || isDirectorAuth) {
           // 2. Core admin refresh only: no attendance or finance reads here.
@@ -696,8 +712,8 @@ export const AppProvider = ({ children }) => {
           }).catch(error => console.warn('Impossible de charger les formations continues:', error));
 
         } else if (isStudentPortal) {
-          // 2. Portail Stagiaire: Chargement EXCLUSIF des données de ce stagiaire
-          const token = path.split('/').pop();
+          // 2. Portail stagiaire : données personnelles et cohortes des années consultables.
+          const token = path.split('/').filter(Boolean).pop();
           const stuQuery = query(collection(db, 'students'), where('token', '==', token));
           const stuSnap = await getDocs(stuQuery);
           const studentDoc = stuSnap.docs[0];
@@ -705,34 +721,46 @@ export const AppProvider = ({ children }) => {
           if (studentDoc && isMounted) {
             const studentData = studentDoc.data();
             const currentStudent = { id: studentDoc.id, ...studentData };
-            let portalStudents = [currentStudent];
-            if (studentData.major) {
-              const classSnap = await getDocs(query(collection(db, 'students'), where('major', '==', studentData.major)));
-              portalStudents = classSnap.docs
-                .map(item => ({ id: item.id, ...item.data() }))
-                .filter(student =>
-                  student.diploma === studentData.diploma &&
-                  student.major === studentData.major &&
-                  student.year === studentData.year
-                );
-              if (!portalStudents.some(student => student.id === studentDoc.id)) portalStudents.unshift(currentStudent);
+            const portalAcademicYear = operationalAcademicYearRef.current;
+            const classSnapshots = getStudentAvailableStudyYears(currentStudent, portalAcademicYear)
+              .map(({ academicYear }) => getStudentAcademicSnapshot(currentStudent, academicYear, portalAcademicYear))
+              .filter(Boolean);
+            const majors = [...new Set([studentData.major, ...classSnapshots.map(snapshot => snapshot.major)])]
+              .filter(major => typeof major === 'string' && major.trim());
+            const candidates = new Map([[currentStudent.id, currentStudent]]);
+            // Query only relevant majors. A peer who transferred outside all of
+            // them requires a historical-major index to be discoverable here.
+            for (let i = 0; i < majors.length; i += 10) {
+              const classSnap = await getDocs(query(collection(db, 'students'), where('major', 'in', majors.slice(i, i + 10))));
+              if (!isMounted) return;
+              classSnap.docs.forEach(item => candidates.set(item.id, { id: item.id, ...item.data() }));
             }
+            const portalStudents = [...candidates.values()].filter(student =>
+              student.id === currentStudent.id || classSnapshots.some(classSnapshot => {
+                const snapshot = getStudentAcademicSnapshot(student, classSnapshot.academicYear, portalAcademicYear);
+                return snapshot && snapshot.diploma === classSnapshot.diploma &&
+                  snapshot.major === classSnapshot.major && snapshot.year === classSnapshot.year;
+              })
+            );
+            if (!isMounted) return;
             setStudents(portalStudents);
 
             const gradesData = {};
             const studentIds = portalStudents.map(student => student.id).filter(Boolean);
             for (let i = 0; i < studentIds.length; i += 10) {
               const gradeSnap = await getDocs(query(collection(db, 'grades'), where('__name__', 'in', studentIds.slice(i, i + 10))));
+              if (!isMounted) return;
               gradeSnap.docs.forEach(item => { gradesData[item.id] = item.data(); });
             }
             setGrades(gradesData);
 
             const modSnap = await getDocs(query(collection(db, 'modules'), orderBy('name', 'asc')));
+            if (!isMounted) return;
             setModules(modSnap.docs.map(d => ({ id: d.id, ...d.data() })));
           }
         } else if (isTeacherPortal) {
           // 3. Portail Formateur: Chargement ciblé pour le formateur
-          const token = path.split('/').pop();
+          const token = path.split('/').filter(Boolean).pop();
           const [tSnap1, tSnap2] = await Promise.all([
             getDocs(query(collection(db, 'teachers'), where('tokenGrades', '==', token))),
             getDocs(query(collection(db, 'teachers'), where('tokenAttendance', '==', token)))
@@ -746,6 +774,7 @@ export const AppProvider = ({ children }) => {
             
             // Schedules: only this teacher's sessions
             const schSnap = await getDocs(query(collection(db, 'schedules'), where('teacherId', '==', teacherDoc.id)));
+            if (!isMounted) return;
             setSchedules(schSnap.docs.map(d => ({ id: d.id, ...d.data() })));
 
             // Students: only from the teacher's assigned groups
@@ -755,6 +784,7 @@ export const AppProvider = ({ children }) => {
               for (let i = 0; i < groups.length; i += 10) {
                 const batch = groups.slice(i, i + 10);
                 const stuSnap = await getDocs(query(collection(db, 'students'), where('major', 'in', batch)));
+                if (!isMounted) return;
                 allStudents = allStudents.concat(stuSnap.docs.map(d => ({ id: d.id, ...d.data() })));
               }
             }
@@ -767,12 +797,14 @@ export const AppProvider = ({ children }) => {
               for (let i = 0; i < studentIds.length; i += 10) {
                 const batch = studentIds.slice(i, i + 10);
                 const graSnap = await getDocs(query(collection(db, 'grades'), where('__name__', 'in', batch)));
+                if (!isMounted) return;
                 graSnap.docs.forEach(d => { gradesData[d.id] = d.data(); });
               }
             }
             setGrades(gradesData);
 
             const modSnap = await getDocs(query(collection(db, 'modules'), orderBy('name', 'asc')));
+            if (!isMounted) return;
             setModules(modSnap.docs.map(d => ({ id: d.id, ...d.data() })));
           }
         } else {
@@ -792,7 +824,7 @@ export const AppProvider = ({ children }) => {
     loadData();
 
     return () => { isMounted = false; };
-  }, [isAuthenticated, isDirectorAuth, authScope, readAllowed, originalShowToast]);
+  }, [isAuthenticated, isDirectorAuth, authScope, readAllowed, originalShowToast, portalPath]);
 
   useEffect(() => {
     if (!isAuthenticated && !isDirectorAuth) {
@@ -1035,7 +1067,8 @@ export const AppProvider = ({ children }) => {
         operationId,
       };
       const classHistory = [...(Array.isArray(student.classHistory) ? student.classHistory : []), historyEntry];
-      const newToken = makeToken(32);
+      // The same personal link must keep working across promotion and graduation.
+      const newToken = student.token || makeToken(32);
 
       const nextStudyYear = getNextStudyYear(student.diploma, student.year);
       if (!nextStudyYear) {
