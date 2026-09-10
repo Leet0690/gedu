@@ -4,7 +4,7 @@
 
 export const MAINTENANCE_CONFIG = {
   // Activer ou désactiver le mode maintenance
-  enabled: true,
+  enabled: false,
 
   // Durée totale de la maintenance en millisecondes (5 heures)
   durationMs: 5 * 60 * 60 * 1000,

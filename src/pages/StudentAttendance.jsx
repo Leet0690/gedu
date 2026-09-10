@@ -152,14 +152,18 @@ const StudentAttendance = () => {
         .map(sc => getActiveScheduleModule(sc))
         .filter(Boolean);
       if (scheduledModules.length > 0) return Array.from(new Set(scheduledModules));
-      const configuredModules = (allModules || [])
+      const currentYear = activeAcademicYear || operationalAcademicYear || '2025-2026';
+      const yearModules = (allModules || []).filter(m => !m.academicYear || m.academicYear === currentYear);
+      const candidates = yearModules.length > 0 ? yearModules : (allModules || []);
+      const configuredModules = Array.from(new Set(candidates
         .filter(m => m.diploma === filterDiploma && m.major === filterMajor && m.year === filterYear && [activeSemester, 'Annuel'].includes(m.semester || 'S1'))
-        .map(m => m.name);
+        .map(m => m.name)
+        .filter(Boolean)));
       if (configuredModules.length > 0) return configuredModules;
-      if (filterDiploma) return getModulesForFiliere(filterDiploma, filterMajor, filterYear);
+      if (filterDiploma) return Array.from(new Set(getModulesForFiliere(filterDiploma, filterMajor, filterYear)));
     }
     return [];
-  }, [filterDiploma, filterMajor, filterYear, schedules, dayOfWeek, getActiveScheduleModule, allModules, activeSemester]);
+  }, [filterDiploma, filterMajor, filterYear, schedules, dayOfWeek, getActiveScheduleModule, allModules, activeSemester, activeAcademicYear, operationalAcademicYear]);
 
   const matchingSessions = useMemo(() => {
     if (!filterModule || !filterMajor || !filterYear) return [];

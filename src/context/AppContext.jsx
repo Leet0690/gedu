@@ -618,8 +618,11 @@ export const AppProvider = ({ children }) => {
   }, [showToast, isAdmin, originalShowToast]);
 
   const getActiveScheduleModule = useCallback((session = {}) => {
-    return getScheduleModuleForSemester(session, activeSemester, modules);
-  }, [activeSemester, modules]);
+    const currentYear = session?.academicYear || activeAcademicYear || operationalAcademicYear || '2025-2026';
+    const yearModules = (modules || []).filter(m => !m.academicYear || m.academicYear === currentYear);
+    const catalog = yearModules.length > 0 ? yearModules : modules;
+    return getScheduleModuleForSemester(session, activeSemester, catalog);
+  }, [activeSemester, modules, activeAcademicYear, operationalAcademicYear]);
 
   const setActiveAcademicYear = useCallback((year) => {
     if (!validateAcademicYear(year)) return;
@@ -1892,8 +1895,11 @@ export const AppProvider = ({ children }) => {
 
   const updateModule = async (id, data) => {
     requireEdit('modules');
-    await updateDoc(doc(db, 'modules', id), data);
-    setModules(prev => prev.map(m => m.id === id ? { ...m, ...data } : m));
+    const existing = modules.find(m => m.id === id);
+    const originalName = existing?.originalName || existing?.name || data.name;
+    const finalData = { ...data, originalName };
+    await updateDoc(doc(db, 'modules', id), finalData);
+    setModules(prev => prev.map(m => m.id === id ? { ...m, ...finalData } : m));
     showToast(`Module mis à jour.`, 'success');
   };
 

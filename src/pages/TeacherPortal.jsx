@@ -100,7 +100,7 @@ const getRecordTimestamp = (record) => {
 const TeacherPortal = () => {
   const { teacherId } = useParams();
   const navigate = useNavigate();
-  const { teachers, students, updateGrades, batchUpdateGrades, grades, loading, studentAttendance, updateStudentAttendance, schedules, updateTeacherAttendance, loadAttendanceForSession, teacherAttendance, loadTeacherAttendanceForDate, confirmAction, modules: allModules = [], activeSemester, getActiveScheduleModule, operationalAcademicYear } = useApp();
+  const { teachers, students, updateGrades, batchUpdateGrades, grades, loading, studentAttendance, updateStudentAttendance, schedules, updateTeacherAttendance, loadAttendanceForSession, teacherAttendance, loadTeacherAttendanceForDate, confirmAction, modules: allModules = [], activeSemester, getActiveScheduleModule, activeAcademicYear, operationalAcademicYear } = useApp();
   const { showToast } = useToast();
   
   const teacher = useMemo(() => {
@@ -303,6 +303,12 @@ const TeacherPortal = () => {
     return currentSession ? getSessionModule(currentSession) : selectedSubject;
   }, [currentSession, getSessionModule, selectedSubject]);
 
+  const scopedModules = useMemo(() => {
+    const currentYear = activeAcademicYear || operationalAcademicYear || '2025-2026';
+    const yearScoped = (allModules || []).filter(m => !m.academicYear || m.academicYear === currentYear);
+    return yearScoped.length > 0 ? yearScoped : (allModules || []);
+  }, [allModules, activeAcademicYear, operationalAcademicYear]);
+
   React.useEffect(() => {
     if (accessMode === 'attendance') setActiveTab('attendance');
     else if (accessMode === 'grades') setActiveTab('grades');
@@ -314,7 +320,7 @@ const TeacherPortal = () => {
       setSelectedGroup(currentSession.filiere);
       setSelectedSubject(sessionModule);
       setFilterYear(currentSession.annee);
-      const matchingModule = (allModules || []).find(m =>
+      const matchingModule = scopedModules.find(m =>
         m.major === currentSession.filiere &&
         m.year === currentSession.annee &&
         m.name === sessionModule
@@ -330,7 +336,7 @@ const TeacherPortal = () => {
         }
       }
     }
-  }, [currentSession, allModules, getSessionModule]);
+  }, [currentSession, scopedModules, getSessionModule]);
 
   React.useEffect(() => {
     if (activeTab === 'attendance' && currentAttendanceModule && selectedDate) {
@@ -341,35 +347,35 @@ const TeacherPortal = () => {
   const availableDiplomas = useMemo(() => {
     if (!teacher) return [];
     const teacherSubjects = teacher.subjects || [teacher.subject] || [];
-    return Array.from(new Set((allModules || [])
+    return Array.from(new Set(scopedModules
       .filter(m =>
         teacherSubjects.includes(m.name) &&
         isModuleVisibleForScope(m.semester, activeSemester, includeAllSemestersForGrades)
       )
       .map(m => m.diploma)
       .filter(Boolean)));
-  }, [teacher, allModules, activeSemester, includeAllSemestersForGrades]);
+  }, [teacher, scopedModules, activeSemester, includeAllSemestersForGrades]);
 
   const availableYears = useMemo(() => {
     if (!teacher || !selectedDiploma) return [];
     const teacherYears = teacher.years || ALL_STUDY_YEARS;
     const teacherSubjects = teacher.subjects || [teacher.subject] || [];
     return teacherYears.filter(y =>
-      (allModules || []).some(m =>
+      scopedModules.some(m =>
         m.diploma === selectedDiploma &&
         m.year === y &&
         isModuleVisibleForScope(m.semester, activeSemester, includeAllSemestersForGrades) &&
         teacherSubjects.includes(m.name)
       )
     );
-  }, [teacher, selectedDiploma, allModules, activeSemester, includeAllSemestersForGrades]);
+  }, [teacher, selectedDiploma, scopedModules, activeSemester, includeAllSemestersForGrades]);
 
   const filteredGroups = useMemo(() => {
     if (!teacher || !selectedDiploma || !filterYear) return [];
     const teacherGroups = teacher.groups || [];
     const teacherSubjects = teacher.subjects || [teacher.subject] || [];
     return teacherGroups.filter(g =>
-      (allModules || []).some(m =>
+      scopedModules.some(m =>
         m.diploma === selectedDiploma &&
         m.major === g &&
         m.year === filterYear &&
@@ -377,12 +383,12 @@ const TeacherPortal = () => {
         teacherSubjects.includes(m.name)
       )
     );
-  }, [teacher, selectedDiploma, filterYear, allModules, activeSemester, includeAllSemestersForGrades]);
+  }, [teacher, selectedDiploma, filterYear, scopedModules, activeSemester, includeAllSemestersForGrades]);
 
   const filteredSubjects = useMemo(() => {
     if (!teacher || !selectedDiploma || !selectedGroup || !filterYear) return [];
     const teacherSubjects = teacher.subjects || [teacher.subject] || [];
-    return Array.from(new Set((allModules || [])
+    return Array.from(new Set(scopedModules
       .filter(m =>
         m.diploma === selectedDiploma &&
         m.major === selectedGroup &&
@@ -391,7 +397,7 @@ const TeacherPortal = () => {
         teacherSubjects.includes(m.name)
       )
       .map(m => m.name)));
-  }, [teacher, selectedDiploma, selectedGroup, filterYear, allModules, activeSemester, includeAllSemestersForGrades]);
+  }, [teacher, selectedDiploma, selectedGroup, filterYear, scopedModules, activeSemester, includeAllSemestersForGrades]);
 
   React.useEffect(() => {
     if (availableDiplomas.length > 0 && (!selectedDiploma || !availableDiplomas.includes(selectedDiploma))) setSelectedDiploma(availableDiplomas[0]);

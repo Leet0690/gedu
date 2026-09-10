@@ -8702,6 +8702,21 @@ body:has(.app-modal-overlay) .app-modal-overlay {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.90);
 }
 
+.schedule-premium-dialog .finance-radix-select-trigger {
+  width: 100% !important;
+  min-width: 0 !important;
+  display: flex !important;
+}
+
+.schedule-premium-dialog .finance-radix-select-trigger > span:first-child {
+  flex: 1 1 auto;
+  text-align: left;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .reports-excel-export-btn {
   display: inline-flex;
   align-items: center;

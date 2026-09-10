@@ -757,17 +757,20 @@ const Reports = () => {
       if (!groups.has(key)) groups.set(key, { diploma, major, year });
     };
 
+    const yearScopedModules = (allModules || []).filter(m => !m.academicYear || m.academicYear === selectedAcademicYear);
+    const candidateModules = yearScopedModules.length > 0 ? yearScopedModules : (allModules || []);
+
     reportStudents.forEach(addGroup);
-    allModules.forEach(addGroup);
+    candidateModules.forEach(addGroup);
 
     return Array.from(groups.values())
       .map(group => ({
         ...group,
         studentsCount: reportStudents.filter(s => s.diploma === group.diploma && s.major === group.major && s.year === group.year).length,
-        modulesCount: filterModulesByAcademicYear(
-          allModules.filter(m => m.diploma === group.diploma && m.major === group.major && m.year === group.year),
+        modulesCount: dedupeModulesByName(filterModulesByAcademicYear(
+          candidateModules.filter(m => m.diploma === group.diploma && m.major === group.major && m.year === group.year),
           selectedAcademicYear
-        ).length,
+        )).length,
       }))
       .sort((a, b) => `${a.diploma} ${a.major} ${a.year}`.localeCompare(`${b.diploma} ${b.major} ${b.year}`));
   }, [reportStudents, allModules, selectedAcademicYear]);

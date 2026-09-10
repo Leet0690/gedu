@@ -97,6 +97,7 @@ const getHourColors = (hour) => {
 const getGroupAbbreviation = (diploma, filiere, annee) => getClassCode(diploma, filiere, annee);
 
 const labelStyle = {
+  display: 'block',
   fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)',
   textTransform: 'uppercase', letterSpacing: '0.08em'
 };
@@ -128,16 +129,32 @@ const ScheduleManagement = () => {
 
   const groupLabel = useMemo(() => getGroupAbbreviation(diploma, filiere, annee), [diploma, filiere, annee]);
   const modulesBySemester = useMemo(() => {
-    const configured = allModules.filter(m => m.diploma === diploma && m.major === filiere && m.year === annee);
+    const configured = allModules.filter(m =>
+      m.diploma === diploma &&
+      m.major === filiere &&
+      m.year === annee &&
+      (!m.academicYear || m.academicYear === currentAcademicYear)
+    );
     if (configured.length === 0) {
-      const defaultModules = getModulesForFiliere(diploma, filiere, annee);
+      const anyYearConfigured = allModules.filter(m =>
+        m.diploma === diploma &&
+        m.major === filiere &&
+        m.year === annee
+      );
+      if (anyYearConfigured.length > 0) {
+        return {
+          S1: Array.from(new Set(anyYearConfigured.filter(m => ['S1', 'Annuel'].includes(m.semester || 'S1')).map(m => m.name).filter(Boolean))),
+          S2: Array.from(new Set(anyYearConfigured.filter(m => ['S2', 'Annuel'].includes(m.semester || 'S1')).map(m => m.name).filter(Boolean)))
+        };
+      }
+      const defaultModules = Array.from(new Set(getModulesForFiliere(diploma, filiere, annee)));
       return { S1: defaultModules, S2: defaultModules };
     }
     return {
-      S1: configured.filter(m => ['S1', 'Annuel'].includes(m.semester || 'S1')).map(m => m.name),
-      S2: configured.filter(m => ['S2', 'Annuel'].includes(m.semester || 'S1')).map(m => m.name)
+      S1: Array.from(new Set(configured.filter(m => ['S1', 'Annuel'].includes(m.semester || 'S1')).map(m => m.name).filter(Boolean))),
+      S2: Array.from(new Set(configured.filter(m => ['S2', 'Annuel'].includes(m.semester || 'S1')).map(m => m.name).filter(Boolean)))
     };
-  }, [diploma, filiere, annee, allModules]);
+  }, [diploma, filiere, annee, allModules, currentAcademicYear]);
 
   const yearSchedules = useMemo(
     () => filterSchedulesForAcademicYear(schedules, currentAcademicYear, INITIAL_OPERATIONAL_ACADEMIC_YEAR),
@@ -661,13 +678,22 @@ const ScheduleManagement = () => {
                         
                         return (
                           <FilterSelect
+                            style={{ width: '100%', minWidth: 0 }}
                             value={formData.teacherId}
                             onChange={val => {
                               const teacher = teachers.find(t => t.id === val);
-                              const teacherSubjects = (teacher?.subjects || [teacher?.subject]).filter(Boolean);
-                              const nextModuleS1 = teacherSubjects.find(subject => modulesBySemester.S1.includes(subject)) || '';
-                              const nextModuleS2 = teacherSubjects.find(subject => modulesBySemester.S2.includes(subject)) || '';
-                              setFormData({ ...formData, teacherId: val, module: nextModuleS1, moduleS1: nextModuleS1, moduleS2: nextModuleS2 });
+                              const teacherSubjects = Array.from(new Set((teacher?.subjects || [teacher?.subject]).filter(Boolean)));
+                              const availableS1 = Array.from(new Set((modulesBySemester.S1 || []).filter(m => teacherSubjects.includes(m))));
+                              const availableS2 = Array.from(new Set((modulesBySemester.S2 || []).filter(m => teacherSubjects.includes(m))));
+                              const nextModuleS1 = availableS1.length === 1 ? availableS1[0] : '';
+                              const nextModuleS2 = (availableS2.length === 1 && availableS2[0] !== nextModuleS1) ? availableS2[0] : '';
+                              setFormData(prev => ({
+                                ...prev,
+                                teacherId: val,
+                                module: nextModuleS1 || nextModuleS2 || '',
+                                moduleS1: nextModuleS1,
+                                moduleS2: nextModuleS2
+                              }));
                             }}
                             options={filtered.length > 0 ? options : [{ label: "Aucun formateur", value: "" }]}
                           />
@@ -675,7 +701,7 @@ const ScheduleManagement = () => {
                       })()}
                     </div>
                   </div>
-                  <div>
+                  <div style={{ minWidth: 0 }}>
                     <label style={labelStyle}>Salle (optionnel)</label>
                     <input
                       type="text" className="input-premium"
@@ -687,21 +713,22 @@ const ScheduleManagement = () => {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px', alignItems: 'start' }}>
+                  <div style={{ minWidth: 0, width: '100%' }}>
                     <label style={labelStyle}>Module S1</label>
-                    <div style={{ marginTop: '4px' }}>
+                    <div style={{ marginTop: '4px', width: '100%' }}>
                       {(() => {
                         const teacher = teachers.find(t => t.id === formData.teacherId);
-                        if (!teacher) return <FilterSelect value="" onChange={()=>{}} options={[{label: "Choisir formateur", value: ""}]} disabled />;
-                        const teacherModules = teacher.subjects || (teacher.subject ? [teacher.subject] : []);
-                        const filtered = (modulesBySemester.S1 || []).filter(m => teacherModules.includes(m));
-                        if (filtered.length === 0) return <FilterSelect value="" onChange={()=>{}} options={[{label: "Aucun module", value: ""}]} disabled />;
+                        if (!teacher) return <FilterSelect value="" onChange={() => {}} options={[{ label: "Choisir formateur", value: "" }]} disabled style={{ width: '100%', minWidth: 0 }} />;
+                        const teacherModules = Array.from(new Set((teacher.subjects || (teacher.subject ? [teacher.subject] : [])).filter(Boolean)));
+                        const filtered = Array.from(new Set((modulesBySemester.S1 || []).filter(m => teacherModules.includes(m))));
+                        if (filtered.length === 0) return <FilterSelect value="" onChange={() => {}} options={[{ label: "Aucun module", value: "" }]} disabled style={{ width: '100%', minWidth: 0 }} />;
                         
                         return (
                           <FilterSelect
+                            style={{ width: '100%', minWidth: 0 }}
                             value={formData.moduleS1}
-                            onChange={val => setFormData({ ...formData, module: val, moduleS1: val })}
+                            onChange={val => setFormData({ ...formData, module: val || formData.moduleS2, moduleS1: val })}
                             options={[
                               { label: "Choisir...", value: "" },
                               ...filtered.map(m => ({ label: m, value: m }))
@@ -711,22 +738,23 @@ const ScheduleManagement = () => {
                       })()}
                     </div>
                   </div>
-                  <div>
+                  <div style={{ minWidth: 0, width: '100%' }}>
                     <label style={labelStyle}>Module S2</label>
-                    <div style={{ marginTop: '4px' }}>
+                    <div style={{ marginTop: '4px', width: '100%' }}>
                       {(() => {
                         const teacher = teachers.find(t => t.id === formData.teacherId);
-                        if (!teacher) return <FilterSelect value="" onChange={()=>{}} options={[{label: "Choisir formateur", value: ""}]} disabled />;
-                        const teacherModules = teacher.subjects || (teacher.subject ? [teacher.subject] : []);
-                        const filtered = (modulesBySemester.S2 || []).filter(m => teacherModules.includes(m));
-                        if (filtered.length === 0) return <FilterSelect value="" onChange={()=>{}} options={[{label: "Aucun module", value: ""}]} disabled />;
+                        if (!teacher) return <FilterSelect value="" onChange={() => {}} options={[{ label: "Choisir formateur", value: "" }]} disabled style={{ width: '100%', minWidth: 0 }} />;
+                        const teacherModules = Array.from(new Set((teacher.subjects || (teacher.subject ? [teacher.subject] : [])).filter(Boolean)));
+                        const filtered = Array.from(new Set((modulesBySemester.S2 || []).filter(m => teacherModules.includes(m))));
+                        if (filtered.length === 0) return <FilterSelect value="" onChange={() => {}} options={[{ label: "Aucun module", value: "" }]} disabled style={{ width: '100%', minWidth: 0 }} />;
                         
                         return (
                           <FilterSelect
+                            style={{ width: '100%', minWidth: 0 }}
                             value={formData.moduleS2}
-                            onChange={val => setFormData({ ...formData, moduleS2: val })}
+                            onChange={val => setFormData({ ...formData, module: formData.moduleS1 || val, moduleS2: val })}
                             options={[
-                              { label: "Aucun module", value: "" },
+                              { label: "Choisir...", value: "" },
                               ...filtered.map(m => ({ label: m, value: m }))
                             ]}
                           />

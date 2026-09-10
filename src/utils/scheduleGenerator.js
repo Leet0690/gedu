@@ -118,8 +118,19 @@ export function buildSessionPool(
 
     // Récupérer les modules pour ce groupe et ce semestre
     let modules = [];
-    if (typeof getModulesForFiliere === 'function') {
-      modules = getModulesForFiliere(diploma, filiere, annee) || [];
+    if (Array.isArray(moduleCatalog) && moduleCatalog.length > 0) {
+      const catalogMods = Array.from(new Set(
+        moduleCatalog
+          .filter(m => m.diploma === diploma && m.major === filiere && m.year === annee && (!semester || !m.semester || m.semester === semester || m.semester === 'Annuel'))
+          .map(m => m.name)
+          .filter(Boolean)
+      ));
+      if (catalogMods.length > 0) {
+        modules = catalogMods;
+      }
+    }
+    if (modules.length === 0 && typeof getModulesForFiliere === 'function') {
+      modules = Array.from(new Set(getModulesForFiliere(diploma, filiere, annee) || []));
     }
 
     for (const moduleName of modules) {

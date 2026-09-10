@@ -519,9 +519,13 @@ const PendingTasksWidget = ({ students, teachers, grades, teacherAttendance, all
 
     Object.values(groupMap).forEach(({ diploma, major, year, students: gs }) => {
       const label = getGroupAbbreviation(major, year);
-      const configuredModules = (allModules || [])
+      const currentYear = operationalAcademicYear || '2025-2026';
+      const yearScoped = (allModules || []).filter(m => !m.academicYear || m.academicYear === currentYear);
+      const candidates = yearScoped.length > 0 ? yearScoped : (allModules || []);
+      const configuredModules = Array.from(new Set(candidates
         .filter(m => m.diploma === diploma && m.major === major && m.year === year && [activeSemester, 'Annuel'].includes(m.semester || 'S1'))
-        .map(m => m.name);
+        .map(m => m.name)
+        .filter(Boolean)));
       const mods = configuredModules.length > 0 ? configuredModules : getModulesForFiliere(diploma, major, year);
       if (mods.length === 0) return;
       let entered = 0;
@@ -644,9 +648,13 @@ const GradesBreakdownWidget = ({ students, grades, allModules, activeSemester, o
       if (!map[key]) map[key] = { diploma: s.diploma, major: s.major, year: s.year, count: 0, total: 0, entered: 0 };
       const g = map[key];
       g.count++;
-      const configuredModules = (allModules || [])
+      const currentYear = operationalAcademicYear || '2025-2026';
+      const yearScoped = (allModules || []).filter(m => !m.academicYear || m.academicYear === currentYear);
+      const candidates = yearScoped.length > 0 ? yearScoped : (allModules || []);
+      const configuredModules = Array.from(new Set(candidates
         .filter(m => m.diploma === s.diploma && m.major === s.major && m.year === s.year && [activeSemester, 'Annuel'].includes(m.semester || 'S1'))
-        .map(m => m.name);
+        .map(m => m.name)
+        .filter(Boolean)));
       const mods = configuredModules.length > 0 ? configuredModules : getModulesForStudent(s);
       g.total += mods.length;
       const studentGrades = getGradesForAcademicYear(
@@ -1272,9 +1280,10 @@ const AdminDashboard = () => {
     return FILIERES[diplomaFilter] || [];
   }, [diplomaFilter]);
   const getStudentActiveModules = useCallback((student) => {
-    const configuredModules = getStudentGradeModules(allModules || [], student);
+    const studentYear = getStudentCurrentAcademicYear(student, operationalAcademicYear);
+    const configuredModules = getStudentGradeModules(allModules || [], student, studentYear);
     return configuredModules.length > 0 ? configuredModules : getModulesForStudent(student);
-  }, [allModules]);
+  }, [allModules, operationalAcademicYear]);
 
   // Edit helper functions
   const toggleDiplomaEdit = (dip) => {
@@ -1994,11 +2003,14 @@ const AdminDashboard = () => {
                               <div key={year}>
                                 <p style={{ fontSize: '10px', fontWeight: '800', color: 'var(--primary)', marginBottom: '4px' }}>{year}</p>
                                 {(editFormData.groups || []).map(filiere => {
-                                  const modules = Array.from(new Set(allModules.filter(m => 
+                                  const currentYear = activeAcademicYear || operationalAcademicYear || '2025-2026';
+                                  const yearModules = (allModules || []).filter(m => !m.academicYear || m.academicYear === currentYear);
+                                  const sourceModules = yearModules.length > 0 ? yearModules : (allModules || []);
+                                  const modules = Array.from(new Set(sourceModules.filter(m => 
                                     (editFormData.diplomas || []).includes(m.diploma) && 
                                     m.major === filiere && 
                                     m.year === year
-                                  ).map(m => m.name)));
+                                  ).map(m => m.name).filter(Boolean)));
                                   const filtered = editModuleSearch ? modules.filter(m => m.toLowerCase().includes(editModuleSearch.toLowerCase())) : modules;
                                   if (filtered.length === 0) return null;
                                   return (
@@ -2226,11 +2238,14 @@ const AdminDashboard = () => {
                           <div key={year}>
                             <p style={{ fontSize: '10px', fontWeight: '800', color: 'var(--primary)', marginBottom: '4px' }}>{year}</p>
                             {(addTeacherForm.groups || []).map(filiere => {
-                              const modules = Array.from(new Set(allModules.filter(m => 
+                              const currentYear = activeAcademicYear || operationalAcademicYear || '2025-2026';
+                              const yearModules = (allModules || []).filter(m => !m.academicYear || m.academicYear === currentYear);
+                              const sourceModules = yearModules.length > 0 ? yearModules : (allModules || []);
+                              const modules = Array.from(new Set(sourceModules.filter(m => 
                                 (addTeacherForm.diplomas || []).includes(m.diploma) && 
                                 m.major === filiere && 
                                 m.year === year
-                              ).map(m => m.name)));
+                              ).map(m => m.name).filter(Boolean)));
                               const filtered = addTeacherModuleSearch ? modules.filter(m => m.toLowerCase().includes(addTeacherModuleSearch.toLowerCase())) : modules;
                               if (filtered.length === 0) return null;
                               return (

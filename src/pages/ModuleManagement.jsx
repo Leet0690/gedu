@@ -287,38 +287,35 @@ const ModuleManagement = () => {
     setSelectedIds([]);
   };
 
-  const handleReconduire = async () => {
+  const handleAutoCopyLastYear = async () => {
     if (!canEdit || !copyModulesToAcademicYear) return;
-    const fromYear = filterAcademicYear === '2025-2026' ? '2026-2027' : '2025-2026';
-    if (filterAcademicYear === '2025-2026') {
-      showToast("L'année 2025-2026 est l'année de référence historique.", 'info');
+    const allYearsWithModules = [...new Set(modules.map(m => m.academicYear || '2025-2026'))].sort((a, b) => b.localeCompare(a));
+    const latestYear = allYearsWithModules.find(y => y < filterAcademicYear) || allYearsWithModules[0];
+
+    if (!latestYear || latestYear === filterAcademicYear) {
+      showToast("Aucune année source précédente disponible pour la copie.", 'info');
       return;
     }
-    const confirmed = await confirmAction({
-      title: 'Reconduire les modules ?',
-      message: `Voulez-vous reconduire automatiquement tous les modules de l'année ${fromYear} vers l'année ${filterAcademicYear} ?\nLes modifications ultérieures dans ${filterAcademicYear} n'impacteront pas l'année ${fromYear}.`,
-      type: 'primary'
-    });
-    if (!confirmed) return;
 
     try {
       setIsReconduiring(true);
-      const count = await copyModulesToAcademicYear({
-        fromAcademicYear: fromYear,
+      const countInfo = await copyModulesToAcademicYear({
+        fromAcademicYear: latestYear,
         toAcademicYear: filterAcademicYear
       });
-      if (count > 0) {
-        showToast(`${count} module(s) reconduit(s) avec succès pour ${filterAcademicYear}.`, 'success');
+      if (countInfo?.count > 0) {
+        showToast(`${countInfo.count} module(s) importé(s) automatiquement depuis l'année ${latestYear}.`, 'success');
       } else {
-        showToast(`Tous les modules de ${fromYear} sont déjà configurés pour ${filterAcademicYear}.`, 'info');
+        showToast(`L'année ${filterAcademicYear} contient déjà des modules.`, 'info');
       }
     } catch (err) {
       console.error(err);
-      showToast(err.message || 'Erreur lors de la reconduction des modules.', 'error');
+      showToast('Erreur lors de la copie automatique des modules.', 'error');
     } finally {
       setIsReconduiring(false);
     }
   };
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -547,16 +544,6 @@ const ModuleManagement = () => {
           <p>Configurez les matières et leurs coefficients pour chaque filière.</p>
         </div>
         <div className="module-premium-header-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            disabled={!canEdit || isReconduiring}
-            onClick={handleReconduire}
-            className="btn-modern secondary"
-            title={`Reconduire les modules vers ${filterAcademicYear}`}
-          >
-            <RotateCw size={16} style={{ marginRight: 'var(--space-2)' }} className={isReconduiring ? 'spin' : ''} />
-            {isReconduiring ? 'Reconduction…' : `Reconduire vers ${filterAcademicYear}`}
-          </button>
           <button disabled={!canEdit} onClick={() => { resetForm(); setIsModalOpen(true); }} className="btn-modern primary">
             <Plus size={16} style={{ marginRight: 'var(--space-2)' }} /> Ajouter Module
           </button>
@@ -667,12 +654,12 @@ const ModuleManagement = () => {
                       {canEdit && filterAcademicYear !== '2025-2026' && (
                         <button
                           type="button"
-                          onClick={handleReconduire}
+                          onClick={handleAutoCopyLastYear}
                           className="btn-modern secondary"
                           style={{ marginTop: '16px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
                         >
                           <RotateCw size={15} />
-                          Reconduire depuis 2025-2026
+                          Générer depuis l'année précédente
                         </button>
                       )}
                     </div>
@@ -994,6 +981,8 @@ const ModuleManagement = () => {
           </div>
         )}
       </AnimatePresence>
+
+
     </div>
   );
 };

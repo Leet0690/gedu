@@ -8,8 +8,8 @@ import {
   getRemainingTime 
 } from '../src/config/maintenance.js';
 
-test('maintenance mode is active with a 5-hour planned window', () => {
-  assert.equal(isMaintenanceActive(), true, 'Maintenance must be active');
+test('maintenance mode is inactive', () => {
+  assert.equal(isMaintenanceActive(), false, 'Maintenance must be disabled');
   assert.equal(MAINTENANCE_CONFIG.durationMs, 5 * 60 * 60 * 1000, 'Duration should be exactly 5 hours');
   
   const start = new Date(MAINTENANCE_CONFIG.startTime).getTime();

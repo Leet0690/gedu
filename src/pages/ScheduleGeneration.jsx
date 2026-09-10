@@ -68,6 +68,11 @@ const ScheduleGeneration = () => {
   const [previewFilter, setPreviewFilter] = useState('all');
   const [publishMode, setPublishMode] = useState('replace');
 
+  const scopedModuleCatalog = useMemo(() => {
+    const scoped = (moduleCatalog || []).filter(m => !m.academicYear || m.academicYear === targetAcademicYear);
+    return scoped.length > 0 ? scoped : (moduleCatalog || []);
+  }, [moduleCatalog, targetAcademicYear]);
+
   // ── Compute all possible groups ──
   const allGroups = useMemo(() => {
     const groups = [];
@@ -75,11 +80,11 @@ const ScheduleGeneration = () => {
       const years = getStudyYearsForDiploma(diploma);
       for (const filiere of filieres) {
         for (const annee of years) {
-          const mods = getModulesForFiliere(diploma, filiere, annee);
-          // Aussi checker les modules configurés dans moduleCatalog
-          const configuredMods = moduleCatalog.filter(
+          const mods = Array.from(new Set(getModulesForFiliere(diploma, filiere, annee) || []));
+          // Aussi checker les modules configurés dans scopedModuleCatalog
+          const configuredMods = Array.from(new Set(scopedModuleCatalog.filter(
             m => m.diploma === diploma && m.major === filiere && m.year === annee
-          );
+          ).map(m => m.name).filter(Boolean)));
           if (mods.length > 0 || configuredMods.length > 0) {
             groups.push({
               diploma,
@@ -93,7 +98,7 @@ const ScheduleGeneration = () => {
       }
     }
     return groups;
-  }, [moduleCatalog]);
+  }, [scopedModuleCatalog]);
 
   const groupsByDiploma = useMemo(() => {
     const map = {};
@@ -150,12 +155,12 @@ const ScheduleGeneration = () => {
       showToast('Veuillez sélectionner au moins un groupe.', 'warning');
       return;
     }
-    const pool = buildSessionPool(selectedGroups, semester, teachers, moduleCatalog, getModulesForFiliere, config.slotMinutes);
+    const pool = buildSessionPool(selectedGroups, semester, teachers, scopedModuleCatalog, getModulesForFiliere, config.slotMinutes);
     setSessionPool(pool);
     const merged = detectMergeGroups(pool);
     setMergedPool(merged);
     setCurrentStep(1);
-  }, [selectedGroups, semester, teachers, moduleCatalog, getModulesForFiliere, config.slotMinutes, showToast]);
+  }, [selectedGroups, semester, teachers, scopedModuleCatalog, getModulesForFiliere, config.slotMinutes, showToast]);
 
   const updateSessionDuration = useCallback((index, newDuration) => {
     setMergedPool(prev => {

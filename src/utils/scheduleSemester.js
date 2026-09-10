@@ -22,8 +22,14 @@ export const getScheduleModuleForSemester = (session = {}, semester = 'S1', modu
   const legacyModule = session.module || '';
   if (!legacyModule) return '';
 
+  const sessionAcademicYear = session.academicYear || '';
+  const catalogForYear = sessionAcademicYear
+    ? (moduleCatalog || []).filter(module => !module?.academicYear || module.academicYear === sessionAcademicYear)
+    : (moduleCatalog || []);
+  const scopedCatalog = catalogForYear.length > 0 ? catalogForYear : (moduleCatalog || []);
+
   const normalizedLegacyModule = normalizeLookupValue(legacyModule);
-  const configuredModules = (moduleCatalog || []).filter(module =>
+  const configuredModules = scopedCatalog.filter(module =>
     normalizeLookupValue(module?.name) === normalizedLegacyModule &&
     (!session.filiere || normalizeLookupValue(module?.major) === normalizeLookupValue(session.filiere)) &&
     (!session.annee || normalizeLookupValue(module?.year) === normalizeLookupValue(session.annee)) &&
@@ -32,7 +38,7 @@ export const getScheduleModuleForSemester = (session = {}, semester = 'S1', modu
 
   let moduleSemester = getUniqueCatalogSemester(configuredModules);
   if (!moduleSemester) {
-    const sameNameModules = (moduleCatalog || []).filter(module =>
+    const sameNameModules = scopedCatalog.filter(module =>
       normalizeLookupValue(module?.name) === normalizedLegacyModule
     );
     moduleSemester = getUniqueCatalogSemester(sameNameModules);

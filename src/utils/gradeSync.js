@@ -105,19 +105,31 @@ const addGradeKeyVariant = (keys, value) => {
   keys.add(sanitizeGradeKey(raw));
 };
 
-export const getGradeKeyCandidates = (moduleName = '') => {
+export const getGradeKeyCandidates = (moduleOrName) => {
   const keys = new Set();
-  addGradeKeyVariant(keys, moduleName);
+  
+  const extractKeys = (nameValue) => {
+    const raw = String(nameValue || '').trim();
+    if (!raw) return;
+    addGradeKeyVariant(keys, raw);
 
-  const normalizedModuleName = normalizeGradeName(moduleName);
-  const aliasGroup = gradeAliasGroups.find(group =>
-    normalizeGradeName(group.target) === normalizedModuleName ||
-    group.aliases.some(alias => normalizeGradeName(alias) === normalizedModuleName)
-  );
+    const normalizedModuleName = normalizeGradeName(raw);
+    const aliasGroup = gradeAliasGroups.find(group =>
+      normalizeGradeName(group.target) === normalizedModuleName ||
+      group.aliases.some(alias => normalizeGradeName(alias) === normalizedModuleName)
+    );
 
-  if (aliasGroup) {
-    addGradeKeyVariant(keys, aliasGroup.target);
-    aliasGroup.aliases.forEach(alias => addGradeKeyVariant(keys, alias));
+    if (aliasGroup) {
+      addGradeKeyVariant(keys, aliasGroup.target);
+      aliasGroup.aliases.forEach(alias => addGradeKeyVariant(keys, alias));
+    }
+  };
+
+  const name = typeof moduleOrName === 'string' ? moduleOrName : getModuleName(moduleOrName);
+  extractKeys(name);
+
+  if (typeof moduleOrName === 'object' && moduleOrName !== null && moduleOrName.originalName) {
+    extractKeys(moduleOrName.originalName);
   }
 
   return Array.from(keys);
@@ -222,12 +234,14 @@ export const dedupeModulesByName = (modules = []) => {
   });
 };
 
-export const filterModulesByAcademicYear = (modules = [], targetAcademicYear = '', { allowFallback = true } = {}) => {
+export const filterModulesByAcademicYear = (modules = [], targetAcademicYear = '', { allowFallback = false } = {}) => {
   if (!targetAcademicYear) {
     const untagged = (modules || []).filter(m => !m?.academicYear);
     return untagged.length > 0 ? untagged : (modules || []);
   }
-  const yearMatches = (modules || []).filter(m => m?.academicYear === targetAcademicYear);
+  const yearMatches = (modules || []).filter(m => 
+    m?.academicYear === targetAcademicYear || (!m?.academicYear && targetAcademicYear === '2025-2026')
+  );
   if (yearMatches.length > 0) return yearMatches;
 
   if (!allowFallback) return [];
@@ -236,7 +250,7 @@ export const filterModulesByAcademicYear = (modules = [], targetAcademicYear = '
   return fallback.length > 0 ? fallback : (modules || []);
 };
 
-export const getStudentGradeModules = (allModules = [], student, academicYear = '') => {
+export const getStudentGradeModules = (allModules = [], student, academicYear = '', { allowFallback = true } = {}) => {
   if (!student) return [];
 
   const targetAcademicYear = academicYear || student.academicYear || '';
@@ -246,6 +260,6 @@ export const getStudentGradeModules = (allModules = [], student, academicYear = 
     module?.year === student.year
   );
 
-  const filtered = filterModulesByAcademicYear(classModules, targetAcademicYear);
+  const filtered = filterModulesByAcademicYear(classModules, targetAcademicYear, { allowFallback });
   return dedupeModulesByName(sortModulesByOrder(filtered));
 };
