@@ -7,6 +7,8 @@ import PWAUpdatePrompt from './components/PWAUpdatePrompt';
 import ProtectedRoute from './components/ProtectedRoute';
 import { School, Link as LinkIcon } from 'lucide-react';
 import { loadRoute } from './routeLoaders';
+import MaintenancePage from './pages/MaintenancePage';
+import { isMaintenanceActive, isMaintenanceBypassed } from './config/maintenance';
 
 const Login                    = lazy(() => loadRoute('login'));
 const AdminDashboard           = lazy(() => loadRoute('adminDashboard'));
@@ -73,11 +75,19 @@ const AppContent = () => {
   const isPublicRoute = location.pathname.startsWith('/portal/') || location.pathname.startsWith('/results/') || location.pathname.startsWith('/teacher/');
   const isAuthed = adminAuthIsAuthenticated;
 
+  const isBypassed = isMaintenanceBypassed(location.search);
+  const isMaintenance = isMaintenanceActive() && !isBypassed;
+
   React.useEffect(() => {
+    if (isMaintenance) return;
     if (loading || !logAppAccess) return;
     const accessType = isPublicRoute ? 'portail' : (isAuthed ? 'admin' : 'public');
     logAppAccess({ path: location.pathname, accessType });
-  }, [isAuthed, isPublicRoute, loading, location.pathname, logAppAccess]);
+  }, [isAuthed, isPublicRoute, loading, location.pathname, logAppAccess, isMaintenance]);
+
+  if (isMaintenance) {
+    return <MaintenancePage />;
+  }
 
   if (isPortailDomain) {
     if (loading) return <PageLoader />;

@@ -28,7 +28,7 @@ import {
   isCompanyInternshipGradeMissing,
   STAGE_RESERVATION_NOTE,
 } from '../utils/bulletinUtils';
-import { dedupeModulesByName, getGradeByModuleName, getGradesForAcademicYear, sortModulesByOrder } from '../utils/gradeSync';
+import { dedupeModulesByName, filterModulesByAcademicYear, getGradeByModuleName, getGradesForAcademicYear, sortModulesByOrder } from '../utils/gradeSync';
 
 const labelStyle = {
   fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)',
@@ -584,14 +584,16 @@ const Reports = () => {
       ? new Set(getGroupStudents(group).map(student => student.year).filter(Boolean))
       : new Set([group.year]);
 
-    return dedupeModulesByName(
-      sortModulesByOrder(allModules.filter(module =>
-        module.diploma === group.diploma &&
-        module.major === group.major &&
-        studyYears.has(module.year)
-      ))
+    const classModules = allModules.filter(module =>
+      module.diploma === group.diploma &&
+      module.major === group.major &&
+      studyYears.has(module.year)
     );
-  }, [allModules, getGroupStudents]);
+
+    const yearScoped = filterModulesByAcademicYear(classModules, selectedAcademicYear);
+
+    return dedupeModulesByName(sortModulesByOrder(yearScoped));
+  }, [allModules, getGroupStudents, selectedAcademicYear]);
 
   const selectedGroup = useMemo(() => ({
     diploma: selectedDiploma,
@@ -762,10 +764,13 @@ const Reports = () => {
       .map(group => ({
         ...group,
         studentsCount: reportStudents.filter(s => s.diploma === group.diploma && s.major === group.major && s.year === group.year).length,
-        modulesCount: allModules.filter(m => m.diploma === group.diploma && m.major === group.major && m.year === group.year).length,
+        modulesCount: filterModulesByAcademicYear(
+          allModules.filter(m => m.diploma === group.diploma && m.major === group.major && m.year === group.year),
+          selectedAcademicYear
+        ).length,
       }))
       .sort((a, b) => `${a.diploma} ${a.major} ${a.year}`.localeCompare(`${b.diploma} ${b.major} ${b.year}`));
-  }, [reportStudents, allModules]);
+  }, [reportStudents, allModules, selectedAcademicYear]);
 
   const getReportModuleDetails = useCallback((studentId, moduleName) => {
     const g = getGradeByModuleName(getStudentGrades(studentId), moduleName);

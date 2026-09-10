@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  filterModulesByAcademicYear,
   getGradeByModuleName,
   getGradeBucketForWrite,
   getGradesForAcademicYear,
@@ -195,3 +196,66 @@ test('sortModulesByOrder uses creation order when no explicit or catalog order e
     ['Zulu', 'Alpha']
   );
 });
+
+test('filterModulesByAcademicYear filters by academicYear and falls back to default when empty', () => {
+  const modules = [
+    { id: '1', name: 'Comptabilité', academicYear: '2025-2026', coefficient: 2 },
+    { id: '2', name: 'Algorithmique', academicYear: '2025-2026', coefficient: 3 },
+    { id: '3', name: 'Algorithmique Avancée', academicYear: '2026-2027', coefficient: 4 },
+  ];
+
+  const y2526 = filterModulesByAcademicYear(modules, '2025-2026');
+  assert.equal(y2526.length, 2);
+  assert.deepEqual(y2526.map(m => m.name), ['Comptabilité', 'Algorithmique']);
+
+  const y2627 = filterModulesByAcademicYear(modules, '2026-2027');
+  assert.equal(y2627.length, 1);
+  assert.equal(y2627[0].name, 'Algorithmique Avancée');
+  assert.equal(y2627[0].coefficient, 4);
+
+  // When a year has no modules and fallback is allowed, falls back to 2025-2026
+  const yUnknown = filterModulesByAcademicYear(modules, '2027-2028', { allowFallback: true });
+  assert.equal(yUnknown.length, 2);
+
+  // When fallback is disabled, returns empty array
+  const yStrict = filterModulesByAcademicYear(modules, '2027-2028', { allowFallback: false });
+  assert.equal(yStrict.length, 0);
+});
+
+test('modifying or deleting a module in 2026-2027 does not affect 2025-2026', () => {
+  const student = {
+    diploma: 'Technicien Spécialisé',
+    major: 'Développement Informatique',
+    year: '1ère année',
+  };
+
+  // Modules configured separately for 2025-2026 and 2026-2027
+  const initialModules = [
+    // 2025-2026
+    { id: 'm1', name: 'Algorithmique', coefficient: 2, order: 1, academicYear: '2025-2026', ...student },
+    { id: 'm2', name: 'Statistiques descriptives', coefficient: 1, order: 2, academicYear: '2025-2026', ...student },
+    { id: 'm3', name: 'Bases de données', coefficient: 2, order: 3, academicYear: '2025-2026', ...student },
+    // 2026-2027 (user modifies coefficient of Algorithmique to 4, renames Databases, and deletes Statistiques)
+    { id: 'm4', name: 'Algorithmique', coefficient: 4, order: 1, academicYear: '2026-2027', ...student },
+    { id: 'm5', name: 'Bases de données SQL & NoSQL', coefficient: 3, order: 2, academicYear: '2026-2027', ...student },
+  ];
+
+  // Grade modules for 2025-2026 should remain completely unchanged
+  const modules2025 = getStudentGradeModules(initialModules, student, '2025-2026');
+  assert.equal(modules2025.length, 3);
+  assert.equal(modules2025[0].name, 'Algorithmique');
+  assert.equal(modules2025[0].coefficient, 2);
+  assert.equal(modules2025[1].name, 'Statistiques descriptives');
+  assert.equal(modules2025[1].coefficient, 1);
+  assert.equal(modules2025[2].name, 'Bases de données');
+  assert.equal(modules2025[2].coefficient, 2);
+
+  // Grade modules for 2026-2027 should reflect the 2026-2027 updates
+  const modules2026 = getStudentGradeModules(initialModules, student, '2026-2027');
+  assert.equal(modules2026.length, 2);
+  assert.equal(modules2026[0].name, 'Algorithmique');
+  assert.equal(modules2026[0].coefficient, 4);
+  assert.equal(modules2026[1].name, 'Bases de données SQL & NoSQL');
+  assert.equal(modules2026[1].coefficient, 3);
+});
+

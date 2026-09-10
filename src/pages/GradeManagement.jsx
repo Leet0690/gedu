@@ -7,6 +7,7 @@ import { useToast } from '../context/ToastContext';
 import { FILIERES, getClassCode, getNextStudyYear, getStudyYearsForDiploma } from '../data/modules';
 import {
   dedupeModulesByName,
+  filterModulesByAcademicYear,
   getGradeByModuleName,
   getGradesForAcademicYear,
   getStudentGradeModules,
@@ -185,8 +186,8 @@ const GradeManagement = () => {
     && getStudyYearsForDiploma(selectedStudent.diploma).length > 1
     && !getNextStudyYear(selectedStudent.diploma, selectedStudent.year);
   const studentModules = useMemo(() => {
-    return getStudentGradeModules(allModules, selectedStudent);
-  }, [selectedStudent, allModules]);
+    return getStudentGradeModules(allModules, selectedStudent, filterAcademicYear);
+  }, [selectedStudent, allModules, filterAcademicYear]);
   
   const modules = studentModules.map(m => m.name);
   
@@ -204,12 +205,15 @@ const GradeManagement = () => {
       ? new Set(filteredStudents.map(student => student.year).filter(Boolean))
       : new Set([filterYear]);
 
-    return dedupeModulesByName(sortModulesByOrder(allModules.filter(module =>
+    const classModules = allModules.filter(module =>
       module.diploma === filterDiploma &&
       module.major === filterMajor &&
       studyYears.has(module.year)
-    )));
-  }, [filterDiploma, filterMajor, filterYear, filteredStudents, allModules]);
+    );
+
+    const yearScoped = filterModulesByAcademicYear(classModules, filterAcademicYear);
+    return dedupeModulesByName(sortModulesByOrder(yearScoped));
+  }, [filterDiploma, filterMajor, filterYear, filteredStudents, allModules, filterAcademicYear]);
   
   const pdfModules = pdfModulesList.map(m => m.name);
 

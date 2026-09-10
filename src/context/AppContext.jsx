@@ -1840,10 +1840,54 @@ export const AppProvider = ({ children }) => {
   // --- MODULES ---
   const addModule = async (moduleData) => {
     requireEdit('modules');
-    const newModule = { ...moduleData, createdAt: serverTimestamp() };
+    const targetAcademicYear = moduleData.academicYear || operationalAcademicYearRef.current || '2025-2026';
+    const newModule = { ...moduleData, academicYear: targetAcademicYear, createdAt: serverTimestamp() };
     const docRef = await addDoc(collection(db, 'modules'), newModule);
     setModules(prev => [{ id: docRef.id, ...newModule }, ...prev]);
     showToast(`Nouveau module ajouté : ${moduleData.name}.`, 'success');
+  };
+
+  const copyModulesToAcademicYear = async ({ fromAcademicYear, toAcademicYear }) => {
+    requireEdit('modules');
+    if (!fromAcademicYear || !toAcademicYear || fromAcademicYear === toAcademicYear) return { count: 0 };
+
+    const sourceModules = modules.filter(m =>
+      m.academicYear === fromAcademicYear ||
+      (!m.academicYear && fromAcademicYear === '2025-2026')
+    );
+    if (sourceModules.length === 0) {
+      showToast(`Aucun module source trouvé pour ${fromAcademicYear}.`, 'info');
+      return { count: 0 };
+    }
+
+    const existingTargetModules = modules.filter(m => m.academicYear === toAcademicYear);
+    if (existingTargetModules.length > 0) {
+      showToast(`L'année ${toAcademicYear} contient déjà des modules.`, 'warning');
+      return { count: 0 };
+    }
+
+    const batch = writeBatch(db);
+    const newItems = [];
+    sourceModules.forEach(m => {
+      const docRef = doc(collection(db, 'modules'));
+      const newMod = {
+        name: m.name,
+        coefficient: m.coefficient || 1,
+        order: m.order || 1,
+        diploma: m.diploma,
+        major: m.major,
+        year: m.year,
+        semester: m.semester || 'S1',
+        academicYear: toAcademicYear,
+        createdAt: serverTimestamp()
+      };
+      batch.set(docRef, newMod);
+      newItems.push({ id: docRef.id, ...newMod });
+    });
+    await batch.commit();
+    setModules(prev => [...newItems, ...prev]);
+    showToast(`${newItems.length} modules reconduits vers ${toAcademicYear}.`, 'success');
+    return { count: newItems.length };
   };
 
   const updateModule = async (id, data) => {
@@ -2000,7 +2044,7 @@ export const AppProvider = ({ children }) => {
       loadAttendanceForSession, loadStudentAttendanceForMonth, loadTeacherAttendanceForDate, loadTeacherAttendanceForMonth,
       schedules, addSchedule, updateSchedule, deleteSchedule, clearAllSchedules, migrateTeacherTokens,
       payments, salaries, expenses, loadFinancialData, addPayment, updatePayment, deletePayment, addSalary, updateSalary, deleteSalary, addExpense, deleteExpense,
-      modules, addModule, updateModule, deleteModule, reorderModules,
+      modules, addModule, updateModule, deleteModule, reorderModules, copyModulesToAcademicYear,
       continuousTrainings, addContinuousTraining, updateContinuousTraining, deleteContinuousTraining,
       continuousTrainingTypes, addContinuousTrainingType, renameContinuousTrainingType, deleteContinuousTrainingType,
       ctStudents, addCtStudent, updateCtStudent, deleteCtStudent,

@@ -5,7 +5,7 @@ import { FilterSelect } from '../components/ui/FilterSelect';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { ALL_STUDY_YEARS, MODULES_DATA, getClassCode, getDiplomaAbbreviation, getStudyYearsForDiploma } from '../data/modules';
-import { getModuleOrder, sortModulesByOrder } from '../utils/gradeSync';
+import { getModuleOrder, sortModulesByOrder, DEFAULT_ACADEMIC_YEAR } from '../utils/gradeSync';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
@@ -86,9 +86,10 @@ const ActionBtn = ({ disabled, icon: Icon, title, onClick, color = 'var(--text-m
 const buildModuleGroups = (sourceModules = []) => {
   const groups = {};
   sourceModules.forEach(m => {
-    const key = `${m.name}_${m.coefficient}_${getFormSemester(m)}_${getModuleOrder(m) ?? ''}`;
+    const academicYearKey = m.academicYear || DEFAULT_ACADEMIC_YEAR;
+    const key = `${academicYearKey}_${m.name}_${m.coefficient}_${getFormSemester(m)}_${getModuleOrder(m) ?? ''}`;
     if (!groups[key]) {
-      groups[key] = { ...m, allClasses: [], allDiplomas: [], ids: [] };
+      groups[key] = { ...m, academicYear: academicYearKey, allClasses: [], allDiplomas: [], ids: [] };
     }
     const classCode = getClassCode(m.diploma, m.major, m.year);
     if (!groups[key].allClasses.includes(classCode)) groups[key].allClasses.push(classCode);
@@ -126,11 +127,29 @@ const saveModuleFilters = (filters) => {
 const ModuleManagement = () => {
   const { hasPermission } = useAdminAuth();
   const canEdit = hasPermission('modules', 'edit');
-  const { modules, addModule, updateModule, deleteModule, reorderModules, loading, confirmAction } = useApp();
+  const {
+    modules,
+    addModule,
+    updateModule,
+    deleteModule,
+    reorderModules,
+    copyModulesToAcademicYear,
+    loading,
+    confirmAction,
+    activeAcademicYear,
+    operationalAcademicYear,
+    availableAcademicYearsList = []
+  } = useApp();
   const { showToast } = useToast();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+
+  const [filterAcademicYear, setFilterAcademicYear] = useState(() => {
+    const saved = getStoredModuleFilters().academicYear;
+    return saved || operationalAcademicYear || activeAcademicYear || DEFAULT_ACADEMIC_YEAR;
+  });
+  const [isReconduiring, setIsReconduiring] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -139,7 +158,8 @@ const ModuleManagement = () => {
     diploma: 'Technicien Spécialisé',
     major: 'Développement Informatique',
     year: '1ère année',
-    semester: 'S1'
+    semester: 'S1',
+    academicYear: DEFAULT_ACADEMIC_YEAR
   });
 
   const [filterDiploma, setFilterDiploma] = useState(() => getStoredModuleFilters().diploma || '');
@@ -171,13 +191,33 @@ const ModuleManagement = () => {
   const hideYearChoice = isHigherEducationDiploma(formData.diploma);
 
   useEffect(() => {
+    if (!filterAcademicYear && (operationalAcademicYear || activeAcademicYear)) {
+      setFilterAcademicYear(operationalAcademicYear || activeAcademicYear);
+    }
+  }, [operationalAcademicYear, activeAcademicYear, filterAcademicYear]);
+
+  const academicYearOptions = useMemo(() => {
+    const list = availableAcademicYearsList?.length
+      ? [...availableAcademicYearsList]
+      : [DEFAULT_ACADEMIC_YEAR, '2026-2027'];
+    if (filterAcademicYear && !list.includes(filterAcademicYear)) {
+      list.push(filterAcademicYear);
+    }
+    if (!list.includes(DEFAULT_ACADEMIC_YEAR)) {
+      list.unshift(DEFAULT_ACADEMIC_YEAR);
+    }
+    return Array.from(new Set(list)).map(year => ({ label: year, value: year }));
+  }, [availableAcademicYearsList, filterAcademicYear]);
+
+  useEffect(() => {
     saveModuleFilters({
+      academicYear: filterAcademicYear,
       diploma: filterDiploma,
       major: filterMajor,
       year: filterYear,
       semester: filterSemester
     });
-  }, [filterDiploma, filterMajor, filterYear, filterSemester]);
+  }, [filterAcademicYear, filterDiploma, filterMajor, filterYear, filterSemester]);
 
   // All available groups across all diplomas for the copy modal
   const allGroups = useMemo(() => {
@@ -196,6 +236,8 @@ const ModuleManagement = () => {
 
   const groupedModules = useMemo(() => {
     const f = modules.filter(m => {
+      const modYear = m.academicYear || DEFAULT_ACADEMIC_YEAR;
+      if (filterAcademicYear && modYear !== filterAcademicYear) return false;
       if (filterDiploma && m.diploma !== filterDiploma) return false;
       if (filterMajor && m.major !== filterMajor) return false;
       if (filterYear && m.year !== filterYear) return false;
@@ -204,8 +246,7 @@ const ModuleManagement = () => {
       return true;
     });
     return buildModuleGroups(f);
-  }, [modules, filterDiploma, filterMajor, filterYear, filterSemester]);
-
+  }, [modules, filterAcademicYear, filterDiploma, filterMajor, filterYear, filterSemester]);
 
   const displayModules = dragPreviewModules || groupedModules;
 
@@ -215,9 +256,10 @@ const ModuleManagement = () => {
   );
   const totalPages = Math.ceil(displayModules.length / itemsPerPage);
 
-  const getNextModuleOrder = (diploma, major, year) => {
+  const getNextModuleOrder = (diploma, major, year, semester, targetYear = filterAcademicYear) => {
     const maxOrder = (modules || [])
       .filter(m =>
+        (m.academicYear || DEFAULT_ACADEMIC_YEAR) === (targetYear || DEFAULT_ACADEMIC_YEAR) &&
         m.diploma === diploma &&
         m.major === major &&
         m.year === year
@@ -234,14 +276,48 @@ const ModuleManagement = () => {
     setFormData({
       name: '',
       coefficient: '1',
-      order: getNextModuleOrder(defaultDiploma, defaultMajor, defaultYear, defaultSemester),
+      order: getNextModuleOrder(defaultDiploma, defaultMajor, defaultYear, defaultSemester, filterAcademicYear),
       diploma: defaultDiploma,
       major: defaultMajor,
       semester: defaultSemester,
-      year: defaultYear
+      year: defaultYear,
+      academicYear: filterAcademicYear || DEFAULT_ACADEMIC_YEAR
     });
     setIsEditing(false);
     setSelectedIds([]);
+  };
+
+  const handleReconduire = async () => {
+    if (!canEdit || !copyModulesToAcademicYear) return;
+    const fromYear = filterAcademicYear === '2025-2026' ? '2026-2027' : '2025-2026';
+    if (filterAcademicYear === '2025-2026') {
+      showToast("L'année 2025-2026 est l'année de référence historique.", 'info');
+      return;
+    }
+    const confirmed = await confirmAction({
+      title: 'Reconduire les modules ?',
+      message: `Voulez-vous reconduire automatiquement tous les modules de l'année ${fromYear} vers l'année ${filterAcademicYear} ?\nLes modifications ultérieures dans ${filterAcademicYear} n'impacteront pas l'année ${fromYear}.`,
+      type: 'primary'
+    });
+    if (!confirmed) return;
+
+    try {
+      setIsReconduiring(true);
+      const count = await copyModulesToAcademicYear({
+        fromAcademicYear: fromYear,
+        toAcademicYear: filterAcademicYear
+      });
+      if (count > 0) {
+        showToast(`${count} module(s) reconduit(s) avec succès pour ${filterAcademicYear}.`, 'success');
+      } else {
+        showToast(`Tous les modules de ${fromYear} sont déjà configurés pour ${filterAcademicYear}.`, 'info');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast(err.message || 'Erreur lors de la reconduction des modules.', 'error');
+    } finally {
+      setIsReconduiring(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -249,12 +325,20 @@ const ModuleManagement = () => {
     if (!formData.name || !formData.coefficient) return;
     try {
       const trimmedName = formData.name.trim();
+      const targetYear = formData.academicYear || filterAcademicYear || DEFAULT_ACADEMIC_YEAR;
       const normalizedBaseData = normalizeModuleFormData({
         ...formData,
         name: trimmedName,
-        coefficient: parseFloat(formData.coefficient)
+        coefficient: parseFloat(formData.coefficient),
+        academicYear: targetYear
       });
-      const fallbackOrder = Number(getNextModuleOrder(normalizedBaseData.diploma, normalizedBaseData.major, normalizedBaseData.year));
+      const fallbackOrder = Number(getNextModuleOrder(
+        normalizedBaseData.diploma,
+        normalizedBaseData.major,
+        normalizedBaseData.year,
+        normalizedBaseData.semester,
+        targetYear
+      ));
       const parsedOrder = isEditing ? Number(formData.order) || fallbackOrder : fallbackOrder;
       const normalizedFormData = { ...normalizedBaseData, order: parsedOrder };
       if (isEditing) {
@@ -272,14 +356,16 @@ const ModuleManagement = () => {
   };
 
   const handleEdit = (m) => {
+    const targetYear = m.academicYear || filterAcademicYear || DEFAULT_ACADEMIC_YEAR;
     setFormData({
       name: m.name,
       coefficient: m.coefficient.toString(),
-      order: String(getModuleOrder(m) ?? getNextModuleOrder(m.diploma, m.major, m.year)),
+      order: String(getModuleOrder(m) ?? getNextModuleOrder(m.diploma, m.major, m.year, getFormSemester(m), targetYear)),
       diploma: m.diploma,
       major: m.major,
       year: m.year,
-      semester: getFormSemester(m)
+      semester: getFormSemester(m),
+      academicYear: targetYear
     });
     setSelectedIds(m.ids || [m.id]);
     setIsEditing(true);
@@ -287,9 +373,10 @@ const ModuleManagement = () => {
   };
 
   const handleDelete = async (group) => {
+    const yearLabel = filterAcademicYear || group.academicYear || DEFAULT_ACADEMIC_YEAR;
     if (await confirmAction({
       title: 'Supprimer le module ?',
-      message: `Voulez-vous supprimer "${group.name}" pour toutes les classes associées ? Cette action est irréversible.`,
+      message: `Voulez-vous supprimer "${group.name}" pour l'année académique ${yearLabel} ? Cette action est irréversible et ne modifiera pas les autres années académiques.`,
       type: 'danger'
     })) {
       for (const id of group.ids) await deleteModule(id);
@@ -349,6 +436,7 @@ const ModuleManagement = () => {
     }
 
     saveModuleFilters({
+      academicYear: filterAcademicYear,
       diploma: filterDiploma,
       major: filterMajor,
       year: filterYear,
@@ -357,6 +445,7 @@ const ModuleManagement = () => {
 
     const visibleIds = new Set(finalVisibleModules.map(module => module.id));
     const fullClassGroups = buildModuleGroups((modules || []).filter(module =>
+      (module.academicYear || DEFAULT_ACADEMIC_YEAR) === (filterAcademicYear || DEFAULT_ACADEMIC_YEAR) &&
       module.diploma === filterDiploma &&
       module.major === filterMajor &&
       module.year === filterYear
@@ -407,21 +496,28 @@ const ModuleManagement = () => {
     setIsCopying(true);
     let copied = 0;
     let skipped = 0;
+    const targetYear = copySource.academicYear || filterAcademicYear || DEFAULT_ACADEMIC_YEAR;
     try {
       for (const key of copyTargets) {
         const [diploma, major, year] = key.split('||');
         const exists = modules.some(m =>
-          m.name === copySource.name && m.diploma === diploma && m.major === major && m.year === year && (m.semester || 'S1') === (copySource.semester || 'S1')
+          (m.academicYear || DEFAULT_ACADEMIC_YEAR) === targetYear &&
+          m.name === copySource.name &&
+          m.diploma === diploma &&
+          m.major === major &&
+          m.year === year &&
+          (m.semester || 'S1') === (copySource.semester || 'S1')
         );
         if (exists) { skipped++; continue; }
         await addModule({
           name: copySource.name,
           coefficient: copySource.coefficient,
-          order: getModuleOrder(copySource) || Number(getNextModuleOrder(diploma, major, year, copySource.semester || 'S1')),
+          order: getModuleOrder(copySource) || Number(getNextModuleOrder(diploma, major, year, copySource.semester || 'S1', targetYear)),
           diploma,
           major,
           year,
-          semester: copySource.semester || 'S1'
+          semester: copySource.semester || 'S1',
+          academicYear: targetYear
         });
         copied++;
       }
@@ -450,7 +546,17 @@ const ModuleManagement = () => {
           <h1>Gestion des Modules</h1>
           <p>Configurez les matières et leurs coefficients pour chaque filière.</p>
         </div>
-        <div className="module-premium-header-actions">
+        <div className="module-premium-header-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            disabled={!canEdit || isReconduiring}
+            onClick={handleReconduire}
+            className="btn-modern secondary"
+            title={`Reconduire les modules vers ${filterAcademicYear}`}
+          >
+            <RotateCw size={16} style={{ marginRight: 'var(--space-2)' }} className={isReconduiring ? 'spin' : ''} />
+            {isReconduiring ? 'Reconduction…' : `Reconduire vers ${filterAcademicYear}`}
+          </button>
           <button disabled={!canEdit} onClick={() => { resetForm(); setIsModalOpen(true); }} className="btn-modern primary">
             <Plus size={16} style={{ marginRight: 'var(--space-2)' }} /> Ajouter Module
           </button>
@@ -466,55 +572,64 @@ const ModuleManagement = () => {
           <span className="module-premium-section-icon"><SlidersHorizontal size={15} /></span>
           <div>
             <h2>Filtres d'affichage</h2>
-            <p>Sélectionnez une classe, puis filtrez par semestre si besoin.</p>
+            <p>Sélectionnez l'année académique et une classe pour afficher ses modules.</p>
           </div>
         </div>
-        <div className="module-premium-filter-grid app-filter-grid app-filter-grid--4">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={labelStyle}>Niveau</label>
-          <FilterSelect
-            value={filterDiploma}
-            onChange={val => { setFilterDiploma(val); setFilterMajor(''); setFilterYear(''); setFilterSemester(''); setPage(1); }}
-            options={[
-              { label: "Choisir le niveau", value: "" },
-              ...diplomas.map(d => ({ label: getDiplomaLabel(d), value: d }))
-            ]}
-            placeholder="Choisir le niveau"
-          />
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={labelStyle}>Année</label>
-          <FilterSelect
-            value={filterYear}
-            onChange={val => { setFilterYear(val); setPage(1); }}
-            options={[
-              { label: "Choisir l'année", value: "" },
-              ...filterYears.map(year => ({ label: year, value: year }))
-            ]}
-            placeholder="Choisir l'année"
-          />
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={labelStyle}>Filière</label>
-          <FilterSelect
-            value={filterMajor}
-            onChange={val => { setFilterMajor(val); setPage(1); }}
-            options={[
-              { label: "Choisir la filière", value: "" },
-              ...majors.map(m => ({ label: m, value: m }))
-            ]}
-            placeholder="Choisir la filière"
-          />
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={labelStyle}>Semestre</label>
-          <FilterSelect
-            value={filterSemester}
-            onChange={val => { setFilterSemester(val); setPage(1); }}
-            options={[{ label: "Tous les semestres", value: "" }, ...filterSemesterOptions]}
-            placeholder="Tous les semestres"
-          />
-        </div>
+        <div className="module-premium-filter-grid app-filter-grid">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={labelStyle}>Année Académique</label>
+            <FilterSelect
+              value={filterAcademicYear}
+              onChange={val => { setFilterAcademicYear(val); setPage(1); }}
+              options={academicYearOptions}
+              placeholder="Année académique"
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={labelStyle}>Niveau</label>
+            <FilterSelect
+              value={filterDiploma}
+              onChange={val => { setFilterDiploma(val); setFilterMajor(''); setFilterYear(''); setFilterSemester(''); setPage(1); }}
+              options={[
+                { label: "Choisir le niveau", value: "" },
+                ...diplomas.map(d => ({ label: getDiplomaLabel(d), value: d }))
+              ]}
+              placeholder="Choisir le niveau"
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={labelStyle}>Année</label>
+            <FilterSelect
+              value={filterYear}
+              onChange={val => { setFilterYear(val); setPage(1); }}
+              options={[
+                { label: "Choisir l'année", value: "" },
+                ...filterYears.map(year => ({ label: year, value: year }))
+              ]}
+              placeholder="Choisir l'année"
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={labelStyle}>Filière</label>
+            <FilterSelect
+              value={filterMajor}
+              onChange={val => { setFilterMajor(val); setPage(1); }}
+              options={[
+                { label: "Choisir la filière", value: "" },
+                ...majors.map(m => ({ label: m, value: m }))
+              ]}
+              placeholder="Choisir la filière"
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={labelStyle}>Semestre</label>
+            <FilterSelect
+              value={filterSemester}
+              onChange={val => { setFilterSemester(val); setPage(1); }}
+              options={[{ label: "Tous les semestres", value: "" }, ...filterSemesterOptions]}
+              placeholder="Tous les semestres"
+            />
+          </div>
         </div>
       </div>
 
@@ -543,7 +658,24 @@ const ModuleManagement = () => {
               {paginatedModules.length === 0 ? (
                 <tr>
                   <td colSpan="7" style={{ padding: 0 }}>
-                    <EmptyState title="Aucun module" message="Aucun module n'est configuré pour cette sélection." icon="book" />
+                    <div style={{ textAlign: 'center', padding: '32px 16px' }}>
+                      <EmptyState
+                        title="Aucun module"
+                        message={`Aucun module n'est configuré pour cette sélection en ${filterAcademicYear}.`}
+                        icon="book"
+                      />
+                      {canEdit && filterAcademicYear !== '2025-2026' && (
+                        <button
+                          type="button"
+                          onClick={handleReconduire}
+                          className="btn-modern secondary"
+                          style={{ marginTop: '16px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                        >
+                          <RotateCw size={15} />
+                          Reconduire depuis 2025-2026
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -810,7 +942,14 @@ const ModuleManagement = () => {
                   const key = `${group.diploma}||${group.major}||${group.year}`;
                   const isCurrent = group.diploma === copySource.diploma && group.major === copySource.major && group.year === copySource.year;
                   const isSelected = copyTargets.includes(key);
-                  const alreadyExists = modules.some(m => m.name === copySource.name && m.diploma === group.diploma && m.major === group.major && m.year === group.year && (m.semester || 'S1') === (copySource.semester || 'S1'));
+                  const alreadyExists = modules.some(m =>
+                    (m.academicYear || DEFAULT_ACADEMIC_YEAR) === (copySource.academicYear || filterAcademicYear || DEFAULT_ACADEMIC_YEAR) &&
+                    m.name === copySource.name &&
+                    m.diploma === group.diploma &&
+                    m.major === group.major &&
+                    m.year === group.year &&
+                    (m.semester || 'S1') === (copySource.semester || 'S1')
+                  );
                   return (
                     <button
                       key={key}

@@ -3,6 +3,7 @@ import { getModulesForFiliere } from '../data/modules.js';
 export const sanitizeGradeKey = (subject = '') => String(subject || '').replace(/\./g, '_');
 
 export const GRADE_ACADEMIC_YEARS_FIELD = 'academicYears';
+export const DEFAULT_ACADEMIC_YEAR = '2025-2026';
 
 const isPlainObject = value => !!value && typeof value === 'object' && !Array.isArray(value);
 
@@ -221,14 +222,30 @@ export const dedupeModulesByName = (modules = []) => {
   });
 };
 
-export const getStudentGradeModules = (allModules = [], student) => {
+export const filterModulesByAcademicYear = (modules = [], targetAcademicYear = '', { allowFallback = true } = {}) => {
+  if (!targetAcademicYear) {
+    const untagged = (modules || []).filter(m => !m?.academicYear);
+    return untagged.length > 0 ? untagged : (modules || []);
+  }
+  const yearMatches = (modules || []).filter(m => m?.academicYear === targetAcademicYear);
+  if (yearMatches.length > 0) return yearMatches;
+
+  if (!allowFallback) return [];
+
+  const fallback = (modules || []).filter(m => !m?.academicYear || m?.academicYear === '2025-2026');
+  return fallback.length > 0 ? fallback : (modules || []);
+};
+
+export const getStudentGradeModules = (allModules = [], student, academicYear = '') => {
   if (!student) return [];
 
-  return dedupeModulesByName(
-    sortModulesByOrder((allModules || []).filter(module =>
-      module?.diploma === student.diploma &&
-      module?.major === student.major &&
-      module?.year === student.year
-    ))
+  const targetAcademicYear = academicYear || student.academicYear || '';
+  const classModules = (allModules || []).filter(module =>
+    module?.diploma === student.diploma &&
+    module?.major === student.major &&
+    module?.year === student.year
   );
+
+  const filtered = filterModulesByAcademicYear(classModules, targetAcademicYear);
+  return dedupeModulesByName(sortModulesByOrder(filtered));
 };
