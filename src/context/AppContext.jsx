@@ -48,6 +48,7 @@ import {
 import { getNextStudyYear, isKnownStudyYear } from '../data/modules';
 import { createReadCoordinator, createInFlightReader } from '../utils/readCoordinator';
 import { getPageCollections } from '../utils/dataRequirements';
+import { startAutoRefresh } from '../utils/autoRefresh';
 
 const AppContext = createContext();
 const ACCESS_LOG_LIMIT = 5;
@@ -412,15 +413,17 @@ export const AppProvider = ({ children }) => {
     : '';
   const authScope = JSON.stringify([adminUser?.uid, adminUser?.role, adminUser?.permissions]);
   const [refreshVersion, setRefreshVersion] = useState(0);
-  const reads = useMemo(() => {
+  const coordinator = useMemo(() => {
     const coordinator = createReadCoordinator();
-    return { ...coordinator, scope: `${authScope}:${portalPath}:${refreshVersion}`, getDocs: createInFlightReader(fetchDocs, queryEqual) };
-  }, [authScope, portalPath, refreshVersion]);
+    return { ...coordinator, scope: `${authScope}:${portalPath}`, getDocs: createInFlightReader(fetchDocs, queryEqual) };
+  }, [authScope, portalPath]);
+  // Wake the current page's loaders without invalidating still-fresh resources.
+  const reads = useMemo(() => ({ ...coordinator, revision: refreshVersion }), [coordinator, refreshVersion]);
   const { getDocs } = reads;
-  const refreshData = useCallback(() => {
-    reads.clear();
-    setRefreshVersion(version => version + 1);
-  }, [reads]);
+  useEffect(() => {
+    if (!isAuthenticated && !portalPath) return;
+    return startAutoRefresh({ refresh: () => setRefreshVersion(version => version + 1) });
+  }, [isAuthenticated, portalPath]);
   const readAllowed = useCallback((name, ...constraints) => hasPermission(COLLECTION_MODULES[name])
     ? getDocs(query(collection(db, name), ...constraints))
     : Promise.resolve({ docs: [] }), [hasPermission, getDocs]);
@@ -514,6 +517,7 @@ export const AppProvider = ({ children }) => {
   const [activeAcademicYear, setActiveAcademicYearState] = useState(readCachedOperationalAcademicYear);
   const operationalAcademicYearRef = useRef(operationalAcademicYear);
   const [loading, setLoading] = useState(true);
+  const loadedPathRef = useRef(null);
   const accessLoggedRef = useRef(false);
 
   // Modal de confirmation global
@@ -665,13 +669,8 @@ export const AppProvider = ({ children }) => {
         const isTeacherPortal = path.startsWith('/portal/') || path.startsWith('/teacher/');
         const isStudentPortal = path.startsWith('/results/');
 
-        if (portalPath) {
+        if (loadedPathRef.current !== pathname) {
           setLoading(true);
-          setStudents([]);
-          setTeachers([]);
-          setGrades({});
-          setSchedules([]);
-          setModules([]);
         }
 
         if ((isAuthenticated || isDirectorAuth) && !portalPath) {
@@ -697,7 +696,6 @@ export const AppProvider = ({ children }) => {
               setters[name](data);
             }
           });
-          setLoading(true);
           await Promise.all(getPageCollections(pathname).map(loadCollection));
 
         } else if (isStudentPortal) {
@@ -805,7 +803,10 @@ export const AppProvider = ({ children }) => {
         console.error("Erreur lors de la récupération des données:", error);
         if (isMounted) originalShowToast("Impossible de charger certaines données. Vérifiez votre connexion et les autorisations Firebase.", 'error');
       } finally {
-        if (isMounted) setLoading(false);
+        if (isMounted) {
+          loadedPathRef.current = pathname;
+          setLoading(false);
+        }
       }
     };
 
@@ -1988,7 +1989,7 @@ export const AppProvider = ({ children }) => {
   return (
     <AppContext.Provider value={{
       students, teachers, grades, isAuthenticated, isDirectorAuth, loading,
-      login, logout, showToast, refreshData,
+      login, logout, showToast,
       addStudent, addTeacher, updateStudent, promoteAcademicYear, undoLastPromotion, updateTeacher, deleteStudent, deleteTeacher, updateGrades, batchUpdateGrades,
       studentAttendance, teacherAttendance, updateStudentAttendance, updateTeacherAttendance,
       loadAttendanceForSession, loadStudentAttendanceForMonth, loadTeacherAttendanceForDate, loadTeacherAttendanceForMonth,

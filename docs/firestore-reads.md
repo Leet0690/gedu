@@ -3,10 +3,10 @@
 ## Comportement de l'application
 
 - Les collections métier sont chargées selon la page, dans `src/utils/dataRequirements.js`. Les permissions continuent de filtrer chaque chargement.
-- Les données déjà chargées sont réutilisées en mémoire pendant cinq minutes. Après ce délai, le prochain chargement demandé par une page interroge à nouveau Firestore. Aucun minuteur ne déclenche de lectures en arrière-plan.
+- Les données déjà chargées sont réutilisées en mémoire pendant cinq minutes. Une vérification automatique toutes les cinq minutes relance les chargements de la page ouverte : seules les ressources expirées sont relues. La navigation réutilise également les données encore fraîches.
 - Les appels simultanés pour la même ressource partagent leur travail, y compris au montage en React Strict Mode. Les requêtes Firestore identiques en cours sont également regroupées.
 - Les mutations continuent de mettre à jour l'état local après leur réussite. Revenir sur une page dans les cinq minutes ne réapplique pas une ancienne copie des données.
-- Le bouton **Actualiser les données** dans la barre supérieure recharge les données utilisées par la page. Il permet de consulter immédiatement les changements effectués sur un autre poste. Un rechargement complet du navigateur recharge aussi les données.
+- L'actualisation est automatique, sans bouton dans la barre supérieure et sans masquer les données pendant leur rechargement. Elle est suspendue lorsque l'onglet est masqué ou hors ligne. Au retour sur l'application ou au rétablissement de la connexion, la vérification reprend si cinq minutes se sont écoulées depuis la précédente. Un rechargement complet du navigateur recharge aussi les données.
 - Un mois de présences déjà chargé permet d'éviter une nouvelle lecture de ses journées ou séances. Les pages mensuelles ne forcent plus une lecture à chaque montage.
 - Les activités sont consultées sur l'accueil, avec une limite de 50 événements et le même délai de réutilisation. Les nouvelles activités du poste courant sont ajoutées localement. Les événements des autres postes apparaissent à la prochaine actualisation.
 - Les formations continues sont chargées seulement sur leur page. Les finances restent chargées à la demande. Les anciens paiements sont normalisés en mémoire, sans migration automatique à l'ouverture de Finance.
@@ -42,7 +42,7 @@ Sources : [tarification Firestore](https://firebase.google.com/docs/firestore/pr
 
 1. Consulter l'onglet **Usage** de Firestore dans Firebase avant et après publication, sur des journées de fréquentation comparable.
 2. Vérifier les lectures lors d'un accès direct à Modules, puis de navigations répétées dans les cinq minutes.
-3. Depuis deux sessions, modifier une donnée sur la première et utiliser **Actualiser les données** sur la seconde.
+3. Depuis deux sessions, modifier une donnée sur la première et attendre une vérification automatique après expiration du cache sur la seconde. Vérifier aussi la reprise après un passage de l'onglet en arrière-plan.
 4. Contrôler séparément le volume des clôtures annuelles et des sauvegardes.
 
 Ces optimisations réduisent les lectures évitables ; elles ne garantissent pas le respect du quota pour un nombre arbitraire de documents, de visiteurs ou de rechargements. Aucune mesure de consommation de production n'a été réalisée dans cette modification.
