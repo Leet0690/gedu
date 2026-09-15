@@ -239,7 +239,7 @@ const TeacherAttendance = () => {
   const [mSearch, setMSearch] = useState('');
   const availableYears = useMemo(() => { const y = now.getFullYear(); return [y - 1, y, y + 1]; }, []);
 
-  useEffect(() => { if (view === 'monthly') loadTeacherAttendanceForMonth(mMonth, mYear, { force: true }); }, [view, mMonth, mYear, loadTeacherAttendanceForMonth]);
+  useEffect(() => { if (view === 'monthly') loadTeacherAttendanceForMonth(mMonth, mYear); }, [view, mMonth, mYear, loadTeacherAttendanceForMonth]);
 
   const daysInMonth = useMemo(() => new Date(mYear, mMonth + 1, 0).getDate(), [mMonth, mYear]);
   const mDays = useMemo(() => Array.from({ length: daysInMonth }, (_, i) => i + 1), [daysInMonth]);

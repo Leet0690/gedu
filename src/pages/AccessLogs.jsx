@@ -150,7 +150,7 @@ const AccessLogs = () => {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await loadAccessLogs?.();
+    await loadAccessLogs?.({ force: true });
     setIsRefreshing(false);
   };
 

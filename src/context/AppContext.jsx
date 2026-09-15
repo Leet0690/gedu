@@ -10,7 +10,8 @@ import {
   serverTimestamp,
   query,
   orderBy,
-  getDocs,
+  getDocs as fetchDocs,
+  queryEqual,
   getDocsFromServer,
   getDocFromServer,
   where,
@@ -45,6 +46,8 @@ import {
   validateAcademicYearTransition,
 } from '../utils/studentStatus';
 import { getNextStudyYear, isKnownStudyYear } from '../data/modules';
+import { createReadCoordinator, createInFlightReader } from '../utils/readCoordinator';
+import { getPageCollections } from '../utils/dataRequirements';
 
 const AppContext = createContext();
 const ACCESS_LOG_LIMIT = 5;
@@ -59,7 +62,7 @@ const getReceiptNumberValue = (receiptNumber = '', prefix = '') => {
 export const useApp = () => useContext(AppContext);
 
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Cache sessionStorage (TTL 30 min)
+// Legacy storage keys are removed on startup; business data stays in memory.
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const CORE_CACHE_KEY = 'ipfp_v2_core_cache';
 const FINANCE_CACHE_PAYMENTS_KEY = 'ipfp_v2_finance_payments';
@@ -92,7 +95,6 @@ const ACADEMIC_YEAR_BACKUP_SOURCE_COLLECTIONS = [
 ];
 const ACADEMIC_YEAR_BACKUP_BATCH_SIZE = 400;
 const ACADEMIC_YEAR_CLOSURE_LEASE_MS = 15 * 60 * 1000;
-const pendingLoads = new Map();
 
 const readCachedOperationalAcademicYear = () => {
   try {
@@ -405,13 +407,23 @@ export const AppProvider = ({ children }) => {
   const { showToast: originalShowToast } = useToast();
   const { adminUser, isAuthenticated, isAdmin, hasPermission, login, logout } = useAdminAuth();
   const isDirectorAuth = hasPermission('finance');
-  const portalPath = !isAuthenticated && !isDirectorAuth && /^\/(results|portal|teacher)\//.test(pathname)
+  const portalPath = /^\/(results|portal|teacher)\//.test(pathname)
     ? pathname
     : '';
   const authScope = JSON.stringify([adminUser?.uid, adminUser?.role, adminUser?.permissions]);
+  const [refreshVersion, setRefreshVersion] = useState(0);
+  const reads = useMemo(() => {
+    const coordinator = createReadCoordinator();
+    return { ...coordinator, scope: `${authScope}:${portalPath}:${refreshVersion}`, getDocs: createInFlightReader(fetchDocs, queryEqual) };
+  }, [authScope, portalPath, refreshVersion]);
+  const { getDocs } = reads;
+  const refreshData = useCallback(() => {
+    reads.clear();
+    setRefreshVersion(version => version + 1);
+  }, [reads]);
   const readAllowed = useCallback((name, ...constraints) => hasPermission(COLLECTION_MODULES[name])
     ? getDocs(query(collection(db, name), ...constraints))
-    : Promise.resolve({ docs: [] }), [hasPermission]);
+    : Promise.resolve({ docs: [] }), [hasPermission, getDocs]);
   useEffect(() => {
     try { [CORE_CACHE_KEY, FINANCE_CACHE_PAYMENTS_KEY, FINANCE_CACHE_SALARIES_KEY, FINANCE_CACHE_EXPENSES_KEY].forEach(key => localStorage.removeItem(key)); } catch { /* Optional storage. */ }
   }, []);
@@ -420,19 +432,20 @@ export const AppProvider = ({ children }) => {
   const [readNotificationIds, setReadNotificationIds] = useState(() => new Set());
   const [activityError, setActivityError] = useState('');
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || pathname !== '/') return;
     const constraints = hasPermission('logs')
-      ? [orderBy('timestamp', 'desc'), limit(100)]
-      : [where('userId', '==', adminUser.uid), orderBy('timestamp', 'desc'), limit(100)];
-    return onSnapshot(query(collection(db, 'activity_logs'), ...constraints), snapshot => {
+      ? [orderBy('timestamp', 'desc'), limit(50)]
+      : [where('userId', '==', adminUser.uid), orderBy('timestamp', 'desc'), limit(50)];
+    void reads.run('activity', async isCurrent => {
+      const snapshot = await getDocs(query(collection(db, 'activity_logs'), ...constraints));
+      if (!isCurrent()) return;
       setNotifications(snapshot.docs.map(item => ({ ...item.data(), id: item.id })));
       setActivityError('');
-    }, error => {
-      setNotifications([]);
+    }).catch(error => {
       setActivityError('Le journal des activités est momentanément indisponible.');
       console.error('Erreur lecture des activités :', error);
     });
-  }, [isAuthenticated, hasPermission, adminUser?.uid]);
+  }, [isAuthenticated, hasPermission, adminUser?.uid, pathname, reads, getDocs]);
 
   const markNotificationAsRead = useCallback(id => {
     setReadNotificationIds(previous => new Set([...previous, id]));
@@ -447,12 +460,14 @@ export const AppProvider = ({ children }) => {
   const logActivity = useCallback(async ({ message, type = 'info', actionType = 'GENERAL', module = 'app', metadata = {} }) => {
     if (!adminUser?.uid || adminUser.isActive !== true) return false;
     try {
-      await addDoc(collection(db, 'activity_logs'), {
+      const activity = {
         message, type, actionType, module, metadata,
         timestamp: serverTimestamp(), createdAt: serverTimestamp(),
         userId: adminUser.uid, userName: adminUser.displayName || adminUser.email,
         userRole: adminUser.role,
-      });
+      };
+      const activityRef = await addDoc(collection(db, 'activity_logs'), activity);
+      setNotifications(previous => [{ ...activity, id: activityRef.id, timestamp: new Date() }, ...previous].slice(0, 50));
       return true;
     } catch (error) {
       console.error('Erreur journalisation :', error);
@@ -499,9 +514,6 @@ export const AppProvider = ({ children }) => {
   const [activeAcademicYear, setActiveAcademicYearState] = useState(readCachedOperationalAcademicYear);
   const operationalAcademicYearRef = useRef(operationalAcademicYear);
   const [loading, setLoading] = useState(true);
-  const studentAttendanceKeysRef = useRef(new Set());
-  const teacherAttendanceKeysRef = useRef(new Set());
-  const financeLoadedRef = useRef(false);
   const accessLoggedRef = useRef(false);
 
   // Modal de confirmation global
@@ -634,9 +646,9 @@ export const AppProvider = ({ children }) => {
       students,
       payments,
       operationalAcademicYear,
-      archivedAcademicYears
+      [...archivedAcademicYears, ...modules.map(item => item.academicYear), ...schedules.map(item => item.academicYear)]
     ),
-    [students, payments, operationalAcademicYear, archivedAcademicYears]
+    [students, payments, operationalAcademicYear, archivedAcademicYears, modules, schedules]
   );
 
   // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -662,62 +674,36 @@ export const AppProvider = ({ children }) => {
           setModules([]);
         }
 
-        if (isAuthenticated || isDirectorAuth) {
-          // 2. Core admin refresh only: no attendance or finance reads here.
-          const coreLoadKey = `admin-core:${authScope}`;
-          if (!pendingLoads.has(coreLoadKey)) {
-            pendingLoads.set(coreLoadKey, Promise.all([
-              readAllowed('students', orderBy('createdAt', 'desc')),
-              readAllowed('teachers', orderBy('createdAt', 'desc')),
-              readAllowed('grades'),
-              readAllowed('schedules', orderBy('createdAt', 'desc')),
-              readAllowed('modules', orderBy('name', 'asc'))
-            ]).then(([stuSnap, teaSnap, graSnap, schSnap, modSnap]) => {
-              const gradesData = {}; graSnap.docs.forEach(d => { gradesData[d.id] = d.data(); });
-              const data = {
-                students: stuSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-                teachers: teaSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-                grades: gradesData,
-                schedules: schSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-                modules: modSnap.docs.map(d => ({ id: d.id, ...d.data() }))
-              };
-              return data;
-            }).finally(() => {
-              pendingLoads.delete(coreLoadKey);
-            }));
-          }
-
-          const coreData = await pendingLoads.get(coreLoadKey);
-          
-          if (!isMounted) return;
-
-          setStudents(coreData.students || []);
-          setTeachers(coreData.teachers || []);
-          setGrades(coreData.grades || {});
-          setSchedules(coreData.schedules || []);
-          setModules(coreData.modules || []);
-
-          Promise.all([
-            readAllowed('continuousTrainings', orderBy('createdAt', 'desc')),
-            readAllowed('continuousTrainingTypes'),
-            readAllowed('ctStudents', orderBy('createdAt', 'desc')),
-            readAllowed('ctSessions', orderBy('createdAt', 'desc'))
-          ]).then(([ctSnap, ctTypeSnap, ctsSnap, ctSesSnap]) => {
-            if (!isMounted) return;
-            setContinuousTrainings(ctSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-            setContinuousTrainingTypes(
-              ctTypeSnap.docs
-                .map(d => ({ id: d.id, ...d.data() }))
-                .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'fr', { sensitivity: 'base' }))
-            );
-            setCtStudents(ctsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-            setCtSessions(ctSesSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-          }).catch(error => console.warn('Impossible de charger les formations continues:', error));
+        if ((isAuthenticated || isDirectorAuth) && !portalPath) {
+          const setters = {
+            students: setStudents, teachers: setTeachers, grades: setGrades,
+            schedules: setSchedules, modules: setModules,
+            continuousTrainings: setContinuousTrainings,
+            continuousTrainingTypes: setContinuousTrainingTypes,
+            ctStudents: setCtStudents, ctSessions: setCtSessions,
+          };
+          const loadCollection = name => reads.run(`collection:${name}`, async isCurrent => {
+            const constraints = ['grades', 'continuousTrainingTypes'].includes(name)
+              ? [] : [orderBy(name === 'modules' ? 'name' : 'createdAt', name === 'modules' ? 'asc' : 'desc')];
+            const snapshot = await readAllowed(name, ...constraints);
+            if (!isCurrent()) return;
+            if (name === 'grades') {
+              setters[name](Object.fromEntries(snapshot.docs.map(item => [item.id, item.data()])));
+            } else {
+              const data = snapshot.docs.map(item => ({ ...item.data(), id: item.id }));
+              if (name === 'continuousTrainingTypes') {
+                data.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'fr', { sensitivity: 'base' }));
+              }
+              setters[name](data);
+            }
+          });
+          setLoading(true);
+          await Promise.all(getPageCollections(pathname).map(loadCollection));
 
         } else if (isStudentPortal) {
           // 2. Portail stagiaire : données personnelles et cohortes des années consultables.
           const token = path.split('/').filter(Boolean).pop();
-          const stuQuery = query(collection(db, 'students'), where('token', '==', token));
+          const stuQuery = query(collection(db, 'students'), where('token', '==', token), limit(1));
           const stuSnap = await getDocs(stuQuery);
           const studentDoc = stuSnap.docs[0];
 
@@ -764,12 +750,11 @@ export const AppProvider = ({ children }) => {
         } else if (isTeacherPortal) {
           // 3. Portail Formateur: Chargement ciblé pour le formateur
           const token = path.split('/').filter(Boolean).pop();
-          const [tSnap1, tSnap2] = await Promise.all([
-            getDocs(query(collection(db, 'teachers'), where('tokenGrades', '==', token))),
-            getDocs(query(collection(db, 'teachers'), where('tokenAttendance', '==', token)))
-          ]);
-          
-          const teacherDoc = tSnap1.docs[0] || tSnap2.docs[0];
+          const gradeTokenSnapshot = await getDocs(query(collection(db, 'teachers'), where('tokenGrades', '==', token), limit(1)));
+          const attendanceTokenSnapshot = gradeTokenSnapshot.empty
+            ? await getDocs(query(collection(db, 'teachers'), where('tokenAttendance', '==', token), limit(1)))
+            : null;
+          const teacherDoc = gradeTokenSnapshot.docs[0] || attendanceTokenSnapshot?.docs[0];
 
           if (teacherDoc && isMounted) {
             const teacherData = teacherDoc.data();
@@ -781,7 +766,7 @@ export const AppProvider = ({ children }) => {
             setSchedules(schSnap.docs.map(d => ({ id: d.id, ...d.data() })));
 
             // Students: only from the teacher's assigned groups
-            const groups = teacherData.groups || [];
+            const groups = [...new Set(teacherData.groups || [])];
             let allStudents = [];
             if (groups.length > 0) {
               for (let i = 0; i < groups.length; i += 10) {
@@ -795,7 +780,7 @@ export const AppProvider = ({ children }) => {
 
             // Grades: only for the loaded students
             const gradesData = {};
-            if (allStudents.length > 0) {
+            if (allStudents.length > 0 && !gradeTokenSnapshot.empty) {
               const studentIds = allStudents.map(s => s.id);
               for (let i = 0; i < studentIds.length; i += 10) {
                 const batch = studentIds.slice(i, i + 10);
@@ -827,7 +812,7 @@ export const AppProvider = ({ children }) => {
     loadData();
 
     return () => { isMounted = false; };
-  }, [isAuthenticated, isDirectorAuth, authScope, readAllowed, originalShowToast, portalPath]);
+  }, [isAuthenticated, isDirectorAuth, readAllowed, originalShowToast, portalPath, pathname, reads, getDocs]);
 
   useEffect(() => {
     if (!isAuthenticated && !isDirectorAuth) {
@@ -836,7 +821,6 @@ export const AppProvider = ({ children }) => {
         localStorage.removeItem(FINANCE_CACHE_SALARIES_KEY);
         localStorage.removeItem(FINANCE_CACHE_EXPENSES_KEY);
       } catch { /* Storage is optional, including in private browsing. */ }
-      financeLoadedRef.current = false;
     }
   }, [isAuthenticated, isDirectorAuth]);
 
@@ -868,19 +852,21 @@ export const AppProvider = ({ children }) => {
     }
   }, [isAuthenticated, adminUser]);
 
-  const loadAccessLogs = useCallback(async () => {
+  const loadAccessLogs = useCallback(async ({ force = false } = {}) => {
     if (!hasPermission('logs')) return [];
     try {
-      const snapshot = await getDocs(query(collection(db, 'access_logs'), orderBy('loggedAt', 'desc'), limit(ACCESS_LOG_LIMIT)));
-      const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      setAccessLogs(data);
-      return data;
+      return await reads.run('access-logs', async isCurrent => {
+        const snapshot = await getDocs(query(collection(db, 'access_logs'), orderBy('loggedAt', 'desc'), limit(ACCESS_LOG_LIMIT)));
+        const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        if (isCurrent()) setAccessLogs(data);
+        return data;
+      }, { force });
     } catch (error) {
       console.error('Error loading access logs:', error);
-      showToast('Erreur de chargement du journal des accès', 'error');
+      originalShowToast('Erreur de chargement du journal des accès', 'error');
       return [];
     }
-  }, [showToast, hasPermission]);
+  }, [originalShowToast, hasPermission, reads, getDocs]);
 
   // --- STAGIAIRES ---
   const addStudent = async (studentData) => {
@@ -1563,85 +1549,70 @@ export const AppProvider = ({ children }) => {
   };
 
   const loadAttendanceForSession = useCallback(async (moduleId, date) => {
-    if (!hasPermission('attendance_students')) return;
-    if (!moduleId || !date) return;
-    const cacheKey = `${moduleId}:${date}`;
-    if (studentAttendanceKeysRef.current.has(cacheKey)) return;
+    if (!hasPermission('attendance_students') || !moduleId || !date) return;
+    const [year, month] = date.split('-').map(Number);
+    if (reads.isFresh(`student-month:${year}-${month - 1}`)) return;
     try {
-      const q = query(collection(db, 'attendance_stagiaires'), where('moduleId', '==', moduleId), where('date', '==', date));
-      const snapshot = await getDocs(q);
-      const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      setStudentAttendance(prev => mergeById(prev, data));
-      studentAttendanceKeysRef.current.add(cacheKey);
+      await reads.run(`student-session:${moduleId}:${date}`, async isCurrent => {
+        const snapshot = await getDocs(query(collection(db, 'attendance_stagiaires'), where('moduleId', '==', moduleId), where('date', '==', date)));
+        if (!isCurrent()) return;
+        const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        setStudentAttendance(prev => mergeById(prev.filter(a => a.moduleId !== moduleId || a.date !== date), data));
+      });
     } catch (e) {
-      console.error("Error loading session attendance:", e);
-      showToast('Erreur de chargement des présences', 'error');
+      console.error('Error loading session attendance:', e);
+      originalShowToast('Erreur de chargement des présences', 'error');
     }
-  }, [showToast, hasPermission]);
+  }, [originalShowToast, hasPermission, reads, getDocs]);
 
-  const loadStudentAttendanceForMonth = useCallback(async (monthIndex, year) => {
+  const loadStudentAttendanceForMonth = useCallback(async (monthIndex, year, { force = false } = {}) => {
     if (!hasPermission('attendance_students')) return;
     const { start, end } = getMonthBounds(monthIndex, year);
-    const cacheKey = `student-month:${year}-${monthIndex}`;
-    if (studentAttendanceKeysRef.current.has(cacheKey)) return;
     try {
-      const snapshot = await getDocs(query(
-        collection(db, 'attendance_stagiaires'),
-        where('date', '>=', start),
-        where('date', '<=', end)
-      ));
-      const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      setStudentAttendance(prev => {
-        const withoutMonth = prev.filter(a => !a.date || a.date < start || a.date > end);
-        return mergeById(withoutMonth, data);
+      await reads.run(`student-month:${year}-${monthIndex}`, async isCurrent => {
+        const snapshot = await getDocs(query(collection(db, 'attendance_stagiaires'), where('date', '>=', start), where('date', '<=', end)));
+        if (!isCurrent()) return;
+        const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        setStudentAttendance(prev => mergeById(prev.filter(a => !a.date || a.date < start || a.date > end), data));
+      }, { force });
+    } catch (e) {
+      console.error('Error loading monthly student attendance:', e);
+      originalShowToast('Erreur de chargement des présences mensuelles', 'error');
+    }
+  }, [originalShowToast, hasPermission, reads, getDocs]);
+
+  const loadTeacherAttendanceForDate = useCallback(async date => {
+    if (!hasPermission('attendance_teachers') || !date) return;
+    const [year, month] = date.split('-').map(Number);
+    if (reads.isFresh(`teacher-month:${year}-${month - 1}`)) return;
+    try {
+      await reads.run(`teacher-date:${date}`, async isCurrent => {
+        const snapshot = await getDocs(query(collection(db, 'attendance_formateurs'), where('date', '==', date)));
+        if (!isCurrent()) return;
+        const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        setTeacherAttendance(prev => mergeById(prev.filter(a => a.date !== date), data));
       });
-      studentAttendanceKeysRef.current.add(cacheKey);
     } catch (e) {
-      console.error("Error loading monthly student attendance:", e);
-      showToast('Erreur de chargement des présences mensuelles', 'error');
+      console.error('Error loading teacher attendance:', e);
+      originalShowToast('Erreur de chargement des présences formateurs', 'error');
     }
-  }, [showToast, hasPermission]);
-
-  const loadTeacherAttendanceForDate = useCallback(async (date) => {
-    if (!hasPermission('attendance_teachers')) return;
-    if (!date) return;
-    const cacheKey = `date:${date}`;
-    if (teacherAttendanceKeysRef.current.has(cacheKey)) return;
-
-    try {
-      const snapshot = await getDocs(query(collection(db, 'attendance_formateurs'), where('date', '==', date)));
-      const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      setTeacherAttendance(prev => mergeById(prev, data));
-      teacherAttendanceKeysRef.current.add(cacheKey);
-    } catch (e) {
-      console.error("Error loading teacher attendance:", e);
-      showToast('Erreur de chargement des présences formateurs', 'error');
-    }
-  }, [showToast, hasPermission]);
+  }, [originalShowToast, hasPermission, reads, getDocs]);
 
   const loadTeacherAttendanceForMonth = useCallback(async (monthIndex, year, { force = false } = {}) => {
     if (!hasPermission('attendance_teachers')) return;
     const { start, end } = getMonthBounds(monthIndex, year);
-    const cacheKey = `month:${year}-${monthIndex}`;
-    if (teacherAttendanceKeysRef.current.has(cacheKey) && !force) return;
-
     try {
-      const snapshot = await getDocs(query(
-        collection(db, 'attendance_formateurs'),
-        where('date', '>=', start),
-        where('date', '<=', end)
-      ));
-      const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      setTeacherAttendance(prev => {
-        const withoutMonth = prev.filter(record => !record.date || record.date < start || record.date > end);
-        return mergeById(withoutMonth, data);
-      });
-      teacherAttendanceKeysRef.current.add(cacheKey);
+      await reads.run(`teacher-month:${year}-${monthIndex}`, async isCurrent => {
+        const snapshot = await getDocs(query(collection(db, 'attendance_formateurs'), where('date', '>=', start), where('date', '<=', end)));
+        if (!isCurrent()) return;
+        const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        setTeacherAttendance(prev => mergeById(prev.filter(a => !a.date || a.date < start || a.date > end), data));
+      }, { force });
     } catch (e) {
-      console.error("Error loading monthly teacher attendance:", e);
-      showToast('Erreur de chargement des vacations mensuelles', 'error');
+      console.error('Error loading monthly teacher attendance:', e);
+      originalShowToast('Erreur de chargement des vacations mensuelles', 'error');
     }
-  }, [showToast, hasPermission]);
+  }, [originalShowToast, hasPermission, reads, getDocs]);
 
   const updateTeacherAttendance = async (teacherId, date, status, comment, hours = 0, moduleId = '', timeSlot = '') => {
     requireEdit('attendance_teachers');
@@ -1672,55 +1643,28 @@ export const AppProvider = ({ children }) => {
   // --- FINANCES ---
   const loadFinancialData = useCallback(async ({ force = false } = {}) => {
     if (!hasPermission('finance')) return;
-    if (financeLoadedRef.current && !force) return;
-
-    const financeLoadKey = `finance:${authScope}`;
-    if (!pendingLoads.has(financeLoadKey)) {
-      pendingLoads.set(financeLoadKey, Promise.all([
-        getDocs(query(collection(db, 'payments'), orderBy('createdAt', 'desc'))),
-        getDocs(query(collection(db, 'salaries'), orderBy('createdAt', 'desc'))),
-        getDocs(query(collection(db, 'expenses'), orderBy('createdAt', 'desc')))
-      ]).then(async ([paySnap, salSnap, expSnap]) => {
-        const paymentBackfill = [];
-        const payments = paySnap.docs.map(paymentDoc => {
-          const payment = { id: paymentDoc.id, ...paymentDoc.data() };
-          const academicYear = getPaymentAcademicYear(payment);
-          if (hasPermission('finance', 'edit') && academicYear && payment.academicYear !== academicYear) {
-            paymentBackfill.push({ ref: paymentDoc.ref, academicYear });
-          }
-          return academicYear ? { ...payment, academicYear } : payment;
-        });
-        const salaries = salSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        const expenses = expSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        try {
-          for (let i = 0; i < paymentBackfill.length; i += 450) {
-            const batch = writeBatch(db);
-            paymentBackfill.slice(i, i + 450).forEach(({ ref, academicYear }) => {
-              batch.update(ref, { academicYear });
-            });
-            await batch.commit();
-          }
-        } catch (migrationError) {
-          // Reading and filtering still work from the normalized in-memory data.
-          console.warn('Impossible de compléter les années académiques des anciens paiements:', migrationError);
-        }
-        return { payments, salaries, expenses };
-      }).finally(() => {
-        pendingLoads.delete(financeLoadKey);
-      }));
-    }
-
     try {
-      const data = await pendingLoads.get(financeLoadKey);
-      setPayments(data.payments || []);
-      setSalaries(data.salaries || []);
-      setExpenses(data.expenses || []);
-      financeLoadedRef.current = true;
+      await reads.run('finance', async isCurrent => {
+        const [paySnap, salSnap, expSnap] = await Promise.all([
+          getDocs(query(collection(db, 'payments'), orderBy('createdAt', 'desc'))),
+          getDocs(query(collection(db, 'salaries'), orderBy('createdAt', 'desc'))),
+          getDocs(query(collection(db, 'expenses'), orderBy('createdAt', 'desc'))),
+        ]);
+        if (!isCurrent()) return;
+        // Normalize legacy records in memory; opening a page must not run a migration.
+        setPayments(paySnap.docs.map(item => {
+          const payment = { id: item.id, ...item.data() };
+          const academicYear = getPaymentAcademicYear(payment);
+          return academicYear ? { ...payment, academicYear } : payment;
+        }));
+        setSalaries(salSnap.docs.map(item => ({ id: item.id, ...item.data() })));
+        setExpenses(expSnap.docs.map(item => ({ id: item.id, ...item.data() })));
+      }, { force });
     } catch (e) {
-      console.error("Error loading finance data:", e);
-      showToast('Erreur de chargement financier', 'error');
+      console.error('Error loading finance data:', e);
+      originalShowToast('Erreur de chargement financier', 'error');
     }
-  }, [showToast, hasPermission, authScope]);
+  }, [originalShowToast, hasPermission, reads, getDocs]);
 
   const addPayment = async (paymentData) => {
     requireEdit('finance');
@@ -2044,7 +1988,7 @@ export const AppProvider = ({ children }) => {
   return (
     <AppContext.Provider value={{
       students, teachers, grades, isAuthenticated, isDirectorAuth, loading,
-      login, logout, showToast,
+      login, logout, showToast, refreshData,
       addStudent, addTeacher, updateStudent, promoteAcademicYear, undoLastPromotion, updateTeacher, deleteStudent, deleteTeacher, updateGrades, batchUpdateGrades,
       studentAttendance, teacherAttendance, updateStudentAttendance, updateTeacherAttendance,
       loadAttendanceForSession, loadStudentAttendanceForMonth, loadTeacherAttendanceForDate, loadTeacherAttendanceForMonth,

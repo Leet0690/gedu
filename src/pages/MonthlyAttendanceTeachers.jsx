@@ -130,7 +130,7 @@ const MonthlyAttendanceTeachers = () => {
   const days = useMemo(() => Array.from({ length: daysInMonth }, (_, i) => i + 1), [daysInMonth]);
 
   useEffect(() => {
-    loadTeacherAttendanceForMonth(month, year, { force: true });
+    loadTeacherAttendanceForMonth(month, year);
   }, [month, year, loadTeacherAttendanceForMonth]);
 
   const filteredTeachers = useMemo(() =>

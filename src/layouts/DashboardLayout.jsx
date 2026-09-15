@@ -27,7 +27,8 @@ import {
   Power, 
   Menu, 
   X, 
-  Bell, 
+  Bell,
+  RefreshCw,
   ChevronDown, 
   ChevronUp, 
   ChevronLeft,
@@ -163,7 +164,7 @@ const SidebarCategory = ({ cat, isSidebarOpen, renderNavLink, location, isMobile
 };
 
 export default function DashboardLayout({ children }) {
-  const { activeSemester, setActiveSemester, activeAcademicYear, setActiveAcademicYear, operationalAcademicYear, availableAcademicYearsList } = useApp();
+  const { activeSemester, setActiveSemester, activeAcademicYear, setActiveAcademicYear, operationalAcademicYear, availableAcademicYearsList, refreshData, loading } = useApp();
   const { adminUser, hasPermission, logout: adminAuthLogout, changePassword } = useAdminAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -421,6 +422,11 @@ export default function DashboardLayout({ children }) {
                 <SemesterToggle activeSemester={activeSemester} onChange={setActiveSemester} compact />
               </div>
             )}
+
+            <button type="button" className="btn-modern" onClick={refreshData} disabled={loading || !isOnline}
+              title="Actualiser les données depuis le serveur" aria-label="Actualiser les données">
+              <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            </button>
 
             {/* User Profile Mini */}
             <div className="premium-topbar-profile" style={{ display: 'flex', alignItems: 'center', gap: '10px', paddingLeft: '16px', borderLeft: '1px solid var(--border)' }}>

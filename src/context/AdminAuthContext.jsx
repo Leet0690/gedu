@@ -3,7 +3,7 @@ import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebas
 import { doc, getDocFromServer, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { changeUserPasswordDirect } from '../services/userService';
-import { hasModulePermission, isAdministrator } from '../utils/permissions';
+import { hasModulePermission, isAdministrator, MODULE_KEYS } from '../utils/permissions';
 import { profileSessionState } from '../utils/authSession';
 import { toAuthEmail } from '../utils/loginIdentifier';
 
@@ -127,7 +127,15 @@ export const AdminAuthProvider = ({ children }) => {
     setAuthError('');
     await signOut(auth);
   }, []);
-  const hasPermission = useCallback((module, level = 'view') => hasModulePermission(adminUser, module, level), [adminUser]);
+  // lastLogin and other profile metadata must not restart every data loader.
+  const permissionSignature = JSON.stringify(MODULE_KEYS.map(module => [
+    hasModulePermission(adminUser, module), hasModulePermission(adminUser, module, 'edit'),
+  ]));
+  const hasPermission = useCallback((module, level = 'view') => {
+    const index = MODULE_KEYS.indexOf(module);
+    if (index < 0 || !['view', 'edit'].includes(level)) return false;
+    return JSON.parse(permissionSignature)[index][level === 'edit' ? 1 : 0];
+  }, [permissionSignature]);
   return <AdminAuthContext.Provider value={{
     adminUser, currentUser: adminUser, loading, authError, login, logout,
     isAuthenticated: adminUser?.isActive === true,

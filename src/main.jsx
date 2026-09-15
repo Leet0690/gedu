@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
+import { BrowserRouter, useLocation } from 'react-router-dom'
 import { MotionConfig } from 'framer-motion'
 import App from './App.jsx'
 import './index.css'
@@ -10,7 +10,9 @@ import { AdminAuthProvider, useAdminAuth } from './context/AdminAuthContext'
 
 const AuthScopedApp = () => {
   const { adminUser } = useAdminAuth();
-  const scope = JSON.stringify([adminUser?.uid, adminUser?.role, adminUser?.isActive, adminUser?.permissions]);
+  const { pathname } = useLocation();
+  const portalScope = /^\/(results|portal|teacher)\//.test(pathname) ? pathname : '';
+  const scope = JSON.stringify([adminUser?.uid, adminUser?.role, adminUser?.isActive, adminUser?.permissions, portalScope]);
   return <AppProvider key={scope}><App /></AppProvider>;
 };
 

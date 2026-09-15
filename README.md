@@ -18,7 +18,11 @@ npm run build
 npm run lint
 ```
 
-## Configuration
+## Lectures Firestore
+
+Le chargement par page, le cache en mémoire et les modalités d'actualisation sont décrits dans [le guide de réduction des lectures](docs/firestore-reads.md).
+
+## Configuration Firebase
 
 Copier `.env.example` vers `.env`, puis renseigner les variables locales. Le fichier `.env` contient des identifiants sensibles et ne doit pas etre versionne.
 
