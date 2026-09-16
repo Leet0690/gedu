@@ -27,7 +27,6 @@ import {
 import { FilterSelect } from '../components/ui/FilterSelect';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
-import DashboardWelcome from '../components/DashboardWelcome';
 import Pagination from '../components/Pagination';
 import {
   STUDENT_STATUS,
@@ -1078,7 +1077,7 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
 };
 
 const AdminDashboard = () => {
-  const { hasPermission, isAdmin, adminUser } = useAdminAuth();
+  const { hasPermission, isAdmin } = useAdminAuth();
   const { students, teachers, payments, grades, schedules, modules: allModules, addStudent, addTeacher, deleteStudent, deleteTeacher, updateStudent, promoteAcademicYear, undoLastPromotion, updateTeacher, studentAttendance, teacherAttendance, loadStudentAttendanceForMonth, loadTeacherAttendanceForMonth, migrateTeacherTokens, loading, confirmAction, notifications, activeSemester, setActiveSemester, getActiveScheduleModule, activeAcademicYear, operationalAcademicYear, availableAcademicYearsList } = useApp();
   const { showToast } = useToast();
   const location = useLocation();
@@ -1707,8 +1706,6 @@ const AdminDashboard = () => {
 
       {isDashboard && (
         <div className="home-dashboard-stack">
-          <DashboardWelcome displayName={adminUser?.displayName} academicYear={activeAcademicYear} semester={activeSemester} />
-
           <div className="home-stats-grid">
             <StatCard delay={0.05} icon={UsersIcon} tone="primary" value={activeYearStudents.length} label="Total Stagiaires" />
             <StatCard delay={0.1} icon={Presentation} tone="warning" value={(teachers || []).length} label="Total Formateurs" />

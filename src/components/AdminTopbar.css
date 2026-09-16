@@ -1,0 +1,70 @@
+.admin-toolbar {
+  position: relative;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 24px;
+  min-height: 86px;
+  padding: 14px 28px;
+  background: #fff;
+  border-bottom: 1px solid #e9e5ed;
+}
+.admin-toolbar-start { display: flex; align-items: center; gap: 14px; min-width: 0; margin-right: auto; }
+.admin-toolbar-menu {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 36px; height: 36px; border: 1px solid #e8e3ed; border-radius: 10px;
+  background: #fff; color: #776781; cursor: pointer;
+}
+.admin-toolbar-menu:hover { background: #f6f3f8; color: #513963; }
+.admin-toolbar .mobile-menu-btn { display: none; }
+.admin-toolbar-title { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.admin-toolbar-title > span { font-size: 10px; color: #8a7c92; letter-spacing: .04em; }
+.admin-toolbar-title > strong { font-size: 15px; font-weight: 700; color: #382e41; line-height: 1.3; }
+.admin-toolbar-filters { display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
+.admin-toolbar-field { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.admin-toolbar-label { color: #817588; font-size: 10px; font-weight: 600; line-height: 1; }
+.admin-toolbar .academic-year-selector__trigger {
+  height: 32px; border: 1px solid #e5dfeb; border-radius: 8px; background: #faf8fc;
+  color: #594466; box-shadow: none; font-weight: 650; letter-spacing: .02em;
+}
+.admin-toolbar .academic-year-selector__calendar { color: #887295; }
+.admin-toolbar .academic-year-selector__menu { border-color: #e9e3ee; }
+.admin-toolbar .premium-semester-toggle {
+  height: 32px; border-radius: 9px; border: 1px solid #e5dfeb;
+  background: #f5f2f8 !important; box-shadow: none !important; padding: 2px !important;
+}
+.admin-toolbar .premium-semester-toggle-button {
+  min-width: 38px; padding: 5px 10px; border-radius: 6px; transform: none;
+  font-size: 11px; font-weight: 650; letter-spacing: .02em;
+}
+.admin-toolbar .premium-semester-toggle-button.is-active {
+  background: #76568a !important; box-shadow: 0 1px 3px #50305f20 !important; border-color: transparent;
+}
+.admin-toolbar-session { display: flex; align-items: center; gap: 16px; padding-left: 24px; border-left: 1px solid #ede8f0; }
+.admin-toolbar-user { display: flex; align-items: center; gap: 9px; }
+.admin-toolbar-avatar { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: #f0eaf5; color: #76568a; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+.admin-toolbar-user > div { display: flex; flex-direction: column; gap: 3px; max-width: 130px; }
+.admin-toolbar-user strong { font-size: 12px; color: #46394f; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-toolbar-user > div > span { font-size: 10px; color: #8a7c92; }
+.admin-toolbar-logout { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 11px; border: 1px solid #eadfe3; border-radius: 9px; background: #fff; color: #995166; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.admin-toolbar-logout:hover { background: #fff3f5; border-color: #dfb9c3; }
+.admin-toolbar-offline { display: inline-flex; align-items: center; gap: 6px; color: #aa631b; font-size: 10px; white-space: nowrap; }
+.admin-toolbar button:focus-visible { outline: 2px solid #806095; outline-offset: 3px; }
+body:has(.app-modal-overlay) .admin-toolbar { z-index: 1 !important; }
+@media (max-width: 1250px) {
+  .admin-toolbar { gap: 16px; padding-inline: 20px; }
+  .admin-toolbar-user, .admin-toolbar-offline > span { display: none; }
+  .admin-toolbar-session { padding-left: 16px; gap: 10px; }
+}
+@media (max-width: 760px) {
+  .admin-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px 10px; padding: 12px 16px; }
+  .admin-toolbar-start { margin: 0; gap: 10px; }
+  .admin-toolbar-title > span { display: none; }
+  .admin-toolbar-title > strong { font-size: 13px; }
+  .admin-toolbar-session { grid-column: 2; grid-row: 1; padding: 0; border: 0; }
+  .admin-toolbar-logout { width: 36px; padding: 0; }
+  .admin-toolbar-logout > span { display: none; }
+  .admin-toolbar-filters { grid-column: 1 / -1; grid-row: 2; justify-content: space-between; gap: 12px; border-top: 1px solid #f0ebf3; padding-top: 12px; }
+  .admin-toolbar .academic-year-selector__menu { top: 146px !important; }
+}

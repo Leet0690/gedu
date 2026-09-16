@@ -3,10 +3,8 @@ import { useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { useAdminAuth } from '../context/AdminAuthContext';
-import { ROLE_PRESETS } from '../services/userService';
 import Logo from '../components/Logo';
-import { SemesterToggle } from '../components/SemesterToggle';
-import { AcademicYearSelector } from '../components/AcademicYearSelector';
+import AdminTopbar from '../components/AdminTopbar';
 import { preloadRoute } from '../routeLoaders';
 import { isAcademicYearScopedPath } from '../utils/routeScopes';
 import { 
@@ -24,24 +22,13 @@ import {
   Presentation, 
   Wallet, 
   Settings, 
-  Power, 
-  Menu, 
   X, 
-  Bell,
   ChevronDown, 
-  ChevronUp, 
-  ChevronLeft,
   School,
-  WifiOff,
   Wand2,
   ArrowUp,
   GraduationCap,
   ShieldCheck,
-  KeyRound,
-  Lock,
-  Eye,
-  EyeOff,
-  AlertCircle
 } from 'lucide-react';
 
 const useOnlineStatus = () => {
@@ -164,7 +151,7 @@ const SidebarCategory = ({ cat, isSidebarOpen, renderNavLink, location, isMobile
 
 export default function DashboardLayout({ children }) {
   const { activeSemester, setActiveSemester, activeAcademicYear, setActiveAcademicYear, operationalAcademicYear, availableAcademicYearsList } = useApp();
-  const { adminUser, hasPermission, logout: adminAuthLogout, changePassword } = useAdminAuth();
+  const { adminUser, hasPermission, logout: adminAuthLogout } = useAdminAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -173,43 +160,6 @@ export default function DashboardLayout({ children }) {
   const scrollRef = useRef(null);
   const sidebarRef = useRef(null);
   const isOnline = useOnlineStatus();
-
-  // Change password modal state
-  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
-  const [newPasswordInput, setNewPasswordInput] = useState('');
-  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
-  const [showPwd, setShowPwd] = useState(false);
-  const [pwdError, setPwdError] = useState('');
-  const [pwdSuccess, setPwdSuccess] = useState('');
-  const [pwdLoading, setPwdLoading] = useState(false);
-
-  const handleChangePasswordSubmit = async (e) => {
-    e.preventDefault();
-    setPwdError('');
-    setPwdSuccess('');
-    if (newPasswordInput.length < 6) {
-      setPwdError("Le mot de passe doit comporter au moins 6 caractères.");
-      return;
-    }
-    if (newPasswordInput !== confirmPasswordInput) {
-      setPwdError("Les deux mots de passe ne sont pas identiques.");
-      return;
-    }
-    setPwdLoading(true);
-    const res = await changePassword(newPasswordInput);
-    setPwdLoading(false);
-    if (res.success) {
-      setPwdSuccess("Mot de passe mis à jour avec succès !");
-      setTimeout(() => {
-        setIsChangePasswordModalOpen(false);
-        setNewPasswordInput('');
-        setConfirmPasswordInput('');
-        setPwdSuccess('');
-      }, 1500);
-    } else {
-      setPwdError(res.error || "Erreur lors du changement de mot de passe.");
-    }
-  };
 
   // Filter navigation items by user permissions
   const visibleNavCategories = useMemo(() => {
@@ -342,160 +292,22 @@ export default function DashboardLayout({ children }) {
       {/* Main Content Area */}
       <div className="premium-layout-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
         
-        {/* Simple Flat Header */}
-        <header className="premium-topbar flex h-[64px] shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6" style={{ zIndex: 30 }}>
-          <div className="premium-topbar-start" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            {/* Desktop toggler */}
-            <button 
-              className="premium-layout-toggle desktop-menu-btn"
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              aria-label={isSidebarOpen ? "Réduire le menu" : "Développer le menu"}
-            >
-              <span className="premium-layout-toggle-glow" aria-hidden="true" />
-              <span className="premium-layout-toggle-icon">
-                <ChevronLeft
-                  size={18}
-                  style={{ transform: isSidebarOpen ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 0.16s' }}
-                />
-              </span>
-            </button>
-
-            {/* Mobile toggler */}
-            <button 
-              className="premium-layout-toggle mobile-menu-btn"
-              onClick={() => setIsMobileMenuOpen(true)}
-              aria-label="Ouvrir le menu mobile"
-              style={{
-                width: '36px', height: '36px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)',
-                background: 'var(--white)', color: 'var(--text-secondary)', display: 'none', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-              }}
-            >
-              <Menu size={20} />
-            </button>
-          </div>
-
-          <div className="premium-topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            {/* Offline badge */}
-            <AnimatePresence>
-              {!isOnline && (
-                <motion.div
-                  className="premium-topbar-offline"
-                  initial={{ opacity: 0, scale: 0.85, x: 10 }}
-                  animate={{ opacity: 1, scale: 1, x: 0 }}
-                  exit={{ opacity: 0, scale: 0.85, x: 10 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 22 }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '6px',
-                    padding: '6px 12px',
-                    borderRadius: 'var(--radius-pill)',
-                    background: 'rgba(239,68,68,0.08)',
-                    border: '1px solid rgba(239,68,68,0.2)',
-                  }}
-                >
-                  <WifiOff size={13} style={{ color: '#ef4444', flexShrink: 0 }} />
-                  <span style={{ fontSize: '11px', fontWeight: '800', color: '#ef4444', whiteSpace: 'nowrap', letterSpacing: '0.03em' }}>
-                    Hors ligne
-                  </span>
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444', flexShrink: 0, animation: 'pulse 1.8s ease-in-out infinite' }} />
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Academic Year Selector */}
-            {showAcademicYearSelector && availableAcademicYearsList && availableAcademicYearsList.length > 0 && (
-              <div className="premium-topbar-semester premium-topbar-academic-year">
-                <span className="premium-topbar-semester-label">Année académique</span>
-                <AcademicYearSelector
-                  activeYear={activeAcademicYear}
-                  operationalYear={operationalAcademicYear}
-                  availableYears={availableAcademicYearsList}
-                  onChange={setActiveAcademicYear}
-                />
-              </div>
-            )}
-
-            {/* Semester Toggle Component */}
-            {activeSemester && setActiveSemester && (
-              <div className="premium-topbar-semester">
-                <span className="premium-topbar-semester-label">Semestre actif</span>
-                <SemesterToggle activeSemester={activeSemester} onChange={setActiveSemester} compact />
-              </div>
-            )}
-
-            {/* User Profile Mini */}
-            <div className="premium-topbar-profile" style={{ display: 'flex', alignItems: 'center', gap: '10px', paddingLeft: '16px', borderLeft: '1px solid var(--border)' }}>
-              <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', maxWidth: '160px' }}>
-                <span style={{ 
-                  fontSize: '12px',
-                  fontWeight: '800',
-                  color: 'var(--text-primary)',
-                  letterSpacing: '-0.01em',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis'
-                }}>
-                  {adminUser?.displayName || 'Administrateur'}
-                </span>
-                <span style={{
-                  fontSize: '9px',
-                  color: ROLE_PRESETS[adminUser?.role]?.color || 'var(--primary)',
-                  fontWeight: '800',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.06em'
-                }}>
-                  {ROLE_PRESETS[adminUser?.role]?.label || (adminUser?.role === 'admin' ? 'Super Admin' : 'Utilisateur')}
-                </span>
-              </div>
-
-              <div
-                style={{
-                  width: '36px', height: '36px', borderRadius: '10px',
-                  background: `${ROLE_PRESETS[adminUser?.role]?.color || '#3b82f6'}15`,
-                  border: `1px solid ${ROLE_PRESETS[adminUser?.role]?.color || '#3b82f6'}30`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: ROLE_PRESETS[adminUser?.role]?.color || '#3b82f6', flexShrink: 0,
-                  fontWeight: '800', fontSize: '13px'
-                }}
-                title={adminUser?.email}
-              >
-                {(adminUser?.displayName || adminUser?.email || 'A').charAt(0).toUpperCase()}
-              </div>
-
-              {/* Change Password Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  setPwdError('');
-                  setPwdSuccess('');
-                  setNewPasswordInput('');
-                  setConfirmPasswordInput('');
-                  setIsChangePasswordModalOpen(true);
-                }}
-                className="premium-topbar-logout"
-                data-tooltip="Modifier mon mot de passe"
-                aria-label="Modifier mon mot de passe"
-                title="Modifier mon mot de passe"
-                style={{ color: 'var(--text-muted)' }}
-              >
-                <KeyRound size={17} />
-              </button>
-
-              {/* Premium Logout Button */}
-              <button
-                type="button"
-                onClick={async () => {
-                  if (adminAuthLogout) await adminAuthLogout();
-                }}
-                className="premium-topbar-logout"
-                data-tooltip="Se déconnecter"
-                aria-label="Se déconnecter"
-                title="Se déconnecter"
-              >
-                <Power size={18} />
-              </button>
-            </div>
-          </div>
-        </header>
+        <AdminTopbar
+          pageTitle={visibleNavCategories.flatMap(category => category.items).find(item => item.to === location.pathname)?.label}
+          isSidebarOpen={isSidebarOpen}
+          onToggleSidebar={() => setIsSidebarOpen(previous => !previous)}
+          onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
+          isOnline={isOnline}
+          showAcademicYearSelector={showAcademicYearSelector}
+          activeAcademicYear={activeAcademicYear}
+          operationalAcademicYear={operationalAcademicYear}
+          availableAcademicYearsList={availableAcademicYearsList}
+          onAcademicYearChange={setActiveAcademicYear}
+          activeSemester={activeSemester}
+          onSemesterChange={setActiveSemester}
+          adminUser={adminUser}
+          onLogout={adminAuthLogout}
+        />
 
         {/* Content Scroll Area */}
         <main className="premium-main-scroll" ref={scrollRef} onScroll={handleMainScroll} style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '24px' }}>
@@ -585,112 +397,6 @@ export default function DashboardLayout({ children }) {
               ))}
             </nav>
           </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Modal: Change Password */}
-      <AnimatePresence>
-        {isChangePasswordModalOpen && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="glass-card max-w-md w-full p-6 shadow-2xl relative"
-            >
-              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3 mb-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
-                    <KeyRound size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                      Modifier mon Mot de Passe
-                    </h3>
-                    <p className="text-xs text-slate-400">{adminUser?.email}</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsChangePasswordModalOpen(false)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              {pwdError && (
-                <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs flex items-center gap-2">
-                  <AlertCircle size={16} />
-                  <span>{pwdError}</span>
-                </div>
-              )}
-
-              {pwdSuccess && (
-                <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs flex items-center gap-2">
-                  <ShieldCheck size={16} />
-                  <span>{pwdSuccess}</span>
-                </div>
-              )}
-
-              <form onSubmit={handleChangePasswordSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                    Nouveau mot de passe
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPwd ? 'text' : 'password'}
-                      required
-                      placeholder="Minimum 6 caractères"
-                      value={newPasswordInput}
-                      onChange={(e) => setNewPasswordInput(e.target.value)}
-                      className="input-premium w-full py-2 pl-3 pr-10 text-sm"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPwd(!showPwd)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    >
-                      {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                    Confirmer le nouveau mot de passe
-                  </label>
-                  <input
-                    type={showPwd ? 'text' : 'password'}
-                    required
-                    placeholder="Répétez le mot de passe"
-                    value={confirmPasswordInput}
-                    onChange={(e) => setConfirmPasswordInput(e.target.value)}
-                    className="input-premium w-full py-2 px-3 text-sm"
-                  />
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-                  <button
-                    type="button"
-                    onClick={() => setIsChangePasswordModalOpen(false)}
-                    className="btn-modern secondary text-xs"
-                    disabled={pwdLoading}
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    type="submit"
-                    className="btn-modern primary text-xs"
-                    disabled={pwdLoading}
-                  >
-                    {pwdLoading ? 'Mise à jour...' : 'Mettre à jour'}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
         )}
       </AnimatePresence>
 

@@ -11,6 +11,7 @@ export const SemesterToggle = ({ activeSemester, onChange, compact = false }) =>
         <button
           key={sem}
           type="button"
+          aria-pressed={activeSemester === sem}
           onClick={() => onChange(sem)}
           title={`Activer le semestre ${sem}`}
           className={cn(
