@@ -18,6 +18,8 @@ import {
   calcCcAverage,
   calcModuleAverage,
   calcStudentSynthesisAverages,
+  isModuleGradeComplete,
+  isValidScore,
   parseScore,
 } from '../utils/gradeCalculations';
 import {
@@ -25,6 +27,7 @@ import {
 } from '../utils/studentStatus';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
+import { mergeGradeDraft } from '../utils/gradeDrafts';
 
 const getGroupAbbreviation = (filiere, annee) => getClassCode('', filiere, annee);
 
@@ -88,8 +91,7 @@ const EMPTY_GRADE = { c1: '', c2: '', c3: '', efcfp: '', efcft: '' };
 /* ── Components ── */
 const GradeInput = ({ value, onChange, placeholder = '—' }) => {
   const { hasPermission } = useAdminAuth();
-  const num = parseFloat(value);
-  const isInvalid = value !== '' && value !== undefined && !isNaN(num) && (num < 0 || num > 20);
+  const isInvalid = !isValidScore(value);
   return (
     <input disabled={!hasPermission('grades', 'edit')} type="number" step="0.25" className="input-premium"
       style={{ 
@@ -132,8 +134,13 @@ const GradeManagement = () => {
   }, [activeAcademicYear]);
   const [saved, setSaved] = useState(false);
   const [localGrades, setLocalGrades] = useState({});
+  const [studentDirtyModules, setStudentDirtyModules] = useState(() => new Set());
+  const studentDraftScope = React.useRef('');
+  const studentEditRevision = React.useRef(0);
   const [moduleLocalGrades, setModuleLocalGrades] = useState({});
   const [moduleDirtyStudentIds, setModuleDirtyStudentIds] = useState(() => new Set());
+  const moduleDraftScope = React.useRef('');
+  const moduleEditRevision = React.useRef(0);
   const availableAcademicYears = availableAcademicYearsList;
   const academicStudents = useMemo(() => (students || [])
     .map(student => getStudentAcademicSnapshot(student, filterAcademicYear, operationalAcademicYear))
@@ -192,10 +199,18 @@ const GradeManagement = () => {
   const modules = studentModules.map(m => m.name);
   
   React.useEffect(() => {
-    setLocalGrades(selectedStudent
+    const scope = `${selectedStudent?.id || ''}:${filterAcademicYear}`;
+    const incoming = selectedStudent
       ? getGradesForAcademicYear(grades[selectedStudent.id] || {}, filterAcademicYear)
-      : {});
-  }, [selectedStudent, grades, filterAcademicYear]);
+      : {};
+    if (studentDraftScope.current !== scope) {
+      studentDraftScope.current = scope;
+      setStudentDirtyModules(new Set());
+      setLocalGrades(incoming);
+    } else {
+      setLocalGrades(previous => mergeGradeDraft(incoming, previous, studentDirtyModules));
+    }
+  }, [selectedStudent, grades, filterAcademicYear, studentDirtyModules]);
 
   // Modules for PDF (based on filters, not selected student)
   const pdfModulesList = useMemo(() => {
@@ -243,9 +258,12 @@ const GradeManagement = () => {
   ), [academicStudents, grades, filterAcademicYear]);
 
   React.useEffect(() => {
+    const scope = JSON.stringify([selectedGradeModule, filterAcademicYear, filterDiploma, filterMajor, filterYear]);
+    const changedScope = moduleDraftScope.current !== scope;
+    moduleDraftScope.current = scope;
     if (!selectedGradeModule) {
       setModuleLocalGrades({});
-      setModuleDirtyStudentIds(new Set());
+      if (moduleDirtyStudentIds.size) setModuleDirtyStudentIds(new Set());
       return;
     }
 
@@ -256,15 +274,15 @@ const GradeManagement = () => {
         ...(getGradeByModuleName(academicGrades[student.id], selectedGradeModule) || {}),
       };
     });
-    setModuleLocalGrades(nextGrades);
-    setModuleDirtyStudentIds(new Set());
-  }, [academicGrades, moduleStudents, selectedGradeModule]);
+    setModuleLocalGrades(previous => changedScope ? nextGrades : mergeGradeDraft(nextGrades, previous, moduleDirtyStudentIds));
+    if (changedScope) setModuleDirtyStudentIds(new Set());
+  }, [academicGrades, moduleStudents, selectedGradeModule, filterAcademicYear, filterDiploma, filterMajor, filterYear, moduleDirtyStudentIds]);
 
   const canDiscardModuleDraft = async () => {
-    if (moduleDirtyStudentIds.size === 0 || !confirmAction) return true;
+    if ((moduleDirtyStudentIds.size === 0 && studentDirtyModules.size === 0) || !confirmAction) return true;
     return confirmAction({
       title: 'Notes non enregistrées',
-      message: 'Des notes saisies par module ne sont pas encore enregistrées. Voulez-vous abandonner ces modifications ?',
+      message: 'Des notes saisies ne sont pas encore enregistrées. Voulez-vous abandonner ces modifications ?',
       type: 'warning',
     });
   };
@@ -318,13 +336,17 @@ const GradeManagement = () => {
 
   const handleGradeChange = (module, field, value) => {
     const safeModule = sanitizeGradeKey(module);
+    studentEditRevision.current++;
+    setStudentDirtyModules(previous => new Set([...previous, safeModule]));
+    setSaved(false);
     setLocalGrades(prev => {
-      const current = prev[safeModule] || { c1: '', c2: '', c3: '', efcfp: '', efcft: '' };
+      const current = getGradeByModuleName(prev, studentModules.find(m => m.name === module) || module) || EMPTY_GRADE;
       return { ...prev, [safeModule]: { ...current, [field]: value } };
     });
   };
 
   const handleModuleGradeChange = (studentId, field, value) => {
+    moduleEditRevision.current++;
     setModuleLocalGrades(prev => ({
       ...prev,
       [studentId]: {
@@ -342,13 +364,14 @@ const GradeManagement = () => {
   };
 
   const handleSave = async () => {
+    const revision = studentEditRevision.current;
+    const scope = studentDraftScope.current;
     let hasInvalid = false;
-    Object.values(localGrades).forEach(g => {
-      ['c1', 'c2', 'c3', 'efcfp', 'efcft'].forEach(field => {
-        if (g[field] !== '' && g[field] !== undefined) {
-          const num = parseFloat(g[field]);
-          if (num < 0 || num > 20) hasInvalid = true;
-        }
+    studentDirtyModules.forEach(key => {
+      const g = localGrades[key];
+      const fields = key === 'firstYear' ? ['moyCC', 'moyEFCFT', 'moyEFCFP', 'nsti'] : ['c1', 'c2', 'c3', 'efcfp', 'efcft'];
+      fields.forEach(field => {
+        if (!isValidScore(g?.[field])) hasInvalid = true;
       });
     });
 
@@ -359,7 +382,7 @@ const GradeManagement = () => {
     
     if (!selectedStudentId) return;
 
-    const updates = Object.keys(localGrades).map(moduleKey => ({
+    const updates = Array.from(studentDirtyModules).map(moduleKey => ({
       studentId: selectedStudentId,
       academicYear: filterAcademicYear,
       subject: moduleKey,
@@ -369,19 +392,19 @@ const GradeManagement = () => {
     if (updates.length > 0) {
       await batchUpdateGrades(updates);
     }
+    if (revision !== studentEditRevision.current || scope !== studentDraftScope.current) return;
+    setStudentDirtyModules(new Set());
     
     setSaved(true); 
     setTimeout(() => setSaved(false), 2500); 
   };
 
-  const isValidGrade = (val) => {
-    if (val === '' || val === undefined || val === null) return true;
-    const num = Number(val);
-    return Number.isFinite(num) && num >= 0 && num <= 20;
-  };
+  const isValidGrade = isValidScore;
 
   const handleSaveByModule = async () => {
     if (!selectedGradeModule || moduleDirtyStudentIds.size === 0) return;
+    const revision = moduleEditRevision.current;
+    const scope = moduleDraftScope.current;
 
     const dirtyIds = Array.from(moduleDirtyStudentIds);
     const hasInvalid = dirtyIds.some(studentId =>
@@ -402,6 +425,7 @@ const GradeManagement = () => {
       gradeData: { ...EMPTY_GRADE, ...(moduleLocalGrades[studentId] || {}) },
     })));
 
+    if (revision !== moduleEditRevision.current || scope !== moduleDraftScope.current) return;
     setModuleDirtyStudentIds(new Set());
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
@@ -428,10 +452,7 @@ const GradeManagement = () => {
     });
   };
 
-  const isComplete = (g) => {
-    if (!g || g.c1 === '' || g.c2 === '' || g.efcfp === '' || g.efcft === '') return false;
-    return true;
-  };
+  const isComplete = isModuleGradeComplete;
 
   const getMention = (avg) => {
     if (avg === null) return '';
@@ -506,7 +527,7 @@ const GradeManagement = () => {
     await generateNoteObtentionDiplome(
       selectedStudent,
       { ...academicGrades, [selectedStudent.id]: localGrades },
-      modules,
+      studentModules,
       { academicYear: filterAcademicYear }
     );
     showToast('Attestation générée', 'success');
@@ -1006,20 +1027,20 @@ const GradeManagement = () => {
                 <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={lbl}>Moy CC (1ère)</label>
-                    <GradeInput value={(localGrades.firstYear || {}).moyCC || ''} onChange={(v) => handleGradeChange('firstYear', 'moyCC', v)} />
+                    <GradeInput value={(localGrades.firstYear || {}).moyCC ?? ''} onChange={(v) => handleGradeChange('firstYear', 'moyCC', v)} />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={lbl}>EFCFT (1ère)</label>
-                    <GradeInput value={(localGrades.firstYear || {}).moyEFCFT || ''} onChange={(v) => handleGradeChange('firstYear', 'moyEFCFT', v)} />
+                    <GradeInput value={(localGrades.firstYear || {}).moyEFCFT ?? ''} onChange={(v) => handleGradeChange('firstYear', 'moyEFCFT', v)} />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={lbl}>EFCFP (1ère)</label>
-                    <GradeInput value={(localGrades.firstYear || {}).moyEFCFP || ''} onChange={(v) => handleGradeChange('firstYear', 'moyEFCFP', v)} />
+                    <GradeInput value={(localGrades.firstYear || {}).moyEFCFP ?? ''} onChange={(v) => handleGradeChange('firstYear', 'moyEFCFP', v)} />
                   </div>
                   <div style={{ width: '1px', background: 'var(--border-light)' }}></div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={{ ...lbl, color: 'var(--accent)' }}>Note NSTI</label>
-                    <GradeInput value={(localGrades.firstYear || {}).nsti || ''} onChange={(v) => handleGradeChange('firstYear', 'nsti', v)} />
+                    <GradeInput value={(localGrades.firstYear || {}).nsti ?? ''} onChange={(v) => handleGradeChange('firstYear', 'nsti', v)} />
                   </div>
                 </div>
               </div>
@@ -1050,7 +1071,7 @@ const GradeManagement = () => {
                     </thead>
                     <tbody>
                       {modules.map((mod, idx) => {
-                        const g = getGradeByModuleName(localGrades, mod) || { c1: '', c2: '', c3: '', efcfp: '', efcft: '' };
+                        const g = getGradeByModuleName(localGrades, studentModules[idx]) || { c1: '', c2: '', c3: '', efcfp: '', efcft: '' };
                         const moyCC = calcMoyenneCC(g);
                         const avg = calcAvg(g);
                         const complete = isComplete(g);
@@ -1066,7 +1087,7 @@ const GradeManagement = () => {
                             </td>
                             <td style={{ ...tdStyle, textAlign: 'center' }}><GradeInput value={g.c1} onChange={(v) => handleGradeChange(mod, 'c1', v)} /></td>
                             <td style={{ ...tdStyle, textAlign: 'center' }}><GradeInput value={g.c2} onChange={(v) => handleGradeChange(mod, 'c2', v)} /></td>
-                            <td style={{ ...tdStyle, textAlign: 'center' }}><GradeInput value={g.c3 || ''} onChange={(v) => handleGradeChange(mod, 'c3', v)} placeholder="opt." /></td>
+                            <td style={{ ...tdStyle, textAlign: 'center' }}><GradeInput value={g.c3 ?? ''} onChange={(v) => handleGradeChange(mod, 'c3', v)} placeholder="opt." /></td>
                             <td style={{ ...tdStyle, textAlign: 'center', background: 'rgba(0,0,0,0.01)' }}>
                               <span style={{ fontSize: 'var(--text-sm)', fontWeight: '800' }}>{moyCC !== null ? moyCC.toFixed(2) : '—'}</span>
                             </td>

@@ -2,7 +2,7 @@ import { jsPDF } from 'jspdf';
 import { loadLogoDataUrl } from './loadLogoDataUrl.js';
 import {
   getGradeByModuleName,
-  getGradeKeyCandidates,
+  dedupeModulesByName,
   getModuleOrder,
   sanitizeGradeKey,
 } from './gradeSync.js';
@@ -10,6 +10,7 @@ import {
   calcCcAverage,
   calcModuleAverage,
   calcStudentSynthesisAverages,
+  calcDiplomaSynthesis,
   getModuleCoefficient,
   parseScore,
 } from './gradeCalculations.js';
@@ -86,45 +87,20 @@ const drawHeader = (doc, title, logoDataUrl, withLine = true) => {
   return title === "Notes d'obtention de diplôme" ? 55 : 55;
 };
 
-const hasEnteredGrade = (grade) =>
-  !!grade && ['c1', 'c2', 'c3', 'efcfp', 'efcft'].some(field =>
-    grade[field] !== undefined && grade[field] !== null && grade[field] !== ''
-  );
-
-export const normalizeBulletinModules = (modules = [], grades = {}) => {
-  const entries = [];
-  const seenKeys = new Set();
-
-  (modules || []).forEach((module, index) => {
-    const isObjectModule = module && typeof module === 'object';
-    const name = isObjectModule ? (module.name || module.module || module.label || '') : String(module || '');
-    if (!name) return;
-    const key = sanitizeGradeKey(name);
-    const keyCandidates = getGradeKeyCandidates(name);
-    if (keyCandidates.some(candidateKey => seenKeys.has(candidateKey))) return;
-    keyCandidates.forEach(candidateKey => seenKeys.add(candidateKey));
-    entries.push({
-      name,
-      key,
-      coefficient: isObjectModule ? getModuleCoefficient(module) : 1,
-      order: isObjectModule ? (getModuleOrder(module) ?? index + 1) : index + 1,
-      year: isObjectModule ? (module.year || '') : '',
-    });
-  });
-
-  Object.keys(grades || {}).forEach((key) => {
-    if (seenKeys.has(key) || !hasEnteredGrade(grades[key])) return;
-    entries.push({
-      name: key.replace(/_/g, '.'),
-      key,
-      coefficient: 1,
-      order: entries.length + 1,
-      year: '',
-    });
-  });
-
-  return entries;
-};
+// The configured module list is authoritative for both the screen and exports.
+// Legacy keys outside that list must not silently alter PDF averages.
+export const normalizeBulletinModules = (modules = []) => dedupeModulesByName(modules).map((module, index) => {
+  const isObjectModule = module && typeof module === 'object';
+  const name = isObjectModule ? (module.name || module.module || module.label || '') : String(module || '');
+  return {
+    ...(isObjectModule ? module : {}),
+    name,
+    key: sanitizeGradeKey(name),
+    coefficient: getModuleCoefficient(module),
+    order: isObjectModule ? (getModuleOrder(module) ?? index + 1) : index + 1,
+    year: isObjectModule ? (module.year || '') : '',
+  };
+});
 
 /* ════════════════════════════════════════════════════════════════════
  *  1. FICHE DE SIGNATURE — Par module / par CC
@@ -230,8 +206,8 @@ export const generateFicheSignature = async ({ students, filiere, niveau, anneeF
     doc.text(`${student.lastName || ''} ${student.firstName || ''}`, margin + col1W + 3, y + 7);
 
     const studentGrades = getGradeByModuleName(allGrades?.[student.id] || {}, module) || {};
-    const gradeVal = studentGrades[`c${ccNumber}`];
-    const displayGrade = gradeVal !== undefined && gradeVal !== '' ? `${parseFloat(gradeVal).toFixed(2).replace('.', ',')} / 20` : '..................../20';
+    const gradeVal = parseScore(studentGrades[`c${ccNumber}`]);
+    const displayGrade = gradeVal !== null ? `${gradeVal.toFixed(2).replace('.', ',')} / 20` : '..................../20';
 
     doc.text(displayGrade, margin + col1W + col2W + 5, y + 7);
 
@@ -355,11 +331,11 @@ export const generateFicheNotes = async ({ students, filiere, classe, anneeForma
     doc.text(`${student.lastName || ''} ${student.firstName || ''}`, margin + tCol1 + 3, y + 8);
 
     const studentGrades = getGradeByModuleName(allGrades?.[student.id] || {}, module) || {};
-    const valEFCFP = studentGrades.efcfp;
-    const valEFCFT = studentGrades.efcft;
+    const valEFCFP = parseScore(studentGrades.efcfp);
+    const valEFCFT = parseScore(studentGrades.efcft);
 
-    const displayEFCFP = valEFCFP !== undefined && valEFCFP !== '' ? `${parseFloat(valEFCFP).toFixed(2).replace('.', ',')} / 20` : '........./20';
-    const displayEFCFT = valEFCFT !== undefined && valEFCFT !== '' ? `${parseFloat(valEFCFT).toFixed(2).replace('.', ',')} / 20` : '........./20';
+    const displayEFCFP = valEFCFP !== null ? `${valEFCFP.toFixed(2).replace('.', ',')} / 20` : '........./20';
+    const displayEFCFT = valEFCFT !== null ? `${valEFCFT.toFixed(2).replace('.', ',')} / 20` : '........./20';
 
     doc.text(displayEFCFP, margin + tCol1 + tCol2 + 5, y + 8);
     doc.text(displayEFCFT, margin + tCol1 + tCol2 + tCol3 + 5, y + 8);
@@ -506,7 +482,7 @@ export const generateBulletinGlobal = async (student, allGrades, modules, { save
   } = calcStudentSynthesisAverages(grades, bulletinModules);
 
   bulletinModules.forEach((mod, idx) => {
-    const g = getGradeByModuleName(grades, mod.name) || grades[mod.key] || grades[mod.name] || {};
+    const g = getGradeByModuleName(grades, mod) || grades[mod.key] || grades[mod.name] || {};
     const coeff = mod.coefficient;
     const moyCC = calcCcAverage(g);
     const nP = parseScore(g.efcfp);
@@ -649,7 +625,7 @@ export const generateBulletinGlobal = async (student, allGrades, modules, { save
 /* ════════════════════════════════════════════════════════════════════
  *  4. NOTE D'OBTENTION DE DIPLÔME
  * ════════════════════════════════════════════════════════════════════ */
-export const generateNoteObtentionDiplome = async (student, allGrades, modules, { academicYear = '' } = {}) => {
+export const generateNoteObtentionDiplome = async (student, allGrades, modules, { save = true, academicYear = '' } = {}) => {
   const logoDataUrl = await loadLogoDataUrl();
   const doc = new jsPDF();
   const w = doc.internal.pageSize.getWidth();
@@ -724,34 +700,18 @@ export const generateNoteObtentionDiplome = async (student, allGrades, modules, 
 
   // ── Compute averages ──
   const bulletinModules = normalizeBulletinModules(modules, grades);
-  const {
-    mcc: avgCC_num,
-    met: avgEFCFT_num,
-    mep: avgEFCFP_num
-  } = calcStudentSynthesisAverages(grades, bulletinModules);
-
-  const mCC = avgCC_num !== null ? avgCC_num.toFixed(2) : '—';
-  const mEFCFT = avgEFCFT_num !== null ? avgEFCFT_num.toFixed(2) : '—';
-  const mEFCFP = avgEFCFP_num !== null ? avgEFCFP_num.toFixed(2) : '—';
-
-  const firstYear = grades.firstYear || {};
-  const fyCC = firstYear.moyCC ? parseFloat(firstYear.moyCC).toFixed(2) : '—';
-  const fyEFCFT = firstYear.moyEFCFT ? parseFloat(firstYear.moyEFCFT).toFixed(2) : '—';
-  const fyEFCFP = firstYear.moyEFCFP ? parseFloat(firstYear.moyEFCFP).toFixed(2) : '—';
-  const nstiFinalAvg = firstYear.nsti ? parseFloat(firstYear.nsti).toFixed(2).replace('.', ',') : '—';
-
-  // Average combined computation
-  const calcAvgY = (cc, efcft, efcfp) => {
-    if (cc === '—' || efcft === '—' || efcfp === '—') return null;
-    return parseFloat(cc) * 0.4 + ((parseFloat(efcfp) + parseFloat(efcft)) / 2) * 0.6;
-  };
-
-  const avgY1 = calcAvgY(fyCC, fyEFCFT, fyEFCFP);
-  const avgY2 = calcAvgY(mCC, mEFCFT, mEFCFP);
-
-  const combinedCC = (fyCC !== '—' && mCC !== '—') ? ((parseFloat(fyCC) + parseFloat(mCC)) / 2).toFixed(2) : '—';
-  const combinedEFCFT = (fyEFCFT !== '—' && mEFCFT !== '—') ? ((parseFloat(fyEFCFT) + parseFloat(mEFCFT)) / 2).toFixed(2) : '—';
-  const combinedEFCFP = (fyEFCFP !== '—' && mEFCFP !== '—') ? ((parseFloat(fyEFCFP) + parseFloat(mEFCFP)) / 2).toFixed(2) : '—';
+  const synthesis = calcDiplomaSynthesis(grades, bulletinModules);
+  const formatScore = value => value === null ? '\u2014' : value.toFixed(2);
+  const mCC = formatScore(synthesis.secondYear.mcc);
+  const mEFCFT = formatScore(synthesis.secondYear.met);
+  const mEFCFP = formatScore(synthesis.secondYear.mep);
+  const fyCC = formatScore(synthesis.firstYear.mcc);
+  const fyEFCFT = formatScore(synthesis.firstYear.met);
+  const fyEFCFP = formatScore(synthesis.firstYear.mep);
+  const nstiFinalAvg = formatScore(synthesis.nsti).replace('.', ',');
+  const combinedCC = formatScore(synthesis.combined.mcc);
+  const combinedEFCFT = formatScore(synthesis.combined.met);
+  const combinedEFCFP = formatScore(synthesis.combined.mep);
 
   // ── Report Table ──
   y += iH + 15;
@@ -834,22 +794,14 @@ export const generateNoteObtentionDiplome = async (student, allGrades, modules, 
   // ── Compute averages (New Formula for 2 Years) ──
   // Formula: ((moyenne CC 2ans * 3) + (moyenne EFCFT 2ans * 2) + (moyenne EFCFP 2ans * 3) + nsti*2) / 10
   
-  let finalAvgNum = null;
-  if (combinedCC !== '—' && combinedEFCFT !== '—' && combinedEFCFP !== '—') {
-    const cc2 = parseFloat(combinedCC);
-    const ft2 = parseFloat(combinedEFCFT);
-    const fp2 = parseFloat(combinedEFCFP);
-    const nstiVal = (firstYear.nsti && firstYear.nsti !== '') ? parseFloat(firstYear.nsti) : 0;
-    
-    finalAvgNum = (cc2 * 3 + ft2 * 2 + fp2 * 3 + nstiVal * 2) / 10;
-  }
+  const finalAvgNum = synthesis.generalAverage;
 
   const finalAvg = finalAvgNum !== null ? finalAvgNum.toFixed(2).replace('.', ',') : '—';
   const isPassed = finalAvgNum !== null && finalAvgNum >= 10;
 
   let mention = '';
   if (finalAvgNum !== null) {
-    const fa = parseFloat(finalAvgNum.toFixed(2));
+    const fa = finalAvgNum;
     if (fa >= 18) mention = 'Excellent';
     else if (fa >= 16) mention = 'T.Bien';
     else if (fa >= 14) mention = 'Bien';
@@ -880,7 +832,7 @@ export const generateNoteObtentionDiplome = async (student, allGrades, modules, 
   doc.setFont('helvetica', 'bold');
   doc.text('Décision', cx + boxLbl / 2, y + 6.5, { align: 'center' });
   doc.setTextColor(isPassed ? 0 : 200, isPassed ? 128 : 0, 0);
-  doc.text(isPassed ? 'Admis' : 'Ajourné', vx + boxVal / 2, y + 6.5, { align: 'center' });
+  doc.text(finalAvgNum === null ? 'Incomplet' : (isPassed ? 'Admis' : 'Ajourné'), vx + boxVal / 2, y + 6.5, { align: 'center' });
   doc.setTextColor(0);
 
   // Mention
@@ -905,5 +857,6 @@ export const generateNoteObtentionDiplome = async (student, allGrades, modules, 
   doc.setTextColor(0);
 
   const safeName = student.lastName.replace(/[^a-z0-9]/gi, '_');
-  doc.save(`Note_Obtention_Diplome_${safeName}.pdf`);
+  if (save) doc.save(`Note_Obtention_Diplome_${safeName}.pdf`);
+  return doc;
 };

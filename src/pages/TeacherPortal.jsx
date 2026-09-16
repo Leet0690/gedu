@@ -6,6 +6,7 @@ import { useToast } from '../context/ToastContext';
 import { ALL_STUDY_YEARS, getClassCode, getModulesForStudent, MODULES_DATA } from '../data/modules';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
+import { calcCcAverage, isValidScore } from '../utils/gradeCalculations';
 import { 
   UserRound, 
   Clock, 
@@ -60,8 +61,7 @@ const isModuleVisibleForScope = (moduleSemester, activeSemester, includeAllSemes
 
 /* ── Components ── */
 const GradeInput = ({ value, onChange, placeholder = '—' }) => {
-  const num = parseFloat(value);
-  const isInvalid = value !== '' && value !== undefined && !isNaN(num) && (num < 0 || num > 20);
+  const isInvalid = !isValidScore(value);
   return (
     <input type="number" step="0.25" className="input-premium"
       style={{ 
@@ -674,10 +674,7 @@ const TeacherPortal = () => {
     relevantStudents.forEach(student => {
       const g = localGrades[student.id] || {};
       ['c1', 'c2', 'c3', 'efcfp', 'efcft'].forEach(field => {
-        if (g[field] !== '' && g[field] !== undefined) {
-          const num = parseFloat(g[field]);
-          if (num < 0 || num > 20) hasInvalid = true;
-        }
+        if (!isValidScore(g[field])) hasInvalid = true;
       });
     });
     if (hasInvalid) return showToast("Certaines notes sont invalides.", 'error');
@@ -737,15 +734,7 @@ const TeacherPortal = () => {
     }
   };
 
-  const calcMoyenneCC = (g) => {
-    if (!g || g.c1 === '' || g.c2 === '') return null;
-    const c1 = parseFloat(g.c1), c2 = parseFloat(g.c2);
-    if (g.c3 !== '' && g.c3 !== undefined && g.c3 !== null) {
-      const c3 = parseFloat(g.c3);
-      if (!isNaN(c3)) return (c1 + c2 + c3) / 3;
-    }
-    return (c1 + c2) / 2;
-  };
+  const calcMoyenneCC = calcCcAverage;
 
   if (isFinished) {
     // Compute present/absent breakdown for finished screen
@@ -1038,7 +1027,7 @@ const TeacherPortal = () => {
                       </td>
                       <td style={{ ...tdStyle, textAlign: 'center' }}><GradeInput value={g.c1} onChange={(v) => handleGradeChange(s.id, 'c1', v)} /></td>
                       <td style={{ ...tdStyle, textAlign: 'center' }}><GradeInput value={g.c2} onChange={(v) => handleGradeChange(s.id, 'c2', v)} /></td>
-                      <td style={{ ...tdStyle, textAlign: 'center' }}><GradeInput value={g.c3 || ''} onChange={(v) => handleGradeChange(s.id, 'c3', v)} placeholder="opt." /></td>
+                      <td style={{ ...tdStyle, textAlign: 'center' }}><GradeInput value={g.c3 ?? ''} onChange={(v) => handleGradeChange(s.id, 'c3', v)} placeholder="opt." /></td>
                       <td style={{ ...tdStyle, textAlign: 'center', background: 'rgba(124, 58, 237, 0.025)' }}><span style={{ fontWeight: '900', color: 'var(--primary)', fontSize: '14px' }}>{moyCC !== null ? moyCC.toFixed(2) : '—'}</span></td>
                       <td style={{ ...tdStyle, textAlign: 'center' }}><GradeInput value={g.efcfp} onChange={(v) => handleGradeChange(s.id, 'efcfp', v)} /></td>
                       <td style={{ ...tdStyle, textAlign: 'center' }}><GradeInput value={g.efcft} onChange={(v) => handleGradeChange(s.id, 'efcft', v)} /></td>

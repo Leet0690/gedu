@@ -327,8 +327,8 @@ export default function DashboardLayout({ children }) {
         }}
       >
         <div className="premium-sidenav-brand flex h-[64px] items-center border-b border-slate-200 px-5" style={{ justifyContent: isSidebarOpen ? 'space-between' : 'center', padding: isSidebarOpen ? '0 20px' : '0' }}>
-          <Link to="/" className="premium-sidenav-logo flex items-center">
-            <Logo size={isSidebarOpen ? 28 : 32} showText={isSidebarOpen} />
+          <Link to="/" className="premium-sidenav-logo flex items-center" aria-label="IPFP — Accueil">
+            <Logo size={36} showText={isSidebarOpen} />
           </Link>
         </div>
 

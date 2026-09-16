@@ -1,19 +1,24 @@
 import React from 'react';
 
-const Logo = ({ size = 40, showText = true, color = 'var(--primary)' }) => {
+const Logo = ({ size = 40, showText = true, color = '#70528f' }) => {
   return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '12px' }}>
+    <div className="ipfp-brand" style={{ display: 'inline-flex', alignItems: 'center', gap: '11px' }}>
       <svg 
         width={size} 
         height={size} 
-        viewBox="0 0 40 40" 
+        viewBox="0 0 48 48"
         fill="none" 
         xmlns="http://www.w3.org/2000/svg"
-        style={{ filter: 'drop-shadow(0 4px 8px rgba(176, 104, 185, 0.2))' }}
+        role="img"
+        aria-label="IPFP — apprendre et grandir"
+        style={{ flexShrink: 0 }}
       >
-        <rect width="40" height="40" rx="12" fill={color} />
-        <path d="M10 28V12H15L20 20L25 12H30V28H26V18L21 26H19L14 18V28H10Z" fill="white" />
-        <circle cx="32" cy="8" r="4" fill="var(--secondary)" />
+        <rect x="1" y="1" width="46" height="46" rx="15" fill={color} />
+        <rect x="3" y="3" width="42" height="42" rx="13" stroke="white" strokeOpacity="0.12" />
+        <path d="M10 22C15 21 19 23 24 27V38C19 34 15 32 10 33V22Z" fill="#f7e6d4" />
+        <path d="M38 22C33 21 29 23 24 27V38C29 34 33 32 38 33V22Z" fill="#fffdf8" />
+        <path d="M17 19L24 25L31 19" stroke="#f3cc8c" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="24" cy="13" r="4" fill="#f3cc8c" />
       </svg>
       
       {showText && (
@@ -22,9 +27,7 @@ const Logo = ({ size = 40, showText = true, color = 'var(--primary)' }) => {
             fontSize: size * 0.45, 
             fontWeight: '900', 
             letterSpacing: '-0.02em',
-            background: 'linear-gradient(135deg, var(--text-primary) 0%, var(--primary) 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
+            color: '#443253',
             textTransform: 'uppercase'
           }}>
             IPFP
@@ -32,7 +35,7 @@ const Logo = ({ size = 40, showText = true, color = 'var(--primary)' }) => {
           <span style={{ 
             fontSize: size * 0.22, 
             fontWeight: '700', 
-            color: 'var(--text-muted)', 
+            color: '#817286',
             letterSpacing: '0.1em',
             textTransform: 'uppercase',
             marginTop: '2px'

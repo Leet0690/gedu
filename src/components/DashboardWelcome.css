@@ -1,0 +1,75 @@
+.dashboard-welcome {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  align-items: center;
+  gap: 28px;
+  padding: 26px 32px;
+  border: 1px solid #e9e0d9;
+  border-radius: 24px;
+  background: #fbf7f1;
+  box-shadow: 0 4px 18px rgba(92, 65, 52, 0.035);
+}
+
+.dashboard-welcome-eyebrow {
+  display: block;
+  margin-bottom: 14px;
+  color: #776378;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.dashboard-welcome h1 {
+  margin: 0;
+  color: #3e3248;
+  font-size: clamp(24px, 2.8vw, 36px);
+  font-weight: 750;
+  letter-spacing: -0.045em;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-welcome h1 span { color: #806095; }
+.dashboard-welcome h1 .dashboard-welcome-dot { color: #be8548; }
+
+.dashboard-welcome p {
+  max-width: 460px;
+  margin: 10px 0 20px;
+  color: #746975;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.dashboard-welcome-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+
+.dashboard-welcome-details > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #746975;
+  font-size: 11px;
+  font-weight: 550;
+}
+
+.dashboard-welcome-details svg { flex-shrink: 0; color: #9b879f; }
+.dashboard-welcome-community { text-align: center; }
+.dashboard-welcome-community svg { display: block; width: 100%; height: auto; }
+.dashboard-welcome-community > span {
+  display: block;
+  margin-top: 7px;
+  color: #806f86;
+  font-size: 11px;
+  font-weight: 550;
+}
+
+@media (max-width: 760px) {
+  .dashboard-welcome { grid-template-columns: minmax(0, 1fr); gap: 18px; padding: 24px 20px; border-radius: 20px; }
+  .dashboard-welcome-community { display: none; }
+  .dashboard-welcome-eyebrow { font-size: 9px; letter-spacing: 0.08em; }
+  .dashboard-welcome p { margin-bottom: 18px; }
+}

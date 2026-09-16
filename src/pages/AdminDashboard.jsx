@@ -9,6 +9,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { generateBulletinGlobal } from '../utils/pdfGenerator';
+import { parseScore } from '../utils/gradeCalculations';
 import { getGradeByModuleName, getGradesForAcademicYear, getStudentGradeModules } from '../utils/gradeSync';
 import {
   ALL_STUDY_YEARS,
@@ -26,6 +27,7 @@ import {
 import { FilterSelect } from '../components/ui/FilterSelect';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
+import DashboardWelcome from '../components/DashboardWelcome';
 import Pagination from '../components/Pagination';
 import {
   STUDENT_STATUS,
@@ -77,7 +79,6 @@ import {
   Activity,
   Bell,
   BookOpen,
-  Layers,
   AlertTriangle,
   AlertCircle,
   CheckCircle,
@@ -537,7 +538,7 @@ const PendingTasksWidget = ({ students, teachers, grades, teacherAttendance, all
         );
         mods.forEach(m => {
           const g = getGradeByModuleName(studentGrades, m);
-          if (g && (g.c1 || g.c2 || g.c3 || g.efcfp || g.efcft)) entered++;
+          if (['c1', 'c2', 'c3', 'efcfp', 'efcft'].some(field => parseScore(g?.[field]) !== null)) entered++;
         });
       });
       const pct = total > 0 ? Math.round((entered / total) * 100) : 0;
@@ -663,7 +664,7 @@ const GradesBreakdownWidget = ({ students, grades, allModules, activeSemester, o
       );
       mods.forEach(m => {
         const gr = getGradeByModuleName(studentGrades, m);
-        if (gr && (gr.c1 || gr.c2 || gr.c3 || gr.efcfp || gr.efcft)) g.entered++;
+        if (['c1', 'c2', 'c3', 'efcfp', 'efcft'].some(field => parseScore(gr?.[field]) !== null)) g.entered++;
       });
     });
     return Object.values(map).map(g => ({
@@ -1077,7 +1078,7 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
 };
 
 const AdminDashboard = () => {
-  const { hasPermission, isAdmin } = useAdminAuth();
+  const { hasPermission, isAdmin, adminUser } = useAdminAuth();
   const { students, teachers, payments, grades, schedules, modules: allModules, addStudent, addTeacher, deleteStudent, deleteTeacher, updateStudent, promoteAcademicYear, undoLastPromotion, updateTeacher, studentAttendance, teacherAttendance, loadStudentAttendanceForMonth, loadTeacherAttendanceForMonth, migrateTeacherTokens, loading, confirmAction, notifications, activeSemester, setActiveSemester, getActiveScheduleModule, activeAcademicYear, operationalAcademicYear, availableAcademicYearsList } = useApp();
   const { showToast } = useToast();
   const location = useLocation();
@@ -1706,24 +1707,7 @@ const AdminDashboard = () => {
 
       {isDashboard && (
         <div className="home-dashboard-stack">
-          <div className="home-premium-hero">
-            <div className="home-premium-hero-icon">
-              <BarChart3 size={24} />
-            </div>
-            <div className="home-premium-hero-copy">
-              <span className="home-premium-hero-eyebrow">Vue d'ensemble</span>
-              <h1>Tableau de bord</h1>
-              <p>Suivez l'activité académique, les présences et les actions prioritaires.</p>
-            </div>
-            <div className="home-premium-hero-badges">
-              <span><BookOpen size={12} /> {activeAcademicYear}</span>
-              <span><Calendar size={12} /> {currentMonthName}</span>
-              <span><Layers size={12} /> {activeSemester || 'Semestre actif'}</span>
-            </div>
-            <div className="home-premium-hero-orb" aria-hidden="true">
-              <GraduationCap size={58} />
-            </div>
-          </div>
+          <DashboardWelcome displayName={adminUser?.displayName} academicYear={activeAcademicYear} semester={activeSemester} />
 
           <div className="home-stats-grid">
             <StatCard delay={0.05} icon={UsersIcon} tone="primary" value={activeYearStudents.length} label="Total Stagiaires" />

@@ -1,9 +1,21 @@
-import { getGradeByModuleName } from './gradeSync.js';
+import { dedupeModulesByName, getGradeByModuleName } from './gradeSync.js';
+
+const parseDecimal = value => {
+  if (typeof value !== 'number' && typeof value !== 'string') return null;
+  const text = String(value).trim().replace(',', '.');
+  if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(text)) return null;
+  const number = Number(text);
+  return Number.isFinite(number) ? number : null;
+};
+
+export const isEmptyScore = value => value === undefined || value === null || (typeof value === 'string' && value.trim() === '');
 
 export const parseScore = (value) => {
-  const score = parseFloat(value);
-  return Number.isNaN(score) ? null : score;
+  const score = parseDecimal(value);
+  return score !== null && score >= 0 && score <= 20 ? score : null;
 };
+
+export const isValidScore = value => isEmptyScore(value) || parseScore(value) !== null;
 
 export const calcCcAverage = (grade) => {
   if (!grade) return null;
@@ -13,6 +25,7 @@ export const calcCcAverage = (grade) => {
   const c3 = parseScore(grade.c3);
 
   if (c1 === null || c2 === null) return null;
+  if (!isEmptyScore(grade.c3) && c3 === null) return null;
 
   const scores = [c1, c2, ...(c3 !== null ? [c3] : [])];
   return scores.reduce((sum, score) => sum + score, 0) / scores.length;
@@ -25,21 +38,21 @@ export const calcModuleAverage = ({ ccAverage, theoretical, practical }) => {
     )
   ) return null;
 
-  const cc = Number(ccAverage);
-  const theory = Number(theoretical);
-  const practice = Number(practical);
-  if ([cc, theory, practice].some(Number.isNaN)) return null;
+  const cc = parseScore(ccAverage);
+  const theory = parseScore(theoretical);
+  const practice = parseScore(practical);
+  if ([cc, theory, practice].some(value => value === null)) return null;
 
   return ((cc * 3) + (theory * 2) + (practice * 3)) / 8;
 };
 
 export const getModuleCoefficient = (module, fallback = 1) => {
-  const coefficient = parseFloat(module?.coefficient);
-  return Number.isNaN(coefficient) || coefficient <= 0 ? fallback : coefficient;
+  const coefficient = parseDecimal(module?.coefficient);
+  return coefficient === null || coefficient <= 0 ? fallback : coefficient;
 };
 
 export const calcStudentSynthesisAverages = (studentGrades = {}, modules = []) => {
-  const moduleList = (modules || []).filter(Boolean);
+  const moduleList = dedupeModulesByName((modules || []).filter(Boolean));
   const coefficientTotal = moduleList.reduce(
     (sum, module) => sum + getModuleCoefficient(module),
     0
@@ -60,11 +73,8 @@ export const calcStudentSynthesisAverages = (studentGrades = {}, modules = []) =
   let practicalWeightedTotal = 0;
 
   moduleList.forEach((module) => {
-    const moduleName = typeof module === 'string'
-      ? module
-      : (module.name || module.module || module.label || '');
     const coefficient = getModuleCoefficient(module);
-    const grade = getGradeByModuleName(studentGrades, moduleName);
+    const grade = getGradeByModuleName(studentGrades, module);
 
     ccWeightedTotal += coefficient * (calcCcAverage(grade) ?? 0);
     theoreticalWeightedTotal += coefficient * (parseScore(grade?.efcft) ?? 0);
@@ -85,5 +95,27 @@ export const calcStudentSynthesisAverages = (studentGrades = {}, modules = []) =
       practical: mep,
     }),
     coefficientTotal,
+  };
+};
+
+export const isModuleGradeComplete = grade => calcModuleAverage({
+  ccAverage: calcCcAverage(grade), theoretical: grade?.efcft, practical: grade?.efcfp,
+}) !== null;
+
+// Same weighted second-year synthesis as the annual report; round only for display.
+export const calcDiplomaSynthesis = (studentGrades = {}, modules = []) => {
+  const secondYear = calcStudentSynthesisAverages(studentGrades, modules);
+  const history = studentGrades.firstYear || {};
+  const firstYear = {
+    mcc: parseScore(history.moyCC), met: parseScore(history.moyEFCFT), mep: parseScore(history.moyEFCFP),
+  };
+  const combined = Object.fromEntries(['mcc', 'met', 'mep'].map(key => [key,
+    firstYear[key] !== null && secondYear[key] !== null ? (firstYear[key] + secondYear[key]) / 2 : null,
+  ]));
+  const nsti = parseScore(history.nsti);
+  const complete = nsti !== null && Object.values(combined).every(value => value !== null);
+  return {
+    firstYear, secondYear, combined, nsti,
+    generalAverage: complete ? (combined.mcc * 3 + combined.met * 2 + combined.mep * 3 + nsti * 2) / 10 : null,
   };
 };

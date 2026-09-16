@@ -632,17 +632,11 @@ const Reports = () => {
       const g = getGradeByModuleName(getStudentGrades(studentId), modName);
       if (!g) return null;
       const ccAverage = calcCcAverage(g);
-      const efcfp = parseFloat(g.efcfp), efcft = parseFloat(g.efcft);
-      const moduleAverage = calcModuleAverage({
+      return calcModuleAverage({
         ccAverage,
-        theoretical: Number.isNaN(efcft) ? null : efcft,
-        practical: Number.isNaN(efcfp) ? null : efcfp,
+        theoretical: parseScore(g.efcft),
+        practical: parseScore(g.efcfp),
       });
-      if (moduleAverage !== null) return moduleAverage;
-      if (!isNaN(efcfp) && !isNaN(efcft)) return (efcfp + efcft) / 2;
-      const c1 = parseFloat(g.c1), c2 = parseFloat(g.c2), c3 = parseFloat(g.c3);
-      const vals = [c1, c2, c3].filter(v => !isNaN(v));
-      return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
     };
 
     const computeWeightedAvg = (studentId) => {
@@ -788,18 +782,7 @@ const Reports = () => {
       theoretical: efcft,
       practical: efcfp,
     });
-    let score = null;
-
-    if (moduleAverage !== null) {
-      score = moduleAverage;
-    } else if (efcfp !== null && efcft !== null) {
-      score = (efcfp + efcft) / 2;
-    } else {
-      const vals = [c1, c2, c3].filter(v => v !== null);
-      score = vals.length > 0 ? vals.reduce((sum, val) => sum + val, 0) / vals.length : null;
-    }
-
-    return { c1, c2, c3, efcfp, efcft, ccAverage, score };
+    return { c1, c2, c3, efcfp, efcft, ccAverage, score: moduleAverage };
   }, [getStudentGrades]);
 
   const buildGroupStats = useCallback((group) => {

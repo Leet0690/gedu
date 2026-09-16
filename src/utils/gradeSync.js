@@ -101,8 +101,8 @@ const normalizeModuleOrderName = (value = '') =>
 const addGradeKeyVariant = (keys, value) => {
   const raw = String(value || '').trim();
   if (!raw) return;
-  keys.add(raw);
   keys.add(sanitizeGradeKey(raw));
+  keys.add(raw);
 };
 
 export const getGradeKeyCandidates = (moduleOrName) => {
@@ -135,9 +135,6 @@ export const getGradeKeyCandidates = (moduleOrName) => {
   return Array.from(keys);
 };
 
-const isFilledGradeValue = (value) =>
-  value !== undefined && value !== null && value !== '';
-
 export const mergeGradeRecords = (...records) => {
   const filledRecords = records.filter(record => record && typeof record === 'object');
   if (filledRecords.length === 0) return null;
@@ -145,9 +142,8 @@ export const mergeGradeRecords = (...records) => {
   const merged = {};
   filledRecords.forEach(record => {
     Object.entries(record).forEach(([field, value]) => {
-      if (!isFilledGradeValue(merged[field]) && isFilledGradeValue(value)) {
-        merged[field] = value;
-      } else if (merged[field] === undefined && value !== undefined) {
+      // An explicitly cleared canonical value must not resurrect an older alias.
+      if (merged[field] === undefined && value !== undefined) {
         merged[field] = value;
       }
     });
@@ -227,9 +223,9 @@ export const dedupeModulesByName = (modules = []) => {
 
   return (modules || []).filter(module => {
     const name = getModuleName(module);
-    const normalizedName = normalizeGradeName(name);
-    if (!normalizedName || seenNames.has(normalizedName)) return false;
-    seenNames.add(normalizedName);
+    const variants = getGradeKeyCandidates(module).map(normalizeGradeName);
+    if (!name || variants.some(key => seenNames.has(key))) return false;
+    variants.forEach(key => seenNames.add(key));
     return true;
   });
 };

@@ -5341,17 +5341,10 @@ body:has(.finance-modal-portal-scope) .finance-radix-select-content {
 /* Premium home dashboard */
 .home-dashboard-page {
   padding: clamp(16px, 2vw, 28px);
-  border: 1px solid rgba(124, 58, 237, 0.10);
+  border: 1px solid #ece5ed;
   border-radius: 30px;
-  background:
-    radial-gradient(circle at 4% 0%, rgba(217, 70, 239, 0.09), transparent 25%),
-    radial-gradient(circle at 98% 2%, rgba(56, 189, 248, 0.11), transparent 29%),
-    rgba(255, 255, 255, 0.47);
-  box-shadow:
-    0 34px 80px rgba(76, 29, 149, 0.07),
-    inset 0 1px 0 rgba(255, 255, 255, 0.90);
-  backdrop-filter: blur(18px) saturate(1.12);
-  -webkit-backdrop-filter: blur(18px) saturate(1.12);
+  background: #fcfbfd;
+  box-shadow: 0 12px 36px rgba(75, 54, 83, 0.04);
 }
 
 .home-dashboard-stack {
@@ -10090,77 +10083,30 @@ body:has(.app-modal-overlay) .app-modal-overlay {
   }
 }
 
-/* Distinctive sidenav logo and topbar logout */
+/* Learning emblem and a quiet, readable sidebar brand. */
 .premium-sidenav-logo {
   position: relative;
-  padding: 7px;
-  border: 1px solid rgba(129, 140, 248, 0.34);
-  border-radius: 18px;
-  background:
-    radial-gradient(circle at 25% 12%, rgba(99, 102, 241, 0.30), transparent 42%),
-    linear-gradient(145deg, rgba(15, 23, 42, 0.96), rgba(30, 27, 75, 0.92));
-  box-shadow:
-    0 14px 30px rgba(15, 23, 42, 0.38),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15),
-    inset 0 0 18px rgba(99, 102, 241, 0.12);
-  transition: transform 220ms ease, border-color 220ms ease, background 220ms ease, box-shadow 220ms ease;
-}
-
-.premium-sidenav-logo::after {
-  content: '';
-  position: absolute;
-  inset: -2px;
-  z-index: -1;
-  border-radius: inherit;
-  background: conic-gradient(from 30deg, #fbbf24, #a855f7, #38bdf8, #fbbf24);
-  filter: blur(8px);
-  opacity: 0.22;
-  transition: opacity 220ms ease;
+  padding: 5px;
+  border: 1px solid transparent;
+  border-radius: 15px;
+  background: transparent;
+  text-decoration: none;
+  transition: background 160ms ease, border-color 160ms ease;
 }
 
 .premium-sidenav-logo svg {
-  overflow: visible;
-  filter: drop-shadow(0 8px 15px rgba(2, 6, 23, 0.42)) !important;
-  transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1), filter 220ms ease;
-}
-
-.premium-sidenav-logo svg rect {
-  fill: #111827;
-  stroke: rgba(165, 180, 252, 0.72);
-  stroke-width: 1.3px;
-}
-
-.premium-sidenav-logo svg path {
-  fill: #f8fafc;
-  filter: drop-shadow(0 0 5px rgba(129, 140, 248, 0.68));
-}
-
-.premium-sidenav-logo svg circle {
-  fill: #fbbf24;
-  stroke: rgba(255, 255, 255, 0.72);
-  stroke-width: 1px;
-  filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.72));
+  display: block;
+  filter: drop-shadow(0 3px 5px rgba(91, 65, 116, 0.10));
 }
 
 .premium-sidenav-logo:hover {
-  transform: translateY(-2px);
-  border-color: rgba(251, 191, 36, 0.52);
-  background:
-    radial-gradient(circle at 25% 12%, rgba(168, 85, 247, 0.34), transparent 44%),
-    linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(49, 46, 129, 0.94));
-  box-shadow:
-    0 20px 38px rgba(15, 23, 42, 0.46),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    inset 0 0 22px rgba(168, 85, 247, 0.16);
+  border-color: #e9dfee;
+  background: #f8f3fa;
 }
 
-.premium-sidenav-logo:hover::after {
-  opacity: 0.62;
-}
-
-.premium-sidenav-logo:hover svg {
-  transform: scale(1.06);
-  filter: drop-shadow(0 10px 18px rgba(99, 102, 241, 0.44)) !important;
+.premium-sidenav-logo:focus-visible {
+  outline: 2px solid #806095;
+  outline-offset: 3px;
 }
 
 .premium-topbar-logout {
