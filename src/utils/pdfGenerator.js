@@ -723,24 +723,16 @@ export const generateNoteObtentionDiplome = async (student, allGrades, modules, 
   doc.text(student.year || '', margin + cL + cR + 12, y + 6);
 
   // ── Compute averages ──
-  let sumCC = 0, sumEFCFT = 0, sumEFCFP = 0, cnt = 0;
-  modules.forEach(mod => {
-    const moduleName = typeof mod === 'string' ? mod : (mod?.name || '');
-    const g = getGradeByModuleName(grades, moduleName) || {};
-    const { c1, c2, c3, efcfp, efcft } = g;
-    if (c1 && c2 && efcfp && efcft) {
-      const n1 = parseFloat(c1), n2 = parseFloat(c2);
-      const n3 = c3 ? parseFloat(c3) : null;
-      const moyCC = n3 !== null && !isNaN(n3) ? (n1 + n2 + n3) / 3 : (n1 + n2) / 2;
-      sumCC += moyCC;
-      sumEFCFT += parseFloat(efcft);
-      sumEFCFP += parseFloat(efcfp);
-      cnt++;
-    }
-  });
-  const mCC = cnt > 0 ? (sumCC / cnt).toFixed(2) : '—';
-  const mEFCFT = cnt > 0 ? (sumEFCFT / cnt).toFixed(2) : '—';
-  const mEFCFP = cnt > 0 ? (sumEFCFP / cnt).toFixed(2) : '—';
+  const bulletinModules = normalizeBulletinModules(modules, grades);
+  const {
+    mcc: avgCC_num,
+    met: avgEFCFT_num,
+    mep: avgEFCFP_num
+  } = calcStudentSynthesisAverages(grades, bulletinModules);
+
+  const mCC = avgCC_num !== null ? avgCC_num.toFixed(2) : '—';
+  const mEFCFT = avgEFCFT_num !== null ? avgEFCFT_num.toFixed(2) : '—';
+  const mEFCFP = avgEFCFP_num !== null ? avgEFCFP_num.toFixed(2) : '—';
 
   const firstYear = grades.firstYear || {};
   const fyCC = firstYear.moyCC ? parseFloat(firstYear.moyCC).toFixed(2) : '—';
