@@ -8,6 +8,7 @@ const routeLoaders = {
   teacherAttendance: () => import('./pages/TeacherAttendance'),
   reports: () => import('./pages/Reports'),
   scheduleManagement: () => import('./pages/ScheduleManagement'),
+  studentScheduleView: () => import('./pages/StudentScheduleView'),
   financeDashboard: () => import('./pages/FinanceDashboard'),
   moduleManagement: () => import('./pages/ModuleManagement'),
   monthlyAttendance: () => import('./pages/MonthlyAttendance'),

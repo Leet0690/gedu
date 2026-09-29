@@ -1,0 +1,37 @@
+    // Public schedule publications: possession of a random link permits reading,
+    // never enumeration or writing. The original collections keep their rules.
+    match /schedule_share_scopes/{scopeId} {
+      allow get: if permitted('schedules', 'view');
+      allow create: if permitted('schedules', 'view') && scopeId.matches('[a-f0-9]{64}') &&
+        request.resource.data.keys().hasOnly(['token']) && request.resource.data.token is string &&
+        request.resource.data.token.matches('[A-Za-z0-9_-]{43}');
+      allow list, update, delete: if false;
+    }
+    match /public_schedules/{token} {
+      function validToken() { return token.matches('[A-Za-z0-9_-]{43}'); }
+      function validPublication() {
+        let p = request.resource.data;
+        return p.keys().hasOnly(['diploma', 'filiere', 'annee', 'academicYear', 'semester', 'publishedAt']) &&
+          p.diploma is string && p.diploma.size() <= 240 && p.filiere is string && p.filiere.size() <= 240 &&
+          p.annee in ['1ère année', '2ème année'] && p.academicYear is string && p.academicYear.matches('[0-9]{4}-[0-9]{4}') &&
+          p.semester in ['S1', 'S2'] && p.publishedAt == request.time;
+      }
+      allow get: if validToken();
+      allow list: if false;
+      allow create, update: if validToken() && permitted('schedules', 'view') && validPublication();
+      allow delete: if permitted('schedules', 'edit');
+      match /sessions/{sessionId} {
+        function validSession() {
+          let s = request.resource.data;
+          return s.keys().hasOnly(['day', 'time', 'type', 'room', 'module', 'teacherName']) &&
+            s.day in ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'] &&
+            s.time is string && s.time.size() <= 40 && s.type is string && s.type.size() <= 40 &&
+            s.room is string && s.room.size() <= 500 && s.module is string && s.module.size() <= 10000 &&
+            s.teacherName is string && s.teacherName.size() <= 500;
+        }
+        allow read: if validToken() && (permitted('schedules', 'view') || exists(/databases/$(database)/documents/public_schedules/$(token)));
+        allow create, update: if validToken() && permitted('schedules', 'view') && validSession() &&
+          existsAfter(/databases/$(database)/documents/public_schedules/$(token));
+        allow delete: if permitted('schedules', 'view');
+      }
+    }

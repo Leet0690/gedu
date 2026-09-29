@@ -2400,6 +2400,21 @@ input.input-premium[type="date"]::-webkit-datetime-edit {
   text-align: center;
 }
 
+.schedule-premium-page .home-schedule-event-title {
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+  overflow-wrap: anywhere;
+  width: 100%;
+}
+
+.schedule-premium-page .home-schedule-event {
+  left: auto;
+  right: auto;
+  padding-top: 24px;
+  padding-bottom: 10px;
+}
+
 .home-schedule-event-teacher {
   gap: 4px;
   margin-top: 4px; /* Changed from auto to fixed margin for center alignment flow */

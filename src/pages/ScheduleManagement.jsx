@@ -13,9 +13,12 @@ import {
 } from '../data/modules';
 import {
   CalendarDays, Plus, Trash2, Clock, User, MapPin,
-  X, Layers, Users, Calendar, Edit
+  X, Layers, Users, Calendar, Edit, Download, Image as ImageIcon, Link as LinkIcon
 } from 'lucide-react';
 import { filterSchedulesForAcademicYear, INITIAL_OPERATIONAL_ACADEMIC_YEAR } from '../utils/studentStatus';
+import { getScheduleModulesForSemester, normalizeScheduleModules, serializeScheduleModules } from '../utils/scheduleSemester';
+import { exportSchedule } from '../utils/scheduleExport';
+import { createScheduleShare, getScheduleShareErrorMessage } from '../services/scheduleShareService';
 
 const START_HOUR = 8;
 const END_HOUR = 19;
@@ -112,6 +115,9 @@ const ScheduleManagement = () => {
     activeAcademicYear
   } = useApp();
   const { showToast } = useToast();
+  const [exportingFormat, setExportingFormat] = useState('');
+  const [sharing, setSharing] = useState(false);
+  const [studentLink, setStudentLink] = useState(null);
 
   const currentAcademicYear = activeAcademicYear || operationalAcademicYear || INITIAL_OPERATIONAL_ACADEMIC_YEAR;
 
@@ -126,6 +132,7 @@ const ScheduleManagement = () => {
   const availableStudyYears = useMemo(() => getStudyYearsForDiploma(diploma), [diploma]);
   const [annee, setAnnee] = useState(availableStudyYears[0]);
   const semester = activeSemester;
+  const shareScopeKey = JSON.stringify([diploma, filiere, annee, currentAcademicYear, semester]);
 
   const groupLabel = useMemo(() => getGroupAbbreviation(diploma, filiere, annee), [diploma, filiere, annee]);
   const modulesBySemester = useMemo(() => {
@@ -177,13 +184,14 @@ const ScheduleManagement = () => {
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingSession, setEditingSession] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
-    day: 'Lundi', time: '08:30-10:30', module: '', moduleS1: '', moduleS2: '', teacherId: '', room: '', type: 'Cours'
+    day: 'Lundi', time: '08:30-10:30', module: '', moduleS1: [], moduleS2: [], teacherId: '', room: '', type: 'Cours'
   });
 
   const openAdd = () => {
     setEditingSession(null);
-    setFormData({ day: 'Lundi', time: '08:30-10:30', module: '', moduleS1: '', moduleS2: '', teacherId: '', room: '', type: 'Cours' });
+    setFormData({ day: 'Lundi', time: '08:30-10:30', module: '', moduleS1: [], moduleS2: [], teacherId: '', room: '', type: 'Cours' });
     setShowAddModal(true);
   };
 
@@ -193,8 +201,8 @@ const ScheduleManagement = () => {
       day: session.day,
       time: session.time,
       module: session.module || '',
-      moduleS1: session.moduleS1 || session.module || '',
-      moduleS2: session.moduleS2 || '',
+      moduleS1: getScheduleModulesForSemester(session, 'S1', allModules),
+      moduleS2: getScheduleModulesForSemester(session, 'S2', allModules),
       teacherId: session.teacherId,
       room: session.room || '',
       type: session.type || 'Cours'
@@ -202,9 +210,11 @@ const ScheduleManagement = () => {
     setShowAddModal(true);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if ((!formData.moduleS1 && !formData.moduleS2 && !formData.module) || !formData.teacherId) return showToast('Veuillez renseigner au moins un module et le formateur', 'warning');
+    if (isSaving || !canEdit) return;
+    const moduleFields = serializeScheduleModules(formData);
+    if (!moduleFields.module || !formData.teacherId) return showToast('Veuillez renseigner au moins un module et le formateur', 'warning');
     
     // Normalize time format to HH:mm-HH:mm
     const parts = formData.time.split('-');
@@ -214,7 +224,7 @@ const ScheduleManagement = () => {
     
     const finalData = {
       ...formData,
-      module: formData.moduleS1 || formData.moduleS2 || formData.module,
+      ...moduleFields,
       time: normalizedTime,
       diploma,
       filiere,
@@ -222,14 +232,21 @@ const ScheduleManagement = () => {
       academicYear: editingSession?.academicYear || currentAcademicYear
     };
     
-    if (editingSession) {
-      updateSchedule(editingSession.id, finalData);
-    } else {
-      addSchedule(finalData);
+    setIsSaving(true);
+    try {
+      if (editingSession) {
+        await updateSchedule(editingSession.id, finalData);
+      } else {
+        await addSchedule(finalData);
+      }
+      setShowAddModal(false);
+      setFormData(prev => ({ ...prev, module: '', moduleS1: [], moduleS2: [], room: '' }));
+    } catch (error) {
+      console.warn('Impossible de sauvegarder la séance :', error);
+      showToast('La séance n’a pas été enregistrée. Vérifiez la connexion puis réessayez.', 'error');
+    } finally {
+      setIsSaving(false);
     }
-    
-    setShowAddModal(false);
-    setFormData(prev => ({ ...prev, module: '', moduleS1: '', moduleS2: '', room: '' }));
   };
 
   const handleDelete = async (id) => {
@@ -238,7 +255,6 @@ const ScheduleManagement = () => {
     }
   };
 
-  const totalGridHeight = (END_HOUR - START_HOUR + 1) * PX_PER_HOUR;
   const today = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
   const topScrollRef = useRef(null);
   const mainScrollRef = useRef(null);
@@ -255,6 +271,41 @@ const ScheduleManagement = () => {
     }
   };
 
+  const handleDownload = async format => {
+    if (exportingFormat) return;
+    setExportingFormat(format);
+    try {
+      await exportSchedule({
+        format, schedules: filteredSchedules, teachers, groupLabel, diploma, filiere, annee,
+        academicYear: currentAcademicYear, semester, getModule: getActiveScheduleModule,
+      });
+    } catch {
+      showToast(`Erreur lors de la génération du fichier ${format.toUpperCase()}`, 'error');
+    } finally {
+      setExportingFormat('');
+    }
+  };
+
+  const copyStudentLink = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const { token } = await createScheduleShare({ diploma, filiere, annee, academicYear: currentAcademicYear, semester }, { schedules: filteredSchedules, teachers, getModule: getActiveScheduleModule });
+      const url = `${window.location.origin}/schedule-view/${encodeURIComponent(token)}`;
+      setStudentLink({ url, scope: shareScopeKey });
+      try {
+        await navigator.clipboard.writeText(url);
+        showToast('Lien de consultation copié dans le presse-papiers !', 'success');
+      } catch {
+        showToast('Lien prêt : vous pouvez le copier dans le champ affiché.', 'info');
+      }
+    } catch (error) {
+      showToast(getScheduleShareErrorMessage(error, 'create'), 'error');
+    } finally {
+      setSharing(false);
+    }
+  };
+
   return (
     <div className="max-w-container section-padding schedule-premium-page">
       {/* Page Header */}
@@ -267,13 +318,32 @@ const ScheduleManagement = () => {
           <h1>Emplois du Temps</h1>
           <p>Plannings hebdomadaires par filière et groupe.</p>
         </div>
-        <button disabled={!canEdit} onClick={openAdd} className="btn-modern primary schedule-premium-add">
-          <Plus size={18} style={{ marginRight: '8px' }} /> Ajouter une séance
-        </button>
+
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <button disabled={Boolean(exportingFormat)} onClick={() => handleDownload('png')} className="btn-modern secondary" style={{ padding: '6px 12px', fontSize: '12px' }} title="Télécharger en PNG">
+            <ImageIcon size={16} style={{ marginRight: '6px' }} /> {exportingFormat === 'png' ? 'Export…' : 'PNG'}
+          </button>
+          <button disabled={Boolean(exportingFormat)} onClick={() => handleDownload('pdf')} className="btn-modern secondary" style={{ padding: '6px 12px', fontSize: '12px' }} title="Télécharger en PDF">
+            <Download size={16} style={{ marginRight: '6px' }} /> {exportingFormat === 'pdf' ? 'Export…' : 'PDF'}
+          </button>
+          <button disabled={sharing} onClick={copyStudentLink} className="btn-modern secondary" style={{ padding: '6px 12px', fontSize: '12px' }} title="Copier le lien pour stagiaire">
+            <LinkIcon size={16} style={{ marginRight: '6px' }} /> {sharing ? 'Création du lien…' : 'Lien Stagiaire'}
+          </button>
+          <button disabled={!canEdit} onClick={openAdd} className="btn-modern primary schedule-premium-add">
+            <Plus size={18} style={{ marginRight: '8px' }} /> Ajouter une séance
+          </button>
+        </div>
         <div className="schedule-premium-header-orb" aria-hidden="true">
           <Calendar size={112} />
         </div>
       </div>
+
+      {studentLink?.scope === shareScopeKey && (
+        <div className="glass-card" style={{ padding: '14px 20px', marginBottom: '16px' }}>
+          <input id="student-schedule-link" aria-label="Lien stagiaire" readOnly value={studentLink.url} onFocus={event => event.target.select()} style={{ width: '100%' }} />
+          <p style={{ marginTop: '8px', fontSize: '12px' }}>Après une modification, recliquez sur « Lien Stagiaire » pour publier la nouvelle version au même lien.</p>
+        </div>
+      )}
 
       {/* Filter + Stats Bar */}
       <div className="glass-card schedule-premium-filter-card app-filter-grid app-filter-grid--4" style={{ padding: '16px 20px', marginBottom: 'var(--space-5)' }}>
@@ -414,7 +484,7 @@ const ScheduleManagement = () => {
 
                 const colors = getDayColors(day);
                 return (
-                  <div key={day} className="home-schedule-day-row" style={{ height: '96px' }}>
+                  <div key={day} className="home-schedule-day-row" style={{ height: 'auto', minHeight: '112px' }}>
                     {/* Day label (sticky col) */}
                     <div 
                       className="home-schedule-day-label-col"
@@ -435,7 +505,7 @@ const ScheduleManagement = () => {
                     </div>
 
                     {/* Day Timeline body */}
-                    <div className="home-schedule-day-timeline" style={{ width: `${HOURS.length * PX_PER_HOUR}px`, flexShrink: 0 }}>
+                    <div className="home-schedule-day-timeline" style={{ width: `${HOURS.length * PX_PER_HOUR}px`, flexShrink: 0, height: 'auto', display: 'grid', gridTemplateColumns: `repeat(${HOURS.length * 60}, minmax(0, 1fr))`, alignItems: 'stretch' }}>
                       {/* Hour grid lines (vertical columns) */}
                       {HOURS.map(hour => (
                         <div key={hour} className="home-schedule-hour-vertical-line" style={{ left: `${(hour - START_HOUR) * PX_PER_HOUR}px` }} />
@@ -467,11 +537,11 @@ const ScheduleManagement = () => {
                             animate={{ opacity: 1, scale: 1 }}
                             className={`home-schedule-event ${isTP ? 'home-schedule-event-tp' : 'home-schedule-event-course'} ${day === today ? 'home-schedule-event-today' : ''}`}
                             style={{
-                              position: 'absolute',
-                              left: `${left + 4}px`,
-                              width: `${width - 8}px`,
-                              top: '6px',
-                              bottom: '6px',
+                              position: 'relative',
+                              gridColumn: `${Math.max(1, Math.round(left / (PX_PER_HOUR / 60)) + 1)} / span ${Math.max(1, Math.round(width / (PX_PER_HOUR / 60)))}`,
+                              gridRow: 1,
+                              margin: '6px 4px',
+                              minWidth: 0,
                               height: 'auto',
                               cursor: 'default',
                               zIndex: 5,
@@ -682,15 +752,15 @@ const ScheduleManagement = () => {
                             value={formData.teacherId}
                             onChange={val => {
                               const teacher = teachers.find(t => t.id === val);
-                              const teacherSubjects = Array.from(new Set((teacher?.subjects || [teacher?.subject]).filter(Boolean)));
+                              const teacherSubjects = normalizeScheduleModules(teacher?.subjects?.length ? teacher.subjects : [teacher?.subject]);
                               const availableS1 = Array.from(new Set((modulesBySemester.S1 || []).filter(m => teacherSubjects.includes(m))));
                               const availableS2 = Array.from(new Set((modulesBySemester.S2 || []).filter(m => teacherSubjects.includes(m))));
-                              const nextModuleS1 = availableS1.length === 1 ? availableS1[0] : '';
-                              const nextModuleS2 = (availableS2.length === 1 && availableS2[0] !== nextModuleS1) ? availableS2[0] : '';
+                              const nextModuleS1 = availableS1.length === 1 ? [availableS1[0]] : [];
+                              const nextModuleS2 = availableS2.length === 1 ? [availableS2[0]] : [];
                               setFormData(prev => ({
                                 ...prev,
                                 teacherId: val,
-                                module: nextModuleS1 || nextModuleS2 || '',
+                                module: nextModuleS1[0] || nextModuleS2[0] || '',
                                 moduleS1: nextModuleS1,
                                 moduleS2: nextModuleS2
                               }));
@@ -714,59 +784,57 @@ const ScheduleManagement = () => {
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px', alignItems: 'start' }}>
-                  <div style={{ minWidth: 0, width: '100%' }}>
-                    <label style={labelStyle}>Module S1</label>
-                    <div style={{ marginTop: '4px', width: '100%' }}>
-                      {(() => {
-                        const teacher = teachers.find(t => t.id === formData.teacherId);
-                        if (!teacher) return <FilterSelect value="" onChange={() => {}} options={[{ label: "Choisir formateur", value: "" }]} disabled style={{ width: '100%', minWidth: 0 }} />;
-                        const teacherModules = Array.from(new Set((teacher.subjects || (teacher.subject ? [teacher.subject] : [])).filter(Boolean)));
-                        const filtered = Array.from(new Set((modulesBySemester.S1 || []).filter(m => teacherModules.includes(m))));
-                        if (filtered.length === 0) return <FilterSelect value="" onChange={() => {}} options={[{ label: "Aucun module", value: "" }]} disabled style={{ width: '100%', minWidth: 0 }} />;
-                        
-                        return (
-                          <FilterSelect
-                            style={{ width: '100%', minWidth: 0 }}
-                            value={formData.moduleS1}
-                            onChange={val => setFormData({ ...formData, module: val || formData.moduleS2, moduleS1: val })}
-                            options={[
-                              { label: "Choisir...", value: "" },
-                              ...filtered.map(m => ({ label: m, value: m }))
-                            ]}
-                          />
-                        );
-                      })()}
-                    </div>
-                  </div>
-                  <div style={{ minWidth: 0, width: '100%' }}>
-                    <label style={labelStyle}>Module S2</label>
-                    <div style={{ marginTop: '4px', width: '100%' }}>
-                      {(() => {
-                        const teacher = teachers.find(t => t.id === formData.teacherId);
-                        if (!teacher) return <FilterSelect value="" onChange={() => {}} options={[{ label: "Choisir formateur", value: "" }]} disabled style={{ width: '100%', minWidth: 0 }} />;
-                        const teacherModules = Array.from(new Set((teacher.subjects || (teacher.subject ? [teacher.subject] : [])).filter(Boolean)));
-                        const filtered = Array.from(new Set((modulesBySemester.S2 || []).filter(m => teacherModules.includes(m))));
-                        if (filtered.length === 0) return <FilterSelect value="" onChange={() => {}} options={[{ label: "Aucun module", value: "" }]} disabled style={{ width: '100%', minWidth: 0 }} />;
-                        
-                        return (
-                          <FilterSelect
-                            style={{ width: '100%', minWidth: 0 }}
-                            value={formData.moduleS2}
-                            onChange={val => setFormData({ ...formData, module: formData.moduleS1 || val, moduleS2: val })}
-                            options={[
-                              { label: "Choisir...", value: "" },
-                              ...filtered.map(m => ({ label: m, value: m }))
-                            ]}
-                          />
-                        );
-                      })()}
-                    </div>
-                  </div>
+                  {['S1', 'S2'].map(moduleSemester => {
+                    const field = `module${moduleSemester}`;
+                    const selected = formData[field];
+                    const teacher = teachers.find(t => t.id === formData.teacherId);
+                    const teacherModules = normalizeScheduleModules(teacher?.subjects?.length ? teacher.subjects : [teacher?.subject]);
+                    const available = (modulesBySemester[moduleSemester] || []).filter(name => teacherModules.includes(name));
+                    // Keep saved selections editable if a teacher's assignments changed.
+                    const options = [...new Set([...available, ...selected])];
+                    return (
+                      <fieldset key={moduleSemester} disabled={!teacher || isSaving} style={{ minWidth: 0, margin: 0, padding: 0, border: 0 }}>
+                        <legend style={labelStyle}>Modules {moduleSemester}</legend>
+                        <div className="input-premium" style={{ marginTop: '4px', padding: '8px', maxHeight: '180px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {options.length === 0 ? (
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                              {teacher ? 'Aucun module pour ce semestre' : 'Choisir un formateur'}
+                            </span>
+                          ) : options.map(name => (
+                            <label key={name} style={{ display: 'flex', alignItems: 'flex-start', gap: '7px', fontSize: '11px', cursor: 'pointer', lineHeight: 1.4 }}>
+                              <input
+                                type="checkbox"
+                                checked={selected.includes(name)}
+                                onChange={event => {
+                                  const checked = event.target.checked;
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    [field]: checked ? [...prev[field], name] : prev[field].filter(value => value !== name)
+                                  }));
+                                }}
+                                style={{ marginTop: '2px', flexShrink: 0, accentColor: 'var(--primary)' }}
+                              />
+                              <span style={{ overflowWrap: 'anywhere' }}>{name}</span>
+                            </label>
+                          ))}
+                        </div>
+                        {selected.length > 0 && (
+                          <p style={{ marginTop: '5px', fontSize: '10px', color: 'var(--text-muted)', overflowWrap: 'anywhere' }}>
+                            {selected.join(' / ')}
+                          </p>
+                        )}
+                      </fieldset>
+                    );
+                  })}
                 </div>
 
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  Cochez un ou plusieurs modules par semestre. Leurs noms seront séparés par / dans l’emploi du temps.
+                </p>
+
                 <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-                  <button type="submit" className="btn-modern primary" style={{ flex: 1, justifyContent: 'center' }}>
-                    Valider la séance
+                  <button type="submit" disabled={isSaving} className="btn-modern primary" style={{ flex: 1, justifyContent: 'center' }}>
+                    {isSaving ? 'Enregistrement…' : 'Valider la séance'}
                   </button>
                 </div>
               </form>

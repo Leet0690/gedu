@@ -408,7 +408,7 @@ export const AppProvider = ({ children }) => {
   const { showToast: originalShowToast } = useToast();
   const { adminUser, isAuthenticated, isAdmin, hasPermission, login, logout } = useAdminAuth();
   const isDirectorAuth = hasPermission('finance');
-  const portalPath = /^\/(results|portal|teacher)\//.test(pathname)
+  const portalPath = /^\/(results|portal|teacher|schedule-view)\//.test(pathname)
     ? pathname
     : '';
   const authScope = JSON.stringify([adminUser?.uid, adminUser?.role, adminUser?.permissions]);

@@ -27,6 +27,7 @@ const AccessLogs               = lazy(() => loadRoute('accessLogs'));
 const ScheduleGeneration       = lazy(() => loadRoute('scheduleGeneration'));
 const ContinuousTrainings      = lazy(() => loadRoute('continuousTrainings'));
 const UserManagement           = lazy(() => loadRoute('userManagement'));
+const StudentScheduleView      = lazy(() => loadRoute('studentScheduleView'));
 
 const PageLoader = () => (
   <div className="app-loader-shell">
@@ -72,7 +73,7 @@ const AppContent = () => {
   const { loading, logAppAccess } = useApp();
   const { isAuthenticated: adminAuthIsAuthenticated, loading: authLoading } = useAdminAuth();
   const location = useLocation();
-  const isPublicRoute = location.pathname.startsWith('/portal/') || location.pathname.startsWith('/results/') || location.pathname.startsWith('/teacher/');
+  const isPublicRoute = location.pathname.startsWith('/portal/') || location.pathname.startsWith('/results/') || location.pathname.startsWith('/teacher/') || location.pathname.startsWith('/schedule-view/');
   const isAuthed = adminAuthIsAuthenticated;
 
   const isBypassed = isMaintenanceBypassed(location.search);
@@ -100,6 +101,8 @@ const AppContent = () => {
               <Route path="/portal/:teacherId" element={<TeacherPortal />} />
               <Route path="/teacher/:teacherId" element={<TeacherPortal />} />
               <Route path="/results/:studentId" element={<StudentResults />} />
+              <Route path="/schedule-view/:token" element={<StudentScheduleView />} />
+              <Route path="/schedule-view/:diploma/:filiere/:annee" element={<StudentScheduleView />} />
               <Route path="*" element={<PortailBlockedPage />} />
             </Routes>
           </Suspense>
@@ -135,6 +138,8 @@ const AppContent = () => {
         <Route path="/portal/:teacherId" element={<TeacherPortal />} />
         <Route path="/teacher/:teacherId" element={<TeacherPortal />} />
         <Route path="/results/:studentId" element={<StudentResults />} />
+        <Route path="/schedule-view/:token" element={<StudentScheduleView />} />
+        <Route path="/schedule-view/:diploma/:filiere/:annee" element={<StudentScheduleView />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>
