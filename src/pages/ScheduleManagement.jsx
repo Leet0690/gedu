@@ -341,7 +341,6 @@ const ScheduleManagement = () => {
       {studentLink?.scope === shareScopeKey && (
         <div className="glass-card" style={{ padding: '14px 20px', marginBottom: '16px' }}>
           <input id="student-schedule-link" aria-label="Lien stagiaire" readOnly value={studentLink.url} onFocus={event => event.target.select()} style={{ width: '100%' }} />
-          <p style={{ marginTop: '8px', fontSize: '12px' }}>Après une modification, recliquez sur « Lien Stagiaire » pour publier la nouvelle version au même lien.</p>
         </div>
       )}
 

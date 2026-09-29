@@ -118,9 +118,9 @@ export const createScheduleExportDocument = ({
   schedules = [], teachers = [], groupLabel = '', diploma = '', filiere = '', annee = '',
   academicYear = '', semester = 'S1', getModule = session => getScheduleModuleForSemester(session, semester),
 } = {}) => {
-  const ink = '#172b42';
-  const muted = '#66778a';
-  const line = '#dde5ec';
+  const ink = '#202020';
+  const muted = '#595959';
+  const line = '#d4d4d4';
   const sessions = schedules.map(session => ({ ...session, ...parseTimeRange(session.time), displayedModule: getModule(session) }))
     .filter(session => session.displayedModule);
   const minute = time => { const [h, m] = time.split(':').map(Number); return h * 60 + m; };
@@ -130,29 +130,29 @@ export const createScheduleExportDocument = ({
   const hours = Array.from({ length: lastHour - firstHour }, (_, index) => firstHour + index);
   const totalMinutes = hours.length * 60;
   const tones = {
-    Cours: { background: '#edf4fa', border: '#cbdce9', accent: '#315e80' },
-    TP: { background: '#eaf5f1', border: '#c6e1d6', accent: '#23745c' },
-    TD: { background: '#faf3e7', border: '#ecdbc0', accent: '#936524' },
+    Cours: { background: '#ffffff', border: line, accent: muted },
+    TP: { background: '#ffffff', border: line, accent: muted },
+    TD: { background: '#ffffff', border: line, accent: muted },
   };
   const root = element('section', {
     width: `${EXPORT_WIDTH}px`, padding: '38px 40px 24px', boxSizing: 'border-box',
     background: '#ffffff', color: ink, fontFamily: 'Arial, sans-serif', fontSize: '14px', lineHeight: '1.4',
   });
   root.setAttribute('aria-label', `Emploi du temps ${groupLabel}`);
-  const header = element('header', { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '30px', borderBottom: `3px solid ${ink}`, paddingBottom: '24px', marginBottom: '18px' });
+  const header = element('header', { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '30px', borderBottom: `1px solid ${line}`, paddingBottom: '18px', marginBottom: '18px' });
   header.dataset.exportHeader = '';
   const heading = element('div', { flex: '1', minWidth: '0' });
   heading.append(
-    element('div', { fontSize: '13px', fontWeight: '700', letterSpacing: '3px', color: '#23745c', marginBottom: '7px' }, 'IPFP  /  ORGANISATION PÉDAGOGIQUE'),
-    element('h1', { margin: '0 0 8px', fontSize: '36px', fontWeight: '700', letterSpacing: '-1px', lineHeight: '1.15', color: ink }, 'Emploi du temps'),
+    element('div', { fontSize: '14px', fontWeight: '700', color: muted, marginBottom: '7px' }, 'IPFP'),
+    element('h1', { margin: '0 0 8px', fontSize: '30px', fontWeight: '700', lineHeight: '1.15', color: ink }, 'Emploi du temps'),
     element('div', { fontSize: '18px', fontWeight: '700', overflowWrap: 'anywhere' }, filiere || 'Planning hebdomadaire'),
     element('div', { fontSize: '14px', color: muted, marginTop: '4px' }, [diploma, annee].filter(Boolean).join('  •  ')),
   );
   const identity = element('div', { flex: '0 0 240px', textAlign: 'right', borderLeft: `1px solid ${line}`, paddingLeft: '24px', overflowWrap: 'anywhere' });
   identity.append(
     element('div', { fontSize: '12px', letterSpacing: '2px', color: muted }, 'GROUPE'),
-    element('div', { fontSize: '30px', fontWeight: '700', lineHeight: '1.2', margin: '5px 0 9px', color: ink }, groupLabel || '—'),
-    element('div', { fontSize: '15px', fontWeight: '700', color: '#23745c' }, `${academicYear}  ·  ${semester}`),
+    element('div', { fontSize: '24px', fontWeight: '700', lineHeight: '1.2', margin: '5px 0 9px', color: ink }, groupLabel || '—'),
+    element('div', { fontSize: '15px', color: muted }, `${academicYear}  ·  ${semester}`),
   );
   header.append(heading, identity);
   root.append(header);
@@ -160,17 +160,12 @@ export const createScheduleExportDocument = ({
   const legend = element('div', { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', color: muted, fontSize: '13px' });
   legend.append(element('span', { fontWeight: '700', letterSpacing: '1px' }, 'PLANNING HEBDOMADAIRE'));
   const keys = element('div', { display: 'flex', alignItems: 'center', gap: '22px' });
-  for (const [type, tone] of Object.entries(tones)) {
-    const key = element('span', { display: 'flex', alignItems: 'center', gap: '7px' });
-    key.append(element('span', { width: '9px', height: '9px', borderRadius: '2px', background: tone.accent }), element('span', {}, type));
-    keys.append(key);
-  }
   keys.append(element('span', { borderLeft: `1px solid ${line}`, paddingLeft: '20px' }, `${sessions.length} séance${sessions.length === 1 ? '' : 's'}`));
   legend.append(keys);
   root.append(legend);
 
-  const table = element('div', { border: `1px solid ${line}`, borderRadius: '10px', overflow: 'hidden' });
-  const hourRow = element('div', { display: 'flex', background: '#f1f5f8', borderBottom: `1px solid ${line}`, height: '42px' });
+  const table = element('div', { border: `1px solid ${line}`, overflow: 'hidden' });
+  const hourRow = element('div', { display: 'flex', background: '#f3f3f3', borderBottom: `1px solid ${line}`, height: '42px' });
   hourRow.append(element('div', { flex: '0 0 128px', display: 'flex', alignItems: 'center', padding: '0 16px', boxSizing: 'border-box', fontSize: '12px', fontWeight: '700', color: muted }, 'JOUR / HEURE'));
   const hourCells = element('div', { display: 'flex', flex: '1', minWidth: '0' });
   hours.forEach(hour => hourCells.append(element('div', { flex: '1', textAlign: 'center', padding: '11px 0', borderLeft: `1px solid ${line}`, fontSize: '13px', fontWeight: '700', color: ink }, `${String(hour).padStart(2, '0')}:00`)));
@@ -197,8 +192,8 @@ export const createScheduleExportDocument = ({
       const tone = tones[type] || tones.Cours;
       const card = element('article', {
         position: 'relative', gridColumn: `${start + 1} / ${end + 1}`, gridRow: String(session.lane + 1), minWidth: '0',
-        margin: '7px 4px', padding: '10px 8px', boxSizing: 'border-box', borderRadius: '5px',
-        background: tone.background, border: `1px solid ${tone.border}`, borderTop: `3px solid ${tone.accent}`,
+        margin: '5px 3px', padding: '10px 8px', boxSizing: 'border-box',
+        background: tone.background, border: `1px solid ${tone.border}`,
         display: 'flex', flexDirection: 'column', gap: '7px', overflowWrap: 'anywhere', zIndex: '1',
       });
       card.append(
@@ -207,7 +202,7 @@ export const createScheduleExportDocument = ({
         element('div', { fontSize: '15px', fontWeight: '700', lineHeight: '1.35', color: ink }, String(session.displayedModule)),
       );
       const teacher = session.teacherName || teachers.find(item => item.id === session.teacherId)?.name;
-      const metadata = element('div', { marginTop: 'auto', paddingTop: '7px', borderTop: `1px solid ${tone.border}`, fontSize: '12px', lineHeight: '1.4', color: '#4c6074' });
+      const metadata = element('div', { marginTop: 'auto', paddingTop: '4px', fontSize: '13px', lineHeight: '1.4', color: muted });
       if (teacher) metadata.append(element('div', {}, teacher));
       if (session.room) metadata.append(element('div', { fontWeight: '700', marginTop: '3px' }, `Salle ${session.room}`));
       if (teacher || session.room) card.append(metadata);
