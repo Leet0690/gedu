@@ -1740,8 +1740,8 @@ const AdminDashboard = () => {
 
       {!isDashboard && (
         <>
-          <div className="glass-card directory-premium-filter-card app-filter-grid app-filter-grid--5" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 240px' }}>
+          <div className={`glass-card directory-premium-filter-card app-filter-grid ${activeTab === 'students' ? 'app-filter-grid--6' : 'app-filter-grid--4'}`} style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
+            <div>
               <label style={labelStyle}>Recherche</label>
               <div style={{ position: 'relative' }}>
                 <Search size={14} style={{ color: 'var(--text-faint)', position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
@@ -1750,7 +1750,7 @@ const AdminDashboard = () => {
             </div>
 
             {activeTab === 'students' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 165px', minWidth: '165px' }}>
+              <div>
                 <label style={labelStyle}>Année académique</label>
                 <FilterSelect
                   style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }}
@@ -1766,9 +1766,9 @@ const AdminDashboard = () => {
             )}
 
             {activeTab === 'students' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 165px' }}>
+              <div>
                 <label style={labelStyle}>Statut du dossier</label>
-                <FilterSelect value={statusFilter} onChange={value => {
+                <FilterSelect style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }} value={statusFilter} onChange={value => {
                   setStatusFilter(value);
                   if (value === STUDENT_STATUS.WITHDRAWN || value === STUDENT_STATUS.LAUREAT) {
                     setAcademicYearFilter(''); setDiplomaFilter(''); setYearFilter(''); setCategoryFilter('');
@@ -1782,7 +1782,7 @@ const AdminDashboard = () => {
               </div>
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 165px', minWidth: '165px' }}>
+            <div>
               <label style={labelStyle}>Niveau</label>
               <FilterSelect
                 style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }}
@@ -1799,7 +1799,7 @@ const AdminDashboard = () => {
               />
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 165px', minWidth: '165px' }}>
+            <div>
               <label style={labelStyle}>Année</label>
               <FilterSelect
                 style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }}
@@ -1818,7 +1818,7 @@ const AdminDashboard = () => {
               />
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 165px', minWidth: '165px' }}>
+            <div>
               <label style={labelStyle}>Filière</label>
               <FilterSelect
                 style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }}
