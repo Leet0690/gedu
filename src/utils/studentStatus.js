@@ -3,6 +3,7 @@ import { getStudyYearsForDiploma } from '../data/modules.js';
 export const STUDENT_STATUS = {
   ACTIVE: 'active',
   LAUREAT: 'laureat',
+  WITHDRAWN: 'withdrawn',
 };
 
 export const FIRST_YEAR = '1\u00e8re ann\u00e9e';
@@ -15,10 +16,13 @@ export const normalizeStudentStatus = (student = {}) =>
 export const isLaureatStudent = (student = {}) =>
   normalizeStudentStatus(student) === STUDENT_STATUS.LAUREAT;
 
-export const isActiveStudent = (student = {}) => !isLaureatStudent(student);
+export const isWithdrawnStudent = (student = {}) =>
+  normalizeStudentStatus(student) === STUDENT_STATUS.WITHDRAWN;
+
+export const isActiveStudent = (student = {}) => normalizeStudentStatus(student) === STUDENT_STATUS.ACTIVE;
 
 export const getStudentStatusLabel = (student = {}) =>
-  isLaureatStudent(student) ? 'LAUR\u00c9AT' : 'ACTIF';
+  isWithdrawnStudent(student) ? 'ABANDON' : isLaureatStudent(student) ? 'LAUR\u00c9AT' : 'ACTIF';
 
 const normalizeStudyYear = (year) => {
   const value = String(year || '');
@@ -558,7 +562,7 @@ export const filterSchedulesForAcademicYear = (
  * Return one selectable academic year per study level, backed by its snapshot.
  * Repeated levels use the latest recorded attempt; one-year diplomas stay single-year.
  */
-export const getStudentAvailableStudyYears = (
+const getLatestStudentStudyYears = (
   student = {},
   operationalAcademicYear = INITIAL_OPERATIONAL_ACADEMIC_YEAR
 ) => {
@@ -592,4 +596,23 @@ export const getStudentAvailableStudyYears = (
     ...(firstAcademicYear ? [makeOption(FIRST_YEAR, firstAcademicYear)] : []),
     makeOption(SECOND_YEAR, currentAcademicYear),
   ];
+};
+
+/** Every recorded attempt stays consultable, including years repeated before departure. */
+export const getStudentAvailableStudyYears = (student = {}, operationalAcademicYear = INITIAL_OPERATIONAL_ACADEMIC_YEAR) => {
+  const latest = getLatestStudentStudyYears(student, operationalAcademicYear);
+  if (!latest.length) return [];
+  const options = new Map(latest.map(option => [option.academicYear, option]));
+  const recorded = [student.previousAcademicYear, ...(student.classHistory || []).map(entry => entry?.academicYear)];
+  for (const academicYear of recorded) {
+    if (!validateAcademicYear(academicYear) || options.has(academicYear)) continue;
+    const snapshot = getStudentAcademicSnapshot(student, academicYear, operationalAcademicYear);
+    if (!snapshot) continue;
+    const level = normalizeStudyYear(snapshot.year);
+    options.set(academicYear, {
+      key: `${level === FIRST_YEAR ? '1' : '2'}:${academicYear}`,
+      yearLevel: level, academicYear, label: level, isCurrent: false,
+    });
+  }
+  return [...options.values()].sort((a, b) => a.academicYear.localeCompare(b.academicYear));
 };

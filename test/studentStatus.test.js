@@ -336,7 +336,7 @@ test('a promotion without class history restores the previous year and its activ
   assert.equal(getStudentAcademicSnapshot(afterGap, '2025-2026', '2026-2027'), null);
 });
 
-test('the latest recorded first-year attempt wins regardless of history order or a gap before promotion', () => {
+test('all recorded attempts remain available regardless of history order or gaps', () => {
   const student = {
     year: SECOND_YEAR,
     academicYear: '2026-2027',
@@ -348,19 +348,20 @@ test('the latest recorded first-year attempt wins regardless of history order or
       { academicYear: '2023-2024', year: FIRST_YEAR, major: 'Older major' },
     ],
   };
-  assertStudyYearsMatchSnapshots(student, '2026-2027', ['2024-2025', '2026-2027']);
+  const options = assertStudyYearsMatchSnapshots(student, '2026-2027', ['2022-2023', '2023-2024', '2024-2025', '2026-2027']);
+  assert.equal(options.find(option => option.key === '1').academicYear, '2024-2025');
   const archived = getStudentAcademicSnapshot(student, '2024-2025', '2026-2027');
   assert.equal(archived.diploma, 'Technicien Spécialisé');
   assert.equal(archived.major, 'Archived major');
   assert.equal(getStudentAcademicSnapshot(student, '2025-2026', '2026-2027'), null);
 });
 
-test('first-year repeaters have one current choice without invented second-year membership', () => {
+test('first-year repeaters can consult previous attempts without invented second-year membership', () => {
   const student = {
     year: FIRST_YEAR,
     classHistory: [{ academicYear: '2023-2024', year: FIRST_YEAR }],
   };
-  assertStudyYearsMatchSnapshots(student, '2025-2026', ['2025-2026']);
+  assertStudyYearsMatchSnapshots(student, '2025-2026', ['2023-2024', '2025-2026']);
   assert.equal(getStudentAcademicSnapshot(student, '2024-2025', '2025-2026'), null);
 });
 
@@ -370,7 +371,7 @@ test('second-year repeaters infer first year before their earliest second-year a
     { previousAcademicYear: '2024-2025', promotedFromYear: SECOND_YEAR },
   ]) {
     const student = { year: SECOND_YEAR, academicYear: '2025-2026', ...historyFields };
-    assertStudyYearsMatchSnapshots(student, '2025-2026', ['2023-2024', '2025-2026']);
+    assertStudyYearsMatchSnapshots(student, '2025-2026', ['2023-2024', '2024-2025', '2025-2026']);
     assert.equal(getStudentAcademicSnapshot(student, '2024-2025', '2025-2026').year, SECOND_YEAR);
   }
 });

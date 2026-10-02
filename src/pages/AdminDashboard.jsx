@@ -17,7 +17,6 @@ import {
   getClassCode,
   getModulesForStudent,
   getModulesForFiliere,
-  getNextStudyYear,
   getStudyYearsForDiploma,
   getStudyYearsForDiplomas,
   getStudyYearsForMajor,
@@ -28,13 +27,15 @@ import { FilterSelect } from '../components/ui/FilterSelect';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
+import ClosureDecisions from '../components/ClosureDecisions';
+import ClosureDecisionEditor from '../components/ClosureDecisionEditor';
+import { getClosureOutcome, getClosureDecisionOptions } from '../utils/academicYearClosure';
 import {
   STUDENT_STATUS,
   getAcademicYearTransition,
   getCalendarYearForAcademicMonth,
   getStudentStatusLabel,
   isActiveStudent,
-  isLaureatStudent,
   validateAcademicYearTransition,
   getStudentPreviousYearBalance,
   getStudentStudyCycleRange,
@@ -1078,7 +1079,7 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
 
 const AdminDashboard = () => {
   const { hasPermission, isAdmin } = useAdminAuth();
-  const { students, teachers, payments, grades, schedules, modules: allModules, addStudent, addTeacher, deleteStudent, deleteTeacher, updateStudent, promoteAcademicYear, undoLastPromotion, updateTeacher, studentAttendance, teacherAttendance, loadStudentAttendanceForMonth, loadTeacherAttendanceForMonth, migrateTeacherTokens, loading, confirmAction, notifications, activeSemester, setActiveSemester, getActiveScheduleModule, activeAcademicYear, operationalAcademicYear, availableAcademicYearsList } = useApp();
+  const { students, teachers, payments, grades, schedules, modules: allModules, addStudent, addTeacher, deleteStudent, deleteTeacher, updateStudent, promoteAcademicYear, undoLastPromotion, updateStudentClosureDecision, updateTeacher, studentAttendance, teacherAttendance, loadStudentAttendanceForMonth, loadTeacherAttendanceForMonth, migrateTeacherTokens, loading, confirmAction, notifications, activeSemester, setActiveSemester, getActiveScheduleModule, activeAcademicYear, operationalAcademicYear, availableAcademicYearsList } = useApp();
   const { showToast } = useToast();
   const location = useLocation();
   const isDashboard = location.pathname === '/';
@@ -1114,6 +1115,7 @@ const AdminDashboard = () => {
 
   const [globalFilter, setGlobalFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [diplomaFilter, setDiplomaFilter] = useState('');
   const [yearFilter, setYearFilter] = useState('');
   const [academicYearFilter, setAcademicYearFilter] = useState('');
@@ -1132,6 +1134,8 @@ const AdminDashboard = () => {
   const [promotionForm, setPromotionForm] = useState(() => getAcademicYearTransition(operationalAcademicYear));
   const [isPromotingAcademicYear, setIsPromotingAcademicYear] = useState(false);
   const [promotionResult, setPromotionResult] = useState(null);
+  const [promotionDecisions, setPromotionDecisions] = useState({});
+  useEffect(() => { setPromotionDecisions({}); }, [operationalAcademicYear]);
 
   // Add student & teacher form states and helper handlers
   const [addStudentForm, setAddStudentForm] = useState({
@@ -1253,21 +1257,18 @@ const AdminDashboard = () => {
         operationalAcademicYear
       ))
       .filter(s => isKnownStudyYear(s.diploma, s.year));
-    // Improvement #7: Build breakdown by filière
     const filiereBreakdown = {};
-    eligible.forEach(s => {
-      const key = `${s.diploma || 'N/A'} - ${s.major || 'N/A'}`;
-      if (!filiereBreakdown[key]) filiereBreakdown[key] = { promoted: 0, graduated: 0 };
-      if (getNextStudyYear(s.diploma, s.year)) filiereBreakdown[key].promoted++;
-      else filiereBreakdown[key].graduated++;
+    const counts = { promoted: 0, graduated: 0, repeated: 0, withdrawn: 0, pending: 0 };
+    eligible.forEach(student => {
+      if (!getClosureDecisionOptions(student).some(option => option.value === promotionDecisions[student.id] && !option.disabled)) { counts.pending++; return; }
+      const outcome = getClosureOutcome(student, promotionDecisions[student.id]);
+      counts[outcome]++;
+      const key = `${student.diploma || 'N/A'} - ${student.major || 'N/A'}`;
+      if (!filiereBreakdown[key]) filiereBreakdown[key] = { promoted: 0, graduated: 0, repeated: 0, withdrawn: 0 };
+      filiereBreakdown[key][outcome]++;
     });
-    return {
-      promoted: eligible.filter(s => getNextStudyYear(s.diploma, s.year)).length,
-      graduated: eligible.filter(s => !getNextStudyYear(s.diploma, s.year)).length,
-      total: eligible.length,
-      filiereBreakdown,
-    };
-  }, [activeStudents, operationalAcademicYear, promotionForm.fromAcademicYear]);
+    return { ...counts, total: eligible.length, eligible, filiereBreakdown };
+  }, [activeStudents, operationalAcademicYear, promotionForm.fromAcademicYear, promotionDecisions]);
   const isYearFormatValid = useMemo(() => validateAcademicYearTransition(promotionForm.fromAcademicYear, promotionForm.toAcademicYear), [promotionForm]);
 
   const allDiplomas = useMemo(() => Object.keys(FILIERES), []);
@@ -1399,13 +1400,17 @@ const AdminDashboard = () => {
       showToast('Aucun stagiaire actif \u00e0 cl\u00f4turer.', 'info');
       return;
     }
+    if (promotionPreview.pending > 0) {
+      showToast('Choisissez une décision pour chaque stagiaire.', 'error');
+      return;
+    }
     if (!isYearFormatValid) {
       showToast('Format d\u2019ann\u00e9e invalide.', 'error');
       return;
     }
     const confirmed = await confirmAction({
       title: "Cl\u00f4turer l'ann\u00e9e scolaire ?",
-      message: `Une sauvegarde complète de la base sera créée avant toute modification. ${promotionPreview.graduated} stagiaire(s) en fin de cycle deviendront lauréats et ${promotionPreview.promoted} stagiaire(s) passeront à l'année suivante. La même base Firestore sera conservée et ${promotionForm.fromAcademicYear} restera consultable dans les archives.`,
+      message: `Une sauvegarde complète sera créée. ${promotionPreview.promoted} stagiaire(s) passeront à l'année suivante, ${promotionPreview.graduated} deviendront lauréats, ${promotionPreview.repeated} redoubleront et ${promotionPreview.withdrawn} seront marqués en abandon. Tous les dossiers et résultats seront conservés dans les archives de ${promotionForm.fromAcademicYear}.`,
       type: 'warning'
     });
     if (!confirmed) return;
@@ -1415,6 +1420,7 @@ const AdminDashboard = () => {
       const result = await promoteAcademicYear({
         fromAcademicYear: promotionForm.fromAcademicYear,
         toAcademicYear: promotionForm.toAcademicYear,
+        decisions: promotionDecisions,
       });
       if (result.error) return;
       setPromotionResult(result);
@@ -1424,7 +1430,7 @@ const AdminDashboard = () => {
     } finally {
       setIsPromotingAcademicYear(false);
     }
-  }, [confirmAction, promoteAcademicYear, promotionForm, promotionPreview, isYearFormatValid, showToast]);
+  }, [confirmAction, promoteAcademicYear, promotionForm, promotionPreview, promotionDecisions, isYearFormatValid, showToast]);
 
   const handleUndoPromotion = useCallback(async () => {
     if (!promotionResult?.operationId) return;
@@ -1471,6 +1477,7 @@ const AdminDashboard = () => {
           return snapshot ? { ...snapshot, __sourceStudent: student } : null;
         }).filter(Boolean)
       : (teachers || []);
+    if (activeTab === 'students' && statusFilter) data = data.filter(item => (item.__sourceStudent?.status || STUDENT_STATUS.ACTIVE) === statusFilter);
     if (diplomaFilter) data = data.filter(item => activeTab === 'students' ? item.diploma === diplomaFilter : (item.diplomas || []).includes(diplomaFilter));
     if (yearFilter) {
       if (yearFilter === 'Lauréat') {
@@ -1482,7 +1489,7 @@ const AdminDashboard = () => {
     if (categoryFilter) data = data.filter(item => activeTab === 'students' ? item.major === categoryFilter : (item.groups || []).includes(categoryFilter));
     if (activeTab === 'teachers' && moduleFilter) data = data.filter(item => (item.subjects || [item.subject]).includes(moduleFilter));
     return data;
-  }, [activeTab, students, teachers, categoryFilter, diplomaFilter, yearFilter, academicYearFilter, moduleFilter, operationalAcademicYear]);
+  }, [activeTab, students, teachers, categoryFilter, diplomaFilter, yearFilter, academicYearFilter, moduleFilter, operationalAcademicYear, statusFilter]);
 
   const columns = useMemo(() => [
     {
@@ -1501,7 +1508,7 @@ const AdminDashboard = () => {
             {activeTab === 'students' ? `${row.original.lastName} ${row.original.firstName}` : row.original.name}
           </h4>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-            <span className={`badge-status ${isLaureatStudent(row.original.__sourceStudent || row.original) ? 'warning' : 'success'}`} style={{ fontSize: '9px' }}>
+            <span className={`badge-status ${isActiveStudent(row.original.__sourceStudent || row.original) ? 'success' : 'warning'}`} style={{ fontSize: '9px' }}>
               {getStudentStatusLabel(row.original.__sourceStudent || row.original)}
             </span>
             <span style={{ fontSize: '11px', fontWeight: '500', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }}>
@@ -1591,6 +1598,9 @@ const AdminDashboard = () => {
             openQR(`${row.original.lastName} ${row.original.firstName}`, [{ label: 'Résultats', url: BASE + `/results/${tokenForLink}`, color: 'var(--primary)' }]);
           }} />}
           <ActionBtn icon={Eye} title="Détails" onClick={() => openDetails(row.original)} />
+          {activeTab === 'students' && isAdmin && (row.original.__sourceStudent || row.original).classHistory?.at(-1)?.operationId && (
+            <ActionBtn icon={GraduationCap} title="Modifier la décision après clôture" onClick={() => openDetails(row.original)} />
+          )}
           <ActionBtn disabled={!hasPermission(activeTab, 'edit')} icon={Edit3} title="Modifier le profil actuel" onClick={() => openEdit(row.original.__sourceStudent || row.original)} />
           {activeTab === 'students' && <ActionBtn icon={Download} title="Bulletin" onClick={() => {
             const academicYear = row.original.academicYear || academicYearFilter;
@@ -1606,7 +1616,7 @@ const AdminDashboard = () => {
         </div>
       ),
     },
-  ], [activeTab, academicYearFilter, openDetails, openEdit, handleDelete, grades, getStudentActiveModules, openQR, operationalAcademicYear, payments, hasPermission]);
+  ], [activeTab, academicYearFilter, openDetails, openEdit, handleDelete, grades, getStudentActiveModules, openQR, operationalAcademicYear, payments, hasPermission, isAdmin]);
 
   const table = useReactTable({
     data: tableData,
@@ -1755,6 +1765,23 @@ const AdminDashboard = () => {
               </div>
             )}
 
+            {activeTab === 'students' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 165px' }}>
+                <label style={labelStyle}>Statut du dossier</label>
+                <FilterSelect value={statusFilter} onChange={value => {
+                  setStatusFilter(value);
+                  if (value === STUDENT_STATUS.WITHDRAWN || value === STUDENT_STATUS.LAUREAT) {
+                    setAcademicYearFilter(''); setDiplomaFilter(''); setYearFilter(''); setCategoryFilter('');
+                  }
+                }} options={[
+                  { value: '', label: 'Tous les statuts' },
+                  { value: STUDENT_STATUS.ACTIVE, label: 'Actifs' },
+                  { value: STUDENT_STATUS.LAUREAT, label: 'Lauréats' },
+                  { value: STUDENT_STATUS.WITHDRAWN, label: 'Abandons — dossiers conservés' },
+                ]} />
+              </div>
+            )}
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 165px', minWidth: '165px' }}>
               <label style={labelStyle}>Niveau</label>
               <FilterSelect
@@ -1808,7 +1835,7 @@ const AdminDashboard = () => {
 
           </div>
 
-          {activeTab === 'students' && !(diplomaFilter && yearFilter && categoryFilter) ? (
+          {activeTab === 'students' && !statusFilter && !(diplomaFilter && yearFilter && categoryFilter) ? (
             <div style={{
               display: 'flex',
               flexDirection: 'column',
@@ -2038,7 +2065,7 @@ const AdminDashboard = () => {
                     </div>
                     <div>
                       <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '800' }}>{selectedItem.lastName ? `${selectedItem.lastName} ${selectedItem.firstName}` : selectedItem.name}</h2>
-                      <span className={`badge-status ${isLaureatStudent(selectedItem.__sourceStudent || selectedItem) ? 'warning' : 'success'}`}>
+                      <span className={`badge-status ${isActiveStudent(selectedItem.__sourceStudent || selectedItem) ? 'success' : 'warning'}`}>
                         {getStudentStatusLabel(selectedItem.__sourceStudent || selectedItem)}
                         {selectedItem.isHistoricalSnapshot ? ` · classe ${selectedItem.academicYear}` : ''}
                       </span>
@@ -2050,6 +2077,15 @@ const AdminDashboard = () => {
                     <InfoBox label="Année" value={selectedItem.year || 'N/A'} icon={Calendar} />
                     <InfoBox label="Statut" value={getStudentStatusLabel(selectedItem.__sourceStudent || selectedItem)} icon={CheckCircle2} valueColor="var(--primary)" />
                   </div>
+                  {activeTab === 'students' && isAdmin && (
+                    <ClosureDecisionEditor key={selectedItem.id}
+                      student={students.find(student => student.id === selectedItem.id) || selectedItem.__sourceStudent || selectedItem}
+                      onSave={async correction => {
+                        const updated = await updateStudentClosureDecision(correction);
+                        const snapshot = getStudentAcademicSnapshot(updated, selectedItem.academicYear, operationalAcademicYear) || updated;
+                        setSelectedItem({ ...snapshot, __sourceStudent: updated });
+                      }} />
+                  )}
                   {activeTab === 'students' ? (() => {
                     const tokenForLink = selectedItem.token || selectedItem.id;
                     const url = `${BASE}/results/${tokenForLink}`;
@@ -2330,7 +2366,7 @@ const AdminDashboard = () => {
           <div className="app-modal-overlay" style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
             <motion.div className="app-modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.28)', backdropFilter: 'blur(4px)' }} onClick={() => { setPromotionModalOpen(false); setPromotionResult(null); }} />
             <motion.div initial={{ opacity: 0, scale: 0.95, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 12 }} className="glass-premium directory-premium-dialog app-modal-surface"
-              style={{ width: '100%', maxWidth: '600px', padding: '30px', borderRadius: 'var(--radius-3xl)', position: 'relative', zIndex: 101, boxShadow: 'var(--shadow-xl)', maxHeight: '90vh', overflowY: 'auto' }}>
+              style={{ width: '100%', maxWidth: '780px', padding: '30px', borderRadius: 'var(--radius-3xl)', position: 'relative', zIndex: 101, boxShadow: 'var(--shadow-xl)', maxHeight: '90vh', overflowY: 'auto' }}>
               <button onClick={() => { setPromotionModalOpen(false); setPromotionResult(null); }} className="close-button" aria-label="Fermer la fenetre" title="Fermer" style={{ position: 'absolute', right: '20px', top: '20px' }}>
                 <X size={20} />
               </button>
@@ -2351,7 +2387,9 @@ const AdminDashboard = () => {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '18px' }}>
                     <InfoBox label="Promus" value={promotionResult.promotedCount} icon={ArrowRight} valueColor="var(--primary)" />
                     <InfoBox label={'Laur\u00e9ats'} value={promotionResult.graduatedCount} icon={GraduationCap} valueColor="#a16207" />
-                    <InfoBox label="Total" value={promotionResult.promotedCount + promotionResult.graduatedCount} icon={UsersIcon} valueColor="var(--success)" />
+                    <InfoBox label="Redoublants" value={promotionResult.repeatedCount} icon={RotateCw} valueColor="var(--warning)" />
+                    <InfoBox label="Abandons" value={promotionResult.withdrawnCount} icon={UsersIcon} valueColor="var(--text-muted)" />
+                    <InfoBox label="Total" value={promotionResult.promotedCount + promotionResult.graduatedCount + promotionResult.repeatedCount + promotionResult.withdrawnCount} icon={UsersIcon} valueColor="var(--success)" />
                   </div>
 
                   {/* Improvement #7: Breakdown by filière */}
@@ -2359,14 +2397,16 @@ const AdminDashboard = () => {
                     <div style={{ marginBottom: '18px' }}>
                       <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>D&eacute;tail par fili&egrave;re</p>
                       <div style={{ borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-light)', overflow: 'hidden' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0', padding: '8px 12px', background: 'var(--bg-subtle)', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                          <span>Fili&egrave;re</span><span style={{ textAlign: 'center' }}>Promus</span><span style={{ textAlign: 'center' }}>Laur&eacute;ats</span>
+                        <div style={{ display: 'grid', gridTemplateColumns: '2fr repeat(4, 1fr)', gap: '0', padding: '8px 12px', background: 'var(--bg-subtle)', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          <span>Fili&egrave;re</span><span style={{ textAlign: 'center' }}>Promus</span><span style={{ textAlign: 'center' }}>Laur&eacute;ats</span><span>Redoubl.</span><span>Abandons</span>
                         </div>
                         {Object.entries(promotionResult.breakdown).map(([filiere, counts]) => (
-                          <div key={filiere} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', padding: '8px 12px', borderTop: '1px solid var(--border-light)', fontSize: '12px', fontWeight: '600' }}>
+                          <div key={filiere} style={{ display: 'grid', gridTemplateColumns: '2fr repeat(4, 1fr)', padding: '8px 12px', borderTop: '1px solid var(--border-light)', fontSize: '12px', fontWeight: '600' }}>
                             <span style={{ color: 'var(--text-secondary)' }}>{filiere}</span>
                             <span style={{ textAlign: 'center', color: 'var(--primary)', fontWeight: '800' }}>{counts.promoted || 0}</span>
                             <span style={{ textAlign: 'center', color: '#a16207', fontWeight: '800' }}>{counts.graduated || 0}</span>
+                            <span style={{ textAlign: 'center' }}>{counts.repeated || 0}</span>
+                            <span style={{ textAlign: 'center' }}>{counts.withdrawn || 0}</span>
                           </div>
                         ))}
                       </div>
@@ -2393,7 +2433,7 @@ const AdminDashboard = () => {
                     </div>
                     <div>
                       <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900', color: 'var(--text-primary)' }}>Cl&ocirc;turer l&apos;ann&eacute;e scolaire</h2>
-                      <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '600' }}>Promotion automatique des stagiaires actifs.</p>
+                      <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '600' }}>Passage, lauréat, redoublement ou abandon selon vos décisions.</p>
                     </div>
                   </div>
 
@@ -2412,22 +2452,28 @@ const AdminDashboard = () => {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '18px' }}>
                     <InfoBox label="Promus" value={promotionPreview.promoted} icon={ArrowRight} valueColor="var(--primary)" />
                     <InfoBox label={'Laur\u00e9ats'} value={promotionPreview.graduated} icon={GraduationCap} valueColor="#a16207" />
-                    <InfoBox label="Actifs" value={activeStudents.length} icon={UsersIcon} valueColor="var(--success)" />
+                    <InfoBox label="Redoublants" value={promotionPreview.repeated} icon={RotateCw} valueColor="var(--warning)" />
+                    <InfoBox label="Abandons" value={promotionPreview.withdrawn} icon={UsersIcon} valueColor="var(--text-muted)" />
+                    <InfoBox label="Sans décision" value={promotionPreview.pending} icon={UsersIcon} valueColor="var(--danger)" />
                   </div>
 
+                  <ClosureDecisions students={promotionPreview.eligible} decisions={promotionDecisions}
+                    onChange={setPromotionDecisions} disabled={isPromotingAcademicYear} />
                   {/* Improvement #7: Breakdown by filière in preview */}
                   {Object.keys(promotionPreview.filiereBreakdown).length > 0 && (
                     <div style={{ marginBottom: '18px' }}>
                       <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>D&eacute;tail par fili&egrave;re</p>
                       <div style={{ borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-light)', overflow: 'hidden' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0', padding: '8px 12px', background: 'var(--bg-subtle)', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                          <span>Fili&egrave;re</span><span style={{ textAlign: 'center' }}>1&egrave;re &rarr; 2&egrave;me</span><span style={{ textAlign: 'center' }}>2&egrave;me &rarr; Laur&eacute;at</span>
+                        <div style={{ display: 'grid', gridTemplateColumns: '2fr repeat(4, 1fr)', gap: '0', padding: '8px 12px', background: 'var(--bg-subtle)', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          <span>Fili&egrave;re</span><span style={{ textAlign: 'center' }}>Promus</span><span style={{ textAlign: 'center' }}>Laur&eacute;ats</span><span>Redoubl.</span><span>Abandons</span>
                         </div>
                         {Object.entries(promotionPreview.filiereBreakdown).map(([filiere, counts]) => (
-                          <div key={filiere} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', padding: '8px 12px', borderTop: '1px solid var(--border-light)', fontSize: '12px', fontWeight: '600' }}>
+                          <div key={filiere} style={{ display: 'grid', gridTemplateColumns: '2fr repeat(4, 1fr)', padding: '8px 12px', borderTop: '1px solid var(--border-light)', fontSize: '12px', fontWeight: '600' }}>
                             <span style={{ color: 'var(--text-secondary)' }}>{filiere}</span>
                             <span style={{ textAlign: 'center', color: 'var(--primary)', fontWeight: '800' }}>{counts.promoted || 0}</span>
                             <span style={{ textAlign: 'center', color: '#a16207', fontWeight: '800' }}>{counts.graduated || 0}</span>
+                            <span style={{ textAlign: 'center' }}>{counts.repeated || 0}</span>
+                            <span style={{ textAlign: 'center' }}>{counts.withdrawn || 0}</span>
                           </div>
                         ))}
                       </div>
@@ -2440,12 +2486,12 @@ const AdminDashboard = () => {
                   </div>
 
                   <div style={{ padding: '14px 16px', borderRadius: 'var(--radius-xl)', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.22)', color: '#92400e', fontSize: '12px', fontWeight: '700', lineHeight: 1.6, marginBottom: '24px' }}>
-                    Les 2&egrave;me ann&eacute;e seront marqu&eacute;s comme laur&eacute;ats. Les 1&egrave;re ann&eacute;e passeront en 2&egrave;me ann&eacute;e. Un historique sera conserv&eacute; dans chaque dossier.
+                    Passage inscrit au niveau suivant ; Lauréat termine la formation. Les redoublants gardent leur niveau dans la nouvelle année. Les abandons restent consultables dans les archives, avec leurs notes, relevés et historique.
                   </div>
 
                   {/* Improvement #2: Disable button when invalid */}
                   <div style={{ display: 'flex', gap: '12px' }}>
-                    <button type="button" className="btn-modern primary" style={{ flex: 1, justifyContent: 'center' }} disabled={isPromotingAcademicYear || promotionPreview.total === 0 || !isYearFormatValid} onClick={handlePromoteAcademicYear}>
+                    <button type="button" className="btn-modern primary" style={{ flex: 1, justifyContent: 'center' }} disabled={isPromotingAcademicYear || promotionPreview.total === 0 || promotionPreview.pending > 0 || !isYearFormatValid} onClick={handlePromoteAcademicYear}>
                       {isPromotingAcademicYear ? 'Sauvegarde et cl\u00f4ture en cours...' : "Confirmer la cl\u00f4ture"}
                     </button>
                   </div>

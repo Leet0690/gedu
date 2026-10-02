@@ -18,9 +18,7 @@ const ASSESSMENT_FIELDS = ['c1', 'c2', 'c3', 'efcft', 'efcfp'];
 /** Only documented study-year keys may override the student's current year. */
 export const selectStudentStudyYear = (availableYears = [], yearParam = '') => {
   const years = availableYears || [];
-  const requested = yearParam === '1' || yearParam === '2'
-    ? years.find(year => year.key === yearParam)
-    : null;
+  const requested = years.find(year => year.key === yearParam);
   return requested || years.find(year => year.isCurrent) || years[years.length - 1] || null;
 };
 

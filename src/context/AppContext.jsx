@@ -33,7 +33,6 @@ import {
 import { getStudentAttendanceWriteTarget } from '../utils/attendanceKeys';
 import { getScheduleModuleForSemester, normalizeSemester } from '../utils/scheduleSemester';
 import {
-  STUDENT_STATUS,
   getAvailableAcademicYears,
   getPaymentAcademicYear,
   getStudentAcademicSnapshot,
@@ -45,7 +44,8 @@ import {
   validateAcademicYear,
   validateAcademicYearTransition,
 } from '../utils/studentStatus';
-import { getNextStudyYear, isKnownStudyYear } from '../data/modules';
+import { isKnownStudyYear } from '../data/modules';
+import { buildStudentClosure, buildStudentClosureUndo, buildStudentClosureCorrection, getClosureDecisionOptions } from '../utils/academicYearClosure';
 import { createReadCoordinator, createInFlightReader } from '../utils/readCoordinator';
 import { getPageCollections } from '../utils/dataRequirements';
 import { startAutoRefresh } from '../utils/autoRefresh';
@@ -890,7 +890,7 @@ export const AppProvider = ({ children }) => {
     showToast(`Profil stagiaire mis à jour.`, 'success');
   };
 
-  const promoteAcademicYear = async ({ fromAcademicYear = '', toAcademicYear = '' } = {}) => {
+  const promoteAcademicYear = async ({ fromAcademicYear = '', toAcademicYear = '', decisions = {} } = {}) => {
     requireEdit('administration');
     // Improvement #1: Validate academic year format
     if (!validateAcademicYearTransition(fromAcademicYear, toAcademicYear)) {
@@ -915,6 +915,11 @@ export const AppProvider = ({ children }) => {
     if (candidates.length === 0) {
       showToast('Aucun stagiaire actif \u00e0 promouvoir.', 'info');
       return { promotedCount: 0, graduatedCount: 0, error: 'NO_CANDIDATES' };
+    }
+
+    if (candidates.some(student => !getClosureDecisionOptions(student).some(option => option.value === decisions[student.id] && !option.disabled))) {
+      showToast('Choisissez une décision pour chaque stagiaire avant la clôture.', 'error');
+      return { error: 'MISSING_DECISIONS' };
     }
 
     // Improvement #3: Detect double closure
@@ -1045,77 +1050,22 @@ export const AppProvider = ({ children }) => {
     }
 
     const updates = candidates.map(student => {
-      const studentGradeDocument = grades[student.id] || {};
-      const archivedGrades = getGradeBucketForWrite(studentGradeDocument, fromAcademicYear);
-      const historyEntry = {
-        academicYear: fromAcademicYear,
-        diploma: student.diploma || '',
-        major: student.major || '',
-        year: student.year || '',
-        status: student.status || STUDENT_STATUS.ACTIVE,
-        closedAt,
-        operationId,
-      };
-      const classHistory = [...(Array.isArray(student.classHistory) ? student.classHistory : []), historyEntry];
-      // The same personal link must keep working across promotion and graduation.
-      const newToken = student.token || makeToken(32);
-
-      const nextStudyYear = getNextStudyYear(student.diploma, student.year);
-      if (!nextStudyYear) {
-        return {
-          id: student.id,
-          localData: {
-            status: STUDENT_STATUS.LAUREAT,
-            academicYear: fromAcademicYear,
-            graduationAcademicYear: fromAcademicYear,
-            graduatedAt: closedAt,
-            classHistory,
-            token: newToken,
-          },
-          firestoreData: {
-            status: STUDENT_STATUS.LAUREAT,
-            academicYear: fromAcademicYear,
-            graduationAcademicYear: fromAcademicYear,
-            graduatedAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-            classHistory,
-            token: newToken,
-          },
-          type: 'graduated',
-          archivedGrades,
-        };
+      const { data, type, gradeYears } = buildStudentClosure({
+        student, decision: decisions[student.id], fromAcademicYear, toAcademicYear,
+        operationId, closedAt, grades: grades[student.id] || {},
+      });
+      const localData = { ...data, token: student.token || makeToken(32) };
+      const firestoreData = { ...localData, updatedAt: serverTimestamp() };
+      for (const field of ['promotedAt', 'graduatedAt', 'repeatedAt', 'withdrawnAt']) {
+        if (data[field]) firestoreData[field] = serverTimestamp();
       }
-
-      return {
-        id: student.id,
-        localData: {
-          year: nextStudyYear,
-          status: STUDENT_STATUS.ACTIVE,
-          academicYear: toAcademicYear,
-          previousAcademicYear: fromAcademicYear,
-          promotedFromYear: student.year,
-          promotedAt: closedAt,
-          classHistory,
-          token: newToken,
-        },
-        firestoreData: {
-          year: nextStudyYear,
-          status: STUDENT_STATUS.ACTIVE,
-          academicYear: toAcademicYear,
-          previousAcademicYear: fromAcademicYear,
-          promotedFromYear: student.year,
-          promotedAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          classHistory,
-          token: newToken,
-        },
-        type: 'promoted',
-        archivedGrades,
-      };
+      return { id: student.id, localData, firestoreData, type, gradeYears };
     });
 
     const promotedCount = updates.filter(item => item.type === 'promoted').length;
     const graduatedCount = updates.filter(item => item.type === 'graduated').length;
+    const repeatedCount = updates.filter(item => item.type === 'repeated').length;
+    const withdrawnCount = updates.filter(item => item.type === 'withdrawn').length;
     const nextArchivedAcademicYears = Array.from(new Set([
       ...availableAcademicYearsList.filter(year => year < toAcademicYear),
       fromAcademicYear,
@@ -1136,15 +1086,11 @@ export const AppProvider = ({ children }) => {
         const chunk = updates.slice(i, i + 225);
         const isFinalChunk = i + 225 >= updates.length;
         const batch = writeBatch(db);
-        chunk.forEach(({ id, firestoreData, archivedGrades }) => {
+        chunk.forEach(({ id, firestoreData, gradeYears }) => {
           batch.update(doc(db, 'students', id), firestoreData);
-          if (Object.keys(archivedGrades || {}).length > 0) {
-            batch.set(doc(db, 'grades', id), {
-              [GRADE_ACADEMIC_YEARS_FIELD]: {
-                [fromAcademicYear]: archivedGrades,
-              },
-            }, { merge: true });
-          }
+          batch.set(doc(db, 'grades', id), {
+            [GRADE_ACADEMIC_YEARS_FIELD]: gradeYears,
+          }, { merge: true });
         });
         if (isFinalChunk) {
           batch.set(
@@ -1181,14 +1127,13 @@ export const AppProvider = ({ children }) => {
         setStudents(prev => prev.map(student => chunkMap.has(student.id) ? { ...student, ...chunkMap.get(student.id) } : student));
         setGrades(prev => {
           const next = { ...prev };
-          chunk.forEach(({ id, archivedGrades }) => {
-            if (Object.keys(archivedGrades || {}).length === 0) return;
+          chunk.forEach(({ id, gradeYears }) => {
             const studentGradeDocument = prev[id] || {};
             next[id] = {
               ...studentGradeDocument,
               [GRADE_ACADEMIC_YEARS_FIELD]: {
                 ...(studentGradeDocument[GRADE_ACADEMIC_YEARS_FIELD] || {}),
-                [fromAcademicYear]: archivedGrades,
+                ...gradeYears,
               },
             };
           });
@@ -1224,8 +1169,8 @@ export const AppProvider = ({ children }) => {
       const student = candidates.find(s => s.id === id);
       if (!student) return;
       const key = `${student.diploma || 'N/A'} - ${student.major || 'N/A'}`;
-      if (!breakdown[key]) breakdown[key] = { promoted: 0, graduated: 0 };
-      breakdown[key][type === 'promoted' ? 'promoted' : 'graduated']++;
+      if (!breakdown[key]) breakdown[key] = { promoted: 0, graduated: 0, repeated: 0, withdrawn: 0 };
+      breakdown[key][type]++;
     });
 
     // Improvement #8: Log operation in Firestore
@@ -1237,9 +1182,13 @@ export const AppProvider = ({ children }) => {
         toAcademicYear,
         promotedCount,
         graduatedCount,
+        repeatedCount,
+        withdrawnCount,
         totalAffected: updates.length,
         promotedIds: updates.filter(u => u.type === 'promoted').map(u => u.id),
         graduatedIds: updates.filter(u => u.type === 'graduated').map(u => u.id),
+        repeatedIds: updates.filter(u => u.type === 'repeated').map(u => u.id),
+        withdrawnIds: updates.filter(u => u.type === 'withdrawn').map(u => u.id),
         breakdown,
         backupId: backupResult.backupId,
         backupDocumentCount: backupResult.totalDocuments,
@@ -1251,10 +1200,12 @@ export const AppProvider = ({ children }) => {
       console.error('Erreur journalisation:', logErr);
     }
 
-    showToast(`${promotedCount} stagiaire(s) promu(s), ${graduatedCount} laur\u00e9at(s) archiv\u00e9(s). Sauvegarde compl\u00e8te cr\u00e9\u00e9e avant cl\u00f4ture.`, 'success');
+    showToast(`${promotedCount} promu(s), ${graduatedCount} lauréat(s), ${repeatedCount} redoublant(s), ${withdrawnCount} abandon(s). Les dossiers sont conservés.`, 'success');
     return {
       promotedCount,
       graduatedCount,
+      repeatedCount,
+      withdrawnCount,
       operationId,
       breakdown,
       backupId: backupResult.backupId,
@@ -1283,29 +1234,11 @@ export const AppProvider = ({ children }) => {
     }
 
     const undoUpdates = affected.map(student => {
-      const lastEntry = student.classHistory[student.classHistory.length - 1];
-      const restoredHistory = student.classHistory.slice(0, -1);
-
-      const restoreData = {
-        year: lastEntry.year,
-        status: lastEntry.status || STUDENT_STATUS.ACTIVE,
-        academicYear: lastEntry.academicYear || '',
-        classHistory: restoredHistory,
-      };
-
-      // Clean up promotion/graduation fields
-      const cleanFields = {
-        graduationAcademicYear: '',
-        graduatedAt: '',
-        previousAcademicYear: '',
-        promotedFromYear: '',
-        promotedAt: '',
-      };
-
+      const data = buildStudentClosureUndo(student);
       return {
         id: student.id,
-        localData: { ...restoreData, ...cleanFields },
-        firestoreData: { ...restoreData, ...cleanFields, updatedAt: serverTimestamp() },
+        localData: data,
+        firestoreData: { ...data, updatedAt: serverTimestamp() },
       };
     });
 
@@ -1338,6 +1271,51 @@ export const AppProvider = ({ children }) => {
 
     showToast(`${affected.length} stagiaire(s) restaur\u00e9(s) \u00e0 leur \u00e9tat pr\u00e9c\u00e9dent.`, 'success');
     return { restoredCount: affected.length };
+  };
+
+  const updateStudentClosureDecision = async ({ studentId, academicYear, decision, reason = '', expectedRevision }) => {
+    requireEdit('administration');
+    const studentRef = doc(db, 'students', studentId);
+    const gradeRef = doc(db, 'grades', studentId);
+    const operationRef = doc(collection(db, 'operations'));
+    const correctedAt = new Date().toISOString();
+    const result = await runTransaction(db, async transaction => {
+      const settingsSnapshot = await transaction.get(doc(db, 'settings', 'app'));
+      const studentSnapshot = await transaction.get(studentRef);
+      const gradeSnapshot = await transaction.get(gradeRef);
+      const settings = settingsSnapshot.data() || {};
+      if (!studentSnapshot.exists()) throw new Error('Stagiaire introuvable.');
+      if (settings.academicYearClosure?.status === 'in_progress' || settings.academicYearClosure?.status === 'failed') {
+        throw new Error('Terminez la clôture en cours avant de corriger une décision.');
+      }
+      if (!validateAcademicYear(academicYear) || !validateAcademicYear(settings.operationalAcademicYear) || academicYear >= settings.operationalAcademicYear) {
+        throw new Error('Cette année n’est pas clôturée.');
+      }
+      const student = { id: studentId, ...studentSnapshot.data() };
+      const gradeDocument = gradeSnapshot.data() || {};
+      const correction = buildStudentClosureCorrection({
+        student, academicYear, decision, grades: gradeDocument,
+        correctedAt, expectedRevision, reason: String(reason).trim().slice(0, 500),
+      });
+      transaction.update(studentRef, { ...correction.data, updatedAt: serverTimestamp() });
+      transaction.set(gradeRef, { [GRADE_ACADEMIC_YEARS_FIELD]: correction.gradeYears }, { merge: true });
+      transaction.set(operationRef, {
+        type: 'academic_year_decision_correction', studentId, academicYear,
+        closureOperationId: student.classHistory.at(-1).operationId,
+        previousDecision: correction.beforeDecision, decision,
+        reason: String(reason).trim().slice(0, 500),
+        performedBy: adminUser?.uid || '', performedAt: serverTimestamp(),
+      });
+      return {
+        student: { ...student, ...correction.data },
+        grades: { ...gradeDocument, [GRADE_ACADEMIC_YEARS_FIELD]: { ...(gradeDocument[GRADE_ACADEMIC_YEARS_FIELD] || {}), ...correction.gradeYears } },
+      };
+    });
+    setStudents(previous => previous.map(student => student.id === studentId ? result.student : student));
+    setGrades(previous => ({ ...previous, [studentId]: result.grades }));
+    localStorage.removeItem(CORE_CACHE_KEY);
+    showToast('Décision corrigée. Le dossier et les résultats sont conservés.', 'success');
+    return result.student;
   };
 
   const deleteStudent = async (id) => {
@@ -1990,7 +1968,7 @@ export const AppProvider = ({ children }) => {
     <AppContext.Provider value={{
       students, teachers, grades, isAuthenticated, isDirectorAuth, loading,
       login, logout, showToast,
-      addStudent, addTeacher, updateStudent, promoteAcademicYear, undoLastPromotion, updateTeacher, deleteStudent, deleteTeacher, updateGrades, batchUpdateGrades,
+      addStudent, addTeacher, updateStudent, promoteAcademicYear, undoLastPromotion, updateStudentClosureDecision, updateTeacher, deleteStudent, deleteTeacher, updateGrades, batchUpdateGrades,
       studentAttendance, teacherAttendance, updateStudentAttendance, updateTeacherAttendance,
       loadAttendanceForSession, loadStudentAttendanceForMonth, loadTeacherAttendanceForDate, loadTeacherAttendanceForMonth,
       schedules, addSchedule, updateSchedule, deleteSchedule, clearAllSchedules, migrateTeacherTokens,
