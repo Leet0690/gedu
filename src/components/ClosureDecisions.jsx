@@ -3,19 +3,68 @@ import { getClosureDecisionOptions } from '../utils/academicYearClosure';
 
 export default function ClosureDecisions({ students, decisions, onChange, disabled }) {
   const [search, setSearch] = useState('');
-  const visible = students.filter(student =>
-    `${student.lastName} ${student.firstName} ${student.regNo || ''} ${student.major || ''}`
-      .toLocaleLowerCase('fr').includes(search.toLocaleLowerCase('fr').trim()));
+  const [year, setYear] = useState('');
+  const [major, setMajor] = useState('');
+  const [diploma, setDiploma] = useState('');
+  const normalizeSearch = value => String(value || '').normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('fr').trim();
+  const searchTerms = normalizeSearch(search).split(/\s+/).filter(Boolean);
+  const uniqueValues = (roster, field) => [...new Set(roster.map(student => student[field]).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'fr', { numeric: true }));
+  const diplomaStudents = students.filter(student => !diploma || student.diploma === diploma);
+  const visible = diplomaStudents.filter(student => {
+    const name = normalizeSearch(`${student.lastName || ''} ${student.firstName || ''} ${student.regNo || ''}`);
+    return (!year || student.year === year) && (!major || student.major === major) &&
+      searchTerms.every(term => name.includes(term));
+  });
+  const hasFilters = !!(search || year || major || diploma);
+  const pendingVisibleCount = visible.filter(student => !decisions[student.id]).length;
   return (
     <section style={{ marginBottom: '20px' }} aria-label="Décisions de fin d’année">
       <p style={{ fontWeight: 800, marginBottom: '8px' }}>Décision pour chaque stagiaire</p>
       <p style={{ fontSize: '12px', marginBottom: '12px', color: 'var(--text-muted)' }}>
         Choisissez Passage, Lauréat, Redoublement ou Abandon. Les notes, relevés, paiements et présences restent conservés.
       </p>
-      <input className="input-premium" type="search" aria-label="Rechercher un stagiaire pour la clôture"
-        placeholder="Nom, matricule ou filière…" value={search} onChange={event => setSearch(event.target.value)}
-        style={{ width: '100%', marginBottom: '8px' }} />
-      <button type="button" className="btn-modern" disabled={disabled}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px', marginBottom: '12px' }}>
+        <label style={{ display: 'grid', gap: '6px', fontSize: '12px', fontWeight: 700 }}>
+          Niveau
+          <select className="input-premium" value={diploma} disabled={disabled} style={{ width: '100%', minWidth: 0 }}
+            onChange={event => { setDiploma(event.target.value); setYear(''); setMajor(''); }}>
+            <option value="">Tous les niveaux</option>
+            {uniqueValues(students, 'diploma').map(value => <option key={value} value={value}>{value}</option>)}
+          </select>
+        </label>
+        <label style={{ display: 'grid', gap: '6px', fontSize: '12px', fontWeight: 700 }}>
+          Année d’étude
+          <select className="input-premium" value={year} disabled={disabled} style={{ width: '100%', minWidth: 0 }}
+            onChange={event => setYear(event.target.value)}>
+            <option value="">Toutes les années</option>
+            {uniqueValues(diplomaStudents, 'year').map(value => <option key={value} value={value}>{value}</option>)}
+          </select>
+        </label>
+        <label style={{ display: 'grid', gap: '6px', fontSize: '12px', fontWeight: 700 }}>
+          Filière
+          <select className="input-premium" value={major} disabled={disabled} style={{ width: '100%', minWidth: 0 }}
+            onChange={event => setMajor(event.target.value)}>
+            <option value="">Toutes les filières</option>
+            {uniqueValues(diplomaStudents, 'major').map(value => <option key={value} value={value}>{value}</option>)}
+          </select>
+        </label>
+      </div>
+      <label style={{ display: 'grid', gap: '6px', fontSize: '12px', fontWeight: 700, marginBottom: '8px' }}>
+        Recherche par nom
+        <input className="input-premium" type="search" disabled={disabled}
+          placeholder="Nom, prénom ou matricule…" value={search} onChange={event => setSearch(event.target.value)}
+          style={{ width: '100%' }} />
+      </label>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
+        <p role="status" style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+          {visible.length} / {students.length} stagiaire(s) affiché(s) · {pendingVisibleCount} sans décision
+        </p>
+        {hasFilters && <button type="button" className="btn-modern" disabled={disabled} style={{ fontSize: '12px' }}
+          onClick={() => { setSearch(''); setYear(''); setMajor(''); setDiploma(''); }}>Réinitialiser les filtres</button>}
+      </div>
+      <button type="button" className="btn-modern" disabled={disabled || pendingVisibleCount === 0}
         style={{ marginBottom: '12px', fontSize: '12px' }}
         onClick={() => onChange(previous => {
           const next = { ...previous };
@@ -32,7 +81,7 @@ export default function ClosureDecisions({ students, decisions, onChange, disabl
             <label htmlFor={`closure-${student.id}`} style={{ flex: '1 1 190px', fontSize: '13px' }}>
               <strong>{student.lastName} {student.firstName}</strong>
               <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)' }}>
-                {student.regNo} · {student.major} · {student.year}
+                {student.regNo} · {student.diploma} · {student.major} · {student.year}
               </span>
             </label>
             <select id={`closure-${student.id}`} className="input-premium" disabled={disabled}
