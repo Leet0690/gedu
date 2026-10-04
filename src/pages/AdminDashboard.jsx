@@ -1719,9 +1719,9 @@ const AdminDashboard = () => {
         <div className="home-dashboard-stack">
           <div className="home-stats-grid">
             <StatCard delay={0.05} icon={UsersIcon} tone="primary" value={activeYearStudents.length} label="Stagiaires" detail="Effectif inscrit" />
-            <StatCard delay={0.1} icon={Presentation} tone="warning" value={(teachers || []).length} label="Formateurs" detail="?quipe p?dagogique" />
-            <StatCard delay={0.15} icon={CalendarCheck} tone="success" value={studentAttendanceRate === null ? '—' : `${studentAttendanceRate}%`} label={`Présence Stagiaires — ${currentMonthName} ${attendanceCalendarYear}`} />
-            <StatCard delay={0.2} icon={BarChart3} tone="info" value={teacherAttendanceRate === null ? '—' : `${teacherAttendanceRate}%`} label={`Présence Formateurs — ${currentMonthName}`} />
+            <StatCard delay={0.1} icon={Presentation} tone="warning" value={(teachers || []).length} label="Formateurs" detail="Équipe pédagogique" />
+            <StatCard delay={0.15} icon={CalendarCheck} tone="success" value={studentAttendanceRate === null ? '—' : `${studentAttendanceRate}%`} label="Présence stagiaires" detail={`${currentMonthName} ${attendanceCalendarYear}`} />
+            <StatCard delay={0.2} icon={BarChart3} tone="info" value={teacherAttendanceRate === null ? '—' : `${teacherAttendanceRate}%`} label="Présence formateurs" detail={`${currentMonthName} ${attendanceCalendarYear}`} />
           </div>
 
           {/* New Requested Order in Grid format to keep dimensions */}
