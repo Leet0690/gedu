@@ -9,7 +9,7 @@ const blobToDataUrl = (blob) => new Promise((resolve, reject) => {
 
 export const loadLogoDataUrl = () => {
   if (!logoDataUrlPromise) {
-    logoDataUrlPromise = fetch('/logo.jpg', { cache: 'force-cache' })
+    logoDataUrlPromise = fetch('/logo-ipfpp.png', { cache: 'force-cache' })
       .then(response => {
         if (!response.ok) throw new Error(`Logo unavailable: ${response.status}`);
         return response.blob();

@@ -1,3 +1,4 @@
+import { loadLogoDataUrl } from '../utils/loadLogoDataUrl.js';
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
@@ -373,6 +374,8 @@ const buildXlsxBlob = ({
   printHeightPages,
   columnBreaks = [],
   repeatTitleRows = [1, 3],
+  logoBytes,
+  logoColumns = [1],
   sheetName = 'Synthese des notes',
 }) => {
   const lastColumn = columnName(columnWidths.length);
@@ -420,6 +423,7 @@ const buildXlsxBlob = ({
   <pageSetup paperSize="9" orientation="landscape" fitToWidth="${printWidthPages}" fitToHeight="${printHeightPages}"/>
   <headerFooter><oddFooter>${escapeHtml(footerText)}</oddFooter></headerFooter>
   ${colBreaksXml}
+  <drawing r:id="rIdLogo"/>
 </worksheet>`;
 
   const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -471,6 +475,8 @@ const buildXlsxBlob = ({
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
+  <Default Extension="png" ContentType="image/png"/>
+  <Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>
   <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
   <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
   <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
@@ -503,6 +509,10 @@ const buildXlsxBlob = ({
   <dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString()}</dcterms:created>
 </cp:coreProperties>`,
     },
+    { name: 'xl/media/logo.png', content: logoBytes },
+    { name: 'xl/worksheets/_rels/sheet1.xml.rels', content: `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdLogo" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/></Relationships>` },
+    { name: 'xl/drawings/_rels/drawing1.xml.rels', content: `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdImage" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/logo.png"/></Relationships>` },
+    { name: 'xl/drawings/drawing1.xml', content: `<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">${logoColumns.map((column, index) => `<xdr:oneCellAnchor><xdr:from><xdr:col>${column - 1}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>0</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:ext cx="2286000" cy="1285875"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${index + 1}" name="IPFPP ${index + 1}"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="rIdImage"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="2286000" cy="1285875"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor>`).join('')}</xdr:wsDr>` },
     {
       name: 'xl/workbook.xml',
       content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -1031,8 +1041,8 @@ const Reports = () => {
           printWidthPages
         );
       const professionalYear = selectedAcademicYear.replace('-', '/');
-      const rows = [];
-      const rowHeightsPx = [];
+      const rows = [[]];
+      const rowHeightsPx = [140];
       const merges = [];
       const makeRow = () => Array(reportColumnCount).fill(null);
       const setCell = (row, col, value, style = 'text') => {
@@ -1175,7 +1185,12 @@ const Reports = () => {
 
       addSignatureRows();
 
+      const logoDataUrl = await loadLogoDataUrl();
+      const logoBytes = Uint8Array.from(atob(logoDataUrl.split(',')[1]), char => char.charCodeAt(0));
       const blob = buildXlsxBlob({
+        logoBytes,
+        logoColumns: pageColumnRanges.map(range => range.startCol),
+        repeatTitleRows: [1, 4],
         rows,
         merges,
         columnWidths: reportColumnWidths,

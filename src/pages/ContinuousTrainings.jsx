@@ -1810,7 +1810,7 @@ export default function ContinuousTrainings() {
       // Larger Logo
       if (logoBase64) {
         try {
-          doc.addImage(logoBase64, 'JPEG', margin, offsetY + 2.5, 28, 12);
+          doc.addImage(logoBase64, 'PNG', margin, offsetY + 2.5, 21.33, 12);
         } catch {
           // Ignore logo rendering failures so the receipt can still be generated.
         }

@@ -543,7 +543,7 @@ const FinanceDashboard = () => {
 
     const drawReceiptCopy = (offsetY, copyLabel) => {
       try {
-        doc.addImage(logoBase64, 'JPEG', margin, offsetY + 2.5, 20, 8.5);
+        doc.addImage(logoBase64, 'PNG', margin, offsetY + 2.5, 15.11, 8.5);
       } catch {
         // The receipt remains usable when the optional logo cannot be decoded.
       }
@@ -624,7 +624,7 @@ const FinanceDashboard = () => {
     let y = 8;
 
     try {
-      doc.addImage(logoBase64, 'JPEG', margin, y, 34, 15);
+      doc.addImage(logoBase64, 'PNG', margin, y, 26.67, 15);
     } catch {
       // The receipt remains usable when the optional logo cannot be decoded.
     }

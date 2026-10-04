@@ -1,3 +1,4 @@
+import { loadLogoDataUrl } from './loadLogoDataUrl.js';
 import { getScheduleModuleForSemester } from './scheduleSemester.js';
 
 export const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
@@ -154,7 +155,10 @@ export const createScheduleExportDocument = ({
     element('div', { fontSize: '24px', fontWeight: '700', lineHeight: '1.2', margin: '5px 0 9px', color: ink }, groupLabel || '—'),
     element('div', { fontSize: '15px', color: muted }, `${academicYear}  ·  ${semester}`),
   );
-  header.append(heading, identity);
+  const logo = element('img', { width: '260px', height: '146.25px', objectFit: 'contain', flexShrink: '0' });
+  logo.src = '/logo-ipfpp.png';
+  logo.alt = 'IPFPP';
+  header.append(logo, heading, identity);
   root.append(header);
 
   const legend = element('div', { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', color: muted, fontSize: '13px' });
@@ -226,6 +230,9 @@ export const captureScheduleExport = async options => {
   wrapper.append(root);
   document.body.append(wrapper);
   try {
+    const logo = root.querySelector('img');
+    logo.src = await loadLogoDataUrl();
+    await logo.decode();
     await document.fonts?.ready;
     const firstRow = root.querySelector('[data-export-day]');
     const rootTop = root.getBoundingClientRect().top;
