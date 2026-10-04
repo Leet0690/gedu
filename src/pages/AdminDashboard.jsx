@@ -1,3 +1,4 @@
+import './DashboardStats.css';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1716,22 +1717,9 @@ const AdminDashboard = () => {
 
       {isDashboard && (
         <div className="home-dashboard-stack">
-          <div className="home-dashboard-heading">
-            <div>
-              <h1>Tableau de bord</h1>
-              <p>Bienvenue sur votre espace de gestion IPFPP</p>
-            </div>
-            <div className="home-dashboard-date">
-              <Calendar size={20} aria-hidden="true" />
-              <div>
-                <strong>Aujourd’hui</strong>
-                <time>{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</time>
-              </div>
-            </div>
-          </div>
           <div className="home-stats-grid">
-            <StatCard delay={0.05} icon={UsersIcon} tone="primary" value={activeYearStudents.length} label="Total Stagiaires" />
-            <StatCard delay={0.1} icon={Presentation} tone="warning" value={(teachers || []).length} label="Total Formateurs" />
+            <StatCard delay={0.05} icon={UsersIcon} tone="primary" value={activeYearStudents.length} label="Stagiaires" detail="Effectif inscrit" />
+            <StatCard delay={0.1} icon={Presentation} tone="warning" value={(teachers || []).length} label="Formateurs" detail="?quipe p?dagogique" />
             <StatCard delay={0.15} icon={CalendarCheck} tone="success" value={studentAttendanceRate === null ? '—' : `${studentAttendanceRate}%`} label={`Présence Stagiaires — ${currentMonthName} ${attendanceCalendarYear}`} />
             <StatCard delay={0.2} icon={BarChart3} tone="info" value={teacherAttendanceRate === null ? '—' : `${teacherAttendanceRate}%`} label={`Présence Formateurs — ${currentMonthName}`} />
           </div>
@@ -2519,19 +2507,23 @@ const AdminDashboard = () => {
 };
 
 /* ── Helper Components ── */
-const StatCard = ({ delay, icon: Icon, tone = 'primary', value, label }) => (
+const StatCard = ({ delay, icon: Icon, tone = 'primary', value, label, detail }) => (
   <motion.div
     initial={{ opacity: 0, y: 12 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay }}
-    className={`finance-net-card finance-net-card-home-${tone} dashboard-premium-stat`}
+    className={`dashboard-metric dashboard-metric-${tone}`}
   >
-    <div className="dashboard-stat-icon" aria-hidden="true">
-      <Icon size={25} strokeWidth={1.8} />
-    </div>
-    <div className="finance-net-card-content">
+    <div className="dashboard-metric-top">
       <h3>{label}</h3>
-      <p className="finance-net-card-amount">{value}</p>
+      <span className="dashboard-metric-icon" aria-hidden="true">
+        <Icon size={23} strokeWidth={1.8} />
+      </span>
+    </div>
+    <p className="dashboard-metric-value">{value}</p>
+    <div className="dashboard-metric-footer">
+      <span aria-hidden="true" />
+      <p>{detail}</p>
     </div>
   </motion.div>
 );

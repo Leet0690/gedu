@@ -1,0 +1,32 @@
+.dashboard-metric {
+  --metric-accent: #023471;
+  --metric-tint: #edf4fc;
+  min-width: 0;
+  padding: 22px 24px 18px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-top: 3px solid var(--metric-accent);
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(2, 52, 113, .04);
+  transition: border-color .2s, box-shadow .2s;
+}
+.dashboard-metric-warning { --metric-accent: #bd8900; --metric-tint: #fff7db; }
+.dashboard-metric-success { --metric-accent: #147d76; --metric-tint: #eaf7f4; }
+.dashboard-metric-info { --metric-accent: #2865a8; --metric-tint: #edf5ff; }
+.dashboard-metric:hover { box-shadow: 0 8px 24px rgba(2, 52, 113, .09); }
+.dashboard-metric-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.dashboard-metric-top h3 { margin: 0; color: #475569; font-size: 13px; font-weight: 650; line-height: 1.5; }
+.dashboard-metric-icon { display: grid; place-items: center; width: 44px; height: 44px; flex: 0 0 44px; border-radius: 13px; background: var(--metric-tint); color: var(--metric-accent); }
+.dashboard-metric-value { margin: 14px 0 18px; color: #062958; font-size: clamp(30px, 3vw, 40px); line-height: 1.1; font-weight: 750; letter-spacing: -1.5px; font-variant-numeric: tabular-nums; }
+.dashboard-metric-footer { display: flex; align-items: center; gap: 8px; padding-top: 12px; border-top: 1px solid #eef2f6; }
+.dashboard-metric-footer > span { width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; background: var(--metric-accent); }
+.dashboard-metric-footer p { margin: 0; color: #64748b; font-size: 12px; line-height: 1.5; }
+@media (max-width: 600px) {
+  .dashboard-metric { padding: 16px 14px 14px; border-radius: 13px; }
+  .dashboard-metric-top { align-items: flex-start; gap: 8px; }
+  .dashboard-metric-top h3 { font-size: 12px; }
+  .dashboard-metric-icon { width: 34px; height: 34px; flex-basis: 34px; border-radius: 10px; }
+  .dashboard-metric-icon svg { width: 19px; height: 19px; }
+  .dashboard-metric-value { margin-top: 16px; }
+  .dashboard-metric-footer p { font-size: 11px; }
+}
