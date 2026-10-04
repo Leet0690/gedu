@@ -498,7 +498,7 @@ const TeacherAttendance = () => {
               { label: 'Jours Absents', value: mGlobalStats.absent, color: '#dc2626', bg: 'rgba(220,38,38,0.08)' },
               { label: 'Total Heures', value: `${mGlobalStats.totalHours}h`, color: '#0ea5e9', bg: 'rgba(14,165,233,0.08)' },
             ].map(({ label, value, color, bg }) => (
-              <div key={label} style={{ padding: '12px 18px', background: bg, border: `1px solid ${color}22`, borderRadius: 'var(--radius-xl)', flex: '1 1 110px', textAlign: 'center' }}>
+              <div key={label} style={{ padding: '12px 18px', background: bg, border: `1px solid color-mix(in srgb, ${color} 14%, transparent)`, borderRadius: 'var(--radius-xl)', flex: '1 1 110px', textAlign: 'center' }}>
                 <div style={{ fontSize: 'var(--text-xl)', fontWeight: '900', color, lineHeight: 1 }}>{value}</div>
                 <div style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginTop: '4px' }}>{label}</div>
               </div>
@@ -541,7 +541,7 @@ const TeacherAttendance = () => {
                       <th style={{ ...mThStyle, textAlign: 'left', position: 'sticky', left: 0, background: 'var(--bg-subtle)', zIndex: 10 }}>Formateur</th>
                       {mDays.map(d => {
                         const isWeekend = new Date(mYear, mMonth, d).getDay() % 6 === 0;
-                        return <th key={d} style={{ ...mThStyle, color: isWeekend ? 'var(--primary)' : 'var(--text-muted)', background: isWeekend ? 'rgba(176,104,185,0.05)' : 'var(--bg-subtle)' }}>{d}</th>;
+                        return <th key={d} style={{ ...mThStyle, color: isWeekend ? 'var(--primary)' : 'var(--text-muted)', background: isWeekend ? 'rgba(var(--primary-rgb), 0.05)' : 'var(--bg-subtle)' }}>{d}</th>;
                       })}
                       <th style={{ ...mThStyle, color: '#15803d', background: 'rgba(22,163,74,0.06)' }}>P</th>
                       <th style={{ ...mThStyle, color: '#dc2626', background: 'rgba(220,38,38,0.06)' }}>A</th>
@@ -558,7 +558,7 @@ const TeacherAttendance = () => {
                         {mDays.map(d => {
                           const isWeekend = new Date(mYear, mMonth, d).getDay() % 6 === 0;
                           return (
-                            <td key={d} style={{ ...mTdStyle, padding: '6px 4px', textAlign: 'center', background: isWeekend ? 'rgba(176,104,185,0.03)' : (idx % 2 === 0 ? 'white' : 'rgba(248,249,251,0.5)') }}>
+                            <td key={d} style={{ ...mTdStyle, padding: '6px 4px', textAlign: 'center', background: isWeekend ? 'rgba(var(--primary-rgb), 0.03)' : (idx % 2 === 0 ? 'white' : 'rgba(248,249,251,0.5)') }}>
                               <div style={{ display: 'flex', justifyContent: 'center' }}><StatusCell status={byDay[d]} hours={hoursByDay[d]} /></div>
                             </td>
                           );

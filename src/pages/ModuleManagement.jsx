@@ -690,14 +690,14 @@ const ModuleManagement = () => {
                               minHeight: '42px',
                               border: '1px dashed var(--primary)',
                               borderRadius: '12px',
-                              background: 'linear-gradient(135deg, rgba(176,104,185,0.14), rgba(176,104,185,0.04))',
+                              background: 'linear-gradient(135deg, rgba(var(--primary-rgb), 0.14), rgba(var(--primary-rgb), 0.04))',
                               color: 'var(--primary)',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'space-between',
                               gap: '12px',
                               padding: '8px 14px',
-                              boxShadow: 'inset 0 0 0 1px rgba(176,104,185,0.08)',
+                              boxShadow: 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.08)',
                               opacity: 0.82
                             }}
                           >
@@ -794,7 +794,7 @@ const ModuleManagement = () => {
                     </td>
                     <td style={{ padding: '16px', textAlign: 'right' }}>
                       <div style={{ display: 'flex', gap: '2px', justifyContent: 'flex-end' }}>
-                        <ActionBtn disabled={!canEdit} icon={Copy} title="Copier vers d'autres groupes" color="#6366f1" onClick={() => openCopyModal(m)} />
+                        <ActionBtn disabled={!canEdit} icon={Copy} title="Copier vers d'autres groupes" color="var(--text-muted)" onClick={() => openCopyModal(m)} />
                         <ActionBtn disabled={!canEdit} icon={Edit3} title="Modifier" onClick={() => handleEdit(m)} />
                         <ActionBtn disabled={!canEdit} icon={Trash2} title="Supprimer" color="#dc2626" onClick={() => handleDelete(m)} />
                       </div>
@@ -955,7 +955,7 @@ const ModuleManagement = () => {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontSize: '12px', fontWeight: '800', color: isSelected ? 'var(--primary)' : 'var(--text-primary)', fontFamily: 'monospace', background: isSelected ? 'rgba(176,104,185,0.15)' : 'var(--bg-subtle)', padding: '1px 6px', borderRadius: '4px' }}>{group.code}</span>
+                          <span style={{ fontSize: '12px', fontWeight: '800', color: isSelected ? 'var(--primary)' : 'var(--text-primary)', fontFamily: 'monospace', background: isSelected ? 'rgba(var(--primary-rgb), 0.15)' : 'var(--bg-subtle)', padding: '1px 6px', borderRadius: '4px' }}>{group.code}</span>
                           {isCurrent && <span style={{ fontSize: '9px', fontWeight: '700', color: 'var(--text-faint)', background: 'var(--border-light)', padding: '1px 6px', borderRadius: '4px' }}>Source</span>}
                           {alreadyExists && !isCurrent && <span style={{ fontSize: '9px', fontWeight: '700', color: '#d97706', background: 'rgba(217,119,6,0.1)', padding: '1px 6px', borderRadius: '4px' }}>Déjà présent</span>}
                         </div>

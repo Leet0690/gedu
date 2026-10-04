@@ -7,13 +7,13 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'logo.jpg', 'pwa-192.png', 'pwa-512.png'],
+      includeAssets: ['favicon.svg', 'logo.jpg', 'logo-ipfpp.png', 'pwa-192.png', 'pwa-512.png'],
       manifest: {
         name: 'IPFP Manager',
         short_name: 'IPFP',
         description: 'Portail de gestion académique — Institut Polytechnique de la Formation Professionnelle',
-        theme_color: '#b068b9',
-        background_color: '#f8f9fb',
+        theme_color: '#023471',
+        background_color: '#F5F7FA',
         display: 'standalone',
         start_url: '/',
         scope: '/',

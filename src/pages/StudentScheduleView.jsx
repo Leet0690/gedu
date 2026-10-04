@@ -43,10 +43,10 @@ const getDeterministicEventStyles = (moduleName = '') => {
 
 const getDayColors = (day = '') => {
   const normalized = day.trim().toLowerCase();
-  if (normalized.includes('lun')) return { bg: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(99, 102, 241, 0.02) 100%)', text: '#4f46e5', border: 'rgba(99, 102, 241, 0.2)' };
+  if (normalized.includes('lun')) return { bg: 'linear-gradient(135deg, rgba(var(--primary-rgb), 0.08) 0%, rgba(var(--primary-rgb), 0.02) 100%)', text: 'var(--primary)', border: 'rgba(var(--primary-rgb), 0.2)' };
   if (normalized.includes('mar')) return { bg: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.02) 100%)', text: '#059669', border: 'rgba(16, 185, 129, 0.2)' };
   if (normalized.includes('mer')) return { bg: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(245, 158, 11, 0.02) 100%)', text: '#d97706', border: 'rgba(245, 158, 11, 0.2)' };
-  if (normalized.includes('jeu')) return { bg: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(139, 92, 246, 0.02) 100%)', text: '#7c3aed', border: 'rgba(139, 92, 246, 0.2)' };
+  if (normalized.includes('jeu')) return { bg: 'linear-gradient(135deg, rgba(var(--primary-rgb), 0.08) 0%, rgba(var(--primary-rgb), 0.02) 100%)', text: 'var(--primary)', border: 'rgba(var(--primary-rgb), 0.2)' };
   if (normalized.includes('ven')) return { bg: 'linear-gradient(135deg, rgba(244, 63, 94, 0.08) 0%, rgba(244, 63, 94, 0.02) 100%)', text: '#e11d48', border: 'rgba(244, 63, 94, 0.2)' };
   if (normalized.includes('sam')) return { bg: 'linear-gradient(135deg, rgba(14, 165, 233, 0.08) 0%, rgba(14, 165, 233, 0.02) 100%)', text: '#0284c7', border: 'rgba(14, 165, 233, 0.2)' };
   return { bg: 'linear-gradient(135deg, rgba(20, 184, 166, 0.08) 0%, rgba(20, 184, 166, 0.02) 100%)', text: '#0d9488', border: 'rgba(20, 184, 166, 0.2)' };
@@ -157,7 +157,7 @@ const StudentScheduleView = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '999px', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)' }}>
           <span style={{ fontSize: '12px', fontWeight: '800', color: '#2563eb' }}>Semestre: {semester}</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '999px', background: 'var(--primary-ultra-light)', border: '1px solid rgba(176,104,185,0.15)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '999px', background: 'var(--primary-ultra-light)', border: '1px solid rgba(var(--primary-rgb), 0.15)' }}>
           <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)' }}>Année: {academicYear}</span>
         </div>
       </div>
@@ -193,7 +193,7 @@ const StudentScheduleView = () => {
             </div>
 
             <div className="home-schedule-rows-container" style={{ position: 'relative' }}>
-              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '130px', fontWeight: '900', color: 'rgba(176, 104, 185, 0.09)', zIndex: 2, pointerEvents: 'none', whiteSpace: 'nowrap', userSelect: 'none', letterSpacing: '0.08em', fontFamily: 'Inter, system-ui, sans-serif' }}>
+              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '130px', fontWeight: '900', color: 'rgba(var(--primary-rgb), 0.09)', zIndex: 2, pointerEvents: 'none', whiteSpace: 'nowrap', userSelect: 'none', letterSpacing: '0.08em', fontFamily: 'Inter, system-ui, sans-serif' }}>
                 {groupLabel}
               </div>
               {DAYS.map(day => {
@@ -229,7 +229,7 @@ const StudentScheduleView = () => {
                             whileHover={{ scale: 1.015, zIndex: 10 }}
                           >
                             <div className="home-schedule-event-rail-horizontal" />
-                            <div style={{ position: 'absolute', top: '5px', left: '8px', fontSize: '7.5px', fontWeight: '850', padding: '1.5px 4.5px', borderRadius: '4px', backgroundColor: isTP ? 'rgba(99, 102, 241, 0.12)' : 'rgba(245, 158, 11, 0.15)', color: 'var(--event-text)', textTransform: 'uppercase', lineHeight: 1.1, border: '1.5px solid currentColor', opacity: 0.9 }}>
+                            <div style={{ position: 'absolute', top: '5px', left: '8px', fontSize: '7.5px', fontWeight: '850', padding: '1.5px 4.5px', borderRadius: '4px', backgroundColor: isTP ? 'rgba(var(--primary-rgb), 0.12)' : 'rgba(245, 158, 11, 0.15)', color: 'var(--event-text)', textTransform: 'uppercase', lineHeight: 1.1, border: '1.5px solid currentColor', opacity: 0.9 }}>
                               {session.type || 'Cours'}
                             </div>
                             <div className="home-schedule-event-time">

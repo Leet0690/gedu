@@ -264,7 +264,7 @@ const MonthlyAttendanceTeachers = () => {
           { label: 'Retards', value: globalStats.retard, icon: Clock, color: '#ca8a04', bg: 'rgba(234,179,8,0.08)' },
           { label: 'Total Heures', value: `${globalStats.totalHours}h`, icon: Clock, color: '#0ea5e9', bg: 'rgba(14,165,233,0.08)' },
         ].map(({ label, value, icon: Icon, color, bg }) => (
-          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 18px', background: bg, border: `1px solid ${color}22`, borderRadius: 'var(--radius-xl)', flex: '1 1 130px' }}>
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 18px', background: bg, border: `1px solid color-mix(in srgb, ${color} 14%, transparent)`, borderRadius: 'var(--radius-xl)', flex: '1 1 130px' }}>
             <Icon size={18} style={{ color, flexShrink: 0 }} />
             <div>
               <div style={{ fontSize: 'var(--text-xl)', fontWeight: '900', color, lineHeight: 1 }}>{value}</div>
@@ -325,7 +325,7 @@ const MonthlyAttendanceTeachers = () => {
                       <th key={d} style={{
                         ...thStyle,
                         color: isWeekend ? 'var(--primary)' : 'var(--text-muted)',
-                        background: isWeekend ? 'rgba(176,104,185,0.05)' : 'var(--bg-subtle)',
+                        background: isWeekend ? 'rgba(var(--primary-rgb), 0.05)' : 'var(--bg-subtle)',
                         minWidth: '38px'
                       }}>
                         {d}
@@ -370,7 +370,7 @@ const MonthlyAttendanceTeachers = () => {
                           ...tdStyle,
                           textAlign: 'center', padding: '6px 4px',
                           background: isWeekend
-                            ? 'rgba(176,104,185,0.03)'
+                            ? 'rgba(var(--primary-rgb), 0.03)'
                             : (idx % 2 === 0 ? 'white' : 'rgba(248,249,251,0.5)')
                         }}>
                           <div style={{ display: 'flex', justifyContent: 'center' }}>

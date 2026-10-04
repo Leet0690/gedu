@@ -45,10 +45,10 @@ const getDeterministicEventStyles = (moduleName = '') => {
 
 const getDayColors = (day = '') => {
   const normalized = day.trim().toLowerCase();
-  if (normalized.includes('lun')) return { bg: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(99, 102, 241, 0.02) 100%)', text: '#4f46e5', border: 'rgba(99, 102, 241, 0.2)' };
+  if (normalized.includes('lun')) return { bg: 'linear-gradient(135deg, rgba(var(--primary-rgb), 0.08) 0%, rgba(var(--primary-rgb), 0.02) 100%)', text: 'var(--primary)', border: 'rgba(var(--primary-rgb), 0.2)' };
   if (normalized.includes('mar')) return { bg: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.02) 100%)', text: '#059669', border: 'rgba(16, 185, 129, 0.2)' };
   if (normalized.includes('mer')) return { bg: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(245, 158, 11, 0.02) 100%)', text: '#d97706', border: 'rgba(245, 158, 11, 0.2)' };
-  if (normalized.includes('jeu')) return { bg: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(139, 92, 246, 0.02) 100%)', text: '#7c3aed', border: 'rgba(139, 92, 246, 0.2)' };
+  if (normalized.includes('jeu')) return { bg: 'linear-gradient(135deg, rgba(var(--primary-rgb), 0.08) 0%, rgba(var(--primary-rgb), 0.02) 100%)', text: 'var(--primary)', border: 'rgba(var(--primary-rgb), 0.2)' };
   if (normalized.includes('ven')) return { bg: 'linear-gradient(135deg, rgba(244, 63, 94, 0.08) 0%, rgba(244, 63, 94, 0.02) 100%)', text: '#e11d48', border: 'rgba(244, 63, 94, 0.2)' };
   if (normalized.includes('sam')) return { bg: 'linear-gradient(135deg, rgba(14, 165, 233, 0.08) 0%, rgba(14, 165, 233, 0.02) 100%)', text: '#0284c7', border: 'rgba(14, 165, 233, 0.2)' };
   return { bg: 'linear-gradient(135deg, rgba(20, 184, 166, 0.08) 0%, rgba(20, 184, 166, 0.02) 100%)', text: '#0d9488', border: 'rgba(20, 184, 166, 0.2)' };
@@ -78,7 +78,7 @@ const parseTimeRange = (t = '') => {
 const TRAINING_TYPES = [
   { value: 'langue', label: 'Langue', icon: Languages, colorClass: 'text-blue-600', bgClass: 'bg-blue-50', borderClass: 'border-blue-200', hex: '#2563eb' },
   { value: 'soutien', label: 'Cours de soutien', icon: GraduationCap, colorClass: 'text-emerald-600', bgClass: 'bg-emerald-50', borderClass: 'border-emerald-200', hex: '#059669' },
-  { value: 'informatique', label: 'Informatique', icon: Monitor, colorClass: 'text-violet-600', bgClass: 'bg-violet-50', borderClass: 'border-violet-200', hex: '#7c3aed' },
+  { value: 'informatique', label: 'Informatique', icon: Monitor, colorClass: 'text-brand-600', bgClass: 'bg-brand-50', borderClass: 'border-brand-200', hex: 'var(--primary)' },
 ];
 const typeConfig = type => TRAINING_TYPES.find(t => t.value === type) || { value: type, label: type || 'Autre', icon: BookOpen, colorClass: 'text-slate-500', bgClass: 'bg-slate-50', borderClass: 'border-slate-200', hex: '#64748b' };
 const normalizeTypeName = value => String(value || '').trim();
@@ -223,7 +223,7 @@ const getTrainingPropertyRows = training => {
 };
 
 const TABS = [
-  { id: 'formations', label: 'Formations', icon: BookOpen, color: 'text-violet-600', activeBg: 'bg-violet-50' },
+  { id: 'formations', label: 'Formations', icon: BookOpen, color: 'text-brand-600', activeBg: 'bg-brand-50' },
   { id: 'types', label: 'Types', icon: Filter, color: 'text-slate-600', activeBg: 'bg-slate-50' },
   { id: 'etudiants', label: 'Étudiants', icon: Users, color: 'text-blue-600', activeBg: 'bg-blue-50' },
   { id: 'planning', label: 'Planning', icon: CalendarDays, color: 'text-amber-500', activeBg: 'bg-amber-50' },
@@ -256,7 +256,7 @@ function NativeSelect({ className, ...props }) {
     <select
       className={cn(
         'flex h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800',
-        'focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-violet-400',
+        'focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400',
         'disabled:cursor-not-allowed disabled:opacity-50 transition-colors',
         className,
       )}
@@ -281,7 +281,7 @@ function ActionBtn({ onClick, title, variant = 'ghost', className, children, dis
         variant === 'danger'   && 'bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600',
         variant === 'info'     && 'bg-blue-50 text-blue-500 hover:bg-blue-100 hover:text-blue-700',
         variant === 'success'  && 'bg-green-50 text-green-500 hover:bg-green-100 hover:text-green-700',
-        variant === 'expand'   && 'bg-violet-50 text-violet-500 hover:bg-violet-100 hover:text-violet-700',
+        variant === 'expand'   && 'bg-brand-50 text-brand-500 hover:bg-brand-100 hover:text-brand-700',
         disabled && 'opacity-40 cursor-not-allowed hover:bg-slate-100 hover:text-slate-500 active:scale-100',
         className,
       )}
@@ -299,8 +299,8 @@ function PrimaryBtn({ onClick, children, className, icon: Icon }) {
       onClick={onClick}
       className={cn(
         'inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white',
-        'bg-gradient-to-r from-violet-500 to-purple-600 shadow-md shadow-violet-200',
-        'hover:from-violet-600 hover:to-purple-700 hover:shadow-lg hover:shadow-violet-300',
+        'bg-gradient-to-r from-brand-500 to-brand-600 shadow-md shadow-brand-200',
+        'hover:from-brand-600 hover:to-brand-700 hover:shadow-lg hover:shadow-brand-300',
         'active:scale-[0.97] transition-all duration-150',
         className,
       )}
@@ -332,10 +332,10 @@ function TypeBadge({ cfg }) {
   );
 }
 
-function EmptyPlaceholder({ icon: Icon, text, subtext, iconClass = 'text-violet-300' }) {
+function EmptyPlaceholder({ icon: Icon, text, subtext, iconClass = 'text-brand-300' }) {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-      <div className="w-16 h-16 rounded-2xl bg-violet-50 flex items-center justify-center mb-4">
+      <div className="w-16 h-16 rounded-2xl bg-brand-50 flex items-center justify-center mb-4">
         <Icon className={cn('h-8 w-8', iconClass)} />
       </div>
       <p className="text-sm font-semibold text-slate-600">{text}</p>
@@ -460,8 +460,8 @@ function FormationsTab({ trainings, trainingTypes = [], ctStudents, onAdd, onEdi
     <div className="space-y-5">
       <div className="continuous-premium-toolbar flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-violet-400 pointer-events-none" />
-          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher…" className="pl-9 border-slate-200 focus:border-violet-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-400 pointer-events-none" />
+          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher…" className="pl-9 border-slate-200 focus:border-brand-400" />
         </div>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
           <SelectTrigger className="w-44 border-slate-200 bg-white">
@@ -484,7 +484,7 @@ function FormationsTab({ trainings, trainingTypes = [], ctStudents, onAdd, onEdi
               className={cn(
                 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-150',
                 viewMode === mode
-                  ? 'bg-white text-violet-600 shadow-sm'
+                  ? 'bg-white text-brand-600 shadow-sm'
                   : 'text-slate-400 hover:text-slate-600',
               )}
             >
@@ -555,7 +555,7 @@ function FormationsTab({ trainings, trainingTypes = [], ctStudents, onAdd, onEdi
                     <td className="px-4 py-3">
                       <div className="space-y-0.5 text-xs">
                         <div className="flex items-center gap-1.5 font-semibold text-slate-600">
-                          <User size={11} className="text-violet-400" />{tr.teacherName || '—'}
+                          <User size={11} className="text-brand-400" />{tr.teacherName || '—'}
                         </div>
                         <div className="flex items-center gap-1.5 font-bold text-amber-500">
                           <Percent size={11} />{getTeacherCompensationLabel(tr)}
@@ -638,7 +638,7 @@ function FormationsTab({ trainings, trainingTypes = [], ctStudents, onAdd, onEdi
 
                   <div className="grid grid-cols-2 gap-y-2 gap-x-3 text-xs mb-4">
                     <div className="flex items-center gap-1.5 text-slate-500">
-                      <User size={11} className="text-violet-400 shrink-0" />
+                      <User size={11} className="text-brand-400 shrink-0" />
                       <span className="font-semibold truncate">{tr.teacherName || '—'}</span>
                     </div>
                     <div className="flex items-center gap-1.5 text-slate-500">
@@ -765,7 +765,7 @@ function TypesTab({ trainings, trainingTypes = [], onAdd, onEdit, onDelete }) {
                   <td className="px-4 py-3">
                     <span className={cn(
                       'inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold',
-                      row.isSystem ? 'border-blue-100 bg-blue-50 text-blue-600' : 'border-violet-100 bg-violet-50 text-violet-600',
+                      row.isSystem ? 'border-blue-100 bg-blue-50 text-blue-600' : 'border-brand-100 bg-brand-50 text-brand-600',
                     )}>
                       {statusLabel}
                     </span>
@@ -856,10 +856,10 @@ function EtudiantsTab({ trainings, ctStudents, onAddStudent, onEditStudent, onDe
 
                 return (
                   <React.Fragment key={s.id}>
-                    <tr className={cn('transition-colors hover:bg-slate-50/60', expandedId === s.id && 'bg-violet-50/30')}>
+                    <tr className={cn('transition-colors hover:bg-slate-50/60', expandedId === s.id && 'bg-brand-50/30')}>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 text-white flex items-center justify-center text-xs font-black shrink-0 shadow-sm">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-400 to-brand-500 text-white flex items-center justify-center text-xs font-black shrink-0 shadow-sm">
                             {(s.firstName?.[0] || '?').toUpperCase()}
                           </div>
                           <span className="font-semibold text-slate-800">{s.firstName} {s.lastName}</span>
@@ -913,9 +913,9 @@ function EtudiantsTab({ trainings, ctStudents, onAddStudent, onEditStudent, onDe
                               exit={{ height: 0, opacity: 0 }}
                               className="overflow-hidden"
                             >
-                              <div className="px-6 py-4 bg-violet-50/40 border-b border-slate-100">
+                              <div className="px-6 py-4 bg-brand-50/40 border-b border-slate-100">
                                 <p className="text-xs font-bold text-slate-700 mb-3 flex items-center gap-1.5">
-                                  <Wallet size={12} className="text-violet-500" /> Historique des paiements
+                                  <Wallet size={12} className="text-brand-500" /> Historique des paiements
                                 </p>
                                 {(s.payments || []).length === 0 ? (
                                   <p className="text-xs text-slate-400">Aucun paiement enregistré</p>
@@ -1145,7 +1145,7 @@ function PlanningTab({ sessions, trainings, trainingTypes = [], onAddSession, on
               className={cn(
                 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-150',
                 viewMode === mode
-                  ? 'bg-white text-violet-600 shadow-sm'
+                  ? 'bg-white text-brand-600 shadow-sm'
                   : 'text-slate-400 hover:text-slate-600',
               )}
             >
@@ -1186,7 +1186,7 @@ function PlanningTab({ sessions, trainings, trainingTypes = [], onAddSession, on
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-500">
                         <div className="flex items-center gap-1.5">
-                          <User size={11} className="text-violet-400" />{tr?.teacherName || '—'}
+                          <User size={11} className="text-brand-400" />{tr?.teacherName || '—'}
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -1450,7 +1450,7 @@ function SalairesTab({ trainings, ctStudents }) {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                        <User size={11} className="text-violet-400" />{tr.teacherName || '—'}
+                        <User size={11} className="text-brand-400" />{tr.teacherName || '—'}
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -1462,7 +1462,7 @@ function SalairesTab({ trainings, ctStudents }) {
                     <td className="px-4 py-3">
                       <span className={cn('text-xs font-bold px-2.5 py-1 rounded-full border', cfg.bgClass, cfg.colorClass, cfg.borderClass)}>{teacherLabel}</span>
                     </td>
-                    <td className="px-4 py-3 text-base font-black text-violet-600">{salary.toLocaleString()} DH</td>
+                    <td className="px-4 py-3 text-base font-black text-brand-600">{salary.toLocaleString()} DH</td>
                     <td className={cn('px-4 py-3 font-bold', marge >= 0 ? 'text-green-600' : 'text-red-500')}>{marge.toLocaleString()} DH</td>
                   </tr>
                 );
@@ -1471,7 +1471,7 @@ function SalairesTab({ trainings, ctStudents }) {
                 <td colSpan={3} className="px-4 py-3 text-sm text-slate-700">Total</td>
                 <td className="px-4 py-3 text-base font-black text-green-600">{totalRevenue.toLocaleString()} DH</td>
                 <td />
-                <td className="px-4 py-3 text-base font-black text-violet-600">{totalSalaries.toLocaleString()} DH</td>
+                <td className="px-4 py-3 text-base font-black text-brand-600">{totalSalaries.toLocaleString()} DH</td>
                 <td className={cn('px-4 py-3 text-base font-black', (totalRevenue - totalSalaries) >= 0 ? 'text-green-600' : 'text-red-500')}>
                   {(totalRevenue - totalSalaries).toLocaleString()} DH
                 </td>
@@ -1954,15 +1954,15 @@ export default function ContinuousTrainings() {
         <DialogContent className={cn(modalCls, 'max-w-2xl')}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-slate-800">
-              <span className="w-7 h-7 rounded-lg bg-violet-100 flex items-center justify-center">
-                <BookOpen size={14} className="text-violet-600" />
+              <span className="w-7 h-7 rounded-lg bg-brand-100 flex items-center justify-center">
+                <BookOpen size={14} className="text-brand-600" />
               </span>
               {editingTraining ? 'Modifier la formation' : 'Nouvelle formation'}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-2 py-1">
             <Field label="Nom">
-              <Input value={tForm.name} onChange={e => setTForm(p => ({ ...p, name: e.target.value }))} placeholder="Ex: Anglais des affaires" className="border-slate-200 focus:border-violet-400" />
+              <Input value={tForm.name} onChange={e => setTForm(p => ({ ...p, name: e.target.value }))} placeholder="Ex: Anglais des affaires" className="border-slate-200 focus:border-brand-400" />
             </Field>
             <Field label="Type">
               <div className="flex gap-2">
@@ -2041,7 +2041,7 @@ export default function ContinuousTrainings() {
                 onChange={e => setTForm(p => ({ ...p, description: e.target.value }))}
                 rows={2}
                 placeholder="Description courte…"
-                className="flex w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-violet-400 resize-y transition-colors"
+                className="flex w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 resize-y transition-colors"
               />
             </Field>
             <Field label="Formateur">
@@ -2112,7 +2112,7 @@ export default function ContinuousTrainings() {
                 value={typeForm.name}
                 onChange={e => setTypeForm({ name: e.target.value })}
                 placeholder="Ex: Marketing digital"
-                className="border-slate-200 focus:border-violet-400"
+                className="border-slate-200 focus:border-brand-400"
                 autoFocus
               />
             </Field>

@@ -1466,7 +1466,7 @@ const Reports = () => {
       <div className="reports-premium-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '12px' }}>
         <KPICard
           delay={0} label="Stagiaires" icon={Users}
-          iconBg="rgba(99,102,241,0.08)" color="#6366f1"
+          iconBg="rgba(var(--primary-rgb), 0.08)" color="var(--text-muted)"
           value={analytics.filteredStudentsCount}
           sub={`${selectedMajor} · ${selectedYear}`}
         />

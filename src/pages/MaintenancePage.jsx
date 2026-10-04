@@ -59,8 +59,8 @@ const MaintenancePage = () => {
       width: '100%',
       backgroundColor: '#0f172a',
       backgroundImage: `
-        radial-gradient(at 0% 0%, rgba(176, 104, 185, 0.22) 0px, transparent 50%),
-        radial-gradient(at 100% 100%, rgba(254, 205, 8, 0.12) 0px, transparent 50%),
+        radial-gradient(at 0% 0%, rgba(var(--primary-rgb), 0.22) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(var(--accent-rgb), 0.12) 0px, transparent 50%),
         radial-gradient(at 50% 50%, rgba(30, 41, 59, 0.7) 0px, transparent 100%)
       `,
       display: 'flex',
@@ -82,7 +82,7 @@ const MaintenancePage = () => {
         border: '1px solid rgba(255, 255, 255, 0.1)',
         borderRadius: '24px',
         padding: 'clamp(24px, 5vw, 48px)',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 40px rgba(176, 104, 185, 0.15)',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 40px rgba(var(--primary-rgb), 0.15)',
         textAlign: 'center',
         position: 'relative',
         overflow: 'hidden'
@@ -94,7 +94,7 @@ const MaintenancePage = () => {
           left: 0,
           right: 0,
           height: '4px',
-          background: 'linear-gradient(90deg, #b068b9 0%, #fecd08 50%, #b068b9 100%)'
+          background: 'linear-gradient(90deg, var(--primary) 0%, var(--accent) 50%, var(--primary) 100%)'
         }} />
 
         {/* En-tête : Logo & Badge */}
@@ -186,7 +186,7 @@ const MaintenancePage = () => {
             textTransform: 'uppercase',
             letterSpacing: '0.08em'
           }}>
-            <Clock size={16} style={{ color: '#fecd08' }} />
+            <Clock size={16} style={{ color: 'var(--accent)' }} />
             <span>Réouverture estimée dans</span>
           </div>
 
@@ -215,7 +215,7 @@ const MaintenancePage = () => {
               {/* HEURES */}
               <div style={{
                 backgroundColor: 'rgba(30, 41, 59, 0.85)',
-                border: '1px solid rgba(176, 104, 185, 0.3)',
+                border: '1px solid rgba(var(--primary-rgb), 0.3)',
                 borderRadius: '16px',
                 padding: 'clamp(12px, 3vw, 20px)',
                 minWidth: 'clamp(70px, 18vw, 110px)',
@@ -233,7 +233,7 @@ const MaintenancePage = () => {
                 <div style={{
                   fontSize: '11px',
                   fontWeight: '700',
-                  color: '#b068b9',
+                  color: 'var(--primary)',
                   textTransform: 'uppercase',
                   letterSpacing: '0.1em',
                   marginTop: '8px'
@@ -253,7 +253,7 @@ const MaintenancePage = () => {
               {/* MINUTES */}
               <div style={{
                 backgroundColor: 'rgba(30, 41, 59, 0.85)',
-                border: '1px solid rgba(176, 104, 185, 0.3)',
+                border: '1px solid rgba(var(--primary-rgb), 0.3)',
                 borderRadius: '16px',
                 padding: 'clamp(12px, 3vw, 20px)',
                 minWidth: 'clamp(70px, 18vw, 110px)',
@@ -271,7 +271,7 @@ const MaintenancePage = () => {
                 <div style={{
                   fontSize: '11px',
                   fontWeight: '700',
-                  color: '#b068b9',
+                  color: 'var(--primary)',
                   textTransform: 'uppercase',
                   letterSpacing: '0.1em',
                   marginTop: '8px'
@@ -291,7 +291,7 @@ const MaintenancePage = () => {
               {/* SECONDES */}
               <div style={{
                 backgroundColor: 'rgba(30, 41, 59, 0.85)',
-                border: '1px solid rgba(254, 205, 8, 0.35)',
+                border: '1px solid rgba(var(--accent-rgb), 0.35)',
                 borderRadius: '16px',
                 padding: 'clamp(12px, 3vw, 20px)',
                 minWidth: 'clamp(70px, 18vw, 110px)',
@@ -300,7 +300,7 @@ const MaintenancePage = () => {
                 <div style={{
                   fontSize: 'clamp(28px, 6vw, 48px)',
                   fontWeight: '900',
-                  color: '#fecd08',
+                  color: 'var(--accent)',
                   fontVariantNumeric: 'tabular-nums',
                   lineHeight: 1
                 }}>
@@ -309,7 +309,7 @@ const MaintenancePage = () => {
                 <div style={{
                   fontSize: '11px',
                   fontWeight: '700',
-                  color: '#fecd08',
+                  color: 'var(--accent)',
                   textTransform: 'uppercase',
                   letterSpacing: '0.1em',
                   marginTop: '8px'
@@ -333,7 +333,7 @@ const MaintenancePage = () => {
               <div style={{
                 height: '100%',
                 width: `${timeLeft.progressPercent}%`,
-                background: 'linear-gradient(90deg, #b068b9, #fecd08)',
+                background: 'linear-gradient(90deg, var(--primary), var(--accent))',
                 borderRadius: '999px',
                 transition: 'width 1s ease'
               }} />
@@ -369,7 +369,7 @@ const MaintenancePage = () => {
             alignItems: 'flex-start',
             gap: '12px'
           }}>
-            <Database size={18} style={{ color: '#b068b9', flexShrink: 0, marginTop: '2px' }} />
+            <Database size={18} style={{ color: 'var(--primary)', flexShrink: 0, marginTop: '2px' }} />
             <div>
               <div style={{ fontSize: '13px', fontWeight: '700', color: '#f1f5f9' }}>Base de Données</div>
               <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>Sauvegarde et contrôle d'intégrité</div>
@@ -385,7 +385,7 @@ const MaintenancePage = () => {
             alignItems: 'flex-start',
             gap: '12px'
           }}>
-            <Server size={18} style={{ color: '#fecd08', flexShrink: 0, marginTop: '2px' }} />
+            <Server size={18} style={{ color: 'var(--accent)', flexShrink: 0, marginTop: '2px' }} />
             <div>
               <div style={{ fontSize: '13px', fontWeight: '700', color: '#f1f5f9' }}>Serveurs & Cache</div>
               <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>Optimisation de charge et vitesse</div>
@@ -424,7 +424,7 @@ const MaintenancePage = () => {
               display: 'inline-flex',
               alignItems: 'center',
               gap: '8px',
-              backgroundColor: '#b068b9',
+              backgroundColor: 'var(--primary)',
               color: '#ffffff',
               border: 'none',
               borderRadius: '12px',
@@ -433,7 +433,7 @@ const MaintenancePage = () => {
               fontWeight: '700',
               cursor: isRefreshing ? 'wait' : 'pointer',
               transition: 'all 0.2s ease',
-              boxShadow: '0 4px 12px rgba(176, 104, 185, 0.3)'
+              boxShadow: '0 4px 12px rgba(var(--primary-rgb), 0.3)'
             }}
           >
             <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
@@ -474,7 +474,7 @@ const MaintenancePage = () => {
               padding: '16px',
               backgroundColor: 'rgba(15, 23, 42, 0.8)',
               borderRadius: '14px',
-              border: '1px solid rgba(176, 104, 185, 0.3)',
+              border: '1px solid rgba(var(--primary-rgb), 0.3)',
               maxWidth: '380px',
               marginLeft: 'auto',
               marginRight: 'auto',
@@ -490,7 +490,7 @@ const MaintenancePage = () => {
               color: '#f1f5f9',
               marginBottom: '10px'
             }}>
-              <KeyRound size={15} style={{ color: '#fecd08' }} />
+              <KeyRound size={15} style={{ color: 'var(--accent)' }} />
               <span>Déblocage réservé à l'administrateur</span>
             </div>
 
@@ -518,8 +518,8 @@ const MaintenancePage = () => {
               <button
                 type="submit"
                 style={{
-                  backgroundColor: '#fecd08',
-                  color: '#1e1b24',
+                  backgroundColor: 'var(--accent)',
+                  color: 'var(--primary-dark)',
                   border: 'none',
                   borderRadius: '8px',
                   padding: '8px 16px',

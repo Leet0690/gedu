@@ -936,7 +936,7 @@ const StudentAttendance = () => {
               { label: 'Séances Présentes', value: mGlobalStats.present, color: '#15803d', bg: 'rgba(22,163,74,0.08)' },
               { label: 'Séances Absentes', value: mGlobalStats.absent, color: '#dc2626', bg: 'rgba(220,38,38,0.08)' },
             ].map(({ label, value, color, bg }) => (
-              <div key={label} style={{ padding: '12px 18px', background: bg, border: `1px solid ${color}22`, borderRadius: 'var(--radius-xl)', flex: '1 1 120px', textAlign: 'center' }}>
+              <div key={label} style={{ padding: '12px 18px', background: bg, border: `1px solid color-mix(in srgb, ${color} 14%, transparent)`, borderRadius: 'var(--radius-xl)', flex: '1 1 120px', textAlign: 'center' }}>
                 <div style={{ fontSize: 'var(--text-xl)', fontWeight: '900', color, lineHeight: 1 }}>{value}</div>
                 <div style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginTop: '4px' }}>{label}</div>
               </div>
@@ -996,7 +996,7 @@ const StudentAttendance = () => {
                       {monthColumns.map(col => {
                         const isWeekend = col.weekday === 'Samedi' || col.weekday === 'Dimanche';
                         return (
-                          <th key={col.key} style={{ ...mThStyle, padding: '8px 4px', color: isWeekend ? 'var(--primary)' : 'var(--text-primary)', background: isWeekend ? 'rgba(176,104,185,0.05)' : 'var(--bg-subtle)', borderBottom: 'none', borderRight: '1px solid var(--border-light)' }}>
+                          <th key={col.key} style={{ ...mThStyle, padding: '8px 4px', color: isWeekend ? 'var(--primary)' : 'var(--text-primary)', background: isWeekend ? 'rgba(var(--primary-rgb), 0.05)' : 'var(--bg-subtle)', borderBottom: 'none', borderRight: '1px solid var(--border-light)' }}>
                              <div style={{ fontSize: '11px', fontWeight: '900' }}>{pad(col.d)}</div>
                              <div style={{ fontSize: '9px', fontWeight: '600', color: 'var(--text-faint)', marginTop: '2px' }}>{col.weekday.slice(0,3)}</div>
                           </th>
@@ -1031,7 +1031,7 @@ const StudentAttendance = () => {
                         {monthColumns.map(col => {
                           const isWeekend = col.weekday === 'Samedi' || col.weekday === 'Dimanche';
                           return (
-                            <td key={col.key} style={{ ...mTdStyle, padding: '6px 4px', textAlign: 'center', borderRight: '1px solid var(--border-light)', background: isWeekend ? 'rgba(176,104,185,0.03)' : (idx % 2 === 0 ? 'white' : 'rgba(248,249,251,0.5)') }}>
+                            <td key={col.key} style={{ ...mTdStyle, padding: '6px 4px', textAlign: 'center', borderRight: '1px solid var(--border-light)', background: isWeekend ? 'rgba(var(--primary-rgb), 0.03)' : (idx % 2 === 0 ? 'white' : 'rgba(248,249,251,0.5)') }}>
                               <div style={{ display: 'flex', justifyContent: 'center' }}><StatusCell status={byColumn[col.key]} /></div>
                             </td>
                           );

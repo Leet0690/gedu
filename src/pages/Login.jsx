@@ -56,11 +56,11 @@ const Login = () => {
       >
         <section className="login-premium-brand">
           <div className="login-premium-brand-logo">
-            <Logo size={58} showText={false} />
+            <Logo size={58} showText />
           </div>
           <div className="login-premium-brand-copy">
             <span className="login-premium-eyebrow"><Sparkles size={12} /> Plateforme de gestion</span>
-            <h1>IPFP<br />Manager</h1>
+            <h1>IPFPP<br />Manager</h1>
             <p>Un espace unifié pour piloter les formations, les présences et les résultats académiques.</p>
           </div>
           <div className="login-premium-feature-list">

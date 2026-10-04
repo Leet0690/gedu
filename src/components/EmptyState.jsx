@@ -44,7 +44,7 @@ const EmptyState = memo(function EmptyState({
         alignItems: 'center', 
         justifyContent: 'center',
         marginBottom: 'var(--space-6)',
-        boxShadow: '0 0 40px rgba(176, 104, 185, 0.1)'
+        boxShadow: '0 0 40px rgba(var(--primary-rgb), 0.1)'
       }}>
         <Icon size={40} strokeWidth={1.5} />
       </div>

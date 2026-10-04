@@ -55,13 +55,13 @@ const NAV_CATEGORIES = [
   {
     label: "Pôle Académique",
     icon: Library,
-    color: "text-violet-500",
+    color: "text-brand-500",
     items: [
-      { to: "/admin/modules", icon: Boxes, label: "Modules", color: "text-violet-500", pageKey: 'modules' },
+      { to: "/admin/modules", icon: Boxes, label: "Modules", color: "text-brand-500", pageKey: 'modules' },
       { to: "/admin/grades", icon: PenTool, label: "Notes", color: "text-amber-500", pageKey: 'grades' },
       { to: "/admin/reports", icon: LineChart, label: "Rapports", color: "text-emerald-500", pageKey: 'reports' },
       { to: "/admin/schedules", icon: CalendarDays, label: "Emplois du Temps", color: "text-orange-500", pageKey: 'schedules' },
-      { to: "/admin/schedule-generation", icon: Wand2, label: "Génération (EDT)", color: "text-fuchsia-500", pageKey: 'schedule_generation' },
+      { to: "/admin/schedule-generation", icon: Wand2, label: "Génération (EDT)", color: "text-brand-500", pageKey: 'schedule_generation' },
     ]
   },
   {
@@ -76,11 +76,11 @@ const NAV_CATEGORIES = [
   {
     label: "Administration",
     icon: Settings,
-    color: "text-indigo-500",
+    color: "text-brand-500",
     items: [
       { to: "/admin/students", icon: Users, label: "Stagiaires", color: "text-sky-500", pageKey: 'students' },
-      { to: "/admin/teachers", icon: Presentation, label: "Formateurs", color: "text-indigo-500", pageKey: 'teachers' },
-      { to: "/admin/continuous", icon: GraduationCap, label: "Formations Continues", color: "text-purple-500", pageKey: 'continuous' },
+      { to: "/admin/teachers", icon: Presentation, label: "Formateurs", color: "text-brand-500", pageKey: 'teachers' },
+      { to: "/admin/continuous", icon: GraduationCap, label: "Formations Continues", color: "text-brand-500", pageKey: 'continuous' },
       { to: "/admin/finance", icon: Wallet, label: "Finance", color: "text-green-600", pageKey: 'finance' },
       { to: "/admin/users", icon: ShieldCheck, label: "Utilisateurs & Droits", color: "text-blue-600", pageKey: 'users' },
       { to: "/admin/logs", icon: ClipboardList, label: "Journaux d'accès", color: "text-slate-500", pageKey: 'logs' },
@@ -251,7 +251,7 @@ export default function DashboardLayout({ children }) {
 
         {/* Tooltip for reduced menu */}
         {!isMobile && !isSidebarOpen && (
-          <div className="absolute left-full top-1/2 ml-2 -translate-y-1/2 rounded-full bg-gradient-to-r from-violet-600/80 to-fuchsia-600/80 backdrop-blur-md border border-white/20 px-3 py-1.5 text-[11px] font-bold tracking-wide text-white opacity-0 scale-90 shadow-[0_8px_20px_rgba(139,92,246,0.3)] transition-all duration-300 ease-out group-hover:ml-4 group-hover:scale-100 group-hover:opacity-100 z-[100] pointer-events-none whitespace-nowrap">
+          <div className="premium-nav-tooltip absolute left-full top-1/2 ml-2 -translate-y-1/2 rounded-lg backdrop-blur-md border border-white/20 px-3 py-1.5 text-[11px] font-bold tracking-wide text-white opacity-0 scale-90 shadow-elevated transition-all duration-300 ease-out group-hover:ml-4 group-hover:scale-100 group-hover:opacity-100 z-[100] pointer-events-none whitespace-nowrap">
             {item.label}
           </div>
         )}
@@ -277,8 +277,8 @@ export default function DashboardLayout({ children }) {
         }}
       >
         <div className="premium-sidenav-brand flex h-[64px] items-center border-b border-slate-200 px-5" style={{ justifyContent: isSidebarOpen ? 'space-between' : 'center', padding: isSidebarOpen ? '0 20px' : '0' }}>
-          <Link to="/" className="premium-sidenav-logo flex items-center" aria-label="IPFP — Accueil">
-            <Logo size={36} showText={isSidebarOpen} />
+          <Link to="/" className="premium-sidenav-logo flex items-center" aria-label="IPFPP — Accueil">
+            <Logo size={44} showText={isSidebarOpen} onDark />
           </Link>
         </div>
 
@@ -331,7 +331,7 @@ export default function DashboardLayout({ children }) {
                   Institut Polytechnique de la Formation Professionnelle
                 </span>
               </div>
-              <p style={{ fontSize: '11px', fontWeight: '500', color: 'var(--text-faint)', letterSpacing: '0.08em' }}>IPFP Manager · 2026</p>
+              <p style={{ fontSize: '11px', fontWeight: '500', color: 'var(--text-faint)', letterSpacing: '0.08em' }}>IPFPP Manager · 2026</p>
             </footer>
           </div>
         </main>
@@ -385,9 +385,9 @@ export default function DashboardLayout({ children }) {
           >
             <div className="premium-sidenav-brand flex h-[64px] shrink-0 items-center justify-between border-b border-slate-200 px-5">
                <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center">
-                 <Logo size={28} showText={true} />
+                 <Logo size={44} showText={true} onDark />
               </Link>
-              <button onClick={() => setIsMobileMenuOpen(false)} className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900">
+              <button aria-label="Fermer le menu" onClick={() => setIsMobileMenuOpen(false)} className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900">
                 <X className="h-5 w-5" />
               </button>
             </div>

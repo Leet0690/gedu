@@ -43,8 +43,8 @@ const getClassColor = (label) => {
     'TSDI2': { background: '#dbeafe', color: '#1e40af', borderColor: '#93c5fd' },
     'TSGTL1': { background: '#f0fdf4', color: '#16a34a', borderColor: '#bbf7d0' },
     'TSGTL2': { background: '#dcfce7', color: '#15803d', borderColor: '#86efac' },
-    'TSGE1': { background: '#f5f3ff', color: '#7c3aed', borderColor: '#ddd6fe' },
-    'TSGE2': { background: '#ede9fe', color: '#6d28d9', borderColor: '#c7d2fe' },
+    'TSGE1': { background: 'var(--background)', color: 'var(--primary)', borderColor: 'var(--primary-ultra-light)' },
+    'TSGE2': { background: 'var(--background)', color: 'var(--primary)', borderColor: '#c7d2fe' },
     'TGI1': { background: '#fffbeb', color: '#d97706', borderColor: '#fde68a' },
     'TGI2': { background: '#fef3c7', color: '#b45309', borderColor: '#fcd34d' },
   };
@@ -460,7 +460,7 @@ const GradeManagement = () => {
     if (avg < 12) return { label: 'Passable', color: '#d97706', bg: '#fffbeb' };
     if (avg < 14) return { label: 'A.Bien', color: '#059669', bg: '#ecfdf5' };
     if (avg < 16) return { label: 'Bien', color: '#2563eb', bg: '#eff6ff' };
-    if (avg < 18) return { label: 'T.Bien', color: '#7c3aed', bg: '#f5f3ff' };
+    if (avg < 18) return { label: 'T.Bien', color: 'var(--primary)', bg: 'var(--background)' };
     return { label: 'Excellent', color: '#db2777', bg: '#fdf2f8' };
   };
 
@@ -819,11 +819,11 @@ const GradeManagement = () => {
 
                   <div className="grade-premium-doc-card" style={{ border: '1px solid var(--border-light)', borderRadius: 'var(--radius-xl)', padding: '20px', background: 'white' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                      <Award size={16} style={{ color: '#8b5cf6' }} />
+                      <Award size={16} style={{ color: 'var(--text-muted)' }} />
                       <h4 style={{ fontSize: 'var(--text-sm)', fontWeight: '800' }}>Attestation Admis</h4>
                     </div>
                     <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '22px' }}>Note d'obtention disponible en fin de cycle de deux années.</p>
-                    <button onClick={handleNoteObtentionDiplome} disabled={!supportsTwoYearFinalDocument} className="btn-modern primary" style={{ width: '100%', background: '#8b5cf6', borderColor: '#8b5cf6', opacity: supportsTwoYearFinalDocument ? 1 : 0.5 }}>
+                    <button onClick={handleNoteObtentionDiplome} disabled={!supportsTwoYearFinalDocument} className="btn-modern primary" style={{ width: '100%', background: 'var(--text-muted)', borderColor: 'var(--text-muted)', opacity: supportsTwoYearFinalDocument ? 1 : 0.5 }}>
                       <Download size={14} style={{ marginRight: '8px' }} /> Attestation
                     </button>
                   </div>
@@ -1020,7 +1020,7 @@ const GradeManagement = () => {
 
             {/* 2nd Year Specific Saisie */}
             {supportsTwoYearFinalDocument && (
-              <div className="glass-card grade-premium-history-card" style={{ padding: '20px', marginBottom: '20px', background: 'rgba(99, 102, 241, 0.03)', border: '1px dashed var(--primary-light)' }}>
+              <div className="glass-card grade-premium-history-card" style={{ padding: '20px', marginBottom: '20px', background: 'rgba(var(--primary-rgb), 0.03)', border: '1px dashed var(--primary-light)' }}>
                 <h4 style={{ fontSize: 'var(--text-sm)', fontWeight: '800', marginBottom: '16px', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <History size={16} /> Historique & NSTI
                 </h4>

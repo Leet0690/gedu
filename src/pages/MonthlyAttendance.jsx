@@ -294,7 +294,7 @@ const MonthlyAttendance = () => {
                       <th key={d} style={{
                         ...thStyle,
                         color: isWeekend ? 'var(--primary)' : 'var(--text-muted)',
-                        background: isWeekend ? 'rgba(176,104,185,0.05)' : 'var(--bg-subtle)',
+                        background: isWeekend ? 'rgba(var(--primary-rgb), 0.05)' : 'var(--bg-subtle)',
                         minWidth: '38px'
                       }}>
                         {d}
@@ -338,7 +338,7 @@ const MonthlyAttendance = () => {
                           ...tdStyle,
                           textAlign: 'center', padding: '6px 4px',
                           background: isWeekend
-                            ? 'rgba(176,104,185,0.03)'
+                            ? 'rgba(var(--primary-rgb), 0.03)'
                             : (idx % 2 === 0 ? 'white' : 'rgba(248,249,251,0.5)')
                         }}>
                           <div style={{ display: 'flex', justifyContent: 'center' }}>

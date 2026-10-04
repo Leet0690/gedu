@@ -67,7 +67,7 @@ const getDeterministicEventStyles = (moduleName = '') => {
 const getDayColors = (day = '') => {
   const normalized = day.trim().toLowerCase();
   if (normalized.includes('lun')) {
-    return { bg: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(99, 102, 241, 0.02) 100%)', text: '#4f46e5', border: 'rgba(99, 102, 241, 0.2)' };
+    return { bg: 'linear-gradient(135deg, rgba(var(--primary-rgb), 0.08) 0%, rgba(var(--primary-rgb), 0.02) 100%)', text: 'var(--primary)', border: 'rgba(var(--primary-rgb), 0.2)' };
   }
   if (normalized.includes('mar')) {
     return { bg: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.02) 100%)', text: '#059669', border: 'rgba(16, 185, 129, 0.2)' };
@@ -76,7 +76,7 @@ const getDayColors = (day = '') => {
     return { bg: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(245, 158, 11, 0.02) 100%)', text: '#d97706', border: 'rgba(245, 158, 11, 0.2)' };
   }
   if (normalized.includes('jeu')) {
-    return { bg: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(139, 92, 246, 0.02) 100%)', text: '#7c3aed', border: 'rgba(139, 92, 246, 0.2)' };
+    return { bg: 'linear-gradient(135deg, rgba(var(--primary-rgb), 0.08) 0%, rgba(var(--primary-rgb), 0.02) 100%)', text: 'var(--primary)', border: 'rgba(var(--primary-rgb), 0.2)' };
   }
   if (normalized.includes('ven')) {
     return { bg: 'linear-gradient(135deg, rgba(244, 63, 94, 0.08) 0%, rgba(244, 63, 94, 0.02) 100%)', text: '#e11d48', border: 'rgba(244, 63, 94, 0.2)' };
@@ -380,11 +380,11 @@ const ScheduleManagement = () => {
             <CalendarDays size={13} style={{ color: '#2563eb' }} />
             <span style={{ fontSize: '12px', fontWeight: '800', color: '#2563eb' }}>{currentAcademicYear}</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '999px', background: 'var(--primary-ultra-light)', border: '1px solid rgba(176,104,185,0.15)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '999px', background: 'var(--primary-ultra-light)', border: '1px solid rgba(var(--primary-rgb), 0.15)' }}>
             <Users size={13} style={{ color: 'var(--primary)' }} />
             <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)' }}>{groupLabel}</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '999px', background: 'rgba(254,205,8,0.12)', border: '1px solid rgba(254,205,8,0.2)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '999px', background: 'rgba(var(--accent-rgb), 0.12)', border: '1px solid rgba(var(--accent-rgb), 0.2)' }}>
             <Clock size={13} style={{ color: '#a06208' }} />
             <span style={{ fontSize: '12px', fontWeight: '800', color: '#a06208' }}>{filteredSchedules.length} séances {semester}</span>
           </div>
@@ -465,7 +465,7 @@ const ScheduleManagement = () => {
                 transform: 'translate(-50%, -50%)',
                 fontSize: '130px',
                 fontWeight: '900',
-                color: 'rgba(176, 104, 185, 0.09)',
+                color: 'rgba(var(--primary-rgb), 0.09)',
                 zIndex: 2,
                 pointerEvents: 'none',
                 whiteSpace: 'nowrap',
@@ -577,7 +577,7 @@ const ScheduleManagement = () => {
                               fontWeight: '850',
                               padding: '1.5px 4.5px',
                               borderRadius: '4px',
-                              backgroundColor: isTP ? 'rgba(99, 102, 241, 0.12)' : 'rgba(245, 158, 11, 0.15)',
+                              backgroundColor: isTP ? 'rgba(var(--primary-rgb), 0.12)' : 'rgba(245, 158, 11, 0.15)',
                               color: 'var(--event-text)',
                               textTransform: 'uppercase',
                               lineHeight: 1.1,

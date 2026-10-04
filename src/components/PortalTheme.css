@@ -1,0 +1,48 @@
+/* Shared public-portal presentation, using the central IPFPP tokens. */
+.max-w-container.ipfpp-public-portal {
+  padding: 32px 24px;
+  background: var(--background);
+  min-height: 100vh;
+}
+.grade-premium-header.ipfpp-portal-header {
+  background: var(--primary);
+  color: var(--white);
+  border: 1px solid var(--primary-dark);
+  border-bottom: 3px solid var(--accent);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.grade-premium-header.ipfpp-portal-header h1,
+.grade-premium-header.ipfpp-portal-header h2,
+.grade-premium-header.ipfpp-portal-header h1 span { color: var(--white) !important; }
+.grade-premium-header.ipfpp-portal-header h1 span {
+  background: transparent !important;
+  border-color: rgba(255, 255, 255, .25) !important;
+}
+.ipfpp-portal-header .grade-premium-header-icon { color: var(--white); }
+.ipfpp-portal-header .modern-tabs-container { margin: 0; box-shadow: none; }
+.ipfpp-portal-header .modern-tab { color: var(--white); background: transparent; }
+.ipfpp-portal-header .modern-tab.active { color: var(--accent-foreground); background: var(--accent); }
+.ipfpp-portal-header .modern-tab:hover:not(.active) { background: rgba(255, 255, 255, .12); }
+.ipfpp-public-portal .glass-card,
+.ipfpp-public-portal .grade-premium-doc-card,
+.ipfpp-public-portal .grade-premium-table-shell {
+  background: var(--card) !important;
+  border-color: var(--border) !important;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+.ipfpp-public-portal .grade-premium-table-shell { overflow-x: auto !important; }
+.ipfpp-public-portal table { width: 100%; min-width: 680px; }
+.ipfpp-public-portal thead th { background: var(--primary-ultra-light) !important; color: var(--primary) !important; }
+.ipfpp-public-portal .input-premium { background: var(--card) !important; border-color: var(--input); }
+.ipfpp-public-portal .btn-modern.primary { background: var(--primary); color: var(--white); }
+.ipfpp-public-portal .btn-modern.primary:hover { background: var(--primary-dark); }
+@media (max-width: 760px) {
+  .max-w-container.ipfpp-public-portal { padding: 16px 12px; }
+  .grade-premium-header.ipfpp-portal-header { padding: 24px 20px !important; }
+  .ipfpp-portal-header .grade-premium-header-copy { min-width: 0; }
+  .ipfpp-portal-header h1 { overflow-wrap: anywhere; }
+}

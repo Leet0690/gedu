@@ -1441,11 +1441,11 @@ const FinanceDashboard = () => {
                                   style={{
                                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                                     width: '36px', height: '36px', borderRadius: '10px',
-                                    background: 'rgba(176, 104, 185, 0.08)', border: '1px solid rgba(176, 104, 185, 0.15)',
+                                    background: 'rgba(var(--primary-rgb), 0.08)', border: '1px solid rgba(var(--primary-rgb), 0.15)',
                                     color: 'var(--primary)', cursor: 'pointer', transition: 'all 0.2s'
                                   }}
                                   onMouseEnter={e => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.color = '#ffffff'; }}
-                                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(176, 104, 185, 0.08)'; e.currentTarget.style.color = 'var(--primary)'; }}
+                                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(var(--primary-rgb), 0.08)'; e.currentTarget.style.color = 'var(--primary)'; }}
                                   aria-label="Reçu PDF"
                                 >
                                   <FileDown size={16} />
@@ -1755,8 +1755,8 @@ const FinanceDashboard = () => {
                             width: '36px',
                             height: '36px',
                             borderRadius: '10px',
-                            background: 'rgba(176, 104, 185, 0.08)',
-                            border: '1px solid rgba(176, 104, 185, 0.15)',
+                            background: 'rgba(var(--primary-rgb), 0.08)',
+                            border: '1px solid rgba(var(--primary-rgb), 0.15)',
                             color: 'var(--primary)',
                             cursor: 'pointer',
                             transition: 'all 0.2s',
@@ -1767,7 +1767,7 @@ const FinanceDashboard = () => {
                             e.currentTarget.style.color = '#ffffff';
                           }}
                           onMouseLeave={e => {
-                            e.currentTarget.style.background = 'rgba(176, 104, 185, 0.08)';
+                            e.currentTarget.style.background = 'rgba(var(--primary-rgb), 0.08)';
                             e.currentTarget.style.color = 'var(--primary)';
                           }}
                           aria-label="Reçu formateur PDF"

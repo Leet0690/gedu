@@ -1,5 +1,6 @@
 import React, { useMemo, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
+import '../components/PortalTheme.css';
 import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { getGradeByModuleName, getStudentGradeModules } from '../utils/gradeSync';
@@ -197,13 +198,13 @@ const StudentResults = () => {
   const isAdmitted = parseFloat(generalAvg) >= 10;
 
   return (
-    <div className="max-w-container section-padding student-results-premium-page">
+    <div className="max-w-container section-padding student-results-premium-page ipfpp-public-portal">
       
       {/* Profile Header */}
       <motion.div 
         initial={{ opacity: 0, y: -15 }} 
         animate={{ opacity: 1, y: 0 }} 
-        className="grade-premium-header" 
+        className="grade-premium-header ipfpp-portal-header"
         style={{ 
           borderRadius: 'var(--radius-3xl)', 
           overflow: 'hidden', 
@@ -386,7 +387,7 @@ const StudentResults = () => {
             <span className="badge-status primary" style={{ fontSize: '10px', padding: '3px 10px' }}>{moduleNames.length} Modules</span>
           </div>
 
-          <div className="grade-premium-table-shell" style={{ overflow: 'hidden', border: '1px solid rgba(124, 58, 237, 0.12)' }}>
+          <div className="grade-premium-table-shell" style={{ overflow: 'hidden', border: '1px solid rgba(var(--primary-rgb), 0.12)' }}>
             {moduleNames.length === 0 ? (
               <EmptyState title="Aucune donnée" message="Les modules ne sont pas encore configurés pour votre filière." icon="book-open" />
             ) : (
@@ -399,7 +400,7 @@ const StudentResults = () => {
                       <th style={{ padding: '16px', fontSize: '11px', fontWeight: '800', textAlign: 'center', width: '70px' }}>C1</th>
                       <th style={{ padding: '16px', fontSize: '11px', fontWeight: '800', textAlign: 'center', width: '70px' }}>C2</th>
                       <th style={{ padding: '16px', fontSize: '11px', fontWeight: '800', textAlign: 'center', width: '70px' }}>C3</th>
-                      <th style={{ padding: '16px', fontSize: '11px', fontWeight: '900', textAlign: 'center', width: '90px', background: 'rgba(124, 58, 237, 0.05)', color: '#6d28d9' }}>Moy CC</th>
+                      <th style={{ padding: '16px', fontSize: '11px', fontWeight: '900', textAlign: 'center', width: '90px', background: 'rgba(var(--primary-rgb), 0.05)', color: 'var(--primary)' }}>Moy CC</th>
                       <th style={{ padding: '16px', fontSize: '11px', fontWeight: '800', textAlign: 'center', width: '95px' }}>EFC FP</th>
                       <th style={{ padding: '16px', fontSize: '11px', fontWeight: '800', textAlign: 'center', width: '95px' }}>EFC FT</th>
                       <th style={{ padding: '16px', fontSize: '11px', fontWeight: '800', textAlign: 'center', width: '95px' }}>Note finale</th>
@@ -421,7 +422,7 @@ const StudentResults = () => {
                         <td style={{ padding: '14px 16px', textAlign: 'center' }}><Grade val={g.c1} /></td>
                         <td style={{ padding: '14px 16px', textAlign: 'center' }}><Grade val={g.c2} /></td>
                         <td style={{ padding: '14px 16px', textAlign: 'center' }}><Grade val={g.c3} /></td>
-                        <td style={{ padding: '14px 16px', textAlign: 'center', background: 'rgba(124, 58, 237, 0.025)' }}>
+                        <td style={{ padding: '14px 16px', textAlign: 'center', background: 'rgba(var(--primary-rgb), 0.025)' }}>
                           {cc !== null ? (
                             <span style={{ fontWeight: '900', color: gradeColor(cc), fontSize: '13px' }}>{cc.toFixed(2)}</span>
                           ) : <span style={{ color: 'var(--text-faint)', fontSize: '13px', fontWeight: '500' }}>—</span>}
@@ -466,7 +467,7 @@ const StudentResults = () => {
             animate={{ opacity: 1, y: 0 }} 
             transition={{ delay: 0.1 }} 
             className="grade-premium-filter-card" 
-            style={{ padding: '28px', border: '1px solid rgba(124, 58, 237, 0.12)' }}
+            style={{ padding: '28px', border: '1px solid rgba(var(--primary-rgb), 0.12)' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px' }}>
               <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--primary-ultra-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -507,11 +508,11 @@ const StudentResults = () => {
                     tick={{ fontSize: 11, fontWeight: 750, fill: 'var(--text-primary)' }}
                   />
                   <Tooltip
-                    cursor={{ fill: 'rgba(124, 58, 237, 0.02)' }}
+                    cursor={{ fill: 'rgba(var(--primary-rgb), 0.02)' }}
                     contentStyle={{
                       background: 'rgba(255, 255, 255, 0.96)',
                       backdropFilter: 'blur(12px)',
-                      border: '1px solid rgba(124, 58, 237, 0.15)',
+                      border: '1px solid rgba(var(--primary-rgb), 0.15)',
                       borderRadius: '12px',
                       boxShadow: 'var(--shadow-md)',
                       fontSize: '12px',
@@ -568,7 +569,7 @@ const StudentResults = () => {
           }}
         >
           <div style={{ position: 'absolute', top: '-60px', left: '-60px', width: '160px', height: '160px', borderRadius: '50%', background: isAdmitted ? 'rgba(22, 163, 74, 0.04)' : 'rgba(220, 38, 38, 0.04)', filter: 'blur(35px)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', bottom: '-60px', right: '-60px', width: '160px', height: '160px', borderRadius: '50%', background: 'rgba(124, 58, 237, 0.04)', filter: 'blur(35px)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', bottom: '-60px', right: '-60px', width: '160px', height: '160px', borderRadius: '50%', background: 'rgba(var(--primary-rgb), 0.04)', filter: 'blur(35px)', pointerEvents: 'none' }} />
           
           <p style={{ fontSize: '10px', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '14px' }}>Décision Académique de Fin d'Année</p>
           <h2 style={{ fontSize: '64px', fontWeight: '950', color: gradeColor(generalAvgNum), letterSpacing: '-0.03em', lineHeight: 1, margin: 0 }}>
@@ -627,7 +628,7 @@ const MetricCard = ({ icon: Icon, label, value, desc, color }) => (
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      border: '1px solid rgba(124, 58, 237, 0.1)',
+      border: '1px solid rgba(var(--primary-rgb), 0.1)',
       minHeight: '120px'
     }}
   >

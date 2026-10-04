@@ -178,13 +178,13 @@ const formatRelativeTime = (timestamp) => {
 
 const getActivityIcon = (message) => {
   const lower = String(message || '').toLowerCase();
-  if (lower.includes('formation continue')) return { icon: GraduationCap, color: '#7c3aed', bg: 'rgba(124,58,237,0.08)' };
+  if (lower.includes('formation continue')) return { icon: GraduationCap, color: 'var(--primary)', bg: 'rgba(var(--primary-rgb), 0.08)' };
   if (message.includes('stagiaire') && message.includes('ajouté')) return { icon: UserPlus, color: '#16a34a', bg: 'rgba(22,163,74,0.1)' };
   if (message.includes('formateur') && message.includes('ajouté')) return { icon: UserPlus, color: '#0ea5e9', bg: 'rgba(14,165,233,0.1)' };
   if (message.includes('supprimé') || message.includes('supprimée')) return { icon: Trash2, color: '#dc2626', bg: 'rgba(220,38,38,0.08)' };
   if (message.includes('mis à jour') || message.includes('mise à jour')) return { icon: Edit3, color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' };
   if (message.includes('Notes') || message.includes('notes')) return { icon: FileText, color: 'var(--primary)', bg: 'var(--primary-ultra-light)' };
-  if (message.includes('Séance') || message.includes('séance')) return { icon: Calendar, color: '#7c3aed', bg: 'rgba(124,58,237,0.08)' };
+  if (message.includes('Séance') || message.includes('séance')) return { icon: Calendar, color: 'var(--primary)', bg: 'rgba(var(--primary-rgb), 0.08)' };
   if (message.includes('Présence') || message.includes('présence') || message.includes('Absence')) return { icon: UserCheck, color: '#0ea5e9', bg: 'rgba(14,165,233,0.1)' };
   if (message.includes('Salaire') || message.includes('salaire') || message.includes('Paiement') || message.includes('Charge')) return { icon: LineChart, color: '#16a34a', bg: 'rgba(22,163,74,0.1)' };
   return { icon: Activity, color: 'var(--text-muted)', bg: 'var(--bg-subtle)' };
@@ -789,7 +789,7 @@ const getDeterministicEventStyles = (moduleName = '') => {
 const getDayColors = (day = '') => {
   const normalized = day.trim().toLowerCase();
   if (normalized.includes('lun')) {
-    return { bg: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(99, 102, 241, 0.02) 100%)', text: '#4f46e5', border: 'rgba(99, 102, 241, 0.2)' };
+    return { bg: 'linear-gradient(135deg, rgba(var(--primary-rgb), 0.08) 0%, rgba(var(--primary-rgb), 0.02) 100%)', text: 'var(--primary)', border: 'rgba(var(--primary-rgb), 0.2)' };
   }
   if (normalized.includes('mar')) {
     return { bg: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.02) 100%)', text: '#059669', border: 'rgba(16, 185, 129, 0.2)' };
@@ -798,7 +798,7 @@ const getDayColors = (day = '') => {
     return { bg: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(245, 158, 11, 0.02) 100%)', text: '#d97706', border: 'rgba(245, 158, 11, 0.2)' };
   }
   if (normalized.includes('jeu')) {
-    return { bg: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(139, 92, 246, 0.02) 100%)', text: '#7c3aed', border: 'rgba(139, 92, 246, 0.2)' };
+    return { bg: 'linear-gradient(135deg, rgba(var(--primary-rgb), 0.08) 0%, rgba(var(--primary-rgb), 0.02) 100%)', text: 'var(--primary)', border: 'rgba(var(--primary-rgb), 0.2)' };
   }
   if (normalized.includes('ven')) {
     return { bg: 'linear-gradient(135deg, rgba(244, 63, 94, 0.08) 0%, rgba(244, 63, 94, 0.02) 100%)', text: '#e11d48', border: 'rgba(244, 63, 94, 0.2)' };
@@ -955,7 +955,7 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
               transform: 'translate(-50%, -50%)',
               fontSize: '110px',
               fontWeight: '900',
-              color: 'rgba(176, 104, 185, 0.09)',
+              color: 'rgba(var(--primary-rgb), 0.09)',
               zIndex: 2,
               pointerEvents: 'none',
               whiteSpace: 'nowrap',
@@ -1517,7 +1517,7 @@ const AdminDashboard = () => {
             {activeTab === 'students' && (
               <span style={{
                 fontSize: '9px', fontWeight: '700', color: 'var(--primary)',
-                background: 'var(--primary-ultra-light)', border: '1px solid rgba(176,104,185,0.25)',
+                background: 'var(--primary-ultra-light)', border: '1px solid rgba(var(--primary-rgb), 0.25)',
                 borderRadius: '4px', padding: '1px 6px'
               }}>
                 Cycle {getStudentStudyCycleRange(row.original, operationalAcademicYear)}
@@ -1579,7 +1579,7 @@ const AdminDashboard = () => {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
                 onClick={(e) => { e.stopPropagation(); openQR(row.original.name, [{ label: 'Notes', url: linkNotes, color: '#a06208' }]); }}>
-                <div style={{ width: '18px', height: '18px', borderRadius: '4px', background: 'rgba(254,205,8,0.1)', color: '#a06208', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <div style={{ width: '18px', height: '18px', borderRadius: '4px', background: 'rgba(var(--accent-rgb), 0.1)', color: '#a06208', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <FileText size={10} />
                 </div>
                 <span style={{ fontSize: '10px', fontWeight: '700', color: '#a06208' }}>Notes</span>
@@ -1716,6 +1716,19 @@ const AdminDashboard = () => {
 
       {isDashboard && (
         <div className="home-dashboard-stack">
+          <div className="home-dashboard-heading">
+            <div>
+              <h1>Tableau de bord</h1>
+              <p>Bienvenue sur votre espace de gestion IPFPP</p>
+            </div>
+            <div className="home-dashboard-date">
+              <Calendar size={20} aria-hidden="true" />
+              <div>
+                <strong>Aujourd’hui</strong>
+                <time>{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</time>
+              </div>
+            </div>
+          </div>
           <div className="home-stats-grid">
             <StatCard delay={0.05} icon={UsersIcon} tone="primary" value={activeYearStudents.length} label="Total Stagiaires" />
             <StatCard delay={0.1} icon={Presentation} tone="warning" value={(teachers || []).length} label="Total Formateurs" />
@@ -1928,7 +1941,7 @@ const AdminDashboard = () => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                     {activeTab === 'students' ? (
                       <>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                        <div className="form-grid">
                           <div style={fGroup}>
                             <label style={lbl}>Nom</label>
                             <input required className="input-premium" value={editFormData.lastName || ''} onChange={e => setEditFormData({...editFormData, lastName: e.target.value})} />
@@ -1938,7 +1951,7 @@ const AdminDashboard = () => {
                             <input required className="input-premium" value={editFormData.firstName || ''} onChange={e => setEditFormData({...editFormData, firstName: e.target.value})} />
                           </div>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                        <div className="form-grid">
                           <div style={fGroup}>
                             <label style={lbl}>Niveau</label>
                             <FilterSelect value={editFormData.diploma || ''} onChange={val => setEditFormData({...editFormData, diploma: val, major: '', year: ''})} options={Object.keys(FILIERES).map(d => ({ value: d, label: d }))} />
@@ -1948,7 +1961,7 @@ const AdminDashboard = () => {
                             <FilterSelect value={editFormData.year || ''} onChange={val => setEditFormData({...editFormData, year: val})} options={getStudyYearsForDiploma(editFormData.diploma).map(year => ({ value: year, label: year }))} />
                           </div>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px' }}>
+                        <div className="form-grid">
                           <div style={fGroup}>
                             <label style={lbl}>Filière</label>
                             <FilterSelect value={editFormData.major || ''} onChange={val => setEditFormData({...editFormData, major: val})} options={(FILIERES[editFormData.diploma] || []).map(f => ({ value: f, label: f }))} />
@@ -1961,7 +1974,7 @@ const AdminDashboard = () => {
                       </>
                     ) : (
                       <>
-                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
+                        <div className="form-grid">
                           <div style={fGroup}>
                             <label style={lbl}>Nom Complet</label>
                             <input required className="input-premium" value={editFormData.name || ''} onChange={e => setEditFormData({...editFormData, name: e.target.value})} />
@@ -1972,7 +1985,7 @@ const AdminDashboard = () => {
                           </div>
                         </div>
                         
-                        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px' }}>
+                        <div className="form-grid">
                           <div style={fGroup}>
                             <label style={lbl}>Diplômes assignés</label>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
@@ -2112,14 +2125,14 @@ const AdminDashboard = () => {
                       <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                         {[
                           { label: 'Absences', url: linkAtt, color: 'var(--primary)', bg: 'var(--primary-ultra-light)', border: 'var(--primary-light)' },
-                          { label: 'Notes', url: linkNotes, color: '#a06208', bg: 'rgba(254,205,8,0.1)', border: 'rgba(254,205,8,0.3)' },
+                          { label: 'Notes', url: linkNotes, color: '#a06208', bg: 'rgba(var(--accent-rgb), 0.1)', border: 'rgba(var(--accent-rgb), 0.3)' },
                         ].map(({ label, url, color, bg, border }) => (
                           <div key={label} style={{ padding: '16px', background: bg, borderRadius: 'var(--radius-xl)', border: `1px solid ${border}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
                             <p style={{ fontSize: 'var(--text-xs)', fontWeight: '800', color, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px', alignSelf: 'flex-start' }}>
                               <LinkIcon size={12} /> Lien — {label}
                             </p>
                             <div style={{ padding: '10px', background: 'white', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)' }}>
-                              <QRCodeSVG value={url} size={140} fgColor={color === 'var(--primary)' ? '#b068b9' : '#a06208'} />
+                              <QRCodeSVG value={url} size={140} fgColor={color === 'var(--primary)' ? 'var(--primary)' : '#a06208'} />
                             </div>
                             <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
                               <input readOnly className="input-premium" style={{ flex: 1, fontSize: '11px', background: 'white' }} value={url} />
@@ -2160,7 +2173,7 @@ const AdminDashboard = () => {
                         }))}
                       />
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div className="form-grid">
                       <div style={fGroup}>
                         <label style={lbl}>Nom</label>
                         <input required className="input-premium" placeholder="Ex: ALAMI" value={addStudentForm.lastName} onChange={e => setAddStudentForm({...addStudentForm, lastName: e.target.value})} />
@@ -2170,7 +2183,7 @@ const AdminDashboard = () => {
                         <input required className="input-premium" placeholder="Ex: Omar" value={addStudentForm.firstName} onChange={e => setAddStudentForm({...addStudentForm, firstName: e.target.value})} />
                       </div>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div className="form-grid">
                       <div style={fGroup}>
                         <label style={lbl}>Niveau</label>
                         <FilterSelect value={addStudentForm.diploma} onChange={val => setAddStudentForm({...addStudentForm, diploma: val, major: '', year: ''})} options={[{ value: '', label: 'Sélectionner...' }, ...allDiplomas.map(d => ({ value: d, label: d }))]} />
@@ -2180,7 +2193,7 @@ const AdminDashboard = () => {
                         <FilterSelect value={addStudentForm.year} onChange={val => setAddStudentForm({...addStudentForm, year: val})} disabled={!addStudentForm.diploma} options={[{ value: '', label: 'Sélectionner...' }, ...getStudyYearsForDiploma(addStudentForm.diploma).map(year => ({ value: year, label: year }))]} />
                       </div>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px' }}>
+                    <div className="form-grid">
                       <div style={fGroup}>
                         <label style={lbl}>Filière</label>
                         <FilterSelect value={addStudentForm.major} onChange={val => setAddStudentForm({...addStudentForm, major: val})} disabled={!addStudentForm.diploma} options={[{ value: '', label: 'Choisir...' }, ...(FILIERES[addStudentForm.diploma] || []).map(f => ({ value: f, label: f }))]} />
@@ -2205,7 +2218,7 @@ const AdminDashboard = () => {
                     <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900' }}>Nouveau Formateur</h2>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
+                    <div className="form-grid">
                       <div style={fGroup}>
                         <label style={lbl}>Nom Complet</label>
                         <input required className="input-premium" placeholder="Ex: Dr. ALAMI Mohamed" value={addTeacherForm.name} onChange={e => setAddTeacherForm({...addTeacherForm, name: e.target.value})} />
@@ -2216,7 +2229,7 @@ const AdminDashboard = () => {
                       </div>
                     </div>
                     
-                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px' }}>
+                    <div className="form-grid">
                       <div style={fGroup}>
                         <label style={lbl}>Diplômes assignés</label>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
@@ -2337,7 +2350,7 @@ const AdminDashboard = () => {
                     </span>
                   )}
                   <div style={{ padding: '14px', background: 'white', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-md)', border: '1px solid var(--border-light)' }}>
-                    <QRCodeSVG value={url} size={180} fgColor={color === 'var(--primary)' ? '#b068b9' : (color || '#b068b9')} />
+                    <QRCodeSVG value={url} size={180} fgColor={color === 'var(--primary)' ? 'var(--primary)' : (color || 'var(--primary)')} />
                   </div>
                   <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
                     <input
@@ -2511,16 +2524,10 @@ const StatCard = ({ delay, icon: Icon, tone = 'primary', value, label }) => (
     initial={{ opacity: 0, y: 12 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay }}
-    whileHover={{ y: -5, scale: 1.02 }}
     className={`finance-net-card finance-net-card-home-${tone} dashboard-premium-stat`}
   >
-    <div className="finance-net-card-shine" aria-hidden="true" />
-    <div className="finance-net-card-icon-bg" aria-hidden="true">
-      <Icon size={54} strokeWidth={1.35} />
-    </div>
-    <div className="finance-net-card-top">
-      <span className="finance-net-card-kicker">Tableau de bord</span>
-      <span className="premium-metric-badge"><Icon size={11} /> Aperçu</span>
+    <div className="dashboard-stat-icon" aria-hidden="true">
+      <Icon size={25} strokeWidth={1.8} />
     </div>
     <div className="finance-net-card-content">
       <h3>{label}</h3>

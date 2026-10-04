@@ -83,7 +83,7 @@ const PWAUpdatePrompt = () => {
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(15, 10, 25, 0.45)',
+          background: 'rgba(var(--primary-rgb), 0.45)',
           backdropFilter: 'blur(10px)',
           zIndex: 99999,
           display: 'flex',
@@ -100,10 +100,10 @@ const PWAUpdatePrompt = () => {
             aria-live="polite"
             className="app-modal-surface app-update-modal"
             style={{
-              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(250, 248, 255, 0.85))',
-              border: '1px solid rgba(124, 58, 237, 0.16)',
+              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(var(--primary-rgb), 0.85))',
+              border: '1px solid rgba(var(--primary-rgb), 0.16)',
               borderRadius: '28px',
-              boxShadow: '0 32px 70px rgba(76, 29, 149, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.95)',
+              boxShadow: '0 32px 70px rgba(var(--primary-rgb), 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.95)',
               backdropFilter: 'blur(20px)',
               padding: '40px 32px',
               maxWidth: '430px',
@@ -120,10 +120,10 @@ const PWAUpdatePrompt = () => {
                 color: 'var(--primary)', 
                 fontWeight: '900', 
                 fontSize: '10px', 
-                background: 'rgba(124, 58, 237, 0.08)',
+                background: 'rgba(var(--primary-rgb), 0.08)',
                 padding: '5px 14px',
                 borderRadius: '100px',
-                border: '1px solid rgba(124, 58, 237, 0.12)',
+                border: '1px solid rgba(var(--primary-rgb), 0.12)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
@@ -150,7 +150,7 @@ const PWAUpdatePrompt = () => {
                 right: 0,
                 bottom: 0,
                 borderRadius: '50%',
-                border: '2.5px solid rgba(124, 58, 237, 0.35)',
+                border: '2.5px solid rgba(var(--primary-rgb), 0.35)',
                 animation: 'update-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite',
               }} />
               {/* Center counter circle */}
@@ -165,7 +165,7 @@ const PWAUpdatePrompt = () => {
                 fontSize: '38px',
                 fontWeight: '950',
                 color: '#ffffff',
-                boxShadow: '0 12px 30px rgba(124, 58, 237, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.25)',
+                boxShadow: '0 12px 30px rgba(var(--primary-rgb), 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.25)',
                 zIndex: 2,
               }}>
                 {secondsLeft}
@@ -208,7 +208,7 @@ const PWAUpdatePrompt = () => {
                 justifyContent: 'center',
                 gap: '8px',
                 cursor: 'pointer',
-                boxShadow: '0 8px 24px rgba(124, 58, 237, 0.22)',
+                boxShadow: '0 8px 24px rgba(var(--primary-rgb), 0.22)',
                 background: 'linear-gradient(135deg, var(--primary), var(--primary-light))',
                 color: '#ffffff',
                 border: 'none',

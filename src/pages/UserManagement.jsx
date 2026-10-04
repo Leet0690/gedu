@@ -364,11 +364,11 @@ export default function UserManagement() {
         <div className="glass-card p-4 flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Administrateurs</p>
-            <h3 className="text-2xl font-black text-indigo-600 mt-1">
+            <h3 className="text-2xl font-black text-brand-600 mt-1">
               {users.filter(u => u.role === 'admin' || u.role === 'super_admin').length}
             </h3>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
+          <div className="w-11 h-11 rounded-xl bg-brand-500/10 text-brand-600 flex items-center justify-center">
             <ShieldCheck size={20} />
           </div>
         </div>

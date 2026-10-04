@@ -6,11 +6,13 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         primary:
-          'bg-primary text-primary-foreground shadow-sm hover:opacity-90 active:scale-[0.98]',
+          'bg-primary text-primary-foreground shadow-sm hover:bg-primary-dark active:scale-[0.98]',
+        accent:
+          'bg-accent text-accent-foreground shadow-sm hover:bg-accent-light active:scale-[0.98]',
         secondary:
-          'bg-secondary text-secondary-foreground hover:bg-muted active:scale-[0.98]',
+          'border border-primary bg-card text-primary hover:bg-secondary active:scale-[0.98]',
         outline:
-          'border border-border bg-transparent text-foreground hover:bg-muted active:scale-[0.98]',
+          'border border-primary bg-card text-primary hover:bg-secondary active:scale-[0.98]',
         ghost:
           'text-foreground hover:bg-muted active:scale-[0.98]',
         destructive:
@@ -33,7 +35,7 @@ export const buttonVariants = cva(
 );
 
 export const inputVariants = cva(
-  'flex h-11 w-full rounded-xl border bg-background px-4 py-2 text-sm text-foreground shadow-xs transition-all duration-200 ease-out file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50',
+  'flex h-11 w-full rounded-xl border bg-card px-4 py-2 text-sm text-foreground transition-all duration-200 ease-out file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50',
   {
     variants: {
       state: {
@@ -48,7 +50,7 @@ export const inputVariants = cva(
 );
 
 export const cardVariants = cva(
-  'rounded-2xl border border-border bg-card text-card-foreground shadow-card transition-all duration-200 ease-out',
+  'rounded-xl border border-border bg-card text-card-foreground shadow-card transition-all duration-200 ease-out',
   {
     variants: {
       hover: {
@@ -74,13 +76,13 @@ export const badgeVariants = cva(
   {
     variants: {
       variant: {
-        default: 'border-transparent bg-primary text-primary-foreground',
+        default: 'border-transparent bg-secondary text-primary',
         secondary: 'border-transparent bg-secondary text-secondary-foreground',
         outline: 'border-border bg-transparent text-foreground',
         muted: 'border-transparent bg-muted text-muted-foreground',
-        destructive: 'border-transparent bg-destructive text-destructive-foreground',
-        success: 'border-transparent bg-success text-success-foreground',
-        warning: 'border-transparent bg-warning text-warning-foreground',
+        destructive: 'border-transparent bg-[var(--danger-bg)] text-destructive',
+        success: 'border-transparent bg-[var(--success-bg)] text-success',
+        warning: 'border-transparent bg-[var(--warning-bg)] text-warning',
       },
     },
     defaultVariants: {

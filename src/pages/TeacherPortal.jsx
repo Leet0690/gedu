@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import '../components/PortalTheme.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -494,7 +495,7 @@ const TeacherPortal = () => {
 
   if (loading && teachers.length === 0) {
     return (
-      <div className="max-w-container section-padding">
+      <div className="max-w-container section-padding ipfpp-public-portal">
         <TableSkeleton rows={12} />
       </div>
     );
@@ -533,7 +534,7 @@ const TeacherPortal = () => {
     });
     return (
       <div className="flex-center" style={{ minHeight: '100vh', padding: '24px', position: 'relative' }}>
-        <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 20 }} className="glass-premium" style={{ padding: '48px 36px', textAlign: 'center', maxWidth: '440px', width: '100%', borderRadius: 'var(--radius-3xl)', boxShadow: 'var(--shadow-xl)', border: '1px solid rgba(176, 104, 185, 0.15)' }}>
+        <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 20 }} className="glass-premium" style={{ padding: '48px 36px', textAlign: 'center', maxWidth: '440px', width: '100%', borderRadius: 'var(--radius-3xl)', boxShadow: 'var(--shadow-xl)', border: '1px solid rgba(var(--primary-rgb), 0.15)' }}>
           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.15, type: 'spring', stiffness: 300 }} style={{ width: '88px', height: '88px', background: 'linear-gradient(135deg, var(--primary), var(--primary-light))', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', boxShadow: 'var(--shadow-glow)' }}>
             <CheckCircle2 size={44} />
           </motion.div>
@@ -759,7 +760,7 @@ const TeacherPortal = () => {
     if (finishedAbsent > 0) summaryParts.push(`${finishedAbsent} absente(s)`);
     return (
       <div className="flex-center" style={{ minHeight: '100vh', padding: '24px' }}>
-        <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 20 }} className="glass-premium" style={{ padding: '48px 36px', textAlign: 'center', maxWidth: '440px', width: '100%', borderRadius: 'var(--radius-3xl)', boxShadow: 'var(--shadow-xl)', border: '1px solid rgba(176, 104, 185, 0.15)' }}>
+        <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 20 }} className="glass-premium" style={{ padding: '48px 36px', textAlign: 'center', maxWidth: '440px', width: '100%', borderRadius: 'var(--radius-3xl)', boxShadow: 'var(--shadow-xl)', border: '1px solid rgba(var(--primary-rgb), 0.15)' }}>
           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.08, type: 'spring', stiffness: 300 }} style={{ width: '96px', height: '96px', background: 'linear-gradient(135deg, #16a34a, #22c55e)', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 28px', boxShadow: '0 12px 40px rgba(22, 163, 74, 0.35)' }}>
             <Heart size={48} />
           </motion.div>
@@ -785,20 +786,20 @@ const TeacherPortal = () => {
   }
 
   return (
-    <div className="max-w-container section-padding">
+    <div className="max-w-container section-padding ipfpp-public-portal">
       {/* Version / Cache Refresh Banner */}
       {showVersionBanner && (
         <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}
-          style={{ marginBottom: 'var(--space-4)', padding: '14px 18px', borderRadius: 'var(--radius-xl)', background: 'linear-gradient(135deg, rgba(99,102,241,0.08), rgba(176,104,185,0.08))', border: '1px solid rgba(99,102,241,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+          style={{ marginBottom: 'var(--space-4)', padding: '14px 18px', borderRadius: 'var(--radius-xl)', background: 'linear-gradient(135deg, rgba(var(--primary-rgb), 0.08), rgba(var(--primary-rgb), 0.08))', border: '1px solid rgba(var(--primary-rgb), 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: '200px' }}>
-            <RefreshCw size={18} style={{ color: '#6366f1', flexShrink: 0 }} />
+            <RefreshCw size={18} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
             <div>
               <p style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>Mise à jour disponible</p>
               <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 0' }}>Une nouvelle version est disponible. Rafraîchissez pour éviter les erreurs.</p>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-            <button onClick={handleForceRefresh} style={{ padding: '8px 16px', borderRadius: 'var(--radius-pill)', background: '#6366f1', color: 'white', border: 'none', fontSize: '12px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <button onClick={handleForceRefresh} style={{ padding: '8px 16px', borderRadius: 'var(--radius-pill)', background: 'var(--text-muted)', color: 'white', border: 'none', fontSize: '12px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <RefreshCw size={13} /> Rafraîchir
             </button>
             <button onClick={() => { setShowVersionBanner(false); rememberCurrentAppVersion(); }} className="close-button close-button-sm" aria-label="Fermer le message" title="Fermer">
@@ -809,7 +810,7 @@ const TeacherPortal = () => {
       )}
 
       {/* Main Header */}
-      <motion.div className="grade-premium-header" initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 'var(--space-6)', minHeight: 'auto', padding: '28px 32px' }}>
+      <motion.div className="grade-premium-header ipfpp-portal-header" initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 'var(--space-6)', minHeight: 'auto', padding: '28px 32px' }}>
         <div className="grade-premium-header-icon" style={{ background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.4)' }}>
           <Presentation size={24} style={{ color: 'white' }} />
         </div>
@@ -826,8 +827,8 @@ const TeacherPortal = () => {
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '12px', zIndex: 10 }}>
           {accessMode === 'full' && (
             <div className="modern-tabs-container" style={{ background: 'rgba(255, 255, 255, 0.15)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255, 255, 255, 0.1)', padding: '4px', borderRadius: 'var(--radius-xl)' }}>
-              <button onClick={() => setActiveTab('attendance')} className={`modern-tab ${activeTab === 'attendance' ? 'active' : ''}`} style={{ color: activeTab === 'attendance' ? 'var(--primary)' : 'white', fontWeight: '800', padding: '8px 20px', borderRadius: 'var(--radius-lg)' }}>Présences</button>
-              <button onClick={() => setActiveTab('grades')} className={`modern-tab ${activeTab === 'grades' ? 'active' : ''}`} style={{ color: activeTab === 'grades' ? 'var(--primary)' : 'white', fontWeight: '800', padding: '8px 20px', borderRadius: 'var(--radius-lg)' }}>Notes</button>
+              <button onClick={() => setActiveTab('attendance')} className={`modern-tab ${activeTab === 'attendance' ? 'active' : ''}`} style={{ fontWeight: '600', padding: '8px 20px', borderRadius: 'var(--radius-lg)' }}>Présences</button>
+              <button onClick={() => setActiveTab('grades')} className={`modern-tab ${activeTab === 'grades' ? 'active' : ''}`} style={{ fontWeight: '600', padding: '8px 20px', borderRadius: 'var(--radius-lg)' }}>Notes</button>
             </div>
           )}
         </div>
@@ -839,7 +840,7 @@ const TeacherPortal = () => {
       {/* Session Context Bar */}
       {activeTab === 'attendance' && todaysSessions.length > 0 && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-          className="glass-card" style={{ padding: 'var(--space-4) var(--space-6)', marginBottom: 'var(--space-6)', border: '1px solid rgba(176, 104, 185, 0.15)', background: 'rgba(255, 255, 255, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '20px' }}>
+          className="glass-card" style={{ padding: 'var(--space-4) var(--space-6)', marginBottom: 'var(--space-6)', border: '1px solid rgba(var(--primary-rgb), 0.15)', background: 'rgba(255, 255, 255, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '20px' }}>
           
           {currentSession ? (
             <div style={{ display: 'flex', gap: 'var(--space-8)', flexWrap: 'wrap' }}>
@@ -880,9 +881,9 @@ const TeacherPortal = () => {
       {/* Header controls for Attendance */}
       {activeTab === 'attendance' && currentSession && (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-          className="glass-card" style={{ padding: '16px 24px', marginBottom: 'var(--space-6)', border: '1px solid rgba(176, 104, 185, 0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', background: 'rgba(255,255,255,0.8)' }}>
+          className="glass-card" style={{ padding: '16px 24px', marginBottom: 'var(--space-6)', border: '1px solid rgba(var(--primary-rgb), 0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', background: 'rgba(255,255,255,0.8)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ padding: '6px 14px', fontSize: '12px', fontWeight: '800', color: '#6d28d9', background: 'rgba(124, 58, 237, 0.08)', borderRadius: 'var(--radius-pill)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ padding: '6px 14px', fontSize: '12px', fontWeight: '800', color: 'var(--primary)', background: 'rgba(var(--primary-rgb), 0.08)', borderRadius: 'var(--radius-pill)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
               <Users size={13} /> {relevantStudents.length} Stagiaires
             </span>
             <span style={{ padding: '6px 14px', fontSize: '12px', fontWeight: '800', color: allAttended ? 'var(--success)' : 'var(--warning)', background: allAttended ? 'rgba(22, 163, 74, 0.08)' : 'rgba(217, 119, 6, 0.08)', borderRadius: 'var(--radius-pill)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
@@ -908,7 +909,7 @@ const TeacherPortal = () => {
               </span>
             )}
             {allSessionsCompleted && (
-              <button onClick={handleFinalValidation} className="btn-modern primary" style={{ padding: '10px 20px', background: 'linear-gradient(135deg, #16a34a, #22c55e)' }}>
+              <button onClick={handleFinalValidation} className="btn-modern primary" style={{ padding: '10px 20px' }}>
                 <Award size={18} style={{ marginRight: '8px' }} /> Finaliser la journée
               </button>
             )}
@@ -919,9 +920,9 @@ const TeacherPortal = () => {
       {/* Header controls for Grades */}
       {activeTab === 'grades' && relevantStudents.length > 0 && (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-          className="glass-card" style={{ padding: '16px 24px', marginBottom: 'var(--space-6)', border: '1px solid rgba(176, 104, 185, 0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', background: 'rgba(255,255,255,0.8)' }}>
+          className="glass-card" style={{ padding: '16px 24px', marginBottom: 'var(--space-6)', border: '1px solid rgba(var(--primary-rgb), 0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', background: 'rgba(255,255,255,0.8)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ padding: '6px 14px', fontSize: '12px', fontWeight: '800', color: '#6d28d9', background: 'rgba(124, 58, 237, 0.08)', borderRadius: 'var(--radius-pill)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ padding: '6px 14px', fontSize: '12px', fontWeight: '800', color: 'var(--primary)', background: 'rgba(var(--primary-rgb), 0.08)', borderRadius: 'var(--radius-pill)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
               <Award size={13} /> Saisie de Notes
             </span>
             {selectedSubject && (
@@ -941,7 +942,7 @@ const TeacherPortal = () => {
       {/* Controls Bar for Grades Filters */}
       {activeTab === 'grades' && (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
-          className="glass-card" style={{ padding: 'var(--space-5)', marginBottom: 'var(--space-6)', border: '1px solid rgba(176, 104, 185, 0.15)' }}>
+          className="glass-card" style={{ padding: 'var(--space-5)', marginBottom: 'var(--space-6)', border: '1px solid rgba(var(--primary-rgb), 0.15)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
             <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'var(--primary-ultra-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <SlidersHorizontal size={15} />
@@ -990,7 +991,7 @@ const TeacherPortal = () => {
       </AnimatePresence>
 
       {/* Main Table */}
-      <div className="glass-card grade-premium-table-shell" style={{ border: '1px solid rgba(176, 104, 185, 0.15)', background: 'rgba(255,255,255,0.9)', overflow: 'hidden' }}>
+      <div className="glass-card grade-premium-table-shell" style={{ border: '1px solid rgba(var(--primary-rgb), 0.15)', background: 'rgba(255,255,255,0.9)', overflow: 'hidden' }}>
         {activeTab === 'attendance' && !currentSession ? (
           <EmptyState title="Séance non sélectionnée" message={todaysSessions.length > 0 ? "Choisissez une séance dans la barre supérieure pour commencer l'appel." : `Aucune séance n'est planifiée pour vous ce ${dayOfWeek}.`} icon="calendar" />
         ) : relevantStudents.length === 0 ? (
@@ -1007,7 +1008,7 @@ const TeacherPortal = () => {
                   <th style={{ ...thStyle, textAlign: 'center' }}>C1</th>
                   <th style={{ ...thStyle, textAlign: 'center' }}>C2</th>
                   <th style={{ ...thStyle, textAlign: 'center' }}>C3</th>
-                  <th style={{ ...thStyle, textAlign: 'center', background: 'rgba(124, 58, 237, 0.05)', color: '#6d28d9', fontWeight: '900' }}>Moy CC</th>
+                  <th style={{ ...thStyle, textAlign: 'center', background: 'rgba(var(--primary-rgb), 0.05)', color: 'var(--primary)', fontWeight: '900' }}>Moy CC</th>
                   <th style={{ ...thStyle, textAlign: 'center' }}>EFCFP</th>
                   <th style={{ ...thStyle, textAlign: 'center' }}>EFCFT</th>
                 </tr>
@@ -1028,7 +1029,7 @@ const TeacherPortal = () => {
                       <td style={{ ...tdStyle, textAlign: 'center' }}><GradeInput value={g.c1} onChange={(v) => handleGradeChange(s.id, 'c1', v)} /></td>
                       <td style={{ ...tdStyle, textAlign: 'center' }}><GradeInput value={g.c2} onChange={(v) => handleGradeChange(s.id, 'c2', v)} /></td>
                       <td style={{ ...tdStyle, textAlign: 'center' }}><GradeInput value={g.c3 ?? ''} onChange={(v) => handleGradeChange(s.id, 'c3', v)} placeholder="opt." /></td>
-                      <td style={{ ...tdStyle, textAlign: 'center', background: 'rgba(124, 58, 237, 0.025)' }}><span style={{ fontWeight: '900', color: 'var(--primary)', fontSize: '14px' }}>{moyCC !== null ? moyCC.toFixed(2) : '—'}</span></td>
+                      <td style={{ ...tdStyle, textAlign: 'center', background: 'rgba(var(--primary-rgb), 0.025)' }}><span style={{ fontWeight: '900', color: 'var(--primary)', fontSize: '14px' }}>{moyCC !== null ? moyCC.toFixed(2) : '—'}</span></td>
                       <td style={{ ...tdStyle, textAlign: 'center' }}><GradeInput value={g.efcfp} onChange={(v) => handleGradeChange(s.id, 'efcfp', v)} /></td>
                       <td style={{ ...tdStyle, textAlign: 'center' }}><GradeInput value={g.efcft} onChange={(v) => handleGradeChange(s.id, 'efcft', v)} /></td>
                     </tr>
@@ -1115,7 +1116,7 @@ const StatusBtn = ({ active, color, children, onClick }) => (
       transition: 'background 0.2s, color 0.2s, box-shadow 0.2s', 
       background: active ? color : 'transparent', 
       color: active ? 'white' : 'var(--text-muted)',
-      boxShadow: active ? '0 4px 12px ' + color + '30' : 'none'
+      boxShadow: active ? `0 4px 12px color-mix(in srgb, ${color} 19%, transparent)` : 'none'
     }}
   >
     {children}

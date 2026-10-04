@@ -42,7 +42,7 @@ const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, type = 'dan
           exit={{ opacity: 0 }}
           onClick={onCancel}
           className="app-modal-backdrop"
-          style={{ position: 'absolute', inset: 0, background: 'rgba(15, 12, 20, 0.4)', backdropFilter: 'blur(8px)' }}
+          style={{ position: 'absolute', inset: 0, background: 'rgba(var(--primary-rgb), 0.4)', backdropFilter: 'blur(8px)' }}
         />
         
         <motion.div

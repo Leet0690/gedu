@@ -4,7 +4,14 @@ export default {
   content: ['./index.html', './src/**/*.{js,jsx,ts,tsx}'],
   theme: {
     extend: {
+      fontFamily: { sans: ['var(--font-sans)'] },
       colors: {
+        brand: Object.fromEntries([50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950].map(shade => [shade, `rgb(var(--brand-${shade}) / <alpha-value>)`])),
+        'ipfpp-blue': 'var(--primary)',
+        'ipfpp-blue-dark': 'var(--primary-dark)',
+        'ipfpp-blue-light': 'var(--primary-light)',
+        'ipfpp-yellow': 'var(--accent)',
+        'ipfpp-yellow-light': 'var(--accent-light)',
         background: 'var(--background)',
         foreground: 'var(--foreground)',
         card: {
@@ -17,6 +24,7 @@ export default {
         },
         primary: {
           DEFAULT: 'var(--primary)',
+          dark: 'var(--primary-dark)',
           foreground: 'var(--primary-foreground)',
         },
         secondary: {
@@ -29,6 +37,7 @@ export default {
         },
         accent: {
           DEFAULT: 'var(--accent)',
+          light: 'var(--accent-light)',
           foreground: 'var(--accent-foreground)',
         },
         destructive: {
@@ -49,12 +58,15 @@ export default {
       },
       borderRadius: {
         xl: 'var(--radius)',
-        '2xl': 'calc(var(--radius) + 6px)',
+        '2xl': 'calc(var(--radius) + 2px)',
         lg: 'calc(var(--radius) - 2px)',
-        md: 'calc(var(--radius) - 6px)',
-        sm: 'calc(var(--radius) - 8px)',
+        md: 'calc(var(--radius) - 2px)',
+        sm: 'calc(var(--radius) - 4px)',
       },
       boxShadow: {
+        'ipfpp-sm': 'var(--shadow-sm)',
+        ipfpp: 'var(--shadow-md)',
+        'ipfpp-lg': 'var(--shadow-lg)',
         card: 'var(--shadow-card)',
         elevated: 'var(--shadow-elevated)',
         focus: 'var(--shadow-focus)',
