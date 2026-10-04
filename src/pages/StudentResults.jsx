@@ -1,3 +1,4 @@
+import PortalBrand from '../components/PortalBrand';
 import React, { useMemo, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import '../components/PortalTheme.css';
@@ -180,13 +181,14 @@ const StudentResults = () => {
     : '—';
 
   if (loading) {
-    return <div className="max-w-container section-padding"><TableSkeleton rows={10} /></div>;
+    return <div className="max-w-container section-padding"><PortalBrand /><TableSkeleton rows={10} /></div>;
   }
 
   if (!student) {
     return (
       <div className="flex-center" style={{ minHeight: '80vh', padding: 'var(--space-6)' }}>
         <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="glass-premium" style={{ padding: '64px', textAlign: 'center', maxWidth: '440px' }}>
+          <PortalBrand />
           <Lock size={64} style={{ color: 'var(--danger)', marginBottom: '24px' }} />
           <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900', marginBottom: '12px' }}>Lien Invalide</h2>
           <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)' }}>L'accès à ce relevé est protégé ou le lien a expiré.</p>
@@ -200,6 +202,8 @@ const StudentResults = () => {
   return (
     <div className="max-w-container section-padding student-results-premium-page ipfpp-public-portal">
       
+      <PortalBrand />
+
       {/* Profile Header */}
       <motion.div 
         initial={{ opacity: 0, y: -15 }} 

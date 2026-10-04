@@ -1,3 +1,4 @@
+import PortalBrand from '../components/PortalBrand';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -117,6 +118,7 @@ const StudentScheduleView = () => {
   if (request.loading || request.error) {
     return (
       <div className="max-w-container section-padding schedule-premium-page" style={{ paddingTop: '40px' }}>
+      <PortalBrand />
         <h1>Consultation de l’emploi du temps</h1>
         {request.loading ? <p role="status">Chargement de l’emploi du temps…</p> : (
           <div role="alert">
@@ -130,6 +132,7 @@ const StudentScheduleView = () => {
 
   return (
     <div className="max-w-container section-padding schedule-premium-page" style={{ paddingTop: '40px' }}>
+      <PortalBrand />
       <div className="schedule-premium-header">
         <div className="schedule-premium-header-icon">
           <CalendarDays size={24} />

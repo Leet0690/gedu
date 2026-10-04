@@ -1,0 +1,19 @@
+.ipfpp-portal-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  background: var(--primary);
+  border-bottom: 3px solid var(--accent);
+  border-radius: var(--radius-lg);
+}
+
+.ipfpp-portal-brand .ipfp-brand { width: 260px; max-width: 100%; }
+.ipfpp-portal-brand .ipfpp-logo { width: 100%; }
+
+@media (max-width: 600px) {
+  .ipfpp-portal-brand { padding: 14px 16px; margin-bottom: 16px; }
+  .ipfpp-portal-brand .ipfp-brand { width: 220px; }
+}

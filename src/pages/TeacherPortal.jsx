@@ -1,3 +1,4 @@
+import PortalBrand from '../components/PortalBrand';
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import '../components/PortalTheme.css';
@@ -496,6 +497,7 @@ const TeacherPortal = () => {
   if (loading && teachers.length === 0) {
     return (
       <div className="max-w-container section-padding ipfpp-public-portal">
+        <PortalBrand />
         <TableSkeleton rows={12} />
       </div>
     );
@@ -505,6 +507,7 @@ const TeacherPortal = () => {
     return (
       <div className="flex-center" style={{ minHeight: '80vh', padding: '32px' }}>
         <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="glass-premium" style={{ padding: '64px', textAlign: 'center', maxWidth: '440px' }}>
+          <PortalBrand />
           <AlertCircle size={64} style={{ color: 'var(--danger)', marginBottom: '24px' }} />
           <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900', marginBottom: '12px' }}>Accès Invalide</h2>
           <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', marginBottom: '32px' }}>Ce lien est expiré ou incorrect. Veuillez contacter l'administration.</p>
@@ -535,6 +538,7 @@ const TeacherPortal = () => {
     return (
       <div className="flex-center" style={{ minHeight: '100vh', padding: '24px', position: 'relative' }}>
         <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 20 }} className="glass-premium" style={{ padding: '48px 36px', textAlign: 'center', maxWidth: '440px', width: '100%', borderRadius: 'var(--radius-3xl)', boxShadow: 'var(--shadow-xl)', border: '1px solid rgba(var(--primary-rgb), 0.15)' }}>
+          <PortalBrand />
           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.15, type: 'spring', stiffness: 300 }} style={{ width: '88px', height: '88px', background: 'linear-gradient(135deg, var(--primary), var(--primary-light))', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', boxShadow: 'var(--shadow-glow)' }}>
             <CheckCircle2 size={44} />
           </motion.div>
@@ -761,6 +765,7 @@ const TeacherPortal = () => {
     return (
       <div className="flex-center" style={{ minHeight: '100vh', padding: '24px' }}>
         <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 20 }} className="glass-premium" style={{ padding: '48px 36px', textAlign: 'center', maxWidth: '440px', width: '100%', borderRadius: 'var(--radius-3xl)', boxShadow: 'var(--shadow-xl)', border: '1px solid rgba(var(--primary-rgb), 0.15)' }}>
+          <PortalBrand />
           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.08, type: 'spring', stiffness: 300 }} style={{ width: '96px', height: '96px', background: 'linear-gradient(135deg, #16a34a, #22c55e)', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 28px', boxShadow: '0 12px 40px rgba(22, 163, 74, 0.35)' }}>
             <Heart size={48} />
           </motion.div>
@@ -808,6 +813,8 @@ const TeacherPortal = () => {
           </div>
         </motion.div>
       )}
+
+      <PortalBrand />
 
       {/* Main Header */}
       <motion.div className="grade-premium-header ipfpp-portal-header" initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 'var(--space-6)', minHeight: 'auto', padding: '28px 32px' }}>
