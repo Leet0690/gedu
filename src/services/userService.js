@@ -47,7 +47,7 @@ export const ROLE_PRESETS = {
     }, {})
   },
   secretary: {
-    label: 'Secrétariat',
+    label: 'Secrétaire',
     description: 'Gestion des inscriptions, présences, emplois du temps et saisie courante.',
     badgeClass: 'badge-secretary',
     color: '#06b6d4',

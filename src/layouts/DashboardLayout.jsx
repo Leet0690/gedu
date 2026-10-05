@@ -61,7 +61,7 @@ const NAV_CATEGORIES = [
       { to: "/admin/grades", icon: PenTool, label: "Notes", color: "text-amber-500", pageKey: 'grades' },
       { to: "/admin/reports", icon: LineChart, label: "Rapports", color: "text-emerald-500", pageKey: 'reports' },
       { to: "/admin/schedules", icon: CalendarDays, label: "Emplois du Temps", color: "text-orange-500", pageKey: 'schedules' },
-      { to: "/admin/schedule-generation", icon: Wand2, label: "Génération (EDT)", color: "text-brand-500", pageKey: 'schedule_generation' },
+      // { to: "/admin/schedule-generation", icon: Wand2, label: "Génération (EDT)", color: "text-brand-500", pageKey: 'schedule_generation' },
     ]
   },
   {
