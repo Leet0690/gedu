@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { useDebounce } from '../utils/useDebounce';
 import { getClassCode } from '../data/modules';
+import { filterSchedulesForAcademicYear, INITIAL_OPERATIONAL_ACADEMIC_YEAR } from '../utils/studentStatus';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import { DatePicker } from '../components/ui';
@@ -174,7 +175,7 @@ const mTdStyle = { padding: '10px 8px', verticalAlign: 'middle' };
 const TeacherAttendance = () => {
   const { hasPermission } = useAdminAuth();
   const canEdit = hasPermission('attendance_teachers', 'edit');
-  const { teachers, teacherAttendance, updateTeacherAttendance, loadTeacherAttendanceForDate, loadTeacherAttendanceForMonth, schedules, loading, getActiveScheduleModule, activeSemester } = useApp();
+  const { teachers, teacherAttendance, updateTeacherAttendance, loadTeacherAttendanceForDate, loadTeacherAttendanceForMonth, schedules, loading, getActiveScheduleModule, activeSemester, activeAcademicYear } = useApp();
   const { showToast } = useToast();
 
   const [view, setView] = useState('daily');
@@ -187,9 +188,15 @@ const TeacherAttendance = () => {
 
   const dayOfWeek = useMemo(() => getDayNameFromDate(selectedDate), [selectedDate]);
 
+  const activeYearSchedules = useMemo(() => filterSchedulesForAcademicYear(
+    schedules,
+    activeAcademicYear,
+    INITIAL_OPERATIONAL_ACADEMIC_YEAR
+  ), [schedules, activeAcademicYear]);
+
   const sessionRows = useMemo(() => {
-    return getScheduledRowsForDate({ schedules, teachers, date: selectedDate, searchTerm: debouncedSearch, getScheduleModule: getActiveScheduleModule });
-  }, [schedules, teachers, debouncedSearch, selectedDate, getActiveScheduleModule]);
+    return getScheduledRowsForDate({ schedules: activeYearSchedules, teachers, date: selectedDate, searchTerm: debouncedSearch, getScheduleModule: getActiveScheduleModule });
+  }, [activeYearSchedules, teachers, debouncedSearch, selectedDate, getActiveScheduleModule]);
 
   const stats = useMemo(() => {
     let presents = 0, absents = 0, totalHours = 0;
