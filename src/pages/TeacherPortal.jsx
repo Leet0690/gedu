@@ -716,7 +716,7 @@ const TeacherPortal = () => {
     try {
     if (!currentAttendanceModule || !currentSession) return;
     const record = getStudentRecordForSession(studentId, currentSession, currentAttendanceModule);
-    await updateStudentAttendance(studentId, currentAttendanceModule, selectedDate, status, record?.comment || '', teacher.id, currentSession.time, record?.id || '');
+    await updateStudentAttendance(studentId, currentAttendanceModule, selectedDate, status, record?.comment || '', teacher.id, currentSession.time, record?.id || '', teacherId);
 
     } catch (error) {
       if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');
@@ -728,7 +728,7 @@ const TeacherPortal = () => {
     if (!currentAttendanceModule || !currentSession) return;
     const record = getStudentRecordForSession(studentId, currentSession, currentAttendanceModule);
     if (!record) return;
-    await updateStudentAttendance(studentId, currentAttendanceModule, selectedDate, '', record.comment || '', teacher.id, currentSession.time, record.id);
+    await updateStudentAttendance(studentId, currentAttendanceModule, selectedDate, '', record.comment || '', teacher.id, currentSession.time, record.id, teacherId);
 
     } catch (error) {
       if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');
@@ -739,7 +739,7 @@ const TeacherPortal = () => {
     try {
     if (!currentAttendanceModule || !currentSession) return;
     const record = getStudentRecordForSession(studentId, currentSession, currentAttendanceModule);
-    await updateStudentAttendance(studentId, currentAttendanceModule, selectedDate, record?.status || 'present', comment, teacher.id, currentSession.time, record?.id || '');
+    await updateStudentAttendance(studentId, currentAttendanceModule, selectedDate, record?.status || 'present', comment, teacher.id, currentSession.time, record?.id || '', teacherId);
 
     } catch (error) {
       if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');

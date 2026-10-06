@@ -37,6 +37,7 @@ export const db = _db;
 export const auth = getAuth(app);
 export const functions = getFunctions(app, 'europe-west1');
 export const submitTeacherAttendance = httpsCallable(functions, 'submitTeacherAttendance');
+export const submitTeacherStudentAttendance = httpsCallable(functions, 'submitTeacherStudentAttendance');
 
 /**
  * Creates an isolated secondary Firebase app for creating users without

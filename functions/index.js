@@ -75,6 +75,42 @@ export const submitTeacherAttendance = onCall({ region: 'europe-west1' }, async 
   return { success: true, id: docId };
 });
 
+export const submitTeacherStudentAttendance = onCall({ region: 'europe-west1' }, async request => {
+  const { token, studentId, moduleId, date, status, comment = '', formateurId = '', timeSlot = '' } = request.data || {};
+  if (typeof token !== 'string' || !token || typeof studentId !== 'string' || typeof moduleId !== 'string' ||
+      typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !['present', 'absent', ''].includes(status)) {
+    throw new HttpsError('invalid-argument', 'Données de présence stagiaire invalides.');
+  }
+  const teacherSnap = await db.collection('teachers').where('tokenAttendance', '==', token).limit(1).get();
+  if (teacherSnap.empty) throw new HttpsError('permission-denied', 'Lien formateur invalide.');
+  const teacherId = teacherSnap.docs[0].id;
+  const [studentSnap, scheduleSnap] = await Promise.all([
+    db.doc(`students/${studentId}`).get(),
+    db.collection('schedules').where('teacherId', '==', teacherId).get(),
+  ]);
+  if (!studentSnap.exists) throw new HttpsError('not-found', 'Stagiaire introuvable.');
+  const dateObject = new Date(`${date}T00:00:00`);
+  const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+  const student = studentSnap.data();
+  const allowed = scheduleSnap.docs.some(item => {
+    const session = item.data();
+    return session.day === days[dateObject.getDay()] && session.filiere === student.major &&
+      session.annee === student.year && String(session.time || '').replace(/[^0-9]/g, '') === String(timeSlot || '').replace(/[^0-9]/g, '') &&
+      Boolean(session.module || session.moduleId || session.moduleS1 || session.moduleS2);
+  });
+  if (!allowed) throw new HttpsError('permission-denied', 'Cette séance ne correspond pas au groupe du formateur.');
+  const safeModule = moduleId.replace(/[^a-zA-Z0-9]/g, '_');
+  const safeTime = String(timeSlot || '').replace(/[^0-9]/g, '') || 'x';
+  const docId = `${studentId}_${safeModule}_${safeTime ? `${safeTime}_` : ''}${date}`;
+  const ref = db.doc(`attendance_stagiaires/${docId}`);
+  if (!status) {
+    await ref.delete();
+    return { success: true, id: docId };
+  }
+  await ref.set({ studentId, moduleId, date, status, comment: String(comment || '').slice(0, 500), formateurId: String(formateurId || '').slice(0, 120), timeSlot: String(timeSlot || '').slice(0, 40), timestamp: FieldValue.serverTimestamp() }, { merge: true });
+  return { success: true, id: docId };
+});
+
 // Independent of UI toasts: API writes, deletes and partial batches are also recorded.
 export const auditDocumentWrite = onDocumentWrittenWithAuthContext({
   document: '{collectionId}/{documentId}', retry: true,

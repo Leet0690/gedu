@@ -20,7 +20,7 @@ import {
   onSnapshot,
   runTransaction
 } from 'firebase/firestore';
-import { db, submitTeacherAttendance } from '../firebase';
+import { db, submitTeacherAttendance, submitTeacherStudentAttendance } from '../firebase';
 import { COLLECTION_MODULES, assertModuleEdit } from '../utils/permissions';
 import ConfirmModal from '../components/ConfirmModal';
 import { useToast } from './ToastContext';
@@ -1499,9 +1499,17 @@ export const AppProvider = ({ children }) => {
   };
 
   // --- PRESENCES ---
-  const updateStudentAttendance = async (studentId, moduleId, date, status, comment, formateurId = 'admin', timeSlot = '', recordId = '') => {
-    requireEdit('attendance_students');
+  const updateStudentAttendance = async (studentId, moduleId, date, status, comment, formateurId = 'admin', timeSlot = '', recordId = '', portalToken = '') => {
+    if (!portalToken || !portalPath) requireEdit('attendance_students');
     const { canonicalId, previousId } = getStudentAttendanceWriteTarget(studentId, moduleId, date, timeSlot, recordId);
+    if (portalToken) {
+      await submitTeacherStudentAttendance({ token: portalToken, studentId, moduleId, date, status, comment: comment || '', formateurId, timeSlot, recordId });
+      setStudentAttendance(prev => {
+        const without = prev.filter(record => record.id !== canonicalId && (!previousId || record.id !== previousId));
+        return status ? [...without, { id: canonicalId, studentId, moduleId, date, status, comment: comment || '', formateurId, timeSlot }] : without;
+      });
+      return;
+    }
     if (!status) {
       const docId = recordId || canonicalId;
       await deleteDoc(doc(db, 'attendance_stagiaires', docId));
