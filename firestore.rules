@@ -75,6 +75,12 @@ service cloud.firestore {
       return teacherId is string && token is string && token.size() > 0 &&
         get(/databases/$(database)/documents/teachers/$(teacherId)).data.tokenAttendance == token;
     }
+    function validPortalGradeToken(teacherId, token, studentId) {
+      let teacher = get(/databases/$(database)/documents/teachers/$(teacherId)).data;
+      let student = get(/databases/$(database)/documents/students/$(studentId)).data;
+      return teacherId is string && token is string && token.size() > 0 &&
+        teacher.tokenGrades == token && student.major in teacher.groups;
+    }
     match /attendance_formateurs/{id} {
       allow create, update: if validPortalTeacherToken(request.resource.data.teacherId, request.resource.data.tokenAttendance);
       allow delete: if validPortalTeacherToken(resource.data.teacherId, resource.data.tokenAttendance);
@@ -82,6 +88,9 @@ service cloud.firestore {
     match /attendance_stagiaires/{id} {
       allow create, update: if validPortalTeacherToken(request.resource.data.formateurId, request.resource.data.tokenAttendance);
       allow delete: if validPortalTeacherToken(resource.data.formateurId, resource.data.tokenAttendance);
+    }
+    match /grades/{id} {
+      allow create, update: if validPortalGradeToken(request.resource.data.teacherId, request.resource.data.tokenGrades, id);
     }
     match /{name}/{id} {
       allow read: if moduleFor(name) != '' && permitted(moduleFor(name), 'view');

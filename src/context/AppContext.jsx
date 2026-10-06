@@ -1430,8 +1430,8 @@ export const AppProvider = ({ children }) => {
       operationalAcademicYear
     );
 
-  const updateGrades = async (studentId, subject, gradeData, academicYear = '') => {
-    requireEdit('grades');
+  const updateGrades = async (studentId, subject, gradeData, academicYear = '', portalToken = '', portalTeacherId = '') => {
+    if (!portalToken || !portalPath) requireEdit('grades');
     const safeSubject = sanitizeGradeKey(subject);
     const resolvedAcademicYear = resolveGradeAcademicYear(studentId, academicYear);
     const currentStudentGrades = grades[studentId] || {};
@@ -1443,7 +1443,8 @@ export const AppProvider = ({ children }) => {
     await setDoc(gradeRef, {
       [GRADE_ACADEMIC_YEARS_FIELD]: {
         [resolvedAcademicYear]: nextGradeBucket
-      }
+      },
+      ...(portalToken ? { tokenGrades: portalToken, teacherId: portalTeacherId } : {})
     }, { merge: true });
     
     setGrades(prev => {
@@ -1463,8 +1464,8 @@ export const AppProvider = ({ children }) => {
     showToast('Notes enregistrées', 'success');
   };
 
-  const batchUpdateGrades = async (updates) => {
-    requireEdit('grades');
+  const batchUpdateGrades = async (updates, portalToken = '', portalTeacherId = '') => {
+    if (!portalToken || !portalPath) requireEdit('grades');
     const batch = writeBatch(db);
     const newGrades = { ...grades };
     
@@ -1480,7 +1481,8 @@ export const AppProvider = ({ children }) => {
       batch.set(gradeRef, {
         [GRADE_ACADEMIC_YEARS_FIELD]: {
           [resolvedAcademicYear]: nextGradeBucket
-        }
+        },
+        ...(portalToken ? { tokenGrades: portalToken, teacherId: portalTeacherId } : {})
       }, { merge: true });
 
       const currentAcademicYears = currentStudentGrades[GRADE_ACADEMIC_YEARS_FIELD] || {};

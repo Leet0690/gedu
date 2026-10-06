@@ -700,7 +700,7 @@ const TeacherPortal = () => {
     }));
 
     if (updates.length > 0) {
-      await batchUpdateGrades(updates);
+      await batchUpdateGrades(updates, teacherId, teacher.id);
     }
 
     showToast("Notes enregistrées avec succès.", 'success');
