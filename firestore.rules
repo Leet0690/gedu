@@ -92,6 +92,12 @@ service cloud.firestore {
     match /grades/{id} {
       allow create, update: if validPortalGradeToken(request.resource.data.teacherId, request.resource.data.tokenGrades, id);
     }
+    match /teachers/{id} { allow read: if true; }
+    match /schedules/{id} { allow read: if true; }
+    match /students/{id} { allow read: if true; }
+    match /modules/{id} { allow read: if true; }
+    match /attendance_formateurs/{id} { allow read: if true; }
+    match /attendance_stagiaires/{id} { allow read: if true; }
     match /{name}/{id} {
       allow read: if moduleFor(name) != '' && permitted(moduleFor(name), 'view');
       allow write: if moduleFor(name) != '' && permitted(moduleFor(name), 'edit');
