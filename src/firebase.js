@@ -1,6 +1,5 @@
 import { initializeApp, deleteApp } from "firebase/app";
 import { getAuth, initializeAuth, inMemoryPersistence, signOut } from "firebase/auth";
-import { getFunctions, httpsCallable } from "firebase/functions";
 import { 
   initializeFirestore, 
   getFirestore,
@@ -35,9 +34,6 @@ try {
 
 export const db = _db;
 export const auth = getAuth(app);
-export const functions = getFunctions(app, 'europe-west1');
-export const submitTeacherAttendance = httpsCallable(functions, 'submitTeacherAttendance');
-export const submitTeacherStudentAttendance = httpsCallable(functions, 'submitTeacherStudentAttendance');
 
 /**
  * Creates an isolated secondary Firebase app for creating users without

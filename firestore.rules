@@ -71,6 +71,18 @@ service cloud.firestore {
         'payments': 'finance', 'salaries': 'finance', 'expenses': 'finance', 'receipt_counters': 'finance',
         'continuousTrainings': 'continuous', 'continuousTrainingTypes': 'continuous', 'ctStudents': 'continuous', 'ctSessions': 'continuous'}.get(name, '');
     }
+    function validPortalTeacherToken(teacherId, token) {
+      return teacherId is string && token is string && token.size() >= 32 &&
+        get(/databases/$(database)/documents/teachers/$(teacherId)).data.tokenAttendance == token;
+    }
+    match /attendance_formateurs/{id} {
+      allow create, update: if validPortalTeacherToken(request.resource.data.teacherId, request.resource.data.tokenAttendance);
+      allow delete: if validPortalTeacherToken(resource.data.teacherId, resource.data.tokenAttendance);
+    }
+    match /attendance_stagiaires/{id} {
+      allow create, update: if validPortalTeacherToken(request.resource.data.formateurId, request.resource.data.tokenAttendance);
+      allow delete: if validPortalTeacherToken(resource.data.formateurId, resource.data.tokenAttendance);
+    }
     match /{name}/{id} {
       allow read: if moduleFor(name) != '' && permitted(moduleFor(name), 'view');
       allow write: if moduleFor(name) != '' && permitted(moduleFor(name), 'edit');

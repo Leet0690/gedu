@@ -20,7 +20,7 @@ import {
   onSnapshot,
   runTransaction
 } from 'firebase/firestore';
-import { db, submitTeacherAttendance, submitTeacherStudentAttendance } from '../firebase';
+import { db } from '../firebase';
 import { COLLECTION_MODULES, assertModuleEdit } from '../utils/permissions';
 import ConfirmModal from '../components/ConfirmModal';
 import { useToast } from './ToastContext';
@@ -1503,7 +1503,8 @@ export const AppProvider = ({ children }) => {
     if (!portalToken || !portalPath) requireEdit('attendance_students');
     const { canonicalId, previousId } = getStudentAttendanceWriteTarget(studentId, moduleId, date, timeSlot, recordId);
     if (portalToken) {
-      await submitTeacherStudentAttendance({ token: portalToken, studentId, moduleId, date, status, comment: comment || '', formateurId, timeSlot, recordId });
+      if (!status) await deleteDoc(doc(db, 'attendance_stagiaires', recordId || canonicalId));
+      else await setDoc(doc(db, 'attendance_stagiaires', canonicalId), { studentId, moduleId, date, status, comment: comment || '', formateurId, timeSlot: timeSlot || '', tokenAttendance: portalToken, timestamp: serverTimestamp() }, { merge: true });
       setStudentAttendance(prev => {
         const without = prev.filter(record => record.id !== canonicalId && (!previousId || record.id !== previousId));
         return status ? [...without, { id: canonicalId, studentId, moduleId, date, status, comment: comment || '', formateurId, timeSlot }] : without;
@@ -1611,7 +1612,7 @@ export const AppProvider = ({ children }) => {
     const data = { teacherId, date, status, hours: status === 'present' ? safeHours : 0, comment: comment || '', moduleId: moduleId || '', timeSlot: timeSlot || '', timestamp: serverTimestamp() };
     
     if (portalToken && portalPath) {
-      await submitTeacherAttendance({ token: portalToken, date, status, comment: comment || '', hours: safeHours, moduleId: moduleId || '', timeSlot: timeSlot || '' });
+      await setDoc(doc(db, 'attendance_formateurs', docId), { ...data, tokenAttendance: portalToken }, { merge: true });
     } else {
       await setDoc(doc(db, 'attendance_formateurs', docId), data, { merge: true });
     }
