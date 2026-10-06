@@ -72,7 +72,7 @@ service cloud.firestore {
         'continuousTrainings': 'continuous', 'continuousTrainingTypes': 'continuous', 'ctStudents': 'continuous', 'ctSessions': 'continuous'}.get(name, '');
     }
     function validPortalTeacherToken(teacherId, token) {
-      return teacherId is string && token is string && token.size() >= 32 &&
+      return teacherId is string && token is string && token.size() > 0 &&
         get(/databases/$(database)/documents/teachers/$(teacherId)).data.tokenAttendance == token;
     }
     match /attendance_formateurs/{id} {
