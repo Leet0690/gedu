@@ -53,6 +53,28 @@ export const adminSetUserPassword = onCall({ region: 'europe-west1' }, async req
   return { success: true };
 });
 
+export const submitTeacherAttendance = onCall({ region: 'europe-west1' }, async request => {
+  const data = request.data || {};
+  const { token, date, status, comment = '', hours = 0, moduleId = '', timeSlot = '' } = data;
+  if (typeof token !== 'string' || !token || typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !['present', 'absent'].includes(status)) {
+    throw new HttpsError('invalid-argument', 'Données de présence invalides.');
+  }
+  const teacherSnap = await db.collection('teachers').where('tokenAttendance', '==', token).limit(1).get();
+  if (teacherSnap.empty) throw new HttpsError('permission-denied', 'Lien formateur invalide.');
+  const teacherId = teacherSnap.docs[0].id;
+  const safeModule = String(moduleId || 'global').replace(/[^a-zA-Z0-9]/g, '_');
+  const safeTime = String(timeSlot || '').replace(/[^0-9]/g, '') || 'x';
+  const docId = `${teacherId}_${safeModule}_${safeTime}_${date}`;
+  const parsedHours = Number(hours);
+  await db.doc(`attendance_formateurs/${docId}`).set({
+    teacherId, date, status, comment: String(comment || '').slice(0, 500),
+    hours: status === 'present' && Number.isFinite(parsedHours) ? Math.max(0, Math.min(parsedHours, 24)) : 0,
+    moduleId: String(moduleId || '').slice(0, 200), timeSlot: String(timeSlot || '').slice(0, 40),
+    timestamp: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  return { success: true, id: docId };
+});
+
 // Independent of UI toasts: API writes, deletes and partial batches are also recorded.
 export const auditDocumentWrite = onDocumentWrittenWithAuthContext({
   document: '{collectionId}/{documentId}', retry: true,

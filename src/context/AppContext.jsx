@@ -20,7 +20,7 @@ import {
   onSnapshot,
   runTransaction
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, submitTeacherAttendance } from '../firebase';
 import { COLLECTION_MODULES, assertModuleEdit } from '../utils/permissions';
 import ConfirmModal from '../components/ConfirmModal';
 import { useToast } from './ToastContext';
@@ -1593,8 +1593,8 @@ export const AppProvider = ({ children }) => {
     }
   }, [originalShowToast, hasPermission, reads, getDocs]);
 
-  const updateTeacherAttendance = async (teacherId, date, status, comment, hours = 0, moduleId = '', timeSlot = '') => {
-    requireEdit('attendance_teachers');
+  const updateTeacherAttendance = async (teacherId, date, status, comment, hours = 0, moduleId = '', timeSlot = '', portalToken = '') => {
+    if (!portalToken || !portalPath) requireEdit('attendance_teachers');
     const safeModule = (moduleId || 'global').replace(/[^a-zA-Z0-9]/g, '_');
     const safeTime = (timeSlot || '').replace(/[^0-9]/g, '') || 'x';
     const docId = `${teacherId}_${safeModule}_${safeTime}_${date}`;
@@ -1602,7 +1602,11 @@ export const AppProvider = ({ children }) => {
     const safeHours = Number.isFinite(parsedHours) && parsedHours > 0 ? parsedHours : getTimeSlotDuration(timeSlot);
     const data = { teacherId, date, status, hours: status === 'present' ? safeHours : 0, comment: comment || '', moduleId: moduleId || '', timeSlot: timeSlot || '', timestamp: serverTimestamp() };
     
-    await setDoc(doc(db, 'attendance_formateurs', docId), data, { merge: true });
+    if (portalToken && portalPath) {
+      await submitTeacherAttendance({ token: portalToken, date, status, comment: comment || '', hours: safeHours, moduleId: moduleId || '', timeSlot: timeSlot || '' });
+    } else {
+      await setDoc(doc(db, 'attendance_formateurs', docId), data, { merge: true });
+    }
     
     setTeacherAttendance(prev => {
       const updatedRecord = { id: docId, ...data };

@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import '../components/PortalTheme.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../context/AppContext';
+import { filterSchedulesForAcademicYear, INITIAL_OPERATIONAL_ACADEMIC_YEAR } from '../utils/studentStatus';
 import { useToast } from '../context/ToastContext';
 import { ALL_STUDY_YEARS, getClassCode, getModulesForStudent, MODULES_DATA } from '../data/modules';
 import { TableSkeleton } from '../components/Skeleton';
@@ -146,7 +147,12 @@ const TeacherPortal = () => {
 
   const todaysSessions = useMemo(() => {
     if (!teacher) return [];
-    const unfiltered = (schedules || []).filter(s => s.teacherId === teacher.id && s.day === dayOfWeek);
+    const activeYearSchedules = filterSchedulesForAcademicYear(
+      schedules,
+      activeAcademicYear,
+      INITIAL_OPERATIONAL_ACADEMIC_YEAR
+    );
+    const unfiltered = activeYearSchedules.filter(s => s.teacherId === teacher.id && s.day === dayOfWeek);
     
     // Deduplicate sessions that are exactly identical (same time, same filiere, same annee, same module)
     const unique = [];
@@ -154,14 +160,14 @@ const TeacherPortal = () => {
     unfiltered.forEach(s => {
       const displayModule = getActiveScheduleModule(s);
       if (!displayModule) return; // Skip if no module scheduled for active semester
-      const key = `${s.time}_${s.filiere}_${s.annee}_${displayModule}`.toLowerCase().trim();
+      const key = `${s.time}_${s.filiere}_${s.annee}_${displayModule}_${s.academicYear || activeAcademicYear || INITIAL_OPERATIONAL_ACADEMIC_YEAR}`.toLowerCase().trim();
       if (!seen.has(key)) {
         seen.add(key);
         unique.push({ ...s, displayModule });
       }
     });
     return unique;
-  }, [teacher, schedules, dayOfWeek, getActiveScheduleModule]);
+  }, [teacher, schedules, dayOfWeek, getActiveScheduleModule, activeAcademicYear]);
 
   // Load teacher attendance for today to detect if already done
   useEffect(() => {
@@ -253,7 +259,8 @@ const TeacherPortal = () => {
         `Appel stagiaires complété: ${sessionModule}`,
         calcDuration(session.time) || 4,
         sessionModule,
-        session.time || ''
+        session.time || '',
+        teacherId
       ).catch(() => {
         autoSavedTeacherSessionsRef.current.delete(autoSaveKey);
         showToast("Erreur lors de l'enregistrement de la présence formateur.", 'error');
@@ -583,7 +590,7 @@ const TeacherPortal = () => {
     const sessionModule = getSessionModule(currentSession) || selectedSubject;
     const existingTeacherRecord = getTeacherRecordForSession(currentSession);
     if (!existingTeacherRecord) {
-      await updateTeacherAttendance(teacher.id, selectedDate, 'present', `Appel validé: ${sessionModule}`, sessionDuration, sessionModule, currentSession?.time || '');
+      await updateTeacherAttendance(teacher.id, selectedDate, 'present', `Appel validé: ${sessionModule}`, sessionDuration, sessionModule, currentSession?.time || '', teacherId);
     }
     const nextCompleted = new Set(completedSessionIds);
     nextCompleted.add(currentSession.id);
@@ -616,7 +623,7 @@ const TeacherPortal = () => {
     await updateTeacherAttendance(
       teacher.id, selectedDate, 'absent',
       'Formateur absent (auto-déclaration)',
-      0, sessionModule, currentSession.time
+      0, sessionModule, currentSession.time, teacherId
     );
 
     const nextCompleted = new Set(completedSessionIds);
