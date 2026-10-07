@@ -1,5 +1,6 @@
 import { useAdminAuth } from '../context/AdminAuthContext';
 import React, { useState, useMemo, useEffect } from 'react';
+import './AttendanceColors.css';
 import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -303,7 +304,7 @@ const TeacherAttendance = () => {
   const nextMonth = () => { if (mMonth === 11) { setMMonth(0); setMYear(y => y + 1); } else setMMonth(m => m + 1); };
 
   return (
-    <div className="max-w-container section-padding attendance-premium-page attendance-premium-teachers">
+    <div className="max-w-container section-padding attendance-premium-page attendance-premium-teachers attendance-colorful-page">
       {/* Page header */}
       <div className="attendance-premium-header">
         <div className="attendance-premium-header-icon"><UserCheck size={24} /></div>
@@ -321,12 +322,10 @@ const TeacherAttendance = () => {
           { key: 'daily',   label: 'Appel Quotidien', icon: UserCheck },
           { key: 'monthly', label: 'Vue Mensuelle',    icon: CalendarRange },
         ].map(({ key, label, icon: Icon }) => (
-          <button key={key} onClick={() => setView(key)} style={{
+          <button key={key} className="attendance-view-tab" data-view={key} aria-pressed={view === key} onClick={() => setView(key)} style={{
             display: 'flex', alignItems: 'center', gap: '7px',
             padding: '8px 18px', borderRadius: 'var(--radius-lg)', border: 'none', cursor: 'pointer',
             fontSize: '13px', fontWeight: '700', transition: 'all 0.2s',
-            background: view === key ? 'white' : 'transparent',
-            color: view === key ? 'var(--primary)' : 'var(--text-muted)',
             boxShadow: view === key ? 'var(--shadow-xs)' : 'none',
           }}>
             <Icon size={15} /> {label}

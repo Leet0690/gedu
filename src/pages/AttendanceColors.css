@@ -1,0 +1,51 @@
+﻿.attendance-premium-page.attendance-colorful-page { background: radial-gradient(ellipse at top right, #eef2ff, transparent 48%), var(--bg-page); }
+.attendance-colorful-page .attendance-premium-header {
+  padding: 26px;
+  margin-bottom: 24px;
+  border: 0;
+  border-radius: 24px;
+  background: linear-gradient(115deg, #172554, #3730a3 65%, #6d28d9);
+  box-shadow: 0 12px 28px rgb(49 46 129 / 16%);
+}
+.attendance-colorful-page .attendance-premium-header h1 { color: #fff; font-size: clamp(24px, 3vw, 32px); }
+.attendance-colorful-page .attendance-premium-header p,
+.attendance-colorful-page .attendance-premium-eyebrow { color: #e0e7ff; }
+.attendance-colorful-page .attendance-premium-header-icon { color: #fff; background: rgb(255 255 255 / 15%); border-color: rgb(255 255 255 / 25%); }
+.attendance-colorful-page .attendance-premium-header-orb { color: #c4b5fd; opacity: .16; }
+.attendance-colorful-page .attendance-premium-tabs { flex-wrap: wrap; max-width: 100%; }
+.attendance-colorful-page .attendance-view-tab { --view-color: #1d4ed8; --view-soft: #eff6ff; color: var(--view-color); background: var(--view-soft); min-height: 44px; }
+.attendance-colorful-page .attendance-view-tab[data-view='monthly'] { --view-color: #6d28d9; --view-soft: #f5f3ff; }
+.attendance-colorful-page .attendance-view-tab[data-view='alerts'] { --view-color: #be123c; --view-soft: #fff1f2; }
+.attendance-colorful-page .attendance-view-tab[data-view='alerts'][aria-pressed='true'] > span { background: #fff !important; color: #be123c !important; }
+.attendance-colorful-page .attendance-view-tab[aria-pressed='true'] { color: #fff; background: var(--view-color); }
+.attendance-colorful-page .attendance-premium-filter-card { background: var(--card); border: 1px solid var(--border); border-left: 4px solid #6d28d9; border-radius: 18px; }
+.attendance-colorful-page .app-filter-grid > div { --filter-color: #1d4ed8; --filter-soft: #eff6ff; }
+.attendance-colorful-page .app-filter-grid > div:nth-child(2) { --filter-color: #6d28d9; --filter-soft: #f5f3ff; }
+.attendance-colorful-page .app-filter-grid > div:nth-child(3) { --filter-color: #0f766e; --filter-soft: #f0fdfa; }
+.attendance-colorful-page .app-filter-grid > div:nth-child(4) { --filter-color: #92400e; --filter-soft: #fffbeb; }
+.attendance-colorful-page .app-filter-grid > div:nth-child(5) { --filter-color: #0369a1; --filter-soft: #f0f9ff; }
+.attendance-colorful-page .app-filter-grid > div:nth-child(6) { --filter-color: #be123c; --filter-soft: #fff1f2; }
+.attendance-colorful-page .app-filter-grid .finance-radix-select-trigger,
+.attendance-colorful-page .app-filter-grid input.input-premium { background: var(--filter-soft); border-color: color-mix(in srgb, var(--filter-color) 25%, var(--border)); min-height: 44px; border-radius: 10px; }
+.attendance-colorful-page .attendance-premium-mini-stat { --stat-color: #1d4ed8; --stat-soft: #eff6ff; flex: 1 1 120px; background: var(--stat-soft) !important; border: 1px solid color-mix(in srgb, var(--stat-color) 22%, var(--border)); border-top: 3px solid var(--stat-color); border-radius: 16px !important; }
+.attendance-colorful-page .attendance-premium-mini-stat:nth-child(2) { --stat-color: #047857; --stat-soft: #ecfdf5; }
+.attendance-colorful-page .attendance-premium-mini-stat:nth-child(3) { --stat-color: #be123c; --stat-soft: #fff1f2; }
+.attendance-colorful-page .attendance-premium-mini-stat:nth-child(4) { --stat-color: #92400e; --stat-soft: #fffbeb; }
+.attendance-colorful-page .attendance-premium-mini-stat > p:first-child { color: var(--stat-color); }
+.attendance-colorful-page .attendance-premium-table-shell { border-radius: 18px; border-color: #c7d2fe; }
+.attendance-colorful-page table th { border-bottom: 2px solid #c7d2fe; }
+.attendance-colorful-page table tbody tr:hover { background: #f8faff; }
+.attendance-colorful-page .teacher-attendance-status-actions { border-radius: 12px; }
+.attendance-colorful-page .attendance-premium-alert-card { border-top: 4px solid #be123c; border-radius: 18px; background: var(--card); }
+.attendance-colorful-page button:focus-visible { outline: 3px solid #38bdf8; outline-offset: 3px; }
+.dark .attendance-premium-page.attendance-colorful-page { background: var(--bg-page); }
+.dark .attendance-colorful-page .attendance-premium-mini-stat { background: color-mix(in srgb, var(--stat-color) 12%, var(--card)) !important; }
+.dark .attendance-colorful-page .attendance-premium-mini-stat > p:first-child { color: color-mix(in srgb, var(--stat-color) 45%, #fff); }
+.dark .attendance-colorful-page .app-filter-grid .finance-radix-select-trigger,
+.dark .attendance-colorful-page .app-filter-grid input.input-premium,
+.dark .attendance-colorful-page table tbody tr:hover { background: var(--bg-subtle); }
+@media (max-width: 700px) {
+  .attendance-colorful-page .attendance-premium-header { padding: 20px; border-radius: 18px; }
+  .attendance-colorful-page .attendance-view-tab { padding: 9px 12px !important; }
+}
+

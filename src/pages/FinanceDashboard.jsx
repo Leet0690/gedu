@@ -1,5 +1,6 @@
 import { useAdminAuth } from '../context/AdminAuthContext';
 import React, { useState, useMemo, useEffect } from 'react';
+import './FinanceDashboard.css';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/cn';
@@ -1112,7 +1113,7 @@ const FinanceDashboard = () => {
 
 
   return (
-    <div className="section-padding finance-admin-page">
+    <div className="section-padding finance-admin-page finance-colorful-page" data-section={activeTab}>
       <div className="finance-premium-header">
         <div className="finance-premium-header-icon">
           <Wallet size={24} />
@@ -1197,7 +1198,8 @@ const FinanceDashboard = () => {
       </div>
 
       <div className="modern-tabs-container finance-premium-tabs" style={{ marginBottom: 'var(--space-6)' }}>
-        <button onClick={() => setActiveTab('payments')} className={`modern-tab ${activeTab === 'payments' ? 'active' : ''}`}>
+        <button aria-pressed={activeTab === 'payments'} data-tone="payments" onClick={() => setActiveTab('payments')} className={`modern-tab ${activeTab === 'payments' ? 'active' : ''}`}>
+          <CreditCard size={17} aria-hidden="true" />
           Paiements
           {overdueStudents.length > 0 && (
             <span style={{ marginLeft: '6px', fontSize: '10px', fontWeight: '900', background: 'rgba(220,38,38,0.12)', color: '#dc2626', borderRadius: '999px', padding: '1px 7px' }}>
@@ -1205,8 +1207,9 @@ const FinanceDashboard = () => {
             </span>
           )}
         </button>
-        <button onClick={() => setActiveTab('salaries')} className={`modern-tab ${activeTab === 'salaries' ? 'active' : ''}`}>Salaires</button>
-        <button onClick={() => setActiveTab('expenses')} className={`modern-tab ${activeTab === 'expenses' ? 'active' : ''}`}>
+        <button aria-pressed={activeTab === 'salaries'} data-tone="salaries" onClick={() => setActiveTab('salaries')} className={`modern-tab ${activeTab === 'salaries' ? 'active' : ''}`}><Wallet size={17} aria-hidden="true" />Salaires</button>
+        <button aria-pressed={activeTab === 'expenses'} data-tone="expenses" onClick={() => setActiveTab('expenses')} className={`modern-tab ${activeTab === 'expenses' ? 'active' : ''}`}>
+          <Receipt size={17} aria-hidden="true" />
           Autres Charges
           {(expenses || []).length > 0 && (
             <span style={{ marginLeft: '6px', fontSize: '10px', fontWeight: '900', background: 'rgba(220,38,38,0.12)', color: '#dc2626', borderRadius: '999px', padding: '1px 7px' }}>
@@ -1214,8 +1217,8 @@ const FinanceDashboard = () => {
             </span>
           )}
         </button>
-        <button onClick={() => setActiveTab('stats')} className={`modern-tab ${activeTab === 'stats' ? 'active' : ''}`}>Analyses</button>
-        <button onClick={() => setActiveTab('annual')} className={`modern-tab ${activeTab === 'annual' ? 'active' : ''}`}>
+        <button aria-pressed={activeTab === 'stats'} data-tone="stats" onClick={() => setActiveTab('stats')} className={`modern-tab ${activeTab === 'stats' ? 'active' : ''}`}><PieChart size={17} aria-hidden="true" />Analyses</button>
+        <button aria-pressed={activeTab === 'annual'} data-tone="annual" onClick={() => setActiveTab('annual')} className={`modern-tab ${activeTab === 'annual' ? 'active' : ''}`}>
           <Table2 size={14} style={{ marginRight: '5px' }} />Récap. Annuel
         </button>
       </div>

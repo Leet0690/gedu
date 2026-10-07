@@ -1,5 +1,6 @@
 import { useAdminAuth } from '../context/AdminAuthContext';
 import React, { useState, useMemo, useRef } from 'react';
+import './ScheduleManagement.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import { useApp } from '../context/AppContext';
@@ -307,7 +308,7 @@ const ScheduleManagement = () => {
   };
 
   return (
-    <div className="max-w-container section-padding schedule-premium-page">
+    <div className="max-w-container section-padding schedule-premium-page schedule-colorful-page">
       {/* Page Header */}
       <div className="schedule-premium-header">
         <div className="schedule-premium-header-icon">
@@ -319,7 +320,7 @@ const ScheduleManagement = () => {
           <p>Plannings hebdomadaires par filière et groupe.</p>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div className="schedule-header-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
           <button disabled={Boolean(exportingFormat)} onClick={() => handleDownload('png')} className="btn-modern secondary" style={{ padding: '6px 12px', fontSize: '12px' }} title="Télécharger en PNG">
             <ImageIcon size={16} style={{ marginRight: '6px' }} /> {exportingFormat === 'png' ? 'Export…' : 'PNG'}
           </button>

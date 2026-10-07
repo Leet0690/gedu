@@ -107,6 +107,9 @@ service cloud.firestore {
     }
     match /grades/{id} {
       allow get: if request.auth != null &&
+        exists(/databases/$(database)/documents/student_grade_sessions/$(request.auth.uid)) &&
+        validStudentGradeSession(id);
+      allow get: if request.auth != null &&
         exists(/databases/$(database)/documents/teacher_grade_sessions/$(request.auth.uid)) &&
         validTeacherGradeSession(id);
       allow create, update: if validPortalGradeToken(request.resource.data.teacherId, request.resource.data.tokenGrades, id);
@@ -115,6 +118,22 @@ service cloud.firestore {
       let session = get(/databases/$(database)/documents/teacher_grade_sessions/$(request.auth.uid)).data;
       return session.createdAt + duration.value(10, 'm') > request.time &&
         validPortalGradeToken(session.teacherId, session.tokenGrades, studentId);
+    }
+    function validStudentGradeSession(studentId) {
+      let session = get(/databases/$(database)/documents/student_grade_sessions/$(request.auth.uid)).data;
+      return session.studentId == studentId &&
+        session.createdAt + duration.value(10, 'm') > request.time &&
+        get(/databases/$(database)/documents/students/$(studentId)).data.token == session.token;
+    }
+    match /student_grade_sessions/{uid} {
+      allow get, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid &&
+        request.resource.data.keys().hasAll(['studentId', 'token', 'createdAt']) &&
+        request.resource.data.keys().hasOnly(['studentId', 'token', 'createdAt']) &&
+        request.resource.data.studentId is string && request.resource.data.token is string &&
+        request.resource.data.token.size() > 0 && request.resource.data.createdAt == request.time &&
+        get(/databases/$(database)/documents/students/$(request.resource.data.studentId)).data.token == request.resource.data.token;
+      allow list: if false;
     }
     match /teacher_grade_sessions/{uid} {
       allow get, delete: if request.auth != null && request.auth.uid == uid;

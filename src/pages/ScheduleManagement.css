@@ -1,0 +1,48 @@
+.schedule-premium-page.schedule-colorful-page { background: radial-gradient(ellipse at top right, #eef2ff, transparent 48%), var(--bg-page); }
+.schedule-colorful-page .schedule-premium-header {
+  padding: 26px;
+  margin-bottom: 24px;
+  border: 0;
+  border-radius: 24px;
+  background: linear-gradient(115deg, #172554, #3730a3 65%, #6d28d9);
+  box-shadow: 0 12px 28px rgb(49 46 129 / 16%);
+}
+.schedule-colorful-page .schedule-premium-header h1 { color: #fff; font-size: clamp(24px, 3vw, 32px); }
+.schedule-colorful-page .schedule-premium-header p,
+.schedule-colorful-page .schedule-premium-eyebrow { color: #e0e7ff; }
+.schedule-colorful-page .schedule-premium-header-icon { color: #fff; background: rgb(255 255 255 / 15%); border-color: rgb(255 255 255 / 25%); }
+.schedule-colorful-page .schedule-premium-header-orb { color: #c4b5fd; opacity: .16; }
+.schedule-colorful-page .schedule-header-actions { position: relative; z-index: 1; }
+.schedule-colorful-page .schedule-header-actions .btn-modern { min-height: 44px; border-radius: 12px; }
+.schedule-colorful-page .schedule-header-actions .btn-modern.secondary { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.schedule-colorful-page .schedule-header-actions .btn-modern.secondary:nth-child(2) { background: #fff1f2; color: #be123c; border-color: #fecdd3; }
+.schedule-colorful-page .schedule-header-actions .btn-modern.secondary:nth-child(3) { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+.schedule-colorful-page .schedule-header-actions .schedule-premium-add { background: #fff; color: #4338ca; border: 1px solid #fff; }
+.schedule-colorful-page .schedule-header-actions .schedule-premium-add:hover:not(:disabled) { background: #eef2ff; }
+.schedule-colorful-page .schedule-premium-filter-card { background: var(--card); border: 1px solid var(--border); border-left: 4px solid #6d28d9; border-radius: 18px; }
+.schedule-colorful-page .schedule-premium-filter-card > div { --filter-color: #6d28d9; --filter-soft: #f5f3ff; }
+.schedule-colorful-page .schedule-premium-filter-card > div:nth-child(2) { --filter-color: #047857; --filter-soft: #ecfdf5; }
+.schedule-colorful-page .schedule-premium-filter-card > div:nth-child(3) { --filter-color: #92400e; --filter-soft: #fffbeb; }
+.schedule-colorful-page .schedule-premium-filter-card .finance-radix-select-trigger { background: var(--filter-soft); border-color: color-mix(in srgb, var(--filter-color) 25%, var(--border)); min-height: 44px; border-radius: 10px; }
+.schedule-colorful-page .schedule-premium-grid-shell { border-radius: 18px; border-color: #c7d2fe; box-shadow: 0 5px 16px rgb(15 23 42 / 5%); }
+.schedule-colorful-page .home-schedule-header-row { background: #eef2ff; }
+.schedule-colorful-page .home-schedule-corner-inverted,
+.schedule-colorful-page .home-schedule-hour-col-header { background: #eef2ff; color: #3730a3; }
+.schedule-colorful-page .home-schedule-event { background: var(--event-bg); border-color: var(--event-border); color: var(--event-text); border-radius: 12px; box-shadow: 0 3px 9px rgb(15 23 42 / 7%); }
+.schedule-colorful-page .home-schedule-event-title { color: var(--event-text); }
+.schedule-colorful-page .home-schedule-event-time { color: var(--event-color); }
+.schedule-colorful-page .home-schedule-event-rail-horizontal { background: var(--event-rail); }
+.schedule-colorful-page .schedule-premium-dialog { border-top: 4px solid #6d28d9; border-radius: 20px; }
+.schedule-colorful-page button:focus-visible { outline: 3px solid #38bdf8; outline-offset: 3px; }
+.dark .schedule-premium-page.schedule-colorful-page { background: var(--bg-page); }
+.dark .schedule-colorful-page .schedule-premium-filter-card .finance-radix-select-trigger { background: var(--bg-subtle); }
+.dark .schedule-colorful-page .home-schedule-header-row,
+.dark .schedule-colorful-page .home-schedule-corner-inverted,
+.dark .schedule-colorful-page .home-schedule-hour-col-header { background: var(--bg-subtle); color: var(--text-secondary); }
+@media (max-width: 900px) {
+  .schedule-colorful-page .schedule-premium-header { flex-wrap: wrap; }
+  .schedule-colorful-page .schedule-header-actions { width: 100%; }
+}
+@media (max-width: 700px) {
+  .schedule-colorful-page .schedule-premium-header { padding: 20px; border-radius: 18px; }
+}

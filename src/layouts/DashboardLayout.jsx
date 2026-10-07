@@ -83,7 +83,6 @@ const NAV_CATEGORIES = [
       { to: "/admin/continuous", icon: GraduationCap, label: "Formations Continues", color: "text-brand-500", pageKey: 'continuous' },
       { to: "/admin/finance", icon: Wallet, label: "Finance", color: "text-green-600", pageKey: 'finance' },
       { to: "/admin/users", icon: ShieldCheck, label: "Utilisateurs & Droits", color: "text-blue-600", pageKey: 'users' },
-      { to: "/admin/logs", icon: ClipboardList, label: "Journaux d'accès", color: "text-slate-500", pageKey: 'logs' },
     ]
   }
 ];

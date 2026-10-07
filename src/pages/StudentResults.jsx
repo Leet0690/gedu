@@ -7,7 +7,6 @@ import { useApp } from '../context/AppContext';
 import { getGradeByModuleName, getStudentGradeModules } from '../utils/gradeSync';
 import {
   getStudentResultsGrades,
-  getStudentResultsRank,
   hasStudentResultsGrades,
   selectStudentStudyYear,
 } from '../utils/studentResults';
@@ -73,7 +72,7 @@ const Grade = ({ val }) => {
 const StudentResults = () => {
   const { studentId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { students = [], grades = {}, loading = false, modules: allModules = [], operationalAcademicYear } = useApp() || {};
+  const { students = [], grades = {}, loading = false, modules: allModules = [], operationalAcademicYear, studentPortalGradesError = '' } = useApp() || {};
 
   const student = students.find(s => s?.token && s.token === studentId);
 
@@ -133,13 +132,8 @@ const StudentResults = () => {
   const completedModules = moduleScores.filter(s => s.hasGrades).length;
   const validatedModules = moduleScores.filter(s => s.passed).length;
 
-  const classRank = useMemo(() => getStudentResultsRank({
-    students,
-    grades,
-    allModules,
-    studentSnapshot: activeStudentSnapshot,
-    operationalAcademicYear,
-  }), [students, grades, activeStudentSnapshot, allModules, operationalAcademicYear]);
+  // A personal link cannot read classmates' private grade documents.
+  const classRank = { rank: null, total: 0 };
 
   const handleSelectYear = (key) => {
     setSearchParams(
@@ -182,6 +176,16 @@ const StudentResults = () => {
 
   if (loading) {
     return <div className="max-w-container section-padding"><PortalBrand /><TableSkeleton rows={10} /></div>;
+  }
+
+  if (studentPortalGradesError) {
+    return (
+      <div className="max-w-container section-padding">
+        <PortalBrand />
+        <div role="alert"><p>{studentPortalGradesError}</p></div>
+        <button className="btn-modern primary" onClick={() => window.location.reload()}>Réessayer</button>
+      </div>
+    );
   }
 
   if (!student) {

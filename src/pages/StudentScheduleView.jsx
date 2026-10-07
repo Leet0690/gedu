@@ -1,5 +1,6 @@
 import PortalBrand from '../components/PortalBrand';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import './ScheduleManagement.css';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CalendarDays, Clock, User, MapPin, Download, RefreshCw, Image as ImageIcon } from 'lucide-react';
@@ -117,9 +118,16 @@ const StudentScheduleView = () => {
 
   if (request.loading || request.error) {
     return (
-      <div className="max-w-container section-padding schedule-premium-page" style={{ paddingTop: '40px' }}>
+      <div className="max-w-container section-padding schedule-premium-page schedule-colorful-page" style={{ paddingTop: '40px' }}>
       <PortalBrand />
-        <h1>Consultation de l’emploi du temps</h1>
+        <div className="schedule-premium-header">
+          <div className="schedule-premium-header-icon"><CalendarDays size={24} /></div>
+          <div className="schedule-premium-header-copy">
+            <span className="schedule-premium-eyebrow">Consultation Stagiaire</span>
+            <h1>Consultation de l’emploi du temps</h1>
+            <p>Votre planning hebdomadaire et vos séances de cours.</p>
+          </div>
+        </div>
         {request.loading ? <p role="status">Chargement de l’emploi du temps…</p> : (
           <div role="alert">
             <p>{request.error}</p>
@@ -131,7 +139,7 @@ const StudentScheduleView = () => {
   }
 
   return (
-    <div className="max-w-container section-padding schedule-premium-page" style={{ paddingTop: '40px' }}>
+    <div className="max-w-container section-padding schedule-premium-page schedule-colorful-page" style={{ paddingTop: '40px' }}>
       <PortalBrand />
       <div className="schedule-premium-header">
         <div className="schedule-premium-header-icon">
@@ -143,7 +151,7 @@ const StudentScheduleView = () => {
           <p>{filiere} ({annee}) · Consultation en lecture seule</p>
         </div>
         
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div className="schedule-header-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
           <button onClick={() => setRefreshVersion(value => value + 1)} className="btn-modern secondary" style={{ padding: '6px 12px', fontSize: '12px' }}>
             <RefreshCw size={16} style={{ marginRight: '6px' }} /> Actualiser
           </button>

@@ -35,8 +35,6 @@ import { getScheduleModuleForSemester, normalizeSemester } from '../utils/schedu
 import {
   getAvailableAcademicYears,
   getPaymentAcademicYear,
-  getStudentAcademicSnapshot,
-  getStudentAvailableStudyYears,
   getStudentCurrentAcademicYear,
   INITIAL_OPERATIONAL_ACADEMIC_YEAR,
   isActiveStudent,
@@ -51,7 +49,7 @@ import { getPageCollections } from '../utils/dataRequirements';
 import { startAutoRefresh } from '../utils/autoRefresh';
 import { getTeacherPortalSettings, publishScheduleSettings } from '../services/teacherPortalService';
 import { getPublicScheduleSettings } from '../utils/publicScheduleSettings';
-import { loadTeacherPortalGrades, closeTeacherGradePortalConnection } from '../services/teacherGradePortalService';
+import { loadTeacherPortalGrades, loadStudentPortalGrades, closeTeacherGradePortalConnection } from '../services/teacherGradePortalService';
 
 const AppContext = createContext();
 const ACCESS_LOG_LIMIT = 5;
@@ -525,6 +523,7 @@ export const AppProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [teacherPortalSettingsError, setTeacherPortalSettingsError] = useState('');
   const [teacherPortalGradesError, setTeacherPortalGradesError] = useState('');
+  const [studentPortalGradesError, setStudentPortalGradesError] = useState('');
   const loadedPathRef = useRef(null);
   const accessLoggedRef = useRef(false);
 
@@ -721,46 +720,35 @@ export const AppProvider = ({ children }) => {
           await Promise.all(getPageCollections(pathname).map(loadCollection));
 
         } else if (isStudentPortal) {
-          // 2. Portail stagiaire : données personnelles et cohortes des années consultables.
+          setLoading(true);
+          setStudentPortalGradesError('');
+          setGrades({});
+          setStudents([]);
+          setModules([]);
+          // 2. Portail stagiaire : lecture personnelle autorisée par son lien.
           const token = path.split('/').filter(Boolean).pop();
           const stuQuery = query(collection(db, 'students'), where('token', '==', token), limit(1));
           const stuSnap = await getDocs(stuQuery);
+          if (!isMounted) return;
           const studentDoc = stuSnap.docs[0];
 
           if (studentDoc && isMounted) {
-            const studentData = studentDoc.data();
-            const currentStudent = { id: studentDoc.id, ...studentData };
-            const portalAcademicYear = operationalAcademicYearRef.current;
-            const classSnapshots = getStudentAvailableStudyYears(currentStudent, portalAcademicYear)
-              .map(({ academicYear }) => getStudentAcademicSnapshot(currentStudent, academicYear, portalAcademicYear))
-              .filter(Boolean);
-            const majors = [...new Set([studentData.major, ...classSnapshots.map(snapshot => snapshot.major)])]
-              .filter(major => typeof major === 'string' && major.trim());
-            const candidates = new Map([[currentStudent.id, currentStudent]]);
-            // Query only relevant majors. A peer who transferred outside all of
-            // them requires a historical-major index to be discoverable here.
-            for (let i = 0; i < majors.length; i += 10) {
-              const classSnap = await getDocs(query(collection(db, 'students'), where('major', 'in', majors.slice(i, i + 10))));
-              if (!isMounted) return;
-              classSnap.docs.forEach(item => candidates.set(item.id, { id: item.id, ...item.data() }));
-            }
-            const portalStudents = [...candidates.values()].filter(student =>
-              student.id === currentStudent.id || classSnapshots.some(classSnapshot => {
-                const snapshot = getStudentAcademicSnapshot(student, classSnapshot.academicYear, portalAcademicYear);
-                return snapshot && snapshot.diploma === classSnapshot.diploma &&
-                  snapshot.major === classSnapshot.major && snapshot.year === classSnapshot.year;
-              })
-            );
+            const portalSettings = await getTeacherPortalSettings();
             if (!isMounted) return;
-            setStudents(portalStudents);
-
-            const gradesData = {};
-            const studentIds = portalStudents.map(student => student.id).filter(Boolean);
-            for (let i = 0; i < studentIds.length; i += 10) {
-              const gradeSnap = await getDocs(query(collection(db, 'grades'), where('__name__', 'in', studentIds.slice(i, i + 10))));
-              if (!isMounted) return;
-              gradeSnap.docs.forEach(item => { gradesData[item.id] = item.data(); });
+            operationalAcademicYearRef.current = portalSettings.operationalAcademicYear;
+            setOperationalAcademicYearState(portalSettings.operationalAcademicYear);
+            setActiveAcademicYearState(portalSettings.operationalAcademicYear);
+            const studentData = studentDoc.data();
+            const currentStudent = { ...studentData, id: studentDoc.id };
+            setStudents([currentStudent]);
+            let gradesData;
+            try {
+              gradesData = await loadStudentPortalGrades(currentStudent.id, token);
+            } catch (error) {
+              if (isMounted) setStudentPortalGradesError('Impossible de charger les notes. Actualisez la page pour réessayer.');
+              throw error;
             }
+            if (!isMounted) return;
             setGrades(gradesData);
 
             const modSnap = await getDocs(query(collection(db, 'modules'), orderBy('name', 'asc')));
@@ -848,6 +836,9 @@ export const AppProvider = ({ children }) => {
           setStudentAttendance([]);
         }
       } catch (error) {
+        if (isMounted && portalPath.startsWith('/results/')) {
+          setStudentPortalGradesError('Impossible de charger le relevé. Actualisez la page pour réessayer.');
+        }
         console.error("Erreur lors de la récupération des données:", error);
         if (isMounted) originalShowToast("Impossible de charger certaines données. Vérifiez votre connexion et les autorisations Firebase.", 'error');
       } finally {
@@ -2042,7 +2033,7 @@ export const AppProvider = ({ children }) => {
       ctStudents, addCtStudent, updateCtStudent, deleteCtStudent,
       ctSessions, addCtSession, updateCtSession, deleteCtSession,
       accessLogs, logAppAccess, loadAccessLogs,
-      activeSemester, setActiveSemester, getActiveScheduleModule, teacherPortalSettingsError, teacherPortalGradesError,
+      activeSemester, setActiveSemester, getActiveScheduleModule, teacherPortalSettingsError, teacherPortalGradesError, studentPortalGradesError,
       activeAcademicYear, setActiveAcademicYear, operationalAcademicYear, availableAcademicYearsList,
       confirmAction, notifications: visibleNotifications, activityError, markNotificationAsRead, clearNotifications,
       logActivity

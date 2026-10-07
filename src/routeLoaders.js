@@ -34,8 +34,6 @@ const routeKeysByPath = {
   '/admin/attendance-teachers': 'teacherAttendance',
   '/admin/finance': 'financeDashboard',
   '/admin/continuous': 'continuousTrainings',
-  '/admin/logs': 'accessLogs',
-  '/admin/access-logs': 'accessLogs',
   '/admin/schedule-generation': 'scheduleGeneration',
   '/admin/users': 'userManagement',
 };

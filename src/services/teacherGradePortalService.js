@@ -1,7 +1,8 @@
 import { deleteUser } from 'firebase/auth';
 import { getFirestore, terminate } from 'firebase/firestore';
 import { createSecondaryAuth } from '../firebase';
-import { createTemporaryPortalIdentity, readTeacherPortalGrades } from './teacherGradePortalClient.js';
+import { createTemporaryPortalIdentity, readTeacherPortalGrades, readStudentPortalGrades } from './teacherGradePortalClient.js';
+import { createSerialTaskQueue } from '../utils/serialTaskQueue.js';
 
 let connectionPromise;
 
@@ -10,7 +11,7 @@ async function createPortalConnection() {
   const { secondaryAuth, cleanup } = await createSecondaryAuth();
   try {
     const { user } = await createTemporaryPortalIdentity(secondaryAuth);
-    return { portalDb: getFirestore(secondaryAuth.app), uid: user.uid, secondaryAuth, cleanup };
+    return { portalDb: getFirestore(secondaryAuth.app), uid: user.uid, secondaryAuth, cleanup, reads: createSerialTaskQueue() };
   } catch (error) {
     await cleanup();
     throw error;
@@ -23,8 +24,8 @@ export async function loadTeacherPortalGrades(teacherId, tokenGrades, studentIds
     connectionPromise = undefined;
     throw error;
   });
-  const { portalDb, uid } = await connectionPromise;
-  return readTeacherPortalGrades(portalDb, uid, teacherId, tokenGrades, studentIds);
+  const connection = await connectionPromise;
+  return connection.reads.run(() => readTeacherPortalGrades(connection.portalDb, connection.uid, teacherId, tokenGrades, studentIds));
 }
 
 export async function closeTeacherGradePortalConnection() {
@@ -34,9 +35,19 @@ export async function closeTeacherGradePortalConnection() {
   const connection = await previous.catch(() => null);
   if (!connection) return;
   try {
+    await connection.reads.drain();
     await terminate(connection.portalDb);
     if (connection.secondaryAuth.currentUser) await deleteUser(connection.secondaryAuth.currentUser).catch(() => {});
   } finally {
     await connection.cleanup();
   }
+}
+
+export async function loadStudentPortalGrades(studentId, token) {
+  if (!connectionPromise) connectionPromise = createPortalConnection().catch(error => {
+    connectionPromise = undefined;
+    throw error;
+  });
+  const connection = await connectionPromise;
+  return connection.reads.run(() => readStudentPortalGrades(connection.portalDb, connection.uid, studentId, token));
 }

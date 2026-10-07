@@ -1,4 +1,5 @@
 import './DashboardStats.css';
+import './DirectoryColors.css';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1682,7 +1683,7 @@ const AdminDashboard = () => {
               {activeTab === 'students' ? 'Liste des Stagiaires' : 'Liste des Formateurs'}
             </h1>
             <p>
-              Gestion du personnel et des apprenants
+              {activeTab === 'teachers' ? 'Votre équipe pédagogique, ses modules et ses portails en un seul endroit.' : 'Vos stagiaires, leurs parcours et leurs dossiers en un seul endroit.'}
             </p>
           </div>
           <div className="directory-premium-header-actions">
@@ -1706,7 +1707,7 @@ const AdminDashboard = () => {
               }}
               className="btn-modern primary"
             >
-              <Plus size={14} style={{ marginRight: '6px' }} /> Ajouter
+              <Plus size={14} style={{ marginRight: '6px' }} /> {activeTab === 'teachers' ? 'Ajouter un formateur' : 'Ajouter un stagiaire'}
             </button>
           </div>
           <div className="directory-premium-header-orb" aria-hidden="true">
@@ -1741,6 +1742,38 @@ const AdminDashboard = () => {
 
       {!isDashboard && (
         <>
+          {activeTab === 'teachers' && (
+            <div className="directory-overview-grid" aria-label="Vue d'ensemble de l'équipe pédagogique">
+              <div className="directory-overview-card directory-overview-team">
+                <Presentation size={23} aria-hidden="true" />
+                <div><span>Équipe pédagogique</span><strong>{(teachers || []).length}</strong><p>Formateurs enregistrés</p></div>
+              </div>
+              <div className="directory-overview-card directory-overview-modules">
+                <FileText size={23} aria-hidden="true" />
+                <div><span>Modules enseignés</span><strong>{new Set((teachers || []).flatMap(teacher => teacher.subjects || [teacher.subject]).filter(Boolean)).size}</strong><p>Modules distincts attribués</p></div>
+              </div>
+              <div className="directory-overview-card directory-overview-results">
+                <Search size={23} aria-hidden="true" />
+                <div><span>Résultats de recherche</span><strong>{table.getFilteredRowModel().rows.length}</strong><p>Formateurs correspondant aux filtres</p></div>
+              </div>
+            </div>
+          )}
+          {activeTab === 'students' && (
+            <div className="directory-overview-grid" aria-label="Vue d'ensemble des stagiaires">
+              <div className="directory-overview-card directory-overview-team">
+                <UsersIcon size={23} aria-hidden="true" />
+                <div><span>Stagiaires inscrits</span><strong>{activeYearStudents.length}</strong><p>Année {activeAcademicYear || operationalAcademicYear}</p></div>
+              </div>
+              <div className="directory-overview-card directory-overview-modules">
+                <GraduationCap size={23} aria-hidden="true" />
+                <div><span>Filières représentées</span><strong>{new Set(activeYearStudents.map(student => student.major).filter(Boolean)).size}</strong><p>Parcours des stagiaires inscrits</p></div>
+              </div>
+              <div className="directory-overview-card directory-overview-results">
+                <Search size={23} aria-hidden="true" />
+                <div><span>Résultats de recherche</span><strong>{!statusFilter && !(diplomaFilter && yearFilter && categoryFilter) ? '—' : table.getFilteredRowModel().rows.length}</strong><p>{!statusFilter && !(diplomaFilter && yearFilter && categoryFilter) ? 'Sélectionnez vos filtres pour afficher la liste' : 'Stagiaires correspondant aux filtres'}</p></div>
+              </div>
+            </div>
+          )}
           <div className={`glass-card directory-premium-filter-card app-filter-grid ${activeTab === 'students' ? 'app-filter-grid--6' : 'app-filter-grid--4'}`} style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
             <div>
               <label style={labelStyle}>Recherche</label>
@@ -1837,7 +1870,7 @@ const AdminDashboard = () => {
           </div>
 
           {activeTab === 'students' && !statusFilter && !(diplomaFilter && yearFilter && categoryFilter) ? (
-            <div style={{
+            <div className="directory-filter-prompt" style={{
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',

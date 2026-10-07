@@ -1,0 +1,132 @@
+﻿/* Shared directory colors, scoped to students and teachers; the home dashboard is unaffected. */
+.directory-premium-page:is(.directory-premium-teachers, .directory-premium-students) {
+  background: radial-gradient(ellipse at top right, #eef2ff, transparent 48%), var(--bg-page);
+}
+:is(.directory-premium-teachers, .directory-premium-students) .directory-premium-header {
+  padding: 26px;
+  margin-bottom: 24px;
+  border: 0;
+  border-radius: 24px;
+  background: linear-gradient(115deg, #172554, #3730a3 65%, #6d28d9);
+  box-shadow: 0 12px 28px rgb(49 46 129 / 16%);
+}
+:is(.directory-premium-teachers, .directory-premium-students) .directory-premium-header h1 { color: #fff; font-size: clamp(24px, 3vw, 32px); }
+:is(.directory-premium-teachers, .directory-premium-students) .directory-premium-header p,
+:is(.directory-premium-teachers, .directory-premium-students) .directory-premium-eyebrow { color: #e0e7ff; }
+:is(.directory-premium-teachers, .directory-premium-students) .directory-premium-header-icon {
+  color: #fff;
+  background: rgb(255 255 255 / 15%);
+  border-color: rgb(255 255 255 / 25%);
+}
+:is(.directory-premium-teachers, .directory-premium-students) .directory-premium-header-orb { color: #c4b5fd; opacity: .16; }
+:is(.directory-premium-teachers, .directory-premium-students) .directory-premium-header-actions .btn-modern.primary {
+  background: #fff;
+  color: #4338ca;
+  border: 1px solid #fff;
+  border-radius: 12px;
+  min-height: 44px;
+}
+:is(.directory-premium-teachers, .directory-premium-students) .directory-premium-header-actions .btn-modern.primary:hover:not(:disabled) { background: #eef2ff; }
+:is(.directory-premium-teachers, .directory-premium-students) .directory-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+:is(.directory-premium-teachers, .directory-premium-students) .directory-overview-card {
+  --overview-color: #1d4ed8;
+  --overview-soft: #eff6ff;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px;
+  background: var(--overview-soft);
+  border: 1px solid color-mix(in srgb, var(--overview-color) 22%, var(--border));
+  border-top: 3px solid var(--overview-color);
+  border-radius: 20px;
+  box-shadow: 0 5px 16px rgb(15 23 42 / 5%);
+}
+:is(.directory-premium-teachers, .directory-premium-students) .directory-overview-modules { --overview-color: #6d28d9; --overview-soft: #f5f3ff; }
+:is(.directory-premium-teachers, .directory-premium-students) .directory-overview-results { --overview-color: #047857; --overview-soft: #ecfdf5; }
+:is(.directory-premium-teachers, .directory-premium-students) .directory-overview-card > svg {
+  box-sizing: content-box;
+  flex-shrink: 0;
+  padding: 12px;
+  color: var(--overview-color);
+  background: rgb(255 255 255 / 70%);
+  border-radius: 14px;
+}
+:is(.directory-premium-teachers, .directory-premium-students) .directory-overview-card span { display: block; font-size: 13px; font-weight: 600; color: #334155; }
+:is(.directory-premium-teachers, .directory-premium-students) .directory-overview-card strong { display: block; margin-top: 6px; font-size: 32px; line-height: 1.2; letter-spacing: -.04em; color: var(--overview-color); }
+:is(.directory-premium-teachers, .directory-premium-students) .directory-overview-card p { margin: 5px 0 0; font-size: 12px; line-height: 1.5; color: #475569; }
+:is(.directory-premium-teachers, .directory-premium-students) .directory-premium-filter-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left: 4px solid #6d28d9;
+  border-radius: 18px;
+  box-shadow: var(--shadow-sm);
+}
+:is(.directory-premium-teachers, .directory-premium-students) .directory-premium-filter-card > div {
+  --filter-color: #1d4ed8;
+  --filter-soft: #eff6ff;
+}
+:is(.directory-premium-teachers, .directory-premium-students) .directory-premium-filter-card > div:nth-child(2) { --filter-color: #6d28d9; --filter-soft: #f5f3ff; }
+:is(.directory-premium-teachers, .directory-premium-students) .directory-premium-filter-card > div:nth-child(3) { --filter-color: #92400e; --filter-soft: #fffbeb; }
+:is(.directory-premium-teachers, .directory-premium-students) .directory-premium-filter-card > div:nth-child(4) { --filter-color: #0f766e; --filter-soft: #f0fdfa; }
+:is(.directory-premium-teachers, .directory-premium-students) .directory-premium-filter-card .finance-radix-select-trigger,
+:is(.directory-premium-teachers, .directory-premium-students) .directory-premium-filter-card .input-premium {
+  background: var(--filter-soft);
+  border-color: color-mix(in srgb, var(--filter-color) 25%, var(--border));
+  min-height: 44px;
+  border-radius: 10px;
+}
+:is(.directory-premium-teachers, .directory-premium-students) .directory-premium-list .dashboard-grid-row {
+  --row-accent: #2563eb;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--row-accent);
+  border-radius: 15px;
+  box-shadow: 0 2px 6px rgb(15 23 42 / 3%);
+  margin-bottom: 7px;
+}
+:is(.directory-premium-teachers, .directory-premium-students) .dashboard-grid-row:nth-child(3n + 2) { --row-accent: #7c3aed; }
+:is(.directory-premium-teachers, .directory-premium-students) .dashboard-grid-row:nth-child(3n) { --row-accent: #0f766e; }
+:is(.directory-premium-teachers, .directory-premium-students) .directory-premium-list .dashboard-grid-row:hover { background: #f8faff; border-color: #c7d2fe; border-left-color: var(--row-accent); }
+:is(.directory-premium-teachers, .directory-premium-students) button:focus-visible { outline: 3px solid #38bdf8; outline-offset: 3px; }
+:is(.directory-premium-teachers, .directory-premium-students) .directory-premium-dialog { border-top: 4px solid #6d28d9; border-radius: 20px; }
+.dark .directory-premium-page:is(.directory-premium-teachers, .directory-premium-students) { background: var(--bg-page); }
+.dark :is(.directory-premium-teachers, .directory-premium-students) .directory-overview-card { background: color-mix(in srgb, var(--overview-color) 12%, var(--card)); }
+.dark :is(.directory-premium-teachers, .directory-premium-students) .directory-overview-card strong,
+.dark :is(.directory-premium-teachers, .directory-premium-students) .directory-overview-card > svg { color: color-mix(in srgb, var(--overview-color) 45%, #fff); }
+.dark :is(.directory-premium-teachers, .directory-premium-students) .directory-overview-card > svg { background: var(--card); }
+.dark :is(.directory-premium-teachers, .directory-premium-students) .directory-overview-card span,
+.dark :is(.directory-premium-teachers, .directory-premium-students) .directory-overview-card p { color: var(--text-secondary); }
+.dark :is(.directory-premium-teachers, .directory-premium-students) .directory-premium-filter-card .finance-radix-select-trigger,
+.dark :is(.directory-premium-teachers, .directory-premium-students) .directory-premium-filter-card .input-premium,
+.dark :is(.directory-premium-teachers, .directory-premium-students) .directory-premium-list .dashboard-grid-row:hover { background: var(--bg-subtle); }
+.directory-premium-students .directory-premium-filter-card > div:nth-child(2) { --filter-color: #1d4ed8; --filter-soft: #eff6ff; }
+.directory-premium-students .directory-premium-filter-card > div:nth-child(3) { --filter-color: #047857; --filter-soft: #ecfdf5; }
+.directory-premium-students .directory-premium-filter-card > div:nth-child(4) { --filter-color: #6d28d9; --filter-soft: #f5f3ff; }
+.directory-premium-students .directory-premium-filter-card > div:nth-child(5) { --filter-color: #92400e; --filter-soft: #fffbeb; }
+.directory-premium-students .directory-premium-filter-card > div:nth-child(6) { --filter-color: #0f766e; --filter-soft: #f0fdfa; }
+.directory-premium-students .directory-filter-prompt {
+  background: linear-gradient(120deg, #eff6ff, #f5f3ff) !important;
+  border-color: #c7d2fe !important;
+}
+.directory-premium-students .directory-premium-header-actions .btn-modern:not(.primary) {
+  background: #fef3c7 !important;
+  color: #78350f !important;
+  border: 1px solid #fde68a;
+  min-height: 44px;
+}
+.dark .directory-premium-students .directory-filter-prompt { background: var(--bg-subtle) !important; border-color: var(--border) !important; }
+@media (max-width: 1000px) {
+  :is(.directory-premium-teachers, .directory-premium-students) .directory-overview-card { gap: 10px; padding: 16px; }
+  :is(.directory-premium-teachers, .directory-premium-students) .directory-overview-card > svg { padding: 8px; }
+}
+@media (max-width: 700px) {
+  :is(.directory-premium-teachers, .directory-premium-students) .directory-overview-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  :is(.directory-premium-teachers, .directory-premium-students) .directory-premium-header { padding: 20px; border-radius: 18px; }
+  :is(.directory-premium-teachers, .directory-premium-students) .directory-overview-card { padding: 16px; }
+}
+

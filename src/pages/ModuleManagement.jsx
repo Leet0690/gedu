@@ -1,5 +1,6 @@
 import { useAdminAuth } from '../context/AdminAuthContext';
 import React, { useState, useMemo, useEffect } from 'react';
+import './ModuleManagement.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import { useApp } from '../context/AppContext';
@@ -533,7 +534,7 @@ const ModuleManagement = () => {
   };
 
   return (
-    <div className="module-premium-page">
+    <div className="module-premium-page module-colorful-page">
       <header className="module-premium-header">
         <div className="module-premium-header-icon">
           <Boxes size={24} />
@@ -552,6 +553,21 @@ const ModuleManagement = () => {
           <BookOpen size={112} />
         </div>
       </header>
+
+      <div className="module-overview-grid" aria-label="Vue d'ensemble du référentiel">
+        <div className="module-overview-card module-overview-year">
+          <Boxes size={23} aria-hidden="true" />
+          <div><span>Référentiel académique</span><strong>{filterAcademicYear || 'Toutes les années'}</strong><p>Année sélectionnée</p></div>
+        </div>
+        <div className="module-overview-card module-overview-count">
+          <BookOpen size={23} aria-hidden="true" />
+          <div><span>Modules de la sélection</span><strong>{isFiltersSelected ? groupedModules.length : '—'}</strong><p>{isFiltersSelected ? 'Modules regroupés par classe' : 'Choisissez un niveau, une année et une filière'}</p></div>
+        </div>
+        <div className="module-overview-card module-overview-class">
+          <SlidersHorizontal size={23} aria-hidden="true" />
+          <div><span>Classe sélectionnée</span><strong>{filterMajor || 'À sélectionner'}</strong><p>{[filterDiploma && getDiplomaLabel(filterDiploma), filterYear, filterSemester].filter(Boolean).join(' · ') || 'Affinez les filtres pour consulter les modules'}</p></div>
+        </div>
+      </div>
 
       {/* Filters */}
       <div className="glass-card module-premium-filter-card">

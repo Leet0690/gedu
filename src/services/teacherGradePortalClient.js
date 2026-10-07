@@ -29,3 +29,16 @@ export async function readTeacherPortalGrades(db, uid, teacherId, tokenGrades, s
     });
   }
 }
+
+export async function readStudentPortalGrades(db, uid, studentId, token) {
+  const sessionRef = doc(db, 'student_grade_sessions', uid);
+  await setDoc(sessionRef, { studentId, token, createdAt: serverTimestamp() });
+  try {
+    const snapshot = await getDocFromServer(doc(db, 'grades', studentId));
+    return snapshot.exists() ? { [studentId]: snapshot.data() } : {};
+  } finally {
+    await deleteDoc(sessionRef).catch(() => {
+      console.warn('La session de lecture des notes expirera automatiquement.');
+    });
+  }
+}

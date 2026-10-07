@@ -23,7 +23,6 @@ const FinanceDashboard         = lazy(() => loadRoute('financeDashboard'));
 const ModuleManagement         = lazy(() => loadRoute('moduleManagement'));
 const MonthlyAttendance        = lazy(() => loadRoute('monthlyAttendance'));
 const MonthlyAttendanceTeachers = lazy(() => loadRoute('monthlyAttendanceTeachers'));
-const AccessLogs               = lazy(() => loadRoute('accessLogs'));
 const ScheduleGeneration       = lazy(() => loadRoute('scheduleGeneration'));
 const ContinuousTrainings      = lazy(() => loadRoute('continuousTrainings'));
 const UserManagement           = lazy(() => loadRoute('userManagement'));
@@ -131,10 +130,10 @@ const AppContent = () => {
         <Route path="/admin/attendance-teachers" element={<ProtectedRoute pageKey="attendance_teachers"><TeacherAttendance /></ProtectedRoute>} />
         <Route path="/admin/finance" element={<ProtectedRoute pageKey="finance"><FinanceDashboard /></ProtectedRoute>} />
         <Route path="/admin/continuous" element={<ProtectedRoute pageKey="continuous"><ContinuousTrainings /></ProtectedRoute>} />
-        <Route path="/admin/logs" element={<ProtectedRoute pageKey="logs"><AccessLogs /></ProtectedRoute>} />
+        <Route path="/admin/logs" element={<Navigate to="/" replace />} />
         <Route path="/admin/schedule-generation" element={<ProtectedRoute pageKey="schedule_generation"><ScheduleGeneration /></ProtectedRoute>} />
         <Route path="/admin/users" element={<ProtectedRoute pageKey="users"><UserManagement /></ProtectedRoute>} />
-        <Route path="/admin/access-logs" element={<Navigate to="/admin/logs" replace />} />
+        <Route path="/admin/access-logs" element={<Navigate to="/" replace />} />
         <Route path="/portal/:teacherId" element={<TeacherPortal />} />
         <Route path="/teacher/:teacherId" element={<TeacherPortal />} />
         <Route path="/results/:studentId" element={<StudentResults />} />

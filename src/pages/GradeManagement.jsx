@@ -1,5 +1,6 @@
 import { useAdminAuth } from '../context/AdminAuthContext';
 import React, { useState, useMemo, useEffect } from 'react';
+import './GradeManagement.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import { useApp } from '../context/AppContext';
@@ -542,7 +543,7 @@ const GradeManagement = () => {
   }
 
   return (
-    <div className="max-w-container section-padding grade-premium-page">
+    <div className="max-w-container section-padding grade-premium-page grade-colorful-page" data-entry-mode={entryMode}>
       <motion.div className="grade-premium-header" initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}>
         <div className="grade-premium-header-icon">
           <PenTool size={24} />
@@ -573,6 +574,21 @@ const GradeManagement = () => {
         </div>
       </motion.div>
 
+      <div className="grade-overview-grid" aria-label="Contexte de saisie des notes">
+        <div className="grade-overview-card grade-overview-year">
+          <GraduationCap size={23} aria-hidden="true" />
+          <div><span>Année académique</span><strong>{filterAcademicYear || 'Toutes les années'}</strong><p>Référentiel des résultats</p></div>
+        </div>
+        <div className="grade-overview-card grade-overview-mode">
+          <PenTool size={23} aria-hidden="true" />
+          <div><span>Mode de saisie</span><strong>{entryMode === 'student' ? 'Par stagiaire' : 'Par module'}</strong><p>{entryMode === 'student' ? 'Toutes les notes d’un stagiaire' : 'Les notes d’un module pour toute la classe'}</p></div>
+        </div>
+        <div className="grade-overview-card grade-overview-draft">
+          <CloudUpload size={23} aria-hidden="true" />
+          <div><span>Modifications en attente</span><strong>{entryMode === 'student' ? studentDirtyModules.size : moduleDirtyStudentIds.size}</strong><p>{entryMode === 'student' ? 'Modules à enregistrer' : 'Stagiaires à enregistrer'}</p></div>
+        </div>
+      </div>
+
       {/* Filters */}
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
         className="glass-card grade-premium-filter-card">
@@ -599,6 +615,8 @@ const GradeManagement = () => {
                 key={mode.value}
                 type="button"
                 role="tab"
+                className="grade-entry-tab"
+                data-mode={mode.value}
                 aria-selected={isActive}
                 onClick={() => {
                   setEntryMode(mode.value);
@@ -611,8 +629,6 @@ const GradeManagement = () => {
                   cursor: 'pointer',
                   fontSize: '12px',
                   fontWeight: '800',
-                  color: isActive ? 'white' : 'var(--text-muted)',
-                  background: isActive ? 'var(--primary)' : 'transparent',
                   boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
                   transition: 'all 160ms ease',
                 }}
