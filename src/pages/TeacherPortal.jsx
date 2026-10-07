@@ -38,6 +38,7 @@ import { FilterSelect } from '../components/ui/FilterSelect';
 import { getStudentCurrentAcademicYear, isActiveStudent } from '../utils/studentStatus';
 import { getGradeByModuleName } from '../utils/gradeSync';
 import { findStudentAttendanceRecord, isTeacherSessionComplete } from '../utils/attendanceKeys';
+import { getLocalDate } from '../utils/localDate';
 
 const APP_VERSION = '2.5.1';
 const VERSION_KEY = 'ipfp_app_version';
@@ -103,7 +104,7 @@ const getRecordTimestamp = (record) => {
 const TeacherPortal = () => {
   const { teacherId } = useParams();
   const navigate = useNavigate();
-  const { teachers, students, updateGrades, batchUpdateGrades, grades, loading, studentAttendance, updateStudentAttendance, schedules, updateTeacherAttendance, loadAttendanceForSession, teacherAttendance, loadTeacherAttendanceForDate, confirmAction, modules: allModules = [], activeSemester, getActiveScheduleModule, activeAcademicYear, operationalAcademicYear } = useApp();
+  const { teachers, students, updateGrades, batchUpdateGrades, grades, loading, studentAttendance, updateStudentAttendance, schedules, updateTeacherAttendance, loadAttendanceForSession, teacherAttendance, loadTeacherAttendanceForDate, confirmAction, modules: allModules = [], activeSemester, getActiveScheduleModule, activeAcademicYear, operationalAcademicYear, teacherPortalSettingsError } = useApp();
   const { showToast } = useToast();
   
   const teacher = useMemo(() => {
@@ -124,7 +125,7 @@ const TeacherPortal = () => {
   const [success, setSuccess] = useState(false);
   const [activeTab, setActiveTab] = useState('attendance');
   const [localGrades, setLocalGrades] = useState({});
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(() => getLocalDate());
   const [attendanceSuccess, setAttendanceSuccess] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
   const [showUnmarkedWarning, setShowUnmarkedWarning] = useState(false);
@@ -142,11 +143,11 @@ const TeacherPortal = () => {
 
   const dayOfWeek = useMemo(() => {
     const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-    return days[new Date(selectedDate).getDay()];
+    return days[new Date(`${selectedDate}T00:00:00`).getDay()];
   }, [selectedDate]);
 
   const todaysSessions = useMemo(() => {
-    if (!teacher) return [];
+    if (!teacher || teacherPortalSettingsError || loading) return [];
     const activeYearSchedules = filterSchedulesForAcademicYear(
       schedules,
       activeAcademicYear,
@@ -167,7 +168,7 @@ const TeacherPortal = () => {
       }
     });
     return unique;
-  }, [teacher, schedules, dayOfWeek, getActiveScheduleModule, activeAcademicYear]);
+  }, [teacher, schedules, dayOfWeek, getActiveScheduleModule, activeAcademicYear, teacherPortalSettingsError, loading]);
 
   // Load teacher attendance for today to detect if already done
   useEffect(() => {
@@ -501,11 +502,22 @@ const TeacherPortal = () => {
     }
   }, [activeTab, allAttended]);
 
-  if (loading && teachers.length === 0) {
+  if (loading) {
     return (
       <div className="max-w-container section-padding ipfpp-public-portal">
         <PortalBrand />
         <TableSkeleton rows={12} />
+      </div>
+    );
+  }
+
+  if (teacherPortalSettingsError) {
+    return (
+      <div className="flex-center" style={{ minHeight: '100vh', padding: '24px' }}>
+        <div className="glass-card" style={{ padding: '32px', textAlign: 'center' }}>
+          <EmptyState title="Emploi du temps indisponible" message={teacherPortalSettingsError} icon="calendar" />
+          <button className="btn-modern primary" onClick={() => window.location.reload()}>Réessayer</button>
+        </div>
       </div>
     );
   }

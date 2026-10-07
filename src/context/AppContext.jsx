@@ -49,6 +49,7 @@ import { buildStudentClosure, buildStudentClosureUndo, buildStudentClosureCorrec
 import { createReadCoordinator, createInFlightReader } from '../utils/readCoordinator';
 import { getPageCollections } from '../utils/dataRequirements';
 import { startAutoRefresh } from '../utils/autoRefresh';
+import { getTeacherPortalSettings } from '../services/teacherPortalService';
 
 const AppContext = createContext();
 const ACCESS_LOG_LIMIT = 5;
@@ -517,6 +518,7 @@ export const AppProvider = ({ children }) => {
   const [activeAcademicYear, setActiveAcademicYearState] = useState(readCachedOperationalAcademicYear);
   const operationalAcademicYearRef = useRef(operationalAcademicYear);
   const [loading, setLoading] = useState(true);
+  const [teacherPortalSettingsError, setTeacherPortalSettingsError] = useState('');
   const loadedPathRef = useRef(null);
   const accessLoggedRef = useRef(false);
 
@@ -746,6 +748,8 @@ export const AppProvider = ({ children }) => {
             setModules(modSnap.docs.map(d => ({ id: d.id, ...d.data() })));
           }
         } else if (isTeacherPortal) {
+          setLoading(true);
+          setTeacherPortalSettingsError('');
           // 3. Portail Formateur: Chargement ciblé pour le formateur
           const token = path.split('/').filter(Boolean).pop();
           const gradeTokenSnapshot = await getDocs(query(collection(db, 'teachers'), where('tokenGrades', '==', token), limit(1)));
@@ -755,6 +759,24 @@ export const AppProvider = ({ children }) => {
           const teacherDoc = gradeTokenSnapshot.docs[0] || attendanceTokenSnapshot?.docs[0];
 
           if (teacherDoc && isMounted) {
+            // Bearer-link portals cannot read the private settings document.
+            // Resolve the server scope before exposing sessions or saving attendance.
+            let portalSettings;
+            try {
+              portalSettings = await getTeacherPortalSettings(token);
+            } catch (error) {
+              if (isMounted) {
+                setSchedules([]);
+                setTeacherPortalSettingsError("Impossible de synchroniser l'emploi du temps. Réessayez en actualisant la page.");
+              }
+              throw error;
+            }
+            if (!isMounted) return;
+            setTeacherPortalSettingsError('');
+            setActiveSemesterState(normalizeSemester(portalSettings.activeSemester));
+            operationalAcademicYearRef.current = portalSettings.operationalAcademicYear;
+            setOperationalAcademicYearState(portalSettings.operationalAcademicYear);
+            setActiveAcademicYearState(portalSettings.operationalAcademicYear);
             const teacherData = teacherDoc.data();
             setTeachers([{ id: teacherDoc.id, ...teacherData }]);
             
@@ -792,6 +814,9 @@ export const AppProvider = ({ children }) => {
             const modSnap = await getDocs(query(collection(db, 'modules'), orderBy('name', 'asc')));
             if (!isMounted) return;
             setModules(modSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+          } else if (isMounted) {
+            setTeachers([]);
+            setSchedules([]);
           }
         } else {
           setTeacherAttendance([]);
@@ -1994,7 +2019,7 @@ export const AppProvider = ({ children }) => {
       ctStudents, addCtStudent, updateCtStudent, deleteCtStudent,
       ctSessions, addCtSession, updateCtSession, deleteCtSession,
       accessLogs, logAppAccess, loadAccessLogs,
-      activeSemester, setActiveSemester, getActiveScheduleModule,
+      activeSemester, setActiveSemester, getActiveScheduleModule, teacherPortalSettingsError,
       activeAcademicYear, setActiveAcademicYear, operationalAcademicYear, availableAcademicYearsList,
       confirmAction, notifications: visibleNotifications, activityError, markNotificationAsRead, clearNotifications,
       logActivity
