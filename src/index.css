@@ -3786,17 +3786,61 @@ input.input-premium[type="date"]::-webkit-datetime-edit {
 }
 
 .continuous-premium-tab {
-  border: 1px solid transparent;
+  color: var(--continuous-tab-color);
+  background: var(--continuous-tab-bg);
+  border: 1px solid var(--continuous-tab-border);
+}
+
+.continuous-premium-tab[data-section="formations"] {
+  --continuous-tab-color: #1d4ed8;
+  --continuous-tab-bg: #eff6ff;
+  --continuous-tab-border: #bfdbfe;
+  --continuous-tab-hover: #dbeafe;
+}
+
+.continuous-premium-tab[data-section="types"] {
+  --continuous-tab-color: #6d28d9;
+  --continuous-tab-bg: #f5f3ff;
+  --continuous-tab-border: #ddd6fe;
+  --continuous-tab-hover: #ede9fe;
+}
+
+.continuous-premium-tab[data-section="etudiants"] {
+  --continuous-tab-color: #92400e;
+  --continuous-tab-bg: #fffbeb;
+  --continuous-tab-border: #fde68a;
+  --continuous-tab-hover: #fef3c7;
+}
+
+.continuous-premium-tab[data-section="planning"] {
+  --continuous-tab-color: #be123c;
+  --continuous-tab-bg: #fff1f2;
+  --continuous-tab-border: #fecdd3;
+  --continuous-tab-hover: #ffe4e6;
+}
+
+.continuous-premium-tab[data-section="salaires"] {
+  --continuous-tab-color: #047857;
+  --continuous-tab-bg: #ecfdf5;
+  --continuous-tab-border: #a7f3d0;
+  --continuous-tab-hover: #d1fae5;
 }
 
 .continuous-premium-tab:hover {
-  background: rgba(255, 255, 255, 0.65);
+  background: var(--continuous-tab-hover);
+  border-color: var(--continuous-tab-color);
 }
 
 .continuous-premium-tab.active {
-  border-color: rgba(var(--primary-rgb), 0.14);
-  background: var(--primary);
+  color: #fff;
+  border-color: var(--continuous-tab-color);
+  background: var(--continuous-tab-color);
   box-shadow: none;
+}
+
+.continuous-premium-tab:focus-visible {
+  outline: 2px solid var(--continuous-tab-color);
+  outline-offset: 3px;
 }
 
 .continuous-premium-content {

@@ -223,11 +223,11 @@ const getTrainingPropertyRows = training => {
 };
 
 const TABS = [
-  { id: 'formations', label: 'Formations', icon: BookOpen, color: 'text-brand-600', activeBg: 'bg-brand-50' },
-  { id: 'types', label: 'Types', icon: Filter, color: 'text-slate-600', activeBg: 'bg-slate-50' },
-  { id: 'etudiants', label: 'Étudiants', icon: Users, color: 'text-blue-600', activeBg: 'bg-blue-50' },
-  { id: 'planning', label: 'Planning', icon: CalendarDays, color: 'text-amber-500', activeBg: 'bg-amber-50' },
-  { id: 'salaires', label: 'Salaires', icon: Wallet, color: 'text-green-600', activeBg: 'bg-green-50' },
+  { id: 'formations', label: 'Formations', icon: BookOpen },
+  { id: 'types', label: 'Types', icon: Filter },
+  { id: 'etudiants', label: 'Étudiants', icon: Users },
+  { id: 'planning', label: 'Planning', icon: CalendarDays },
+  { id: 'salaires', label: 'Salaires', icon: Wallet },
 ];
 const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 const DEFAULT_PAGE_SIZE = 10;
@@ -1924,15 +1924,15 @@ export default function ContinuousTrainings() {
         {TABS.map(tab => (
           <button
             key={tab.id}
+            data-section={tab.id}
+            aria-pressed={activeTab === tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
               'continuous-premium-tab flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200',
-              activeTab === tab.id
-                ? cn('active', tab.color)
-                : 'text-slate-400 hover:text-slate-600',
+              activeTab === tab.id && 'active',
             )}
           >
-            <tab.icon size={15} className={activeTab === tab.id ? tab.color : ''} />
+            <tab.icon size={15} />
             {tab.label}
           </button>
         ))}
