@@ -104,7 +104,7 @@ const getRecordTimestamp = (record) => {
 const TeacherPortal = () => {
   const { teacherId } = useParams();
   const navigate = useNavigate();
-  const { teachers, students, updateGrades, batchUpdateGrades, grades, loading, studentAttendance, updateStudentAttendance, schedules, updateTeacherAttendance, loadAttendanceForSession, teacherAttendance, loadTeacherAttendanceForDate, confirmAction, modules: allModules = [], activeSemester, getActiveScheduleModule, activeAcademicYear, operationalAcademicYear, teacherPortalSettingsError } = useApp();
+  const { teachers, students, updateGrades, batchUpdateGrades, grades, loading, studentAttendance, updateStudentAttendance, schedules, updateTeacherAttendance, loadAttendanceForSession, teacherAttendance, loadTeacherAttendanceForDate, confirmAction, modules: allModules = [], activeSemester, getActiveScheduleModule, activeAcademicYear, operationalAcademicYear, teacherPortalSettingsError, teacherPortalGradesError } = useApp();
   const { showToast } = useToast();
   
   const teacher = useMemo(() => {
@@ -516,6 +516,17 @@ const TeacherPortal = () => {
       <div className="flex-center" style={{ minHeight: '100vh', padding: '24px' }}>
         <div className="glass-card" style={{ padding: '32px', textAlign: 'center' }}>
           <EmptyState title="Emploi du temps indisponible" message={teacherPortalSettingsError} icon="calendar" />
+          <button className="btn-modern primary" onClick={() => window.location.reload()}>Réessayer</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (teacherPortalGradesError) {
+    return (
+      <div className="flex-center" style={{ minHeight: '100vh', padding: '24px' }}>
+        <div className="glass-card" style={{ padding: '32px', textAlign: 'center' }}>
+          <EmptyState title="Notes indisponibles" message={teacherPortalGradesError} icon="book" />
           <button className="btn-modern primary" onClick={() => window.location.reload()}>Réessayer</button>
         </div>
       </div>

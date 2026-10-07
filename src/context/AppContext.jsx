@@ -524,6 +524,7 @@ export const AppProvider = ({ children }) => {
   const operationalAcademicYearRef = useRef(operationalAcademicYear);
   const [loading, setLoading] = useState(true);
   const [teacherPortalSettingsError, setTeacherPortalSettingsError] = useState('');
+  const [teacherPortalGradesError, setTeacherPortalGradesError] = useState('');
   const loadedPathRef = useRef(null);
   const accessLoggedRef = useRef(false);
 
@@ -769,6 +770,7 @@ export const AppProvider = ({ children }) => {
         } else if (isTeacherPortal) {
           setLoading(true);
           setTeacherPortalSettingsError('');
+          setTeacherPortalGradesError('');
           // 3. Portail Formateur: Chargement ciblé pour le formateur
           const token = path.split('/').filter(Boolean).pop();
           const gradeTokenSnapshot = await getDocs(query(collection(db, 'teachers'), where('tokenGrades', '==', token), limit(1)));
@@ -819,7 +821,15 @@ export const AppProvider = ({ children }) => {
             // Grades: only for the loaded students
             let gradesData = {};
             if (allStudents.length > 0 && !gradeTokenSnapshot.empty) {
-              gradesData = await loadTeacherPortalGrades(teacherDoc.id, token, allStudents.map(s => s.id));
+              try {
+                gradesData = await loadTeacherPortalGrades(teacherDoc.id, token, allStudents.map(s => s.id));
+              } catch (error) {
+                if (isMounted) {
+                  setGrades({});
+                  setTeacherPortalGradesError('Impossible de charger les notes. Actualisez la page pour réessayer.');
+                }
+                throw error;
+              }
               if (!isMounted) return;
             }
             setGrades(gradesData);
@@ -2032,7 +2042,7 @@ export const AppProvider = ({ children }) => {
       ctStudents, addCtStudent, updateCtStudent, deleteCtStudent,
       ctSessions, addCtSession, updateCtSession, deleteCtSession,
       accessLogs, logAppAccess, loadAccessLogs,
-      activeSemester, setActiveSemester, getActiveScheduleModule, teacherPortalSettingsError,
+      activeSemester, setActiveSemester, getActiveScheduleModule, teacherPortalSettingsError, teacherPortalGradesError,
       activeAcademicYear, setActiveAcademicYear, operationalAcademicYear, availableAcademicYearsList,
       confirmAction, notifications: visibleNotifications, activityError, markNotificationAsRead, clearNotifications,
       logActivity

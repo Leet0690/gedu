@@ -1,7 +1,7 @@
-import { signInAnonymously, deleteUser } from 'firebase/auth';
+import { deleteUser } from 'firebase/auth';
 import { getFirestore, terminate } from 'firebase/firestore';
 import { createSecondaryAuth } from '../firebase';
-import { readTeacherPortalGrades } from './teacherGradePortalClient.js';
+import { createTemporaryPortalIdentity, readTeacherPortalGrades } from './teacherGradePortalClient.js';
 
 let connectionPromise;
 
@@ -9,7 +9,7 @@ async function createPortalConnection() {
   // Isolate temporary portal authentication from any administrator session.
   const { secondaryAuth, cleanup } = await createSecondaryAuth();
   try {
-    const { user } = await signInAnonymously(secondaryAuth);
+    const { user } = await createTemporaryPortalIdentity(secondaryAuth);
     return { portalDb: getFirestore(secondaryAuth.app), uid: user.uid, secondaryAuth, cleanup };
   } catch (error) {
     await cleanup();
