@@ -51,6 +51,7 @@ import { getPageCollections } from '../utils/dataRequirements';
 import { startAutoRefresh } from '../utils/autoRefresh';
 import { getTeacherPortalSettings, publishScheduleSettings } from '../services/teacherPortalService';
 import { getPublicScheduleSettings } from '../utils/publicScheduleSettings';
+import { loadTeacherPortalGrades, closeTeacherGradePortalConnection } from '../services/teacherGradePortalService';
 
 const AppContext = createContext();
 const ACCESS_LOG_LIMIT = 5;
@@ -422,6 +423,9 @@ export const AppProvider = ({ children }) => {
   // Wake the current page's loaders without invalidating still-fresh resources.
   const reads = useMemo(() => ({ ...coordinator, revision: refreshVersion }), [coordinator, refreshVersion]);
   const { getDocs } = reads;
+  useEffect(() => () => {
+    closeTeacherGradePortalConnection().catch(() => {});
+  }, [portalPath]);
   useEffect(() => {
     if (!isAuthenticated && !portalPath) return;
     return startAutoRefresh({ refresh: () => setRefreshVersion(version => version + 1) });
@@ -813,15 +817,10 @@ export const AppProvider = ({ children }) => {
             setStudents(allStudents);
 
             // Grades: only for the loaded students
-            const gradesData = {};
+            let gradesData = {};
             if (allStudents.length > 0 && !gradeTokenSnapshot.empty) {
-              const studentIds = allStudents.map(s => s.id);
-              for (let i = 0; i < studentIds.length; i += 10) {
-                const batch = studentIds.slice(i, i + 10);
-                const graSnap = await getDocs(query(collection(db, 'grades'), where('__name__', 'in', batch)));
-                if (!isMounted) return;
-                graSnap.docs.forEach(d => { gradesData[d.id] = d.data(); });
-              }
+              gradesData = await loadTeacherPortalGrades(teacherDoc.id, token, allStudents.map(s => s.id));
+              if (!isMounted) return;
             }
             setGrades(gradesData);
 

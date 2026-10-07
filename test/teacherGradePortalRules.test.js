@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { initializeApp, deleteApp } from 'firebase/app';
-import { initializeFirestore, connectFirestoreEmulator, doc, setDoc, getDocsFromServer, collection, query, where, updateDoc, deleteDoc, terminate, setLogLevel } from 'firebase/firestore';
+import { initializeFirestore, connectFirestoreEmulator, doc, setDoc, getDocFromServer, getDocsFromServer, collection, query, where, updateDoc, deleteDoc, terminate, setLogLevel, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { readTeacherPortalGrades } from '../src/services/teacherGradePortalClient.js';
 
-test('legacy teacher grade portal loads grades and only a valid grade link can save for its assigned groups', {
+test('teacher grade sessions load only assigned students, expire and honor link revocation', {
   skip: process.env.FIRESTORE_EMULATOR_HOST !== '127.0.0.1:8085', timeout: 60000,
 }, async () => {
   setLogLevel('silent');
@@ -17,7 +18,8 @@ test('legacy teacher grade portal loads grades and only a valid grade link can s
     resources.push({ app, db });
     return db;
   };
-  const owner = database('owner'); const portal = database('anonymous');
+  const owner = database('owner'); const visitor = database('anonymous');
+  const portal = database('portal-user');
   const reader = database('reader');
   const denied = promise => assert.rejects(promise, error => error.code === 'permission-denied');
   const gradeQuery = db => query(collection(db, 'grades'), where('__name__', 'in', ['student-a', 'student-b', 'student-without-grades']));
@@ -33,10 +35,18 @@ test('legacy teacher grade portal loads grades and only a valid grade link can s
     await setDoc(doc(owner, 'grades', 'student-a'), { academicYears: { '2026-2027': { Module: { cc1: 12 } } } });
     await setDoc(doc(owner, 'grades', 'student-b'), { Module: { cc1: 10 } });
 
-    const loaded = await getDocsFromServer(gradeQuery(portal));
-    assert.deepEqual(loaded.docs.map(item => item.id).sort(), ['student-a', 'student-b']);
-    assert.equal(loaded.docs.find(item => item.id === 'student-a').data().academicYears['2026-2027'].Module.cc1, 12);
+    await denied(getDocFromServer(doc(visitor, 'grades', 'student-a')));
+    await denied(getDocsFromServer(gradeQuery(visitor)));
+    await denied(getDocFromServer(doc(portal, 'grades', 'student-a')));
+    const loaded = await readTeacherPortalGrades(portal, 'portal-user', 'teacher-a', 'grade-link', ['student-a', 'student-b', 'student-without-grades']);
+    assert.deepEqual(Object.keys(loaded).sort(), ['student-a', 'student-b']);
+    assert.equal(loaded['student-a'].academicYears['2026-2027'].Module.cc1, 12);
+    assert.equal((await getDocFromServer(doc(portal, 'teacher_grade_sessions', 'portal-user'))).exists(), false);
     await denied(getDocsFromServer(gradeQuery(reader)));
+    await denied(readTeacherPortalGrades(portal, 'portal-user', 'teacher-a', 'invalid-link', ['student-a']));
+    await denied(readTeacherPortalGrades(portal, 'portal-user', 'teacher-a', 'attendance-link', ['student-a']));
+    await denied(readTeacherPortalGrades(portal, 'portal-user', 'teacher-a', 'grade-link', ['other-group']));
+    await denied(setDoc(doc(portal, 'teacher_grade_sessions', 'another-user'), { teacherId: 'teacher-a', tokenGrades: 'grade-link', createdAt: serverTimestamp() }));
     await denied(updateDoc(doc(portal, 'grades', 'student-a'), { Module: { cc1: 20 } }));
     for (const tokenGrades of ['invalid-link', 'attendance-link']) {
       await denied(setDoc(doc(portal, 'grades', 'student-a'), { teacherId: 'teacher-a', tokenGrades, Module: { cc1: 15 } }, { merge: true }));
@@ -46,9 +56,16 @@ test('legacy teacher grade portal loads grades and only a valid grade link can s
     await setDoc(doc(portal, 'grades', 'student-without-grades'), update, { merge: true });
     await denied(setDoc(doc(portal, 'grades', 'other-group'), update));
     await denied(deleteDoc(doc(portal, 'grades', 'student-a')));
-    const refreshed = await getDocsFromServer(gradeQuery(portal));
-    assert.equal(refreshed.size, 3);
-    assert.equal(refreshed.docs.find(item => item.id === 'student-a').data().academicYears['2026-2027'].Module.cc1, 15);
+    const refreshed = await readTeacherPortalGrades(portal, 'portal-user', 'teacher-a', 'grade-link', ['student-a', 'student-b', 'student-without-grades']);
+    assert.equal(Object.keys(refreshed).length, 3);
+    assert.equal(refreshed['student-a'].academicYears['2026-2027'].Module.cc1, 15);
+    await setDoc(doc(portal, 'teacher_grade_sessions', 'portal-user'), { teacherId: 'teacher-a', tokenGrades: 'grade-link', createdAt: serverTimestamp() });
+    await denied(getDocsFromServer(collection(portal, 'grades')));
+    await denied(getDocsFromServer(collection(portal, 'teacher_grade_sessions')));
+    await updateDoc(doc(owner, 'teachers', 'teacher-a'), { tokenGrades: 'new-link' });
+    await denied(getDocFromServer(doc(portal, 'grades', 'student-a')));
+    await setDoc(doc(owner, 'teacher_grade_sessions', 'portal-user'), { teacherId: 'teacher-a', tokenGrades: 'new-link', createdAt: Timestamp.fromMillis(Date.now() - 11 * 60 * 1000) });
+    await denied(getDocFromServer(doc(portal, 'grades', 'student-a')));
   } finally {
     await Promise.all(resources.map(async ({ app, db }) => { await terminate(db); await deleteApp(app); }));
   }

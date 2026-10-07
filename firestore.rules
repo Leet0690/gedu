@@ -106,9 +106,24 @@ service cloud.firestore {
       allow delete: if validPortalTeacherToken(resource.data.formateurId, resource.data.tokenAttendance);
     }
     match /grades/{id} {
-      // Legacy grade portals read their students' documents without a login.
-      allow read: if request.auth == null;
+      allow get: if request.auth != null &&
+        exists(/databases/$(database)/documents/teacher_grade_sessions/$(request.auth.uid)) &&
+        validTeacherGradeSession(id);
       allow create, update: if validPortalGradeToken(request.resource.data.teacherId, request.resource.data.tokenGrades, id);
+    }
+    function validTeacherGradeSession(studentId) {
+      let session = get(/databases/$(database)/documents/teacher_grade_sessions/$(request.auth.uid)).data;
+      return session.createdAt + duration.value(10, 'm') > request.time &&
+        validPortalGradeToken(session.teacherId, session.tokenGrades, studentId);
+    }
+    match /teacher_grade_sessions/{uid} {
+      allow get, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid &&
+        request.resource.data.keys().hasOnly(['teacherId', 'tokenGrades', 'createdAt']) &&
+        request.resource.data.teacherId is string && request.resource.data.tokenGrades is string &&
+        request.resource.data.tokenGrades.size() > 0 && request.resource.data.createdAt == request.time &&
+        get(/databases/$(database)/documents/teachers/$(request.resource.data.teacherId)).data.tokenGrades == request.resource.data.tokenGrades;
+      allow list: if false;
     }
     match /teachers/{id} { allow read: if true; }
     match /schedules/{id} { allow read: if true; }
