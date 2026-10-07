@@ -50,6 +50,7 @@ import { startAutoRefresh } from '../utils/autoRefresh';
 import { getTeacherPortalSettings, publishScheduleSettings } from '../services/teacherPortalService';
 import { getPublicScheduleSettings } from '../utils/publicScheduleSettings';
 import { loadTeacherPortalGrades, loadStudentPortalGrades, closeTeacherGradePortalConnection } from '../services/teacherGradePortalService';
+import { recordClassAttendanceActivity } from '../services/classAttendanceActivity';
 
 const AppContext = createContext();
 const ACCESS_LOG_LIMIT = 5;
@@ -440,19 +441,29 @@ export const AppProvider = ({ children }) => {
   const [activityError, setActivityError] = useState('');
   useEffect(() => {
     if (!isAuthenticated || pathname !== '/') return;
-    const constraints = hasPermission('logs')
-      ? [orderBy('timestamp', 'desc'), limit(50)]
-      : [where('userId', '==', adminUser.uid), orderBy('timestamp', 'desc'), limit(50)];
-    void reads.run('activity', async isCurrent => {
-      const snapshot = await getDocs(query(collection(db, 'activity_logs'), ...constraints));
-      if (!isCurrent()) return;
-      setNotifications(snapshot.docs.map(item => ({ ...item.data(), id: item.id })));
-      setActivityError('');
-    }).catch(error => {
+    const sources = hasPermission('logs')
+      ? [[orderBy('timestamp', 'desc'), limit(50)]]
+      : [
+        [where('userId', '==', adminUser.uid), orderBy('timestamp', 'desc'), limit(50)],
+        ...(hasPermission('dashboard') ? [[where('actionType', '==', 'CLASS_ATTENDANCE_COMPLETED'), orderBy('timestamp', 'desc'), limit(50)]] : []),
+      ];
+    const snapshots = new Map();
+    const errors = new Set();
+    const unsubscribers = sources.map((constraints, index) => onSnapshot(query(collection(db, 'activity_logs'), ...constraints), snapshot => {
+      snapshots.set(index, snapshot.docs.map(item => ({ ...item.data(), id: item.id })));
+      errors.delete(index);
+      const combined = new Map([...snapshots.values()].flat().map(item => [item.id, item]));
+      setNotifications([...combined.values()].sort((a, b) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0)).slice(0, 100));
+      if (!errors.size) setActivityError('');
+    }, error => {
+      errors.add(index);
       setActivityError('Le journal des activités est momentanément indisponible.');
       console.error('Erreur lecture des activités :', error);
-    });
-  }, [isAuthenticated, hasPermission, adminUser?.uid, pathname, reads, getDocs]);
+    }));
+    return () => unsubscribers.forEach(unsubscribe => unsubscribe());
+  }, [isAuthenticated, hasPermission, adminUser?.uid, pathname]);
+
+  const notifyTeacherClassAttendance = useCallback(details => recordClassAttendanceActivity(db, details), []);
 
   const markNotificationAsRead = useCallback(id => {
     setReadNotificationIds(previous => new Set([...previous, id]));
@@ -2023,7 +2034,7 @@ export const AppProvider = ({ children }) => {
       students, teachers, grades, isAuthenticated, isDirectorAuth, loading,
       login, logout, showToast,
       addStudent, addTeacher, updateStudent, promoteAcademicYear, undoLastPromotion, updateStudentClosureDecision, updateTeacher, deleteStudent, deleteTeacher, updateGrades, batchUpdateGrades,
-      studentAttendance, teacherAttendance, updateStudentAttendance, updateTeacherAttendance,
+      studentAttendance, teacherAttendance, updateStudentAttendance, updateTeacherAttendance, notifyTeacherClassAttendance,
       loadAttendanceForSession, loadStudentAttendanceForMonth, loadTeacherAttendanceForDate, loadTeacherAttendanceForMonth,
       schedules, addSchedule, updateSchedule, deleteSchedule, clearAllSchedules, migrateTeacherTokens,
       payments, salaries, expenses, loadFinancialData, addPayment, updatePayment, deletePayment, addSalary, updateSalary, deleteSalary, addExpense, deleteExpense,

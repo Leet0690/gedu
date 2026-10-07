@@ -104,7 +104,7 @@ const getRecordTimestamp = (record) => {
 const TeacherPortal = () => {
   const { teacherId } = useParams();
   const navigate = useNavigate();
-  const { teachers, students, updateGrades, batchUpdateGrades, grades, loading, studentAttendance, updateStudentAttendance, schedules, updateTeacherAttendance, loadAttendanceForSession, teacherAttendance, loadTeacherAttendanceForDate, confirmAction, modules: allModules = [], activeSemester, getActiveScheduleModule, activeAcademicYear, operationalAcademicYear, teacherPortalSettingsError, teacherPortalGradesError } = useApp();
+  const { teachers, students, updateGrades, batchUpdateGrades, grades, loading, studentAttendance, updateStudentAttendance, schedules, updateTeacherAttendance, notifyTeacherClassAttendance, loadAttendanceForSession, teacherAttendance, loadTeacherAttendanceForDate, confirmAction, modules: allModules = [], activeSemester, getActiveScheduleModule, activeAcademicYear, operationalAcademicYear, teacherPortalSettingsError, teacherPortalGradesError } = useApp();
   const { showToast } = useToast();
   
   const teacher = useMemo(() => {
@@ -140,6 +140,8 @@ const TeacherPortal = () => {
   });
   const firstUnmarkedRef = useRef(null);
   const autoSavedTeacherSessionsRef = useRef(new Set());
+  const [changedAttendanceSessions, setChangedAttendanceSessions] = useState(() => new Set());
+  const notifyingAttendanceSessionsRef = useRef(new Set());
 
   const dayOfWeek = useMemo(() => {
     const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
@@ -267,7 +269,37 @@ const TeacherPortal = () => {
         showToast("Erreur lors de l'enregistrement de la présence formateur.", 'error');
       });
     });
-  }, [teacher, todaysSessions, selectedDate, accessMode, isSessionStudentAttendanceComplete, getTeacherRecordForSession, getSessionModule, updateTeacherAttendance, showToast]);
+  }, [teacher, todaysSessions, selectedDate, accessMode, isSessionStudentAttendanceComplete, getTeacherRecordForSession, getSessionModule, updateTeacherAttendance, teacherId, showToast]);
+
+  useEffect(() => {
+    if (!teacher || accessMode !== 'attendance') return;
+    todaysSessions.forEach(session => {
+      const key = `${session.id}:${selectedDate}`;
+      if (!changedAttendanceSessions.has(key) || notifyingAttendanceSessionsRef.current.has(key)) return;
+      if (!isSessionStudentAttendanceComplete(session)) return;
+      const record = getTeacherRecordForSession(session);
+      if (record?.status !== 'present') return;
+      notifyingAttendanceSessionsRef.current.add(key);
+      const sendNotification = async () => {
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          try {
+            await notifyTeacherClassAttendance({ teacher, schedule: session, date: selectedDate, teacherAttendanceId: record.id, tokenAttendance: teacherId });
+            return;
+          } catch (error) {
+            if (attempt === 2 || !['unavailable', 'deadline-exceeded', 'aborted'].includes(error.code)) throw error;
+            await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+          }
+        }
+      };
+      sendNotification()
+        .then(() => setChangedAttendanceSessions(previous => {
+          const next = new Set(previous);
+          next.delete(key);
+          return next;
+        }))
+        .catch(() => showToast("L'appel est enregistré, mais la notification n'a pas pu être envoyée.", 'warning'));
+    });
+  }, [teacher, accessMode, todaysSessions, selectedDate, changedAttendanceSessions, isSessionStudentAttendanceComplete, getTeacherRecordForSession, notifyTeacherClassAttendance, teacherId, showToast]);
 
   // A present record for a shared time slot must never validate another group.
   // A session is complete only when its own students are all marked, or when
@@ -740,6 +772,9 @@ const TeacherPortal = () => {
     if (!currentAttendanceModule || !currentSession) return;
     const record = getStudentRecordForSession(studentId, currentSession, currentAttendanceModule);
     await updateStudentAttendance(studentId, currentAttendanceModule, selectedDate, status, record?.comment || '', teacher.id, currentSession.time, record?.id || '', teacherId);
+    const sessionKey = `${currentSession.id}:${selectedDate}`;
+    notifyingAttendanceSessionsRef.current.delete(sessionKey);
+    setChangedAttendanceSessions(previous => new Set(previous).add(sessionKey));
 
     } catch (error) {
       if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');
@@ -763,6 +798,9 @@ const TeacherPortal = () => {
     if (!currentAttendanceModule || !currentSession) return;
     const record = getStudentRecordForSession(studentId, currentSession, currentAttendanceModule);
     await updateStudentAttendance(studentId, currentAttendanceModule, selectedDate, record?.status || 'present', comment, teacher.id, currentSession.time, record?.id || '', teacherId);
+    const sessionKey = `${currentSession.id}:${selectedDate}`;
+    notifyingAttendanceSessionsRef.current.delete(sessionKey);
+    setChangedAttendanceSessions(previous => new Set(previous).add(sessionKey));
 
     } catch (error) {
       if (error.code !== 'permission-denied') showToast(error.message || 'Enregistrement impossible. Veuillez réessayer.', 'error');

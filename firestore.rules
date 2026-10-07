@@ -49,9 +49,39 @@ service cloud.firestore {
         request.resource.data.userName == profile().displayName &&
         request.resource.data.userRole == profile().role && request.resource.data.createdAt == request.time;
     }
+    function validClassAttendanceActivity(id) {
+      let data = request.resource.data;
+      let metadata = data.metadata;
+      let teacher = get(/databases/$(database)/documents/teachers/$(metadata.teacherId)).data;
+      let schedule = get(/databases/$(database)/documents/schedules/$(metadata.scheduleId)).data;
+      let before = get(/databases/$(database)/documents/attendance_formateurs/$(metadata.teacherAttendanceId)).data;
+      let after = getAfter(/databases/$(database)/documents/attendance_formateurs/$(metadata.teacherAttendanceId)).data;
+      return data.keys().hasAll(['userId', 'userName', 'userRole', 'message', 'type', 'actionType', 'module', 'metadata', 'timestamp', 'createdAt']) &&
+        data.keys().hasOnly(['userId', 'userName', 'userRole', 'message', 'type', 'actionType', 'module', 'metadata', 'timestamp', 'createdAt']) &&
+        metadata.keys().hasAll(['teacherId', 'scheduleId', 'teacherAttendanceId', 'date', 'major', 'year', 'timeSlot']) &&
+        metadata.keys().hasOnly(['teacherId', 'scheduleId', 'teacherAttendanceId', 'date', 'major', 'year', 'timeSlot']) &&
+        metadata.teacherId is string && metadata.scheduleId is string && metadata.teacherAttendanceId is string &&
+        metadata.date is string && metadata.date.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}') &&
+        id == 'teacher-attendance-' + metadata.scheduleId + '-' + metadata.date &&
+        data.userId == 'teacher:' + metadata.teacherId && data.userName == teacher.name && data.userRole == 'formateur' &&
+        data.actionType == 'CLASS_ATTENDANCE_COMPLETED' && data.module == 'attendance_students' && data.type == 'success' &&
+        data.message == teacher.name + ' a pris la présence de la classe ' + schedule.filiere + ' (' + schedule.annee + ').' &&
+        data.timestamp == request.time && data.createdAt == request.time &&
+        schedule.teacherId == metadata.teacherId && schedule.filiere == metadata.major && schedule.annee == metadata.year &&
+        schedule.time == metadata.timeSlot && before.teacherId == metadata.teacherId && before.date == metadata.date &&
+        before.status == 'present' && after.teacherId == metadata.teacherId && after.date == metadata.date &&
+        after.status == 'present' && after.timeSlot == metadata.timeSlot && after.timestamp == request.time &&
+        teacher.tokenAttendance == after.tokenAttendance &&
+        before.get('classAttendanceEvents', {}).get(id, false) == false &&
+        after.get('classAttendanceEvents', {}).get(id, false) == true;
+    }
     match /activity_logs/{id} {
-      allow read: if permitted('logs', 'view') || (active() && resource.data.userId == request.auth.uid);
-      allow create: if !id.matches('server-.*') && attributed() && request.resource.data.timestamp == request.time &&
+      allow read: if permitted('logs', 'view') || (active() && resource.data.userId == request.auth.uid) ||
+        (permitted('dashboard', 'view') && resource.data.actionType == 'CLASS_ATTENDANCE_COMPLETED');
+      allow create: if validClassAttendanceActivity(id);
+      allow create: if !id.matches('server-.*') && !id.matches('teacher-attendance-.*') &&
+        request.resource.data.get('actionType', '') != 'CLASS_ATTENDANCE_COMPLETED' &&
+        attributed() && request.resource.data.timestamp == request.time &&
         request.resource.data.message is string && request.resource.data.message.size() <= 2000 &&
         request.resource.data.keys().hasOnly(['userId', 'userName', 'userRole', 'message', 'type', 'actionType', 'module', 'metadata', 'timestamp', 'createdAt']);
       allow update, delete: if false;
