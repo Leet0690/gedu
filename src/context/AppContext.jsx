@@ -49,7 +49,8 @@ import { buildStudentClosure, buildStudentClosureUndo, buildStudentClosureCorrec
 import { createReadCoordinator, createInFlightReader } from '../utils/readCoordinator';
 import { getPageCollections } from '../utils/dataRequirements';
 import { startAutoRefresh } from '../utils/autoRefresh';
-import { getTeacherPortalSettings } from '../services/teacherPortalService';
+import { getTeacherPortalSettings, publishScheduleSettings } from '../services/teacherPortalService';
+import { getPublicScheduleSettings } from '../utils/publicScheduleSettings';
 
 const AppContext = createContext();
 const ACCESS_LOG_LIMIT = 5;
@@ -555,8 +556,9 @@ export const AppProvider = ({ children }) => {
     if (!isAuthenticated) return;
     const settingsRef = doc(db, 'settings', 'app');
     let bootstrapInProgress = false;
+    let publishedScopeKey = '';
 
-    const unsubscribe = onSnapshot(settingsRef, snapshot => {
+    const unsubscribe = onSnapshot(settingsRef, { includeMetadataChanges: true }, snapshot => {
       const settings = snapshot.exists() ? snapshot.data() : {};
       const hasOperationalAcademicYear = validateAcademicYear(settings?.operationalAcademicYear);
       const nextOperationalAcademicYear = hasOperationalAcademicYear
@@ -569,6 +571,12 @@ export const AppProvider = ({ children }) => {
         : [];
       const previousOperationalAcademicYear = operationalAcademicYearRef.current;
       const nextSemester = normalizeSemester(settings?.activeSemester);
+      const scopeKey = `${nextSemester}:${nextOperationalAcademicYear}`;
+      if (isAdmin && !snapshot.metadata.fromCache && !snapshot.metadata.hasPendingWrites && publishedScopeKey !== scopeKey) {
+        publishScheduleSettings().then(() => { publishedScopeKey = scopeKey; }).catch(error => {
+          console.warn('Impossible de publier les paramètres du planning:', error);
+        });
+      }
 
       operationalAcademicYearRef.current = nextOperationalAcademicYear;
       setActiveSemesterState(nextSemester);
@@ -621,9 +629,16 @@ export const AppProvider = ({ children }) => {
     if (!isAdmin) { originalShowToast('Seul un administrateur peut modifier le semestre actif.', 'error'); return false; }
     const nextSemester = normalizeSemester(semester);
     try {
-      await setDoc(doc(db, 'settings', 'app'), {
-        activeSemester: nextSemester, updatedAt: serverTimestamp(),
-      }, { merge: true });
+      await runTransaction(db, async transaction => {
+        const settingsRef = doc(db, 'settings', 'app');
+        const settings = await transaction.get(settingsRef);
+        transaction.set(settingsRef, {
+          activeSemester: nextSemester, updatedAt: serverTimestamp(),
+        }, { merge: true });
+        transaction.set(doc(db, 'public_settings', 'schedule'), getPublicScheduleSettings({
+          ...settings.data(), activeSemester: nextSemester,
+        }));
+      });
       setActiveSemesterState(nextSemester);
       try { localStorage.setItem(ACTIVE_SEMESTER_KEY, nextSemester); } catch { /* Optional storage. */ }
       showToast(`Semestre ${nextSemester} activé.`, 'success');
@@ -759,11 +774,10 @@ export const AppProvider = ({ children }) => {
           const teacherDoc = gradeTokenSnapshot.docs[0] || attendanceTokenSnapshot?.docs[0];
 
           if (teacherDoc && isMounted) {
-            // Bearer-link portals cannot read the private settings document.
-            // Resolve the server scope before exposing sessions or saving attendance.
+            // Read only the published scheduling scope, before exposing sessions.
             let portalSettings;
             try {
-              portalSettings = await getTeacherPortalSettings(token);
+              portalSettings = await getTeacherPortalSettings();
             } catch (error) {
               if (isMounted) {
                 setSchedules([]);

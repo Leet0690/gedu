@@ -62,6 +62,22 @@ service cloud.firestore {
       allow update, delete: if false;
     }
     match /settings/{id} { allow read: if active(); allow write: if admin(); }
+    // Only the semester and operational year are public, never settings/app.
+    match /public_settings/schedule {
+      function matchesActiveSettings() {
+        let settings = getAfter(/databases/$(database)/documents/settings/app).data;
+        let semester = settings.get('activeSemester', 'S1') == 'S2' ? 'S2' : 'S1';
+        return request.resource.data.activeSemester == semester &&
+          request.resource.data.operationalAcademicYear == settings.get('operationalAcademicYear', '2025-2026');
+      }
+      allow get: if true;
+      allow create, update: if admin() &&
+        request.resource.data.keys().hasOnly(['activeSemester', 'operationalAcademicYear']) &&
+        request.resource.data.activeSemester in ['S1', 'S2'] &&
+        request.resource.data.operationalAcademicYear is string &&
+        request.resource.data.operationalAcademicYear.matches('[0-9]{4}-[0-9]{4}') && matchesActiveSettings();
+      allow list, delete: if false;
+    }
     match /operations/{id} { allow read, write: if admin(); }
     match /academic_year_backups/{backup}/{document=**} { allow read, write: if admin(); }
     match /tokens/{id} { allow read, write: if admin(); }

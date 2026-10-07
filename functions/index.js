@@ -5,14 +5,9 @@ import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { onDocumentWrittenWithAuthContext } from 'firebase-functions/v2/firestore';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { describeAuditChange } from './auditEvent.js';
-import { readTeacherPortalSettings } from './teacherPortalSettings.js';
 
 initializeApp();
 const db = getFirestore();
-
-export const getTeacherPortalSettings = onCall({ region: 'europe-west1' }, request =>
-  readTeacherPortalSettings(db, request.data?.token, HttpsError)
-);
 
 // Callable function to set a user's password directly from the admin panel
 export const adminSetUserPassword = onCall({ region: 'europe-west1' }, async request => {
