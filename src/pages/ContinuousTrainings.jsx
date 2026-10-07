@@ -15,6 +15,7 @@ import { Input } from '../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
 import { cn } from '../lib/cn';
+import './ContinuousTrainings.css';
 
 const START_HOUR = 8;
 const END_HOUR = 19;
@@ -244,7 +245,7 @@ function Label({ children }) {
 
 function Field({ label, children }) {
   return (
-    <div className="mb-2.5">
+    <div className="continuous-field min-w-0 mb-2.5">
       <Label>{label}</Label>
       {children}
     </div>
@@ -298,14 +299,14 @@ function PrimaryBtn({ onClick, children, className, icon: Icon }) {
     <button disabled={!hasPermission('continuous', 'edit')}
       onClick={onClick}
       className={cn(
-        'inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white',
+        'continuous-primary-action inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white',
         'bg-gradient-to-r from-brand-500 to-brand-600 shadow-md shadow-brand-200',
         'hover:from-brand-600 hover:to-brand-700 hover:shadow-lg hover:shadow-brand-300',
         'active:scale-[0.97] transition-all duration-150',
         className,
       )}
     >
-      {Icon && <Icon size={15} />}
+      {Icon && <Icon size={15} className="shrink-0" />}
       {children}
     </button>
   );
@@ -442,7 +443,9 @@ function PaginationControls({ pagination, label = 'éléments' }) {
 function FormationsTab({ trainings, trainingTypes = [], ctStudents, onAdd, onEdit, onDelete }) {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
-  const [viewMode, setViewMode] = useState('table');
+  const [viewMode, setViewMode] = useState(() => (
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 760px)').matches ? 'cards' : 'table'
+  ));
   const typeOptions = useMemo(() => getTrainingTypeOptions(trainings, trainingTypes), [trainings, trainingTypes]);
   const filtered = useMemo(() => trainings.filter(t => {
     if (typeFilter && typeFilter !== 'all' && t.type !== typeFilter) return false;
@@ -459,12 +462,12 @@ function FormationsTab({ trainings, trainingTypes = [], ctStudents, onAdd, onEdi
   return (
     <div className="space-y-5">
       <div className="continuous-premium-toolbar flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px]">
+        <div className="continuous-search-field relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-400 pointer-events-none" />
           <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher…" className="pl-9 border-slate-200 focus:border-brand-400" />
         </div>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-44 border-slate-200 bg-white">
+          <SelectTrigger className="continuous-filter-field w-44 border-slate-200 bg-white">
             <Filter size={13} className="text-slate-400 mr-1" />
             <SelectValue placeholder="Tous les types" />
           </SelectTrigger>
@@ -473,7 +476,7 @@ function FormationsTab({ trainings, trainingTypes = [], ctStudents, onAdd, onEdi
             {typeOptions.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
           </SelectContent>
         </Select>
-        <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
+        <div className="continuous-toolbar-actions flex gap-1 bg-slate-100 rounded-xl p-1">
           {[
             { mode: 'table', label: 'Tableau', Icon: List },
             { mode: 'cards', label: 'Cartes', Icon: LayoutGrid },
@@ -499,6 +502,7 @@ function FormationsTab({ trainings, trainingTypes = [], ctStudents, onAdd, onEdi
         <EmptyPlaceholder icon={BookOpen} text="Aucune formation continue" subtext="Créez votre première formation pour commencer" />
       ) : viewMode === 'table' ? (
         <div className="continuous-table-shell rounded-2xl overflow-hidden">
+          <div className="continuous-table-scroll continuous-formations-table" role="region" aria-label="Liste des formations continues" tabIndex={0}>
           <table className="w-full text-sm">
             <TableHead cols={['Formation', 'Type', 'Propriétés', 'Tarifs', 'Formateur', 'Étudiants', 'Encaissement', 'Actions']} />
             <tbody className="divide-y divide-slate-50">
@@ -588,6 +592,7 @@ function FormationsTab({ trainings, trainingTypes = [], ctStudents, onAdd, onEdi
               })}
             </tbody>
           </table>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -609,13 +614,13 @@ function FormationsTab({ trainings, trainingTypes = [], ctStudents, onAdd, onEdi
             return (
               <Card key={tr.id} className="continuous-training-card group transition-all duration-200 hover:-translate-y-1">
                 <CardContent className="p-5">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
+                  <div className="continuous-card-header flex items-start justify-between gap-2 mb-4">
+                    <div className="continuous-card-heading min-w-0 flex items-center gap-3">
                       <div className={cn('w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-sm', cfg.bgClass, cfg.colorClass)}>
                         <cfg.icon size={20} />
                       </div>
-                      <div>
-                        <p className="text-sm font-bold text-slate-800 leading-tight">{tr.name}</p>
+                      <div className="min-w-0">
+                        <p className="break-words text-sm font-bold text-slate-800 leading-tight">{tr.name}</p>
                         <div className="mt-1"><TypeBadge cfg={cfg} /></div>
                         {metaTags.length > 0 && (
                           <div className="mt-1.5 flex flex-wrap gap-1">
@@ -628,7 +633,7 @@ function FormationsTab({ trainings, trainingTypes = [], ctStudents, onAdd, onEdi
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="continuous-card-actions shrink-0 flex gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
                       <ActionBtn onClick={() => onEdit(tr)} title="Modifier" variant="edit"><Edit3 size={13} /></ActionBtn>
                       <ActionBtn onClick={() => onDelete(tr)} title="Supprimer" variant="danger"><Trash2 size={13} /></ActionBtn>
                     </div>
@@ -740,6 +745,7 @@ function TypesTab({ trainings, trainingTypes = [], onAdd, onEdit, onDelete }) {
       </div>
 
       <div className="continuous-table-shell rounded-2xl overflow-hidden">
+        <div className="continuous-table-scroll" role="region" aria-label="Types de formation" tabIndex={0}>
         <table className="w-full text-sm">
           <TableHead cols={['Type', 'Statut', 'Formations', 'Actions']} />
           <tbody className="divide-y divide-slate-50">
@@ -795,6 +801,7 @@ function TypesTab({ trainings, trainingTypes = [], onAdd, onEdit, onDelete }) {
             })}
           </tbody>
         </table>
+        </div>
       </div>
       <PaginationControls pagination={pagination} label="types" />
     </div>
@@ -821,12 +828,12 @@ function EtudiantsTab({ trainings, ctStudents, onAddStudent, onEditStudent, onDe
   return (
     <div className="space-y-5">
       <div className="continuous-premium-toolbar flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px]">
+        <div className="continuous-search-field relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-400 pointer-events-none" />
           <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un étudiant…" className="pl-9 border-slate-200" />
         </div>
         <Select value={trainingFilter || 'all'} onValueChange={v => setTrainingFilter(v === 'all' ? '' : v)}>
-          <SelectTrigger className="w-56 border-slate-200 bg-white">
+          <SelectTrigger className="continuous-filter-field w-56 border-slate-200 bg-white">
             <Filter size={13} className="text-slate-400 mr-1" />
             <SelectValue placeholder="Toutes les formations" />
           </SelectTrigger>
@@ -842,6 +849,7 @@ function EtudiantsTab({ trainings, ctStudents, onAddStudent, onEditStudent, onDe
         <EmptyPlaceholder icon={Users} text="Aucun étudiant enregistré" iconClass="text-blue-300" />
       ) : (
         <div className="continuous-table-shell rounded-2xl overflow-hidden">
+          <div className="continuous-table-scroll continuous-students-table" role="region" aria-label="Étudiants et paiements des formations continues" tabIndex={0}>
           <table className="w-full text-sm">
             <TableHead cols={['Étudiant', 'Formation', 'Contact', 'Paiements', 'Statut', 'Actions']} />
             <tbody className="divide-y divide-slate-50">
@@ -922,7 +930,7 @@ function EtudiantsTab({ trainings, ctStudents, onAddStudent, onEditStudent, onDe
                                 ) : (
                                   <div className="flex flex-col gap-2">
                                     {(s.payments || []).map((p, pi) => (
-                                      <div key={pi} className="flex items-center gap-2.5 text-xs">
+                                      <div key={pi} className="continuous-payment-row flex items-center gap-2.5 text-xs">
                                         <CheckCircle size={12} className="text-green-500 shrink-0" />
                                         <span className="font-bold text-green-600 min-w-[80px]">{Number(p.amount).toLocaleString()} DH</span>
                                         <span className="text-slate-400 flex items-center gap-1"><CalendarDays size={10} className="text-blue-400" />{p.date}</span>
@@ -943,6 +951,7 @@ function EtudiantsTab({ trainings, ctStudents, onAddStudent, onEditStudent, onDe
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
       {filtered.length > 0 && <PaginationControls pagination={pagination} label="étudiants" />}
@@ -955,7 +964,9 @@ function EtudiantsTab({ trainings, ctStudents, onAddStudent, onEditStudent, onDe
 function PlanningTab({ sessions, trainings, trainingTypes = [], onAddSession, onEditSession, onDeleteSession }) {
   const { hasPermission } = useAdminAuth();
   const canEdit = hasPermission('continuous', 'edit');
-  const [viewMode, setViewMode] = useState('grid');
+  const [viewMode, setViewMode] = useState(() => (
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 760px)').matches ? 'list' : 'grid'
+  ));
   const [trainingFilter, setTrainingFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [cycleFilter, setCycleFilter] = useState('all');
@@ -1053,7 +1064,7 @@ function PlanningTab({ sessions, trainings, trainingTypes = [], onAddSession, on
     <div className="space-y-5">
       <div className="continuous-premium-toolbar flex flex-wrap items-center gap-3">
         <Select value={typeFilter} onValueChange={value => { setTypeFilter(value); setCycleFilter('all'); setSubjectFilter('all'); setLevelFilter('all'); setLanguageFilter('all'); setLanguageAudienceFilter('all'); setTrainingFilter('all'); }}>
-          <SelectTrigger className="w-48 border-slate-200 bg-white">
+          <SelectTrigger className="continuous-filter-field w-48 border-slate-200 bg-white">
             <Filter size={13} className="text-slate-400 mr-1" />
             <SelectValue placeholder="Type" />
           </SelectTrigger>
@@ -1065,7 +1076,7 @@ function PlanningTab({ sessions, trainings, trainingTypes = [], onAddSession, on
 
         {typeFilter === 'langue' && (
           <Select value={effectiveLanguageFilter} onValueChange={value => { setLanguageFilter(value); setLanguageAudienceFilter('all'); setLevelFilter('all'); setTrainingFilter('all'); }}>
-            <SelectTrigger className="w-44 border-slate-200 bg-white">
+            <SelectTrigger className="continuous-filter-field w-44 border-slate-200 bg-white">
               <SelectValue placeholder="Langue" />
             </SelectTrigger>
             <SelectContent className="bg-white">
@@ -1077,7 +1088,7 @@ function PlanningTab({ sessions, trainings, trainingTypes = [], onAddSession, on
 
         {typeFilter === 'langue' && (
           <Select value={effectiveLanguageAudienceFilter} onValueChange={value => { setLanguageAudienceFilter(value); setLevelFilter('all'); setTrainingFilter('all'); }}>
-            <SelectTrigger className="w-44 border-slate-200 bg-white">
+            <SelectTrigger className="continuous-filter-field w-44 border-slate-200 bg-white">
               <SelectValue placeholder="Public" />
             </SelectTrigger>
             <SelectContent className="bg-white">
@@ -1089,7 +1100,7 @@ function PlanningTab({ sessions, trainings, trainingTypes = [], onAddSession, on
 
         {typeFilter === 'soutien' && (
           <Select value={effectiveCycleFilter} onValueChange={value => { setCycleFilter(value); setLevelFilter('all'); setSubjectFilter('all'); setTrainingFilter('all'); }}>
-            <SelectTrigger className="w-44 border-slate-200 bg-white">
+            <SelectTrigger className="continuous-filter-field w-44 border-slate-200 bg-white">
               <SelectValue placeholder="Cycle" />
             </SelectTrigger>
             <SelectContent className="bg-white">
@@ -1101,7 +1112,7 @@ function PlanningTab({ sessions, trainings, trainingTypes = [], onAddSession, on
 
         {levelOptions.length > 0 && typeFilter !== 'all' && (
           <Select value={effectiveLevelFilter} onValueChange={value => { setLevelFilter(value); setSubjectFilter('all'); setTrainingFilter('all'); }}>
-            <SelectTrigger className="w-52 border-slate-200 bg-white">
+            <SelectTrigger className="continuous-filter-field w-52 border-slate-200 bg-white">
               <SelectValue placeholder="Niveau" />
             </SelectTrigger>
             <SelectContent className="bg-white">
@@ -1113,7 +1124,7 @@ function PlanningTab({ sessions, trainings, trainingTypes = [], onAddSession, on
 
         {typeFilter === 'soutien' && (
           <Select value={effectiveSubjectFilter} onValueChange={value => { setSubjectFilter(value); setTrainingFilter('all'); }}>
-            <SelectTrigger className="w-44 border-slate-200 bg-white">
+            <SelectTrigger className="continuous-filter-field w-44 border-slate-200 bg-white">
               <SelectValue placeholder="Matière" />
             </SelectTrigger>
             <SelectContent className="bg-white">
@@ -1124,7 +1135,7 @@ function PlanningTab({ sessions, trainings, trainingTypes = [], onAddSession, on
         )}
 
         <Select value={effectiveTrainingFilter} onValueChange={setTrainingFilter}>
-          <SelectTrigger className="w-56 border-slate-200 bg-white">
+          <SelectTrigger className="continuous-filter-field w-56 border-slate-200 bg-white">
             <Filter size={13} className="text-slate-400 mr-1" />
             <SelectValue placeholder="Choisir une formation" />
           </SelectTrigger>
@@ -1134,7 +1145,7 @@ function PlanningTab({ sessions, trainings, trainingTypes = [], onAddSession, on
           </SelectContent>
         </Select>
 
-        <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
+        <div className="continuous-toolbar-actions flex gap-1 bg-slate-100 rounded-xl p-1">
           {[
             { mode: 'list', label: 'Liste', Icon: List },
             { mode: 'grid', label: 'Grille', Icon: LayoutGrid },
@@ -1162,6 +1173,7 @@ function PlanningTab({ sessions, trainings, trainingTypes = [], onAddSession, on
           <EmptyPlaceholder icon={CalendarDays} text="Aucune séance planifiée" iconClass="text-amber-300" />
         ) : (
           <div className="continuous-table-shell rounded-2xl overflow-hidden">
+            <div className="continuous-table-scroll" role="region" aria-label="Séances des formations continues" tabIndex={0}>
             <table className="w-full text-sm">
               <TableHead cols={['Jour', 'Horaire', 'Formation', 'Formateur', 'Salle', '']} />
               <tbody className="divide-y divide-slate-50">
@@ -1211,6 +1223,7 @@ function PlanningTab({ sessions, trainings, trainingTypes = [], onAddSession, on
                 })}
               </tbody>
             </table>
+            </div>
           </div>
         )
       ) : (
@@ -1220,7 +1233,7 @@ function PlanningTab({ sessions, trainings, trainingTypes = [], onAddSession, on
               <EmptyPlaceholder icon={CalendarDays} text="Aucune séance à afficher" iconClass="text-amber-300" />
             </div>
           ) : (
-            <div style={{ overflowX: 'auto', overflowY: 'auto' }}>
+            <div className="continuous-planning-scroll" role="region" aria-label="Planning hebdomadaire des formations continues" tabIndex={0} style={{ overflowX: 'auto', overflowY: 'auto' }}>
               <div className="home-schedule-grid-inverted" style={{ width: '100%' }}>
                 {/* Columns Header Row (Hours) */}
                 <div className="home-schedule-header-row">
@@ -1433,6 +1446,7 @@ function SalairesTab({ trainings, ctStudents }) {
         <EmptyPlaceholder icon={Wallet} text="Aucune formation" iconClass="text-green-300" />
       ) : (
         <div className="continuous-table-shell rounded-2xl overflow-hidden">
+          <div className="continuous-table-scroll continuous-salaries-table" role="region" aria-label="Salaires des formateurs en formation continue" tabIndex={0}>
           <table className="w-full text-sm">
             <TableHead cols={['Formation', 'Formateur', 'Étudiants', 'Total encaissé', 'Part formateur', 'Salaire', 'Marge']} />
             <tbody className="divide-y divide-slate-50">
@@ -1478,6 +1492,7 @@ function SalairesTab({ trainings, ctStudents }) {
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
       )}
       {rows.length > 0 && <PaginationControls pagination={pagination} label="formations" />}
@@ -1953,7 +1968,7 @@ export default function ContinuousTrainings() {
       <Dialog open={trainingModal} onOpenChange={setTrainingModal}>
         <DialogContent className={cn(modalCls, 'max-w-2xl')}>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-slate-800">
+            <DialogTitle className="continuous-dialog-title flex items-center gap-2 pr-10 text-slate-800">
               <span className="w-7 h-7 rounded-lg bg-brand-100 flex items-center justify-center">
                 <BookOpen size={14} className="text-brand-600" />
               </span>
@@ -2099,7 +2114,7 @@ export default function ContinuousTrainings() {
       <Dialog open={typeModal} onOpenChange={setTypeModal}>
         <DialogContent className={cn(modalCls, 'max-w-md')}>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-slate-800">
+            <DialogTitle className="continuous-dialog-title flex items-center gap-2 pr-10 text-slate-800">
               <span className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center">
                 <Filter size={14} className="text-slate-600" />
               </span>
@@ -2135,7 +2150,7 @@ export default function ContinuousTrainings() {
       <Dialog open={studentModal} onOpenChange={setStudentModal}>
         <DialogContent className={cn(modalCls, 'max-w-2xl')}>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-slate-800">
+            <DialogTitle className="continuous-dialog-title flex items-center gap-2 pr-10 text-slate-800">
               <span className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center">
                 <Users size={14} className="text-blue-600" />
               </span>
@@ -2189,12 +2204,12 @@ export default function ContinuousTrainings() {
               {(sForm.payments || []).length > 0 && (
                 <div className="flex flex-col gap-2">
                   {(sForm.payments || []).map((p, i) => (
-                    <div key={i} className="flex items-center gap-2 px-2.5 py-1.5 bg-green-50 border border-green-100 rounded-lg">
+                    <div key={i} className="continuous-payment-row flex items-center gap-2 px-2.5 py-1.5 bg-green-50 border border-green-100 rounded-lg">
                       <CheckCircle size={13} className="text-green-500 shrink-0" />
                       <span className="text-xs font-bold text-green-600 flex-1">{Number(p.amount).toLocaleString()} DH</span>
                       <span className="text-xs text-slate-400 flex items-center gap-1"><CalendarDays size={10} className="text-blue-400" />{p.date}</span>
                       <span className="text-xs text-slate-400 font-semibold">{getPaymentMethodLabel(p.method)}</span>
-                      <button onClick={() => removePaymentEntry(i)} className="text-red-300 hover:text-red-500 transition-colors p-0.5 rounded-md hover:bg-red-50">
+                      <button onClick={() => removePaymentEntry(i)} className="shrink-0 text-red-300 hover:text-red-500 transition-colors p-0.5 rounded-md hover:bg-red-50">
                         <X size={13} />
                       </button>
                     </div>
@@ -2233,7 +2248,7 @@ export default function ContinuousTrainings() {
       <Dialog open={sessionModal} onOpenChange={setSessionModal}>
         <DialogContent className={modalCls}>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-slate-800">
+            <DialogTitle className="continuous-dialog-title flex items-center gap-2 pr-10 text-slate-800">
               <span className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
                 <CalendarDays size={14} className="text-amber-600" />
               </span>

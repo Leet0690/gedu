@@ -1,0 +1,210 @@
+.continuous-premium-page {
+  width: 100%;
+  min-width: 0;
+}
+
+.continuous-premium-page .continuous-premium-header-copy,
+.continuous-premium-page .continuous-premium-content,
+.continuous-premium-page .continuous-premium-toolbar,
+.continuous-premium-page .continuous-card-heading,
+.continuous-premium-dialog .continuous-field {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.continuous-premium-page .continuous-premium-tabs {
+  max-width: 100%;
+}
+
+.continuous-premium-page .continuous-search-field {
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 200px;
+}
+
+.continuous-premium-page .continuous-filter-field {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.continuous-premium-page .continuous-toolbar-actions {
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+
+.continuous-premium-page .continuous-table-scroll {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.continuous-premium-page .continuous-table-scroll table {
+  min-width: 640px;
+}
+
+.continuous-premium-page .continuous-formations-table table {
+  min-width: 1100px;
+}
+
+.continuous-premium-page .continuous-students-table table,
+.continuous-premium-page .continuous-salaries-table table {
+  min-width: 900px;
+}
+
+.continuous-premium-page .continuous-table-scroll:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -3px;
+}
+
+.continuous-premium-page .continuous-card-actions {
+  flex-shrink: 0;
+}
+
+.continuous-premium-page .continuous-training-card:focus-within .continuous-card-actions {
+  opacity: 1;
+}
+
+.continuous-premium-dialog input,
+.continuous-premium-dialog select,
+.continuous-premium-dialog textarea {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.continuous-premium-dialog .continuous-dialog-title > span {
+  flex-shrink: 0;
+}
+
+.continuous-premium-dialog .continuous-payment-row {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.continuous-premium-dialog .continuous-payment-row > button,
+.continuous-premium-dialog .continuous-payment-row > span {
+  flex-shrink: 0;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .continuous-premium-page .continuous-card-actions {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 760px) {
+  .continuous-premium-page .continuous-premium-header {
+    min-height: 0;
+    padding: 12px 0 18px;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .continuous-premium-page .continuous-premium-header-icon {
+    width: 42px;
+    height: 42px;
+    flex-basis: 42px;
+  }
+
+  .continuous-premium-page .continuous-premium-header h1 {
+    font-size: 24px;
+    overflow-wrap: anywhere;
+  }
+
+  .continuous-premium-page .continuous-premium-header p {
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .continuous-premium-page .continuous-premium-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    margin: 0;
+    overflow: visible;
+    gap: 8px;
+  }
+
+  .continuous-premium-page .continuous-premium-tab {
+    min-width: 0;
+    min-height: 44px;
+    justify-content: center;
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+
+  .continuous-premium-page .continuous-premium-tab:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .continuous-premium-page .continuous-premium-toolbar {
+    width: 100%;
+    flex-wrap: wrap;
+    overflow: visible;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .continuous-premium-page .continuous-search-field,
+  .continuous-premium-page .continuous-filter-field,
+  .continuous-premium-page .continuous-primary-action {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .continuous-premium-page .continuous-primary-action {
+    justify-content: center;
+    min-height: 44px;
+    white-space: normal;
+  }
+
+  .continuous-premium-page .continuous-premium-toolbar input,
+  .continuous-premium-page .continuous-premium-toolbar button[role='combobox'] {
+    height: 42px;
+    font-size: 16px;
+  }
+
+  .continuous-premium-page .continuous-card-actions {
+    opacity: 1;
+  }
+
+  .continuous-premium-page .continuous-training-card > div {
+    padding: 16px;
+  }
+
+  .continuous-premium-page .continuous-pagination {
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .continuous-premium-page .continuous-pagination > div {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .continuous-premium-dialog {
+    width: calc(100% - 24px);
+    max-height: calc(100dvh - 32px);
+    padding: 16px;
+    overflow-x: hidden;
+  }
+
+  .continuous-premium-dialog input,
+  .continuous-premium-dialog select,
+  .continuous-premium-dialog textarea {
+    font-size: 16px;
+  }
+
+  .continuous-premium-dialog .app-modal-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .continuous-premium-dialog .app-modal-footer > button {
+    justify-content: center;
+    min-height: 44px;
+  }
+}
