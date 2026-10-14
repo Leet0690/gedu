@@ -1,4 +1,92 @@
 /* Scoped to the finance dashboard; shared cards and payment dialogs keep their own styles. */
+.finance-colorful-page .finance-payment-filter-toolbar .finance-filter-card {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
+.finance-colorful-page .finance-payment-filter-toolbar .finance-filter-row-primary {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.finance-colorful-page .finance-payment-filter-toolbar .finance-filter-search-wide {
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 220px;
+}
+.finance-colorful-page .finance-fee-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  min-width: 0;
+  margin-top: 16px;
+}
+.finance-colorful-page .finance-fee-filters legend {
+  padding: 0;
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+.finance-colorful-page .finance-fee-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.finance-colorful-page .finance-fee-filter-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.finance-admin-page.finance-colorful-page .finance-fee-filter-field .finance-radix-select-trigger {
+  width: 100%;
+  max-width: 100%;
+}
+.finance-colorful-page .finance-fee-filter-help,
+.finance-colorful-page .finance-fee-result-count {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.finance-colorful-page .finance-fee-filter-help { margin-top: 12px; }
+.finance-colorful-page .finance-fee-result-count { margin: 0; font-weight: 600; }
+.finance-colorful-page .finance-fee-table-scroll {
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+.finance-colorful-page .finance-fee-table-scroll table { min-width: 760px; }
+.finance-colorful-page .finance-fee-paid-amount { margin-top: 6px; font-size: 12px; color: #047857; }
+.finance-colorful-page .finance-payment-export-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-left: auto;
+  color: #047857;
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+}
+.finance-colorful-page .finance-payment-export-button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+.finance-colorful-page .finance-payment-export-button + .finance-payment-add-button { margin-left: 0; }
+.finance-admin-page.finance-colorful-page .finance-payment-status-inline {
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
+}
+@media (max-width: 600px) {
+  .finance-colorful-page .finance-fee-filters { grid-template-columns: minmax(0, 1fr); }
+  .finance-colorful-page .finance-payment-export-button,
+  .finance-colorful-page .finance-payment-export-button + .finance-payment-add-button {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
 .finance-admin-page.finance-colorful-page {
   --finance-accent: #047857;
   --finance-soft: #ecfdf5;

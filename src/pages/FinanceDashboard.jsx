@@ -17,7 +17,9 @@ import {
   getPaymentStatusKey,
   getPaymentStatusLabel,
   hasDuplicateMonthlyPayment,
+  PAYMENT_FEE_FIELDS,
 } from '../utils/paymentUtils';
+import { buildStudentFinanceReportRows } from '../utils/studentFinanceReport';
 import {
   getPaymentAcademicYear,
   getStudentAcademicSnapshot,
@@ -151,11 +153,14 @@ const getCurrentMonthName = () => {
   return month.charAt(0).toUpperCase() + month.slice(1);
 };
 
-const PAYMENT_FEE_FIELDS = [
-  { key: 'examFee', label: "Frais d'examen" },
-  { key: 'registrationFee', label: "Frais d'inscription" },
-  { key: 'supportFee', label: 'Support' }
-];
+const getFinanceReportDate = () => {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Africa/Casablanca', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date()).map(part => [part.type, part.value]));
+  return `${parts.year}-${parts.month}-${parts.day}`;
+};
+
+const MONTHLY_PAYMENT_STATUS_LABELS = { paid: 'Payé', unpaid: 'Impayé', upcoming: 'À venir', not_due: 'Non dû' };
 
 const getPaymentFeeItems = (payment) => {
   const legacyFees = Array.isArray(payment?.fees) ? payment.fees : [];
@@ -284,6 +289,11 @@ const FinanceDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearch = useDebounce(searchTerm, 300);
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('');
+  const [feePaymentFilters, setFeePaymentFilters] = useState({});
+  const feeFiltersActive = Object.values(feePaymentFilters).some(Boolean);
+  const paymentSummaryActive = feeFiltersActive || Boolean(paymentStatusFilter);
+  const [exportingPaymentList, setExportingPaymentList] = useState(false);
+  const financeReportDate = getFinanceReportDate();
   const defaultAcademicYear = activeAcademicYear || operationalAcademicYear;
   const [paymentAcademicYearFilter, setPaymentAcademicYearFilter] = useState(
     () => defaultAcademicYear
@@ -424,32 +434,6 @@ const FinanceDashboard = () => {
     setShowPaymentModal(true);
   };
 
-  const exportPaymentsCSV = () => {
-    const selectedMonth = paymentMonthFilter || currentMonthName;
-    const rows = [['Nom', 'Prénom', 'Filière', 'Année académique', 'Mois', 'Montant (DH)', 'Date', 'Statut']];
-    filteredPayments.forEach(p => {
-      if (p.isVirtualUnpaid) return;
-      const student = resolvePaymentStudent(p);
-      rows.push([
-        student?.lastName || '',
-        student?.firstName || '',
-        student?.major || '',
-        getPaymentAcademicYear(p),
-        p.month,
-        getPaymentTotal(p),
-        p.date || '',
-        getPaymentStatusLabel(p.status)
-      ]);
-    });
-    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url;
-    a.download = `paiements_${selectedMonth}.csv`; a.click();
-    URL.revokeObjectURL(url);
-    showToast('Export CSV généré', 'success');
-  };
-
   React.useEffect(() => {
     if (isDirectorAuth) {
       loadFinancialData();
@@ -478,9 +462,9 @@ const FinanceDashboard = () => {
     }
   };
 
-  const openPaymentModal = (studentId = '') => {
+  const openPaymentModal = (studentId = '', academicYearOverride = '') => {
     const selectedStudent = students.find(student => student.id === studentId);
-    const academicYear = paymentAcademicYearFilter ||
+    const academicYear = academicYearOverride || paymentAcademicYearFilter ||
       (selectedStudent ? getStudentCurrentAcademicYear(selectedStudent, operationalAcademicYear) : '') ||
       defaultAcademicYear;
     const academicStudent = selectedStudent
@@ -746,23 +730,6 @@ const FinanceDashboard = () => {
     return monthlyRows;
   }, [payments, activeStudents, students, paymentMonthFilter, paymentAcademicYearFilter, currentMonthName, operationalAcademicYear]);
 
-  const paymentStatusCounts = useMemo(() => {
-    const paidStudentIds = new Set();
-    let unpaid = 0;
-    monthlyPaymentRows.forEach(row => {
-      if (row.isVirtualUnpaid) {
-        unpaid += 1;
-        return;
-      }
-      if (row.studentId) paidStudentIds.add(row.studentId);
-    });
-
-    return {
-      paid: paidStudentIds.size,
-      unpaid
-    };
-  }, [monthlyPaymentRows]);
-
   const filteredPayments = monthlyPaymentRows.filter(p => {
     const student = resolvePaymentStudent(p);
     if (!student) return false;
@@ -776,13 +743,74 @@ const FinanceDashboard = () => {
     return searchStr.includes(debouncedSearch.toLowerCase());
   });
 
-  const paginatedPayments = filteredPayments.slice((paymentsPage - 1) * paymentsPerPage, paymentsPage * paymentsPerPage);
+  const financeReportStudents = useMemo(() => {
+    const roster = new Map((students || []).map(student => [student.id, student]));
+    (payments || []).forEach(payment => {
+      if (payment.studentId && payment.studentSnapshot && !roster.has(payment.studentId)) {
+        roster.set(payment.studentId, { ...payment.studentSnapshot, id: payment.studentId });
+      }
+    });
+    return [...roster.values()];
+  }, [students, payments]);
 
-  const totalPaymentsPages = Math.ceil(filteredPayments.length / paymentsPerPage);
+  const monthlyFinanceRows = useMemo(() => buildStudentFinanceReportRows({
+    students: financeReportStudents, payments, academicYear: paymentAcademicYearFilter,
+    operationalAcademicYear, month: paymentMonthFilter || currentMonthName, asOfDate: financeReportDate,
+  }), [financeReportStudents, payments, paymentAcademicYearFilter, operationalAcademicYear, paymentMonthFilter, currentMonthName, financeReportDate]);
+
+  const filteredFinancialStudents = monthlyFinanceRows.filter(student => {
+    if (paymentStatusFilter && student.monthly[0].status !== paymentStatusFilter) return false;
+    if (!PAYMENT_FEE_FIELDS.every(({ key }) => !feePaymentFilters[key] || student.fees[key].status === feePaymentFilters[key])) return false;
+    return `${student.firstName} ${student.lastName} ${student.regNo} ${student.major} ${student.academicYear} ${student.month}`.toLowerCase().includes(debouncedSearch.toLowerCase());
+  });
+
+  const paymentStatusCounts = {
+    paid: monthlyFinanceRows.filter(row => row.monthly[0].status === 'paid').length,
+    unpaid: monthlyFinanceRows.filter(row => row.monthly[0].status === 'unpaid').length,
+  };
+
+  const paginatedPayments = filteredPayments.slice((paymentsPage - 1) * paymentsPerPage, paymentsPage * paymentsPerPage);
+  const paginatedFinancialStudents = filteredFinancialStudents.slice((paymentsPage - 1) * paymentsPerPage, paymentsPage * paymentsPerPage);
+
+  const filteredReceiptScopes = new Set(filteredPayments.map(payment => {
+    const academicYear = getPaymentAcademicYear(payment) || getStudentCurrentAcademicYear(resolvePaymentStudent(payment), operationalAcademicYear);
+    return `${payment.studentId}:${academicYear}`;
+  }));
+  const paymentDownloadRows = paymentSummaryActive ? filteredFinancialStudents : monthlyFinanceRows.filter(row => filteredReceiptScopes.has(`${row.studentId}:${row.academicYear}`));
+  const paymentListCount = paymentSummaryActive ? filteredFinancialStudents.length : filteredPayments.length;
+  const paymentListStudentCount = new Set(paymentDownloadRows.map(row => row.studentId)).size;
+  const totalPaymentsPages = Math.ceil(paymentListCount / paymentsPerPage);
 
   React.useEffect(() => {
     setPaymentsPage(prev => Math.min(prev, Math.max(1, totalPaymentsPages)));
   }, [totalPaymentsPages]);
+
+  const exportStudentPaymentsPdf = async () => {
+    if (exportingPaymentList || loading || !paymentDownloadRows.length) return;
+
+    setExportingPaymentList(true);
+    try {
+      const { buildStudentFinanceReportPdf } = await import('../utils/studentFinanceReportPdf');
+      const filters = [];
+      if (debouncedSearch) filters.push(`Recherche : ${debouncedSearch}`);
+      if (paymentStatusFilter) filters.push(`Mensualité : ${getPaymentStatusLabel(paymentStatusFilter)}`);
+      PAYMENT_FEE_FIELDS.forEach(({ key, label }) => {
+        if (feePaymentFilters[key]) filters.push(`${label} : ${getPaymentStatusLabel(feePaymentFilters[key])}`);
+      });
+      const pdfDocument = buildStudentFinanceReportPdf({
+        rows: paymentDownloadRows, generatedDate: financeReportDate, filters,
+        monthLabel: paymentMonthFilter || currentMonthName,
+        academicYearLabel: paymentAcademicYearFilter || 'Toutes les années académiques',
+      });
+      pdfDocument.save(`liste_stagiaires_frais_${paymentMonthFilter || currentMonthName}_${paymentAcademicYearFilter || 'toutes_annees'}_${financeReportDate}.pdf`);
+      showToast('Liste PDF téléchargée', 'success');
+    } catch (error) {
+      console.error('Erreur de génération de la liste PDF :', error);
+      showToast('Impossible de générer la liste PDF. Veuillez réessayer.', 'error');
+    } finally {
+      setExportingPaymentList(false);
+    }
+  };
 
   const paymentAcademicStudents = useMemo(() => {
     const targetAcademicYear = paymentData.academicYear || defaultAcademicYear;
@@ -1242,6 +1270,7 @@ const FinanceDashboard = () => {
                 />
               </div>
               <FilterSelect
+                id="finance-filter-academicYear"
                 value={paymentAcademicYearFilter}
                 placeholder="Année académique"
                 options={[
@@ -1254,12 +1283,13 @@ const FinanceDashboard = () => {
                 }}
               />
               <FilterSelect
+                id="finance-filter-monthlyFee"
                 value={paymentStatusFilter}
-                placeholder="Tous les statuts"
+                placeholder="Mensualité : Tous"
                 options={[
-                  { value: '', label: 'Tous les statuts' },
-                  { value: 'paid', label: 'Payé' },
-                  { value: 'unpaid', label: 'Impayé' }
+                  { value: '', label: 'Mensualité : Tous' },
+                  { value: 'paid', label: 'Mensualité : Payé' },
+                  { value: 'unpaid', label: 'Mensualité : Impayé' }
                 ]}
                 onChange={(value) => {
                   setPaymentStatusFilter(value);
@@ -1267,6 +1297,7 @@ const FinanceDashboard = () => {
                 }}
               />
               <FilterSelect
+                id="finance-filter-month"
                 value={paymentMonthFilter}
                 placeholder="Mois"
                 options={months.map(m => ({ value: m, label: m }))}
@@ -1275,13 +1306,14 @@ const FinanceDashboard = () => {
                   setPaymentsPage(1);
                 }}
               />
-              {(searchTerm || paymentStatusFilter || paymentAcademicYearFilter !== defaultAcademicYear || paymentMonthFilter !== currentMonthName) && (
+              {(searchTerm || paymentStatusFilter || feeFiltersActive || paymentAcademicYearFilter !== defaultAcademicYear || paymentMonthFilter !== currentMonthName) && (
                 <button
                   className="action-btn finance-filter-reset"
                   aria-label="Réinitialiser les filtres"
                   onClick={() => {
                     setSearchTerm('');
                     setPaymentStatusFilter('');
+                    setFeePaymentFilters({});
                     setPaymentAcademicYearFilter(defaultAcademicYear);
                     setPaymentMonthFilter(currentMonthName);
                     setPaymentsPage(1);
@@ -1291,28 +1323,70 @@ const FinanceDashboard = () => {
                 </button>
               )}
             </div>
+            <fieldset className="finance-fee-filters">
+              <legend>Frais par stagiaire</legend>
+              {PAYMENT_FEE_FIELDS.map(({ key, label }) => (
+                <div className="finance-fee-filter-field" key={key}>
+                  <label htmlFor={`finance-filter-${key}`}>{label}</label>
+                  <FilterSelect
+                    id={`finance-filter-${key}`}
+                    value={feePaymentFilters[key] || ''}
+                    placeholder="Tous"
+                    options={[
+                      { value: '', label: 'Tous' },
+                      { value: 'paid', label: 'Payé' },
+                      { value: 'unpaid', label: 'Impayé' },
+                    ]}
+                    onChange={value => {
+                      setFeePaymentFilters(previous => ({ ...previous, [key]: value }));
+                      setPaymentsPage(1);
+                    }}
+                  />
+                </div>
+              ))}
+            </fieldset>
+            {paymentSummaryActive && (
+              <p className="finance-fee-filter-help">
+                Situation des quatre frais pour {paymentMonthFilter || currentMonthName} {paymentAcademicYearFilter || '(toutes les années académiques)'}. Payé : un versement est enregistré pour le mois sélectionné.
+              </p>
+            )}
           </div>
           <div className="finance-payment-actions-group">
+            {paymentSummaryActive ? (
+              <p className="finance-fee-result-count" role="status">
+                {paymentListStudentCount} stagiaire{paymentListStudentCount !== 1 ? 's' : ''} correspondant aux filtres de frais
+              </p>
+            ) : (
             <div className="finance-payment-status-inline">
               <div
                 className="finance-payment-status-card finance-payment-status-paid"
-                data-tooltip={`Stagiaires payés · ${paymentMonthFilter}`}
-                aria-label={`Stagiaires payés: ${paymentStatusCounts.paid}`}
+                data-tooltip={`Mensualités payées · ${paymentMonthFilter}`}
+                aria-label={`Mensualités payées: ${paymentStatusCounts.paid}`}
               >
                 <Check size={15} />
-                <span className="finance-payment-status-text">Payés</span>
+                <span className="finance-payment-status-text">Mensualités payées</span>
                 <span className="finance-payment-status-value">{paymentStatusCounts.paid.toLocaleString()}</span>
               </div>
               <div
                 className="finance-payment-status-card finance-payment-status-unpaid"
-                data-tooltip={`Stagiaires impayés · ${paymentMonthFilter}`}
-                aria-label={`Stagiaires impayés: ${paymentStatusCounts.unpaid}`}
+                data-tooltip={`Mensualités impayées · ${paymentMonthFilter}`}
+                aria-label={`Mensualités impayées: ${paymentStatusCounts.unpaid}`}
               >
                 <RotateCcw size={14} />
-                <span className="finance-payment-status-text">Impayés</span>
+                <span className="finance-payment-status-text">Mensualités impayées</span>
                 <span className="finance-payment-status-value">{paymentStatusCounts.unpaid.toLocaleString()}</span>
               </div>
             </div>
+            )}
+            <button
+              className="btn-modern finance-payment-export-button"
+              aria-label="Télécharger la liste PDF"
+              disabled={loading || exportingPaymentList || searchTerm !== debouncedSearch || !paymentListStudentCount}
+              onClick={exportStudentPaymentsPdf}
+              title="Tous les stagiaires filtrés et les quatre frais du mois sélectionné"
+            >
+              <FileDown size={16} /> {exportingPaymentList ? 'Génération…' : 'Télécharger la liste PDF'}
+            </button>
             <button
               disabled={!canEdit} onClick={() => openPaymentModal()}
               className="btn-modern primary finance-payment-add-button"
@@ -1322,6 +1396,55 @@ const FinanceDashboard = () => {
           </div>
           </div>
 
+          {paymentSummaryActive ? (
+            <div className="glass-card" style={{ overflow: 'hidden' }}>
+              {loading ? <TableSkeleton rows={6} /> : (
+                <div className="finance-fee-table-scroll" role="region" aria-label="Situation des frais par stagiaire" tabIndex={0}>
+                  <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr>
+                        <th style={thStyle}>Stagiaire</th>
+                        <th style={thStyle}>Frais mensuels</th>
+                        {PAYMENT_FEE_FIELDS.map(fee => <th key={fee.key} style={thStyle}>{fee.label}</th>)}
+                        <th style={{ ...thStyle, textAlign: 'right' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredFinancialStudents.length === 0 ? (
+                        <tr><td colSpan="6"><EmptyState title="Aucun stagiaire" message="Aucun stagiaire ne correspond aux filtres de frais sélectionnés." icon="search" /></td></tr>
+                      ) : paginatedFinancialStudents.map(student => (
+                        <tr key={`${student.studentId}:${student.academicYear}`} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                          <td style={tdStyle}>
+                            <p style={{ fontWeight: 700 }}>{student.firstName} {student.lastName}</p>
+                            <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{student.regNo} · {student.major} · {student.year}</p>
+                            {!paymentAcademicYearFilter && <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{student.academicYear}</p>}
+                          </td>
+                          <td style={tdStyle}>
+                            <span className={`badge-status ${student.monthly[0].status === 'paid' ? 'success' : 'pending'}`}>{MONTHLY_PAYMENT_STATUS_LABELS[student.monthly[0].status]}</span>
+                            {student.monthly[0].amount > 0 && <p className="finance-fee-paid-amount">{formatMoney(student.monthly[0].amount)} DH</p>}
+                          </td>
+                          {PAYMENT_FEE_FIELDS.map(({ key }) => {
+                            const amount = student.fees[key].amount;
+                            return (
+                              <td key={key} style={tdStyle}>
+                                <span className={`badge-status ${amount > 0 ? 'success' : 'pending'}`}>{amount > 0 ? 'Payé' : 'Impayé'}</span>
+                                {amount > 0 && <p className="finance-fee-paid-amount">{formatMoney(amount)} DH</p>}
+                              </td>
+                            );
+                          })}
+                          <td style={{ ...tdStyle, textAlign: 'right' }}>
+                            <button disabled={!canEdit} className="btn-modern" onClick={() => openPaymentModal(student.studentId, student.academicYear)}>
+                              <CreditCard size={14} /> Enregistrer paiement
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ) : (
           <div className="glass-card" style={{ overflow: 'hidden' }}>
             {loading ? <TableSkeleton rows={8} /> : (
               <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
@@ -1489,11 +1612,12 @@ const FinanceDashboard = () => {
               </table>
             )}
           </div>
+          )}
 
           <Pagination
             currentPage={paymentsPage}
             totalPages={totalPaymentsPages}
-            totalItems={filteredPayments.length}
+            totalItems={paymentListCount}
             itemsPerPage={paymentsPerPage}
             onPageChange={setPaymentsPage}
           />

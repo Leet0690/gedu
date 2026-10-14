@@ -4,9 +4,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 const FILTER_EMPTY_VALUE = '__empty_filter__';
 const normalizeFilterValue = (value) => (String(value ?? '') === '' ? FILTER_EMPTY_VALUE : String(value));
 
-export const FilterSelect = ({ value, onChange, placeholder, options, style, className, disabled = false }) => (
+export const FilterSelect = ({ value, onChange, placeholder, options, style, className, id, disabled = false }) => (
   <Select disabled={disabled} value={normalizeFilterValue(value)} onValueChange={(next) => onChange(next === FILTER_EMPTY_VALUE ? '' : next)}>
-    <SelectTrigger className={`finance-radix-select-trigger ${className || ''}`} style={style}>
+    <SelectTrigger id={id} className={`finance-radix-select-trigger ${className || ''}`} style={style}>
       <SelectValue placeholder={placeholder} />
     </SelectTrigger>
     <SelectContent className="finance-radix-select-content">
