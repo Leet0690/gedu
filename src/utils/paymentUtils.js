@@ -1,9 +1,9 @@
 import { getPaymentAcademicYear } from './studentStatus.js';
 
 export const PAYMENT_FEE_FIELDS = [
-  { key: 'examFee', label: "Frais d'examen" },
-  { key: 'registrationFee', label: "Frais d'inscription" },
-  { key: 'supportFee', label: 'Support' },
+  { key: 'examFee', label: "Frais d'examen", frequency: 'annual' },
+  { key: 'registrationFee', label: "Frais d'inscription", frequency: 'annual' },
+  { key: 'supportFee', label: 'Support', frequency: 'annual' },
 ];
 
 const normalizeStatus = (value = '') =>
@@ -38,7 +38,8 @@ export const hasDuplicateMonthlyPayment = (
     payment.studentId === studentId &&
     String(payment.month || '').trim().toLocaleLowerCase('fr') === normalizedMonth &&
     getPaymentAcademicYear(payment) === academicYear &&
-    getPaymentStatusKey(payment.status) === 'paid'
+    getPaymentStatusKey(payment.status) === 'paid' &&
+    hasMonthlyTuition(payment)
   );
 };
 
@@ -80,6 +81,27 @@ const getPaymentFeeAmounts = (payment) => {
     // New receipts store both formats; prefer the direct value once per fee.
     positiveFeeAmount(payment[key]) || legacyAmounts[key],
   ]));
+};
+
+// Annual fees can be recorded on a receipt without paying the monthly tuition.
+// Keep those receipts out of monthly duplicate detection and arrears checks.
+const hasMonthlyTuition = (payment = {}) => {
+  if (Object.prototype.hasOwnProperty.call(payment, 'tuitionAmount')) {
+    return positiveFeeAmount(payment.tuitionAmount) > 0;
+  }
+
+  const total = Number(typeof payment.amount === 'string'
+    ? payment.amount.trim().replace(',', '.')
+    : payment.amount);
+  if (Number.isFinite(total)) {
+    const feesTotal = Object.values(getPaymentFeeAmounts(payment))
+      .reduce((sum, amount) => sum + amount, 0);
+    return Math.max(0, total - feesTotal) > 0;
+  }
+
+  // A legacy paid receipt without an amount or fee data is treated as a
+  // monthly receipt for backwards compatibility.
+  return Object.values(getPaymentFeeAmounts(payment)).every(amount => amount <= 0);
 };
 
 /** Paid fee amounts by student, within the selected academic year (empty = all). */

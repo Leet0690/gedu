@@ -202,6 +202,9 @@ const getPaymentBaseAmount = (payment) => {
   return Math.max(0, getPaymentTotal(payment) - feesTotal);
 };
 
+const isAnnualFeesOnlyPayment = (payment) =>
+  getPaymentBaseAmount(payment) <= 0 && getPaymentFeeItems(payment).length > 0;
+
 const STUDENT_RECEIPT_PREFIX = 'FD';
 
 const getCreatedAtValue = (record = {}) => {
@@ -550,7 +553,7 @@ const FinanceDashboard = () => {
       doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5);
       doc.text(doc.splitTextToSize(`${student.firstName || ''} ${student.lastName || ''}`.trim(), 56)[0] || '-', margin + 3, offsetY + 32);
       doc.text(doc.splitTextToSize(`Filiere: ${student.major || '-'}`, 56)[0] || '-', margin + 3, offsetY + 37);
-      doc.text(`Mois: ${payment.month}`, w / 2 + 3, offsetY + 32);
+      doc.text(`Mois: ${payment.month || 'Frais annuels'}`, w / 2 + 3, offsetY + 32);
       doc.text(`Annee: ${getPaymentAcademicYear(payment) || '-'} - ${payment.paymentMethod || 'Espèces'}`, w / 2 + 3, offsetY + 37);
 
       let y = offsetY + 47;
@@ -585,7 +588,7 @@ const FinanceDashboard = () => {
     doc.setLineDashPattern([], 0);
     drawReceiptCopy(halfPageHeight, 'COPIE ADMINISTRATION');
 
-    doc.save(`Recu_${receiptNumber}_${student.lastName}_${payment.month}.pdf`);
+    doc.save(`Recu_${receiptNumber}_${student.lastName}_${payment.month || 'frais_annuels'}.pdf`);
     showToast('Reçu généré', 'success');
   };
 
@@ -679,7 +682,9 @@ const FinanceDashboard = () => {
 
     // Filter real payments by month and optional academic year filter
     const paymentsForMonth = payments.filter(p => {
-      const isMonthMatch = !selectedMonth || (p.month || '').toLowerCase() === selectedMonth.toLowerCase();
+      const isMonthMatch = !selectedMonth ||
+        (p.month || '').toLowerCase() === selectedMonth.toLowerCase() ||
+        isAnnualFeesOnlyPayment(p);
       if (!isMonthMatch) return false;
       if (paymentAcademicYearFilter) {
         const pYear = getPaymentAcademicYear(p);
@@ -688,7 +693,12 @@ const FinanceDashboard = () => {
       return true;
     });
 
-    const paidStudentIds = new Set(paymentsForMonth.map(p => p.studentId).filter(Boolean));
+    const paidStudentIds = new Set(
+      paymentsForMonth
+        .filter(p => getPaymentStatusKey(p.status) === 'paid' && getPaymentBaseAmount(p) > 0)
+        .map(p => p.studentId)
+        .filter(Boolean)
+    );
 
     // Target students for virtual unpaid calculation
     let candidateStudents = activeStudents;
@@ -734,6 +744,7 @@ const FinanceDashboard = () => {
     const student = resolvePaymentStudent(p);
     if (!student) return false;
     if (paymentStatusFilter && getPaymentStatusKey(p.status) !== paymentStatusFilter) return false;
+    if (paymentStatusFilter === 'paid' && getPaymentBaseAmount(p) <= 0) return false;
     if (paymentAcademicYearFilter) {
       const pYear = p.isVirtualUnpaid ? (p.academicYear || student.academicYear) : getPaymentAcademicYear(p);
       if (pYear && pYear !== paymentAcademicYearFilter) return false;
@@ -853,8 +864,9 @@ const FinanceDashboard = () => {
     const isVacation = !!selectedPaymentStudent && isStudentVacationMonth(selectedPaymentStudent, month);
     return {
       value: month,
-      label: isVacation ? `${month} · Vacances (non payable)` : month,
-      disabled: isVacation,
+      label: isVacation ? `${month} · Vacances (mensualité non payable)` : month,
+      // Annual fees may still be recorded during a vacation month.
+      disabled: false,
     };
   }), [months, selectedPaymentStudent]);
   const selectedMonthIsVacation = !!selectedPaymentStudent &&
@@ -1022,7 +1034,7 @@ const FinanceDashboard = () => {
     activeStudents.forEach(student => {
       const paidMonthKeys = new Set(
         payments
-          .filter(p => p.studentId === student.id && getPaymentStatusKey(p.status) === 'paid')
+          .filter(p => p.studentId === student.id && getPaymentStatusKey(p.status) === 'paid' && getPaymentBaseAmount(p) > 0)
           .map(p => (p.month || '').toLowerCase())
       );
       let overdue = 0;
@@ -1324,10 +1336,10 @@ const FinanceDashboard = () => {
               )}
             </div>
             <fieldset className="finance-fee-filters">
-              <legend>Frais par stagiaire</legend>
+              <legend>Frais par stagiaire (frais annuels)</legend>
               {PAYMENT_FEE_FIELDS.map(({ key, label }) => (
                 <div className="finance-fee-filter-field" key={key}>
-                  <label htmlFor={`finance-filter-${key}`}>{label}</label>
+                  <label htmlFor={`finance-filter-${key}`}>{label} (annuel)</label>
                   <FilterSelect
                     id={`finance-filter-${key}`}
                     value={feePaymentFilters[key] || ''}
@@ -1347,7 +1359,7 @@ const FinanceDashboard = () => {
             </fieldset>
             {paymentSummaryActive && (
               <p className="finance-fee-filter-help">
-                Situation des quatre frais pour {paymentMonthFilter || currentMonthName} {paymentAcademicYearFilter || '(toutes les années académiques)'}. Payé : un versement est enregistré pour le mois sélectionné.
+                Mensualité : mois sélectionné ({paymentMonthFilter || currentMonthName}). Examen, inscription et support : situation cumulée sur l'année académique {paymentAcademicYearFilter || '(toutes les années académiques)'}.
               </p>
             )}
           </div>
@@ -1404,8 +1416,8 @@ const FinanceDashboard = () => {
                     <thead>
                       <tr>
                         <th style={thStyle}>Stagiaire</th>
-                        <th style={thStyle}>Frais mensuels</th>
-                        {PAYMENT_FEE_FIELDS.map(fee => <th key={fee.key} style={thStyle}>{fee.label}</th>)}
+                        <th style={thStyle}>Mensualité</th>
+                        {PAYMENT_FEE_FIELDS.map(fee => <th key={fee.key} style={thStyle}>{fee.label} (annuel)</th>)}
                         <th style={{ ...thStyle, textAlign: 'right' }}>Actions</th>
                       </tr>
                     </thead>
@@ -1499,7 +1511,7 @@ const FinanceDashboard = () => {
                           )}
                         </td>
                         <td style={tdStyle}>
-                          <span style={{ fontWeight: '700' }}>{p.month}</span>
+                          <span style={{ fontWeight: '700' }}>{p.month || 'Frais annuels'}</span>
                           <span style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px', fontWeight: '600' }}>
                             {p.isVirtualUnpaid ? (p.academicYear || student?.academicYear || '') : (getPaymentAcademicYear(p) || '')}
                           </span>
@@ -2679,11 +2691,14 @@ const FinanceDashboard = () => {
                       onChange={value => setPaymentData({ ...paymentData, month: value })}
                       options={paymentMonthOptions}
                     />
-                    {selectedMonthIsVacation && (
+                    {selectedMonthIsVacation && paymentBaseAmount > 0 && (
                       <p className="finance-payment-vacation-warning">
-                        Ce mois est une période de vacances pour ce niveau. Aucun paiement ne peut être enregistré.
+                        Ce mois est une période de vacances pour ce niveau. La mensualité ne peut pas être enregistrée ; les frais annuels restent autorisés.
                       </p>
                     )}
+                    <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px', fontWeight: '600' }}>
+                      Si aucun montant de mensualité n'est saisi, le mois n'est pas enregistré pour les frais annuels.
+                    </p>
                   </div>
                   <div>
                     <label style={lbl}>Mode de paiement</label>
@@ -2722,11 +2737,13 @@ const FinanceDashboard = () => {
                   </div>
                 </div>
                 <div className="finance-payment-modal-panel">
-                  
+                  <p style={{ fontSize: '10px', color: 'var(--text-muted)', margin: '0 0 8px', fontWeight: '600' }}>
+                    Les frais d'examen, d'inscription et de support sont annuels et ne sont pas réappliqués chaque mois.
+                  </p>
                   <div className="finance-payment-modal-grid finance-payment-modal-grid-three">
                     {PAYMENT_FEE_FIELDS.map(({ key, label }) => (
                       <div key={key}>
-                        <label style={{ ...lbl, fontSize: '9px' }}>{label}</label>
+                        <label style={{ ...lbl, fontSize: '9px' }}>{label} (annuel)</label>
                         <input
                           type="number"
                           min="0"
@@ -2745,13 +2762,15 @@ const FinanceDashboard = () => {
                   </div>
                 </div>
                 <button className="btn-modern primary finance-payment-submit-button"
-                  disabled={!canEdit || (selectedMonthIsVacation)}
-                  style={{ width: '100%', padding: '14px', justifyContent: 'center', opacity: selectedMonthIsVacation ? 0.55 : 1, cursor: selectedMonthIsVacation ? 'not-allowed' : 'pointer' }}
+                  disabled={!canEdit || (selectedMonthIsVacation && paymentBaseAmount > 0)}
+                  style={{ width: '100%', padding: '14px', justifyContent: 'center', opacity: selectedMonthIsVacation && paymentBaseAmount > 0 ? 0.55 : 1, cursor: selectedMonthIsVacation && paymentBaseAmount > 0 ? 'not-allowed' : 'pointer' }}
                   onClick={async () => {
     try {
                     if (!paymentData.studentId || paymentGrandTotal <= 0) return showToast('Stagiaire et montant requis', 'warning');
                     if (!paymentData.academicYear) return showToast('Année académique requise', 'warning');
-                    if (selectedMonthIsVacation) return showToast('Paiement bloqué : ce mois est une période de vacances pour ce niveau.', 'warning');
+                    if (paymentBaseAmount > 0 && !paymentData.month) return showToast('Mois requis pour la mensualité', 'warning');
+                    if (selectedMonthIsVacation && paymentBaseAmount > 0) return showToast('Paiement bloqué : la mensualité ne peut pas être enregistrée pendant une période de vacances.', 'warning');
+                    const storedPaymentMonth = paymentBaseAmount > 0 ? paymentData.month : '';
                     const fees = PAYMENT_FEE_FIELDS
                       .map(({ key, label }) => ({ key, label, amount: parseFloat(paymentData[key]) || 0 }))
                       .filter(fee => fee.amount > 0);
@@ -2770,17 +2789,20 @@ const FinanceDashboard = () => {
                       year: academicStudent.year || '',
                     } : undefined;
                     if (editingPayment) {
-                      const alreadyPaidForMonth = hasDuplicateMonthlyPayment(payments, {
-                        studentId: paymentData.studentId,
-                        month: paymentData.month,
-                        academicYear: paymentData.academicYear,
-                        excludePaymentId: editingPayment.id,
-                      });
-                      if (alreadyPaidForMonth) {
-                        return showToast('Ce stagiaire a déjà payé ce mois.', 'warning');
+                      if (paymentBaseAmount > 0) {
+                        const alreadyPaidForMonth = hasDuplicateMonthlyPayment(payments, {
+                          studentId: paymentData.studentId,
+                          month: paymentData.month,
+                          academicYear: paymentData.academicYear,
+                          excludePaymentId: editingPayment.id,
+                        });
+                        if (alreadyPaidForMonth) {
+                          return showToast('Ce stagiaire a déjà payé ce mois.', 'warning');
+                        }
                       }
                       await updatePayment(editingPayment.id, {
                         ...paymentData,
+                        month: storedPaymentMonth,
                         tuitionAmount: paymentBaseAmount,
                         amount: paymentGrandTotal,
                         fees,
@@ -2788,16 +2810,19 @@ const FinanceDashboard = () => {
                       });
                       setEditingPayment(null);
                     } else {
-                      const alreadyPaidForMonth = hasDuplicateMonthlyPayment(payments, {
-                        studentId: paymentData.studentId,
-                        month: paymentData.month,
-                        academicYear: paymentData.academicYear,
-                      });
-                      if (alreadyPaidForMonth) {
-                        return showToast('Ce stagiaire a déjà payé ce mois.', 'warning');
+                      if (paymentBaseAmount > 0) {
+                        const alreadyPaidForMonth = hasDuplicateMonthlyPayment(payments, {
+                          studentId: paymentData.studentId,
+                          month: paymentData.month,
+                          academicYear: paymentData.academicYear,
+                        });
+                        if (alreadyPaidForMonth) {
+                          return showToast('Ce stagiaire a déjà payé ce mois.', 'warning');
+                        }
                       }
                       await addPayment({
                         ...paymentData,
+                        month: storedPaymentMonth,
                         tuitionAmount: paymentBaseAmount,
                         amount: paymentGrandTotal,
                         fees,

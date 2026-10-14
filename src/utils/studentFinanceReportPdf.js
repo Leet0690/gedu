@@ -106,7 +106,7 @@ export function buildStudentFinanceReportPdf({
     }
     doc.setFontSize(7.3);
     doc.setTextColor(...COLORS.muted);
-    const note = 'Montants en DH pour le mois sélectionné. Payé = versement enregistré ; Impayé = aucun versement ; À venir = mois futur ; Non dû = hors période de facturation. Aucun solde restant n’est calculé.';
+    const note = 'Mensualité : montant enregistré pour le mois sélectionné. Examen, inscription et support : montants cumulés sur l’année académique. Payé = versement enregistré ; Impayé = aucun versement ; À venir = mois futur ; Non dû = hors période de facturation. Aucun solde restant n’est calculé.';
     const notes = doc.splitTextToSize(note, tableWidth);
     doc.text(notes, MARGIN, y, { lineHeightFactor: 1.2 });
     y += notes.length * 3.2 + 4;
@@ -182,16 +182,16 @@ export function buildStudentFinanceReportPdf({
   };
 
   drawTable({
-    title: 'Récapitulatif des frais du mois',
+    title: 'Récapitulatif des frais',
     columns: [
       { label: 'N°', width: 8, align: 'center' },
       { label: 'Stagiaire / Matricule', width: 60 },
       { label: 'Formation / Niveau', width: 45 },
       { label: 'Année académique', width: 22, align: 'center' },
       { label: 'Mensualité (DH)', width: 35, align: 'center' },
-      { label: 'Inscription (DH)', width: 35, align: 'center' },
-      { label: 'Support (DH)', width: 35, align: 'center' },
-      { label: 'Examen (DH)', width: tableWidth - 240, align: 'center' },
+      { label: 'Inscription annuel (DH)', width: 35, align: 'center' },
+      { label: 'Support annuel (DH)', width: 35, align: 'center' },
+      { label: 'Examen annuel (DH)', width: tableWidth - 240, align: 'center' },
     ],
     cells: rows.map((row, index) => [
       { text: index + 1 },

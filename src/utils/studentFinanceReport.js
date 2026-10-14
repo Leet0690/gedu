@@ -122,10 +122,12 @@ export const buildStudentFinanceReportRows = ({
       const snapshot = resolveSnapshot(student, reportAcademicYear, operationalAcademicYear, studentReceipts);
       if (!snapshot) return;
       const yearReceipts = studentReceipts.filter(payment =>
-        getPaymentAcademicYear(payment) === reportAcademicYear &&
+        getPaymentAcademicYear(payment) === reportAcademicYear
+      );
+      const monthReceipts = yearReceipts.filter(payment =>
         normalizeMonth(payment.month) === normalizeMonth(selectedMonth)
       );
-      const paidReceipts = yearReceipts.filter(payment => getPaymentStatusKey(payment.status) === 'paid');
+      const paidReceipts = monthReceipts.filter(payment => getPaymentStatusKey(payment.status) === 'paid');
       const paidByMonth = new Map();
       paidReceipts.forEach(payment => {
         const normalized = normalizeMonth(payment.month);
@@ -146,6 +148,9 @@ export const buildStudentFinanceReportRows = ({
               : monthKey > currentMonthKey ? 'upcoming' : 'unpaid',
         };
       });
+      // Tuition is monthly, while examination, registration and support fees
+      // are annual. Their status and amount must therefore use every paid
+      // receipt in the academic year, not only the selected month's receipt.
       const paidFees = buildStudentFeePaymentIndex(yearReceipts, reportAcademicYear).get(student.id) || {};
       rows.push({
         studentId: student.id,

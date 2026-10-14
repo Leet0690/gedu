@@ -42,6 +42,23 @@ test('duplicate control ignores the edited payment and unpaid records', () => {
   }), false);
 });
 
+test('annual-fee-only receipts do not block a monthly tuition payment', () => {
+  const payments = [{
+    id: 'annual-fees',
+    studentId: 's1',
+    month: 'Octobre',
+    academicYear: '2025-2026',
+    amount: 350,
+    examFee: 150,
+    registrationFee: 200,
+    status: 'payé',
+  }];
+
+  assert.equal(hasDuplicateMonthlyPayment(payments, {
+    studentId: 's1', month: 'Octobre', academicYear: '2025-2026',
+  }), false);
+});
+
 test('fee payment index scopes each student to the selected academic year', () => {
   const payments = [
     { studentId: 's1', academicYear: '2025-2026', status: 'payé', examFee: 150 },

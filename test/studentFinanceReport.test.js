@@ -30,7 +30,7 @@ test('reports only the selected month and all fee types for students without rec
   });
 });
 
-test('tuition and all three fees use the selected month without contamination from another month', () => {
+test('tuition stays monthly while annual fees aggregate the full academic year', () => {
   const payments = [
     receipt({ month: 'Octobre', amount: 1050, tuitionAmount: 700, examFee: 150, registrationFee: 200 }),
     receipt({ month: 'Novembre', amount: 750, tuitionAmount: 700, supportFee: 50, examFee: 999 }),
@@ -40,13 +40,26 @@ test('tuition and all three fees use the selected month without contamination fr
   assert.equal(month(row, 'Novembre'), undefined);
   assert.equal(row.monthlyPaidTotal, 700);
   assert.deepEqual(row.fees, {
-    examFee: { amount: 150, status: 'paid' },
+    examFee: { amount: 1149, status: 'paid' },
     registrationFee: { amount: 200, status: 'paid' },
-    supportFee: { amount: 0, status: 'unpaid' },
+    supportFee: { amount: 50, status: 'paid' },
   });
   const [november] = buildStudentFinanceReportRows({ ...options, month: 'Novembre', payments });
+  assert.equal(november.monthlyPaidTotal, 700);
   assert.equal(november.fees.supportFee.amount, 50);
-  assert.equal(november.fees.registrationFee.status, 'unpaid');
+  assert.equal(november.fees.registrationFee.status, 'paid');
+});
+
+test('annual fees without a month remain paid for every selected month', () => {
+  const payments = [receipt({
+    month: '', amount: 350, tuitionAmount: 0, examFee: 150, registrationFee: 200,
+  })];
+  const [row] = buildStudentFinanceReportRows({ ...options, month: 'Mars', payments });
+
+  assert.equal(month(row, 'Mars').status, 'upcoming');
+  assert.equal(row.fees.examFee.status, 'paid');
+  assert.equal(row.fees.registrationFee.status, 'paid');
+  assert.equal(row.fees.examFee.amount, 150);
 });
 
 test('fee-only receipts never turn a monthly payment into paid', () => {
@@ -59,7 +72,7 @@ test('fee-only receipts never turn a monthly payment into paid', () => {
   assert.equal(month(row, 'Octobre').status, 'unpaid');
   assert.equal(row.fees.examFee.status, 'paid');
   assert.equal(row.fees.registrationFee.status, 'paid');
-  assert.equal(row.fees.supportFee.status, 'unpaid');
+  assert.equal(row.fees.supportFee.status, 'paid');
   const [november] = buildStudentFinanceReportRows({ ...options, month: 'Novembre', payments });
   assert.equal(november.monthlyPaidTotal, 0);
   assert.equal(month(november, 'Novembre').status, 'upcoming');
@@ -96,7 +109,7 @@ test('other legacy charges are excluded from tuition without duplicating known f
   const [row] = buildStudentFinanceReportRows({ ...options, payments });
   assert.equal(month(row, 'Octobre').amount, 700);
   assert.equal(row.monthlyPaidTotal, 700);
-  assert.equal(row.fees.supportFee.amount, 0);
+  assert.equal(row.fees.supportFee.amount, 50);
   const [november] = buildStudentFinanceReportRows({ ...options, month: 'Novembre', payments });
   assert.equal(month(november, 'Novembre').amount, 700);
   assert.equal(november.fees.supportFee.amount, 50);
@@ -158,12 +171,12 @@ test('all-year reports keep October payments separate and use each historical cl
   assert.equal(rows[0].year, FIRST_YEAR);
   assert.equal(rows[0].major, 'Classe historique');
   assert.equal(rows[0].monthlyPaidTotal, 600);
-  assert.equal(rows[0].fees.examFee.amount, 50);
+  assert.equal(rows[0].fees.examFee.amount, 1050);
   assert.equal(rows[0].month, 'Octobre');
   assert.equal(rows[1].academicYear, academicYear);
   assert.equal(rows[1].year, SECOND_YEAR);
   assert.equal(rows[1].monthlyPaidTotal, 700);
-  assert.equal(rows[1].fees.examFee.amount, 100);
+  assert.equal(rows[1].fees.examFee.amount, 1100);
   assert.equal(rows[1].month, 'Octobre');
   assert.equal(buildStudentFinanceReportRows({ ...options, students: [secondYear], payments })[0].monthlyPaidTotal, 700);
 });
@@ -190,7 +203,7 @@ test('missing enrollment years require a real receipt snapshot and do not invent
   assert.equal(buildStudentFinanceReportRows({ ...options, academicYear: '', payments }).length, 2);
 });
 
-test('legacy receipt years derive from dates and normalized selected months exclude all unknown months', () => {
+test('legacy receipt years derive from dates while monthly totals exclude unknown months', () => {
   const payments = [
     { studentId: 's1', date: '2027-02-10', month: '  FEVRIER ', amount: 700 },
     receipt({ month: 'Autres', amount: 900, supportFee: 50 }),
@@ -201,7 +214,7 @@ test('legacy receipt years derive from dates and normalized selected months excl
   assert.equal(month(row, 'Février').amount, 700);
   assert.equal(month(row, 'Février').status, 'paid');
   assert.equal(row.monthlyPaidTotal, 700);
-  assert.equal(row.fees.supportFee.amount, 0);
+  assert.equal(row.fees.supportFee.amount, 50);
   assert.equal(row.fees.examFee.amount, 0);
   const [october] = buildStudentFinanceReportRows({ ...options, payments });
   assert.equal(month(october, 'Octobre').status, 'unpaid');
