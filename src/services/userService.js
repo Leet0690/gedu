@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, getDocsFromServer, getDocFromServer, query, where, limit, onSnapshot, writeBatch, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDocs, getDocsFromServer, getDocFromServer, query, where, limit, orderBy, startAfter, onSnapshot, writeBatch, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, deleteUser, sendPasswordResetEmail, updatePassword } from 'firebase/auth';
 import { db, auth, createSecondaryAuth } from '../firebase';
 import { isAdministrator, canManageUsers, assertCanManageUserTarget, normalizePermissions } from '../utils/permissions';
@@ -109,6 +109,19 @@ export const subscribeUsers = (callback, onError = console.error) => onSnapshot(
   snapshot => callback(snapshot.docs.map(item => ({ ...item.data(), id: item.id, uid: item.id })).sort((a, b) => String(a.displayName || '').localeCompare(String(b.displayName || ''), 'fr'))), onError,
 );
 export const fetchUsers = async () => (await getDocs(collection(db, 'users'))).docs.map(item => ({ ...item.data(), id: item.id, uid: item.id }));
+export const fetchUsersPage = async ({ pageSize = 50, cursor = null } = {}) => {
+  const constraints = [orderBy('displayName', 'asc')];
+  if (cursor) constraints.push(startAfter(cursor));
+  constraints.push(limit(pageSize));
+
+  const snapshot = await getDocs(query(collection(db, 'users'), ...constraints));
+  const users = snapshot.docs.map(item => ({ ...item.data(), id: item.id, uid: item.id }));
+  return {
+    users,
+    lastDoc: snapshot.docs.at(-1) || null,
+    hasMore: snapshot.size === pageSize,
+  };
+};
 export const getUserProfile = async uid => {
   const snapshot = await getDocFromServer(doc(db, 'users', uid));
   return snapshot.exists() ? { ...snapshot.data(), id: uid, uid } : null;

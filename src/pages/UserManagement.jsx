@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Users, 
@@ -24,7 +24,8 @@ import {
   Sparkles,
   RefreshCw,
   SlidersHorizontal,
-  ChevronRight
+  ChevronRight,
+  ChevronLeft
 } from 'lucide-react';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { useToast } from '../context/ToastContext';
@@ -32,7 +33,7 @@ import { getLoginIdentifier } from '../utils/loginIdentifier';
 import { 
   APP_MODULES, 
   ROLE_PRESETS, 
-  subscribeUsers, 
+  fetchUsersPage,
   createUserAccount, 
   updateUserProfile, 
   toggleUserStatus, 
@@ -50,6 +51,10 @@ export default function UserManagement() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [userPage, setUserPage] = useState(1);
+  const [userPageCursors, setUserPageCursors] = useState([null]);
+  const [hasNextUserPage, setHasNextUserPage] = useState(false);
+  const initialUsersLoadRef = useRef(false);
   const [actionBusy, setActionBusy] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
@@ -80,16 +85,39 @@ export default function UserManagement() {
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
 
-  // Subscribe to users collection
-  useEffect(() => {
+  const loadUsersPage = useCallback(async ({ page = 1, reset = false } = {}) => {
     if (!isAdmin) return;
-    const unsubscribe = subscribeUsers((userList) => {
-      setUsers(userList);
+    setLoading(true);
+    setLoadError('');
+    try {
+      const cursor = reset || page === 1 ? null : userPageCursors[page - 1] || null;
+      const result = await fetchUsersPage({ cursor });
+      setUsers(result.users);
+      setUserPage(page);
+      setHasNextUserPage(result.hasMore);
+      setUserPageCursors(previous => {
+        const next = reset || page === 1 ? [null] : [...previous];
+        next[page] = result.lastDoc;
+        return next;
+      });
+    } catch (error) {
+      console.error('Chargement paginé des utilisateurs :', error);
+      setLoadError('Impossible de charger les utilisateurs. Vérifiez la connexion et les droits Firestore.');
+    } finally {
       setLoading(false);
-      setLoadError('');
-    }, () => { setLoading(false); setLoadError('Impossible de charger les utilisateurs. Vérifiez la connexion et les droits Firestore.'); });
-    return () => unsubscribe();
-  }, [isAdmin]);
+    }
+  }, [isAdmin, userPageCursors]);
+
+  useEffect(() => {
+    if (!isAdmin) {
+      initialUsersLoadRef.current = false;
+      return;
+    }
+    if (initialUsersLoadRef.current) return;
+    initialUsersLoadRef.current = true;
+    setUserPageCursors([null]);
+    loadUsersPage({ page: 1, reset: true });
+  }, [isAdmin, loadUsersPage]);
 
   // Filtered users list
   const filteredUsers = useMemo(() => {
@@ -189,6 +217,7 @@ export default function UserManagement() {
     if (res.success) {
       showToast(`Utilisateur ${formData.displayName} créé avec succès !`, 'success');
       setIsCreateModalOpen(false);
+      await loadUsersPage({ page: userPage });
     } else {
       setFormError(res.error || "Erreur lors de la création de l'utilisateur.");
     }
@@ -214,6 +243,7 @@ export default function UserManagement() {
     if (res.success) {
       showToast(`Profil de ${formData.displayName} mis à jour.`, 'success');
       setEditingUser(null);
+      await loadUsersPage({ page: userPage });
     } else {
       setFormError(res.error || "Erreur lors de la modification de l'utilisateur.");
     }
@@ -229,6 +259,7 @@ export default function UserManagement() {
     if (res.success) {
       showToast(`Compte de ${user.displayName} ${res.newStatus ? 'activé' : 'désactivé'}.`, res.newStatus ? 'success' : 'warning');
     }
+    if (res.success) await loadUsersPage({ page: userPage });
   };
 
   const handleOpenPasswordModal = (user) => {
@@ -276,6 +307,7 @@ export default function UserManagement() {
     if (res.success) {
       showToast(`Compte de ${deleteConfirmUser.displayName} supprimé.`, 'warning');
       setDeleteConfirmUser(null);
+      await loadUsersPage({ page: userPage });
     } else {
       showToast(res.error || 'Erreur lors de la désactivation.', 'error');
     }
@@ -586,6 +618,30 @@ export default function UserManagement() {
           </div>
         )}
       </div>
+
+      {!loading && users.length > 0 && (
+        <div className="flex items-center justify-between gap-3 px-1 text-sm text-slate-500">
+          <span>Page {userPage} · {users.length} comptes chargés</span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="btn-modern secondary flex items-center gap-1"
+              disabled={userPage === 1}
+              onClick={() => loadUsersPage({ page: userPage - 1 })}
+            >
+              <ChevronLeft size={15} /> Précédent
+            </button>
+            <button
+              type="button"
+              className="btn-modern secondary flex items-center gap-1"
+              disabled={!hasNextUserPage}
+              onClick={() => loadUsersPage({ page: userPage + 1 })}
+            >
+              Suivant <ChevronRight size={15} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Modal: Create User */}
       <AnimatePresence>

@@ -19,7 +19,7 @@ import {
   hasDuplicateMonthlyPayment,
   PAYMENT_FEE_FIELDS,
 } from '../utils/paymentUtils';
-import { buildStudentFinanceReportRows } from '../utils/studentFinanceReport';
+import { buildStudentFinanceReportRows, isMonthlyUnpaidStatus } from '../utils/studentFinanceReport';
 import {
   getPaymentAcademicYear,
   getStudentAcademicSnapshot,
@@ -770,14 +770,20 @@ const FinanceDashboard = () => {
   }), [financeReportStudents, payments, paymentAcademicYearFilter, operationalAcademicYear, paymentMonthFilter, currentMonthName, financeReportDate]);
 
   const filteredFinancialStudents = monthlyFinanceRows.filter(student => {
-    if (paymentStatusFilter && student.monthly[0].status !== paymentStatusFilter) return false;
+    if (paymentStatusFilter) {
+      const monthlyStatus = student.monthly[0].status;
+      const matchesStatus = paymentStatusFilter === 'unpaid'
+        ? isMonthlyUnpaidStatus(monthlyStatus)
+        : monthlyStatus === paymentStatusFilter;
+      if (!matchesStatus) return false;
+    }
     if (!PAYMENT_FEE_FIELDS.every(({ key }) => !feePaymentFilters[key] || student.fees[key].status === feePaymentFilters[key])) return false;
     return `${student.firstName} ${student.lastName} ${student.regNo} ${student.major} ${student.academicYear} ${student.month}`.toLowerCase().includes(debouncedSearch.toLowerCase());
   });
 
   const paymentStatusCounts = {
     paid: monthlyFinanceRows.filter(row => row.monthly[0].status === 'paid').length,
-    unpaid: monthlyFinanceRows.filter(row => row.monthly[0].status === 'unpaid').length,
+    unpaid: monthlyFinanceRows.filter(row => isMonthlyUnpaidStatus(row.monthly[0].status)).length,
   };
 
   const paginatedPayments = filteredPayments.slice((paymentsPage - 1) * paymentsPerPage, paymentsPage * paymentsPerPage);

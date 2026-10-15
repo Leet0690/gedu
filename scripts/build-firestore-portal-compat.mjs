@@ -9,7 +9,7 @@ const compatibility = `    // TEMPORARY: legacy portals still query these academ
     // Finance, users, backups, settings, tokens and audit logs have no public grant.
     // Remove this block after migrating portals to server-validated sessions.
     match /{portalCollection}/{portalDocument} {
-      allow read: if request.auth == null && portalCollection in ['students', 'teachers', 'grades', 'schedules', 'modules'];
+      allow read: if request.auth == null && portalCollection in ['students', 'teachers', 'grades', 'schedules', 'modules', 'attendance_formateurs', 'attendance_stagiaires'];
     }
 `;
 await mkdir(new URL('../artifacts/', import.meta.url), { recursive: true });

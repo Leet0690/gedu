@@ -3,7 +3,8 @@ import { getAuth, initializeAuth, inMemoryPersistence, signOut } from "firebase/
 import { 
   initializeFirestore, 
   getFirestore,
-  memoryLocalCache
+  persistentLocalCache,
+  persistentMultipleTabManager
 } from "firebase/firestore";
 
 if (!import.meta.env.VITE_FIREBASE_API_KEY) {
@@ -25,7 +26,9 @@ const app = initializeApp(firebaseConfig);
 let _db;
 try {
   _db = initializeFirestore(app, {
-    localCache: memoryLocalCache()
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager()
+    })
   });
 } catch (e) {
   console.warn("Firestore cache initialization failed:", e);

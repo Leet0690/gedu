@@ -174,12 +174,6 @@ service cloud.firestore {
         get(/databases/$(database)/documents/teachers/$(request.resource.data.teacherId)).data.tokenGrades == request.resource.data.tokenGrades;
       allow list: if false;
     }
-    match /teachers/{id} { allow read: if true; }
-    match /schedules/{id} { allow read: if true; }
-    match /students/{id} { allow read: if true; }
-    match /modules/{id} { allow read: if true; }
-    match /attendance_formateurs/{id} { allow read: if true; }
-    match /attendance_stagiaires/{id} { allow read: if true; }
     match /{name}/{id} {
       allow read: if moduleFor(name) != '' && permitted(moduleFor(name), 'view');
       allow write: if moduleFor(name) != '' && permitted(moduleFor(name), 'edit');

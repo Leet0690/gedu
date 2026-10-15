@@ -33,6 +33,10 @@ const parseAmount = (value) => {
 
 const roundMoney = (amount) => Math.round((amount + Number.EPSILON) * 100) / 100;
 
+// A future month without a recorded payment is displayed as "upcoming", but
+// it must still be included by the Finance "unpaid" filter.
+export const isMonthlyUnpaidStatus = (status) => ['unpaid', 'upcoming'].includes(status);
+
 const getMonthlyAmount = (payment) => {
   const explicitAmount = parseAmount(payment.tuitionAmount);
   if (explicitAmount !== null) return explicitAmount;

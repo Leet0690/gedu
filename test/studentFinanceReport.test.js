@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildStudentFinanceReportRows } from '../src/utils/studentFinanceReport.js';
+import { buildStudentFinanceReportRows, isMonthlyUnpaidStatus } from '../src/utils/studentFinanceReport.js';
 import { FIRST_YEAR, SECOND_YEAR } from '../src/utils/studentStatus.js';
 
 const academicYear = '2026-2027';
@@ -60,6 +60,13 @@ test('annual fees without a month remain paid for every selected month', () => {
   assert.equal(row.fees.examFee.status, 'paid');
   assert.equal(row.fees.registrationFee.status, 'paid');
   assert.equal(row.fees.examFee.amount, 150);
+});
+
+test('future unpaid monthly payments are included by the unpaid Finance filter', () => {
+  assert.equal(isMonthlyUnpaidStatus('unpaid'), true);
+  assert.equal(isMonthlyUnpaidStatus('upcoming'), true);
+  assert.equal(isMonthlyUnpaidStatus('paid'), false);
+  assert.equal(isMonthlyUnpaidStatus('not_due'), false);
 });
 
 test('fee-only receipts never turn a monthly payment into paid', () => {

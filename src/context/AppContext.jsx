@@ -47,6 +47,7 @@ import { buildStudentClosure, buildStudentClosureUndo, buildStudentClosureCorrec
 import { createReadCoordinator, createInFlightReader } from '../utils/readCoordinator';
 import { getPageCollections } from '../utils/dataRequirements';
 import { startAutoRefresh } from '../utils/autoRefresh';
+import { AUTO_REFRESH_INTERVAL_MS, getCollectionReadTtl, READ_TTLS } from '../utils/readPolicies';
 import { getTeacherPortalSettings, publishScheduleSettings } from '../services/teacherPortalService';
 import { getPublicScheduleSettings } from '../utils/publicScheduleSettings';
 import { loadTeacherPortalGrades, loadStudentPortalGrades, closeTeacherGradePortalConnection } from '../services/teacherGradePortalService';
@@ -426,8 +427,11 @@ export const AppProvider = ({ children }) => {
     closeTeacherGradePortalConnection().catch(() => {});
   }, [portalPath]);
   useEffect(() => {
-    if (!isAuthenticated && !portalPath) return;
-    return startAutoRefresh({ refresh: () => setRefreshVersion(version => version + 1) });
+    if (!isAuthenticated || portalPath) return;
+    return startAutoRefresh({
+      intervalMs: AUTO_REFRESH_INTERVAL_MS,
+      refresh: () => setRefreshVersion(version => version + 1),
+    });
   }, [isAuthenticated, portalPath]);
   const readAllowed = useCallback((name, ...constraints) => hasPermission(COLLECTION_MODULES[name])
     ? getDocs(query(collection(db, name), ...constraints))
@@ -447,21 +451,29 @@ export const AppProvider = ({ children }) => {
         [where('userId', '==', adminUser.uid), orderBy('timestamp', 'desc'), limit(50)],
         ...(hasPermission('dashboard') ? [[where('actionType', '==', 'CLASS_ATTENDANCE_COMPLETED'), orderBy('timestamp', 'desc'), limit(50)]] : []),
       ];
-    const snapshots = new Map();
-    const errors = new Set();
-    const unsubscribers = sources.map((constraints, index) => onSnapshot(query(collection(db, 'activity_logs'), ...constraints), snapshot => {
-      snapshots.set(index, snapshot.docs.map(item => ({ ...item.data(), id: item.id })));
-      errors.delete(index);
-      const combined = new Map([...snapshots.values()].flat().map(item => [item.id, item]));
-      setNotifications([...combined.values()].sort((a, b) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0)).slice(0, 100));
-      if (!errors.size) setActivityError('');
-    }, error => {
-      errors.add(index);
-      setActivityError('Le journal des activités est momentanément indisponible.');
-      console.error('Erreur lecture des activités :', error);
-    }));
-    return () => unsubscribers.forEach(unsubscribe => unsubscribe());
-  }, [isAuthenticated, hasPermission, adminUser?.uid, pathname]);
+    let isMounted = true;
+    const loadActivities = async () => {
+      try {
+        const snapshots = await Promise.all(sources.map(constraints =>
+          getDocs(query(collection(db, 'activity_logs'), ...constraints))
+        ));
+        if (!isMounted) return;
+        const combined = new Map(snapshots.flatMap(snapshot =>
+          snapshot.docs.map(item => ({ ...item.data(), id: item.id }))
+        ).map(item => [item.id, item]));
+        setNotifications([...combined.values()]
+          .sort((a, b) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0))
+          .slice(0, 100));
+        setActivityError('');
+      } catch (error) {
+        if (!isMounted) return;
+        setActivityError('Le journal des activités est momentanément indisponible.');
+        console.error('Erreur lecture des activités :', error);
+      }
+    };
+    void loadActivities();
+    return () => { isMounted = false; };
+  }, [isAuthenticated, hasPermission, adminUser?.uid, pathname, refreshVersion, getDocs]);
 
   const notifyTeacherClassAttendance = useCallback(details => recordClassAttendanceActivity(db, details), []);
 
@@ -727,7 +739,7 @@ export const AppProvider = ({ children }) => {
               }
               setters[name](data);
             }
-          });
+          }, { ttl: getCollectionReadTtl(name) });
           await Promise.all(getPageCollections(pathname).map(loadCollection));
 
         } else if (isStudentPortal) {
@@ -911,7 +923,7 @@ export const AppProvider = ({ children }) => {
         const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         if (isCurrent()) setAccessLogs(data);
         return data;
-      }, { force });
+      }, { force, ttl: READ_TTLS.accessLogs });
     } catch (error) {
       console.error('Error loading access logs:', error);
       originalShowToast('Erreur de chargement du journal des accès', 'error');
@@ -1591,14 +1603,14 @@ export const AppProvider = ({ children }) => {
   const loadAttendanceForSession = useCallback(async (moduleId, date) => {
     if (!hasPermission('attendance_students') || !moduleId || !date) return;
     const [year, month] = date.split('-').map(Number);
-    if (reads.isFresh(`student-month:${year}-${month - 1}`)) return;
+    if (reads.isFresh(`student-month:${year}-${month - 1}`, READ_TTLS.attendance)) return;
     try {
       await reads.run(`student-session:${moduleId}:${date}`, async isCurrent => {
         const snapshot = await getDocs(query(collection(db, 'attendance_stagiaires'), where('moduleId', '==', moduleId), where('date', '==', date)));
         if (!isCurrent()) return;
         const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         setStudentAttendance(prev => mergeById(prev.filter(a => a.moduleId !== moduleId || a.date !== date), data));
-      });
+      }, { ttl: READ_TTLS.attendance });
     } catch (e) {
       console.error('Error loading session attendance:', e);
       originalShowToast('Erreur de chargement des présences', 'error');
@@ -1614,7 +1626,7 @@ export const AppProvider = ({ children }) => {
         if (!isCurrent()) return;
         const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         setStudentAttendance(prev => mergeById(prev.filter(a => !a.date || a.date < start || a.date > end), data));
-      }, { force });
+      }, { force, ttl: READ_TTLS.attendance });
     } catch (e) {
       console.error('Error loading monthly student attendance:', e);
       originalShowToast('Erreur de chargement des présences mensuelles', 'error');
@@ -1624,14 +1636,14 @@ export const AppProvider = ({ children }) => {
   const loadTeacherAttendanceForDate = useCallback(async date => {
     if (!hasPermission('attendance_teachers') || !date) return;
     const [year, month] = date.split('-').map(Number);
-    if (reads.isFresh(`teacher-month:${year}-${month - 1}`)) return;
+    if (reads.isFresh(`teacher-month:${year}-${month - 1}`, READ_TTLS.attendance)) return;
     try {
       await reads.run(`teacher-date:${date}`, async isCurrent => {
         const snapshot = await getDocs(query(collection(db, 'attendance_formateurs'), where('date', '==', date)));
         if (!isCurrent()) return;
         const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         setTeacherAttendance(prev => mergeById(prev.filter(a => a.date !== date), data));
-      });
+      }, { ttl: READ_TTLS.attendance });
     } catch (e) {
       console.error('Error loading teacher attendance:', e);
       originalShowToast('Erreur de chargement des présences formateurs', 'error');
@@ -1647,7 +1659,7 @@ export const AppProvider = ({ children }) => {
         if (!isCurrent()) return;
         const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         setTeacherAttendance(prev => mergeById(prev.filter(a => !a.date || a.date < start || a.date > end), data));
-      }, { force });
+      }, { force, ttl: READ_TTLS.attendance });
     } catch (e) {
       console.error('Error loading monthly teacher attendance:', e);
       originalShowToast('Erreur de chargement des vacations mensuelles', 'error');
@@ -1703,7 +1715,7 @@ export const AppProvider = ({ children }) => {
         }));
         setSalaries(salSnap.docs.map(item => ({ id: item.id, ...item.data() })));
         setExpenses(expSnap.docs.map(item => ({ id: item.id, ...item.data() })));
-      }, { force });
+      }, { force, ttl: READ_TTLS.finance });
     } catch (e) {
       console.error('Error loading finance data:', e);
       originalShowToast('Erreur de chargement financier', 'error');
