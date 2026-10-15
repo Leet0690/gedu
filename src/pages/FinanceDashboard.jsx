@@ -280,7 +280,7 @@ const FinanceDashboard = () => {
     continuousTrainings = [], ctStudents = [],
     addPayment, updatePayment, deletePayment, addSalary, deleteSalary, updateTeacher,
     addExpense, deleteExpense,
-    teacherAttendance, loadFinancialData, loadTeacherAttendanceForMonth,
+    teacherAttendance, loadFinancialData, loadCollection, loadTeacherAttendanceForMonth,
     schedules, getActiveScheduleModule,
     isDirectorAuth, logout, confirmAction,
     activeAcademicYear, operationalAcademicYear, availableAcademicYearsList = []
@@ -444,10 +444,16 @@ const FinanceDashboard = () => {
   }, [isDirectorAuth, loadFinancialData]);
 
   React.useEffect(() => {
-    if (isDirectorAuth) {
-      loadTeacherAttendanceForMonth(salaryFilter.month, salaryFilter.year);
-    }
-  }, [isDirectorAuth, salaryFilter.month, salaryFilter.year, loadTeacherAttendanceForMonth]);
+    if (!isDirectorAuth || activeTab !== 'salaries') return;
+    void Promise.all([
+      loadCollection('teachers'),
+      loadCollection('schedules'),
+      loadTeacherAttendanceForMonth(salaryFilter.month, salaryFilter.year),
+    ]).catch(error => {
+      console.error('Erreur de chargement des données de salaires :', error);
+      showToast('Erreur de chargement des données de salaires', 'error');
+    });
+  }, [activeTab, isDirectorAuth, loadCollection, loadTeacherAttendanceForMonth, salaryFilter.month, salaryFilter.year, showToast]);
 
   const handleSaveRate = async (teacherId) => {
     try {

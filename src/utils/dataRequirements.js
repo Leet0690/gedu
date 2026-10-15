@@ -12,7 +12,10 @@ const requirements = {
   '/admin/monthly-attendance': ['students'],
   '/admin/attendance-teachers': ['teachers', 'schedules', 'modules'],
   '/admin/monthly-attendance-teachers': ['teachers', 'schedules'],
-  '/admin/finance': ['students', 'teachers'],
+  // Finance needs the student roster immediately for unpaid-month calculations.
+  // Teachers, schedules and teacher attendance are loaded when the Salaries tab
+  // is opened because the other finance tabs do not use them.
+  '/admin/finance': ['students'],
   '/admin/continuous': ['teachers', 'continuousTrainings', 'continuousTrainingTypes', 'ctStudents', 'ctSessions'],
 };
 

@@ -550,6 +550,38 @@ export const AppProvider = ({ children }) => {
   const loadedPathRef = useRef(null);
   const accessLoggedRef = useRef(false);
 
+  const loadCollection = useCallback((name, { force = false } = {}) => {
+    const setters = {
+      students: setStudents,
+      teachers: setTeachers,
+      grades: setGrades,
+      schedules: setSchedules,
+      modules: setModules,
+      continuousTrainings: setContinuousTrainings,
+      continuousTrainingTypes: setContinuousTrainingTypes,
+      ctStudents: setCtStudents,
+      ctSessions: setCtSessions,
+    };
+    const setter = setters[name];
+    if (!setter) return Promise.resolve();
+
+    return reads.run(`collection:${name}`, async isCurrent => {
+      const constraints = ['grades', 'continuousTrainingTypes'].includes(name)
+        ? [] : [orderBy(name === 'modules' ? 'name' : 'createdAt', name === 'modules' ? 'asc' : 'desc')];
+      const snapshot = await readAllowed(name, ...constraints);
+      if (!isCurrent()) return;
+      if (name === 'grades') {
+        setter(Object.fromEntries(snapshot.docs.map(item => [item.id, item.data()])));
+      } else {
+        const data = snapshot.docs.map(item => ({ ...item.data(), id: item.id }));
+        if (name === 'continuousTrainingTypes') {
+          data.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'fr', { sensitivity: 'base' }));
+        }
+        setter(data);
+      }
+    }, { force, ttl: getCollectionReadTtl(name) });
+  }, [readAllowed, reads]);
+
   // Modal de confirmation global
   const [confirmState, setConfirmState] = useState({
     isOpen: false, title: '', message: '', type: 'danger', confirmText: '', cancelText: '', resolve: null
@@ -718,28 +750,6 @@ export const AppProvider = ({ children }) => {
         }
 
         if ((isAuthenticated || isDirectorAuth) && !portalPath) {
-          const setters = {
-            students: setStudents, teachers: setTeachers, grades: setGrades,
-            schedules: setSchedules, modules: setModules,
-            continuousTrainings: setContinuousTrainings,
-            continuousTrainingTypes: setContinuousTrainingTypes,
-            ctStudents: setCtStudents, ctSessions: setCtSessions,
-          };
-          const loadCollection = name => reads.run(`collection:${name}`, async isCurrent => {
-            const constraints = ['grades', 'continuousTrainingTypes'].includes(name)
-              ? [] : [orderBy(name === 'modules' ? 'name' : 'createdAt', name === 'modules' ? 'asc' : 'desc')];
-            const snapshot = await readAllowed(name, ...constraints);
-            if (!isCurrent()) return;
-            if (name === 'grades') {
-              setters[name](Object.fromEntries(snapshot.docs.map(item => [item.id, item.data()])));
-            } else {
-              const data = snapshot.docs.map(item => ({ ...item.data(), id: item.id }));
-              if (name === 'continuousTrainingTypes') {
-                data.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'fr', { sensitivity: 'base' }));
-              }
-              setters[name](data);
-            }
-          }, { ttl: getCollectionReadTtl(name) });
           await Promise.all(getPageCollections(pathname).map(loadCollection));
 
         } else if (isStudentPortal) {
@@ -875,7 +885,7 @@ export const AppProvider = ({ children }) => {
     loadData();
 
     return () => { isMounted = false; };
-  }, [isAuthenticated, isDirectorAuth, readAllowed, originalShowToast, portalPath, pathname, reads, getDocs]);
+  }, [isAuthenticated, isDirectorAuth, loadCollection, originalShowToast, portalPath, pathname, reads, getDocs]);
 
   useEffect(() => {
     if (!isAuthenticated && !isDirectorAuth) {
@@ -2049,7 +2059,7 @@ export const AppProvider = ({ children }) => {
       studentAttendance, teacherAttendance, updateStudentAttendance, updateTeacherAttendance, notifyTeacherClassAttendance,
       loadAttendanceForSession, loadStudentAttendanceForMonth, loadTeacherAttendanceForDate, loadTeacherAttendanceForMonth,
       schedules, addSchedule, updateSchedule, deleteSchedule, clearAllSchedules, migrateTeacherTokens,
-      payments, salaries, expenses, loadFinancialData, addPayment, updatePayment, deletePayment, addSalary, updateSalary, deleteSalary, addExpense, deleteExpense,
+      payments, salaries, expenses, loadFinancialData, loadCollection, addPayment, updatePayment, deletePayment, addSalary, updateSalary, deleteSalary, addExpense, deleteExpense,
       modules, addModule, updateModule, deleteModule, reorderModules, copyModulesToAcademicYear,
       continuousTrainings, addContinuousTraining, updateContinuousTraining, deleteContinuousTraining,
       continuousTrainingTypes, addContinuousTrainingType, renameContinuousTrainingType, deleteContinuousTrainingType,

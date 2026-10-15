@@ -112,4 +112,5 @@ test('direct entry to lightweight pages excludes unrelated collections', () => {
   assert.equal(getPageCollections('/').includes('ctStudents'), false);
   assert.equal(getPageCollections('/admin/continuous').includes('ctStudents'), true);
   assert.equal(getPageCollections('/admin/students').includes('grades'), true, 'student report exports need grades');
+  assert.deepEqual(getPageCollections('/admin/finance'), ['students']);
 });

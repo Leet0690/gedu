@@ -32,11 +32,11 @@ Nombre de collections métier initiales pour un administrateur, hors profil, par
 | Gestion des utilisateurs / journaux | 9 | 0 |
 | Tableau de bord | 9 | 5 |
 | Formations continues | 9 | 5 |
-| Finance, y compris ses 3 collections dédiées | 12 | 5 |
+| Finance, ouverture initiale | 12 | 4 |
 
 Une collection peut contenir beaucoup de documents : ces nombres ne représentent pas un nombre de lectures facturées. Les vues qui calculent des statistiques globales et les exports complets chargent encore les collections nécessaires en entier. L'historique financier n'est pas tronqué.
 
-La pagination serveur est déployée sur la gestion des utilisateurs. Les tableaux Finance et les rapports utilisent encore leurs collections complètes pour calculer les soldes, arriérés et totaux historiques ; ils n'ont pas été limités artificiellement afin de ne pas produire de totaux incomplets.
+La pagination serveur est déployée sur la gestion des utilisateurs. Les tableaux Finance et les rapports utilisent encore leurs collections complètes pour calculer les soldes, arriérés et totaux historiques ; ils n'ont pas été limités artificiellement afin de ne pas produire de totaux incomplets. Dans Finance, les formateurs, les emplois du temps et les présences mensuelles sont maintenant chargés uniquement à l'ouverture de l'onglet **Salaires**.
 
 Le plan gratuit Firestore Standard inclut **50 000 lectures de documents par jour**. Ce quota est partagé par les clients du projet. Les règles utilisant `get()` peuvent aussi occasionner des lectures, et une requête vide a un coût minimal. Un cache IndexedDB seul ne supprime pas les lectures serveur de `getDocs()`.
 
