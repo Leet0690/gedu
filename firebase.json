@@ -102,5 +102,10 @@
         }
       ]
     }
-  ]
+  ],
+  "auth": {
+    "providers": {
+      "emailPassword": true
+    }
+  }
 }
