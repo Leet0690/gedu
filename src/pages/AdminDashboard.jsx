@@ -1754,7 +1754,7 @@ const AdminDashboard = () => {
 
           <nav className="gedu-quick-actions" aria-label="Actions rapides">
             <Link to="/admin/students" className="gedu-quick-action">
-              <span className="gedu-quick-action-icon gedu-quick-action-icon--blue"><UsersIcon size={17} /></span>
+              <span className="gedu-quick-action-icon gedu-quick-action-icon--emerald"><UsersIcon size={17} /></span>
               <span><strong>Ajouter un stagiaire</strong><small>Créer un dossier</small></span>
               <ArrowUpRight size={15} aria-hidden="true" />
             </Link>
@@ -1769,7 +1769,7 @@ const AdminDashboard = () => {
               <ArrowUpRight size={15} aria-hidden="true" />
             </Link>
             <Link to="/admin/reports" className="gedu-quick-action">
-              <span className="gedu-quick-action-icon gedu-quick-action-icon--green"><LineChart size={17} /></span>
+              <span className="gedu-quick-action-icon gedu-quick-action-icon--sage"><LineChart size={17} /></span>
               <span><strong>Ouvrir les rapports</strong><small>Décider avec les données</small></span>
               <ArrowUpRight size={15} aria-hidden="true" />
             </Link>
