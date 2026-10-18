@@ -52,7 +52,7 @@ import { getTeacherPortalSettings, publishScheduleSettings } from '../services/t
 import { getPublicScheduleSettings } from '../utils/publicScheduleSettings';
 import { loadTeacherPortalGrades, loadStudentPortalGrades, closeTeacherGradePortalConnection } from '../services/teacherGradePortalService';
 import { recordClassAttendanceActivity } from '../services/classAttendanceActivity';
-import { getInstitutionConfig } from '../config/institution';
+import { applyInstitutionTheme, getInstitutionConfig } from '../config/institution';
 
 const AppContext = createContext();
 const ACCESS_LOG_LIMIT = 5;
@@ -544,6 +544,9 @@ export const AppProvider = ({ children }) => {
   // The active year is only the local year currently being viewed.
   const [activeAcademicYear, setActiveAcademicYearState] = useState(readCachedOperationalAcademicYear);
   const [institution, setInstitutionState] = useState(getInstitutionConfig);
+  useEffect(() => {
+    applyInstitutionTheme(institution);
+  }, [institution]);
   const academicCatalog = useMemo(() => buildAcademicCatalog({
     modules,
     students,

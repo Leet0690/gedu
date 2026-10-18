@@ -1,6 +1,6 @@
 import { institutionConfig } from '../config/institution.js';
 
-let logoDataUrlPromise;
+const logoDataUrlPromises = new Map();
 
 const blobToDataUrl = (blob) => new Promise((resolve, reject) => {
   const reader = new FileReader();
@@ -9,19 +9,24 @@ const blobToDataUrl = (blob) => new Promise((resolve, reject) => {
   reader.readAsDataURL(blob);
 });
 
-export const loadLogoDataUrl = () => {
-  if (!logoDataUrlPromise) {
-    logoDataUrlPromise = fetch(institutionConfig.logoUrl || '/logo-ipfpp.png', { cache: 'force-cache' })
+export const loadLogoDataUrl = (requestedLogoUrl = '') => {
+  const runtimeLogoUrl = typeof window !== 'undefined' ? window.__GEDU_INSTITUTION__?.logoUrl : '';
+  const logoUrl = requestedLogoUrl || runtimeLogoUrl || institutionConfig.logoUrl || '/logo-ipfpp.png';
+  if (!logoDataUrlPromises.has(logoUrl)) {
+    const promise = logoUrl.startsWith('data:')
+      ? Promise.resolve(logoUrl)
+      : fetch(logoUrl, { cache: 'force-cache' })
       .then(response => {
         if (!response.ok) throw new Error(`Logo unavailable: ${response.status}`);
         return response.blob();
       })
       .then(blobToDataUrl)
       .catch(error => {
-        logoDataUrlPromise = undefined;
+        logoDataUrlPromises.delete(logoUrl);
         throw error;
       });
+    logoDataUrlPromises.set(logoUrl, promise);
   }
 
-  return logoDataUrlPromise;
+  return logoDataUrlPromises.get(logoUrl);
 };
