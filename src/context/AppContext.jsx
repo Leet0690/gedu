@@ -1021,6 +1021,38 @@ export const AppProvider = ({ children }) => {
     return token;
   };
 
+  const importStudents = async (studentRows = []) => {
+    requireEdit('students');
+    const rows = Array.isArray(studentRows) ? studentRows.filter(Boolean) : [];
+    if (rows.length === 0) return { count: 0, students: [] };
+
+    const importedStudents = [];
+    for (let start = 0; start < rows.length; start += 400) {
+      const batch = writeBatch(db);
+      const batchStudents = rows.slice(start, start + 400).map(studentData => {
+        const token = makeToken(32);
+        const academicYear = validateAcademicYear(studentData.academicYear)
+          ? studentData.academicYear
+          : operationalAcademicYear;
+        const newStudent = {
+          ...studentData,
+          academicYear,
+          token,
+          createdAt: serverTimestamp(),
+        };
+        const docRef = doc(collection(db, 'students'));
+        batch.set(docRef, newStudent);
+        return { id: docRef.id, ...newStudent };
+      });
+      await batch.commit();
+      importedStudents.push(...batchStudents);
+    }
+
+    setStudents(previous => [...importedStudents, ...previous]);
+    showToast(`${importedStudents.length} stagiaire(s) importé(s) avec succès.`, 'success');
+    return { count: importedStudents.length, students: importedStudents };
+  };
+
   const updateStudent = async (id, data) => {
     requireEdit('students');
     await updateDoc(doc(db, 'students', id), data);
@@ -1473,6 +1505,36 @@ export const AppProvider = ({ children }) => {
     setTeachers(prev => [{ id: docRef.id, ...newTeacher }, ...prev]);
     showToast(`Nouveau formateur ajouté : ${teacherData.name}.`, 'success');
     return { tokenGrades, tokenAttendance };
+  };
+
+  const importTeachers = async (teacherRows = []) => {
+    requireEdit('teachers');
+    const rows = Array.isArray(teacherRows) ? teacherRows.filter(Boolean) : [];
+    if (rows.length === 0) return { count: 0, teachers: [] };
+
+    const importedTeachers = [];
+    for (let start = 0; start < rows.length; start += 400) {
+      const batch = writeBatch(db);
+      const batchTeachers = rows.slice(start, start + 400).map(teacherData => {
+        const tokenGrades = makeToken(32);
+        const tokenAttendance = makeToken(32);
+        const newTeacher = {
+          ...teacherData,
+          tokenGrades,
+          tokenAttendance,
+          createdAt: serverTimestamp(),
+        };
+        const docRef = doc(collection(db, 'teachers'));
+        batch.set(docRef, newTeacher);
+        return { id: docRef.id, ...newTeacher };
+      });
+      await batch.commit();
+      importedTeachers.push(...batchTeachers);
+    }
+
+    setTeachers(previous => [...importedTeachers, ...previous]);
+    showToast(`${importedTeachers.length} formateur(s) importé(s) avec succès.`, 'success');
+    return { count: importedTeachers.length, teachers: importedTeachers };
   };
 
   const updateTeacher = async (id, data) => {
@@ -2121,7 +2183,7 @@ export const AppProvider = ({ children }) => {
     <AppContext.Provider value={{
       students, teachers, grades, isAuthenticated, isDirectorAuth, loading,
       login, logout, showToast,
-      addStudent, addTeacher, updateStudent, promoteAcademicYear, undoLastPromotion, updateStudentClosureDecision, updateTeacher, deleteStudent, deleteTeacher, updateGrades, batchUpdateGrades,
+      addStudent, importStudents, addTeacher, importTeachers, updateStudent, promoteAcademicYear, undoLastPromotion, updateStudentClosureDecision, updateTeacher, deleteStudent, deleteTeacher, updateGrades, batchUpdateGrades,
       studentAttendance, teacherAttendance, updateStudentAttendance, updateTeacherAttendance, notifyTeacherClassAttendance,
       loadAttendanceForSession, loadStudentAttendanceForMonth, loadTeacherAttendanceForDate, loadTeacherAttendanceForMonth,
       schedules, addSchedule, updateSchedule, deleteSchedule, clearAllSchedules, migrateTeacherTokens,

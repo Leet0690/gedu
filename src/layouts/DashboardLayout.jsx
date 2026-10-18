@@ -30,6 +30,7 @@ import {
   GraduationCap,
   ShieldCheck,
   ListTree,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 const useOnlineStatus = () => {
@@ -86,6 +87,7 @@ const NAV_CATEGORIES = [
       { to: "/admin/users", icon: ShieldCheck, label: "Utilisateurs & Droits", color: "text-blue-600", pageKey: 'users' },
       { to: "/admin/institution", icon: School, label: "Établissement", color: "text-indigo-600", pageKey: 'users' },
       { to: "/admin/catalog", icon: ListTree, label: "Niveaux / Filières", color: "text-emerald-600", pageKey: 'catalog' },
+      { to: "/admin/import", icon: FileSpreadsheet, label: "Import Excel", color: "text-amber-600", pageKey: 'catalog' },
     ]
   }
 ];

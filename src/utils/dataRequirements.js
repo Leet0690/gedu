@@ -3,6 +3,7 @@ const requirements = {
   '/': ['students', 'teachers', 'grades', 'schedules', 'modules'],
   '/admin/students': ['students', 'grades', 'modules'],
   '/admin/teachers': ['teachers', 'modules'],
+  '/admin/import': ['students', 'teachers', 'modules'],
   '/admin/grades': ['students', 'teachers', 'grades', 'modules'],
   '/admin/reports': ['students', 'grades', 'modules'],
   '/admin/modules': ['modules'],

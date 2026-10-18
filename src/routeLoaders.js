@@ -19,6 +19,7 @@ const routeLoaders = {
   userManagement: () => import('./pages/UserManagement'),
   institutionSettings: () => import('./pages/InstitutionSettings'),
   academicCatalog: () => import('./pages/AcademicCatalog'),
+  bulkImport: () => import('./pages/BulkImport'),
 };
 
 const routeKeysByPath = {
@@ -40,6 +41,7 @@ const routeKeysByPath = {
   '/admin/users': 'userManagement',
   '/admin/institution': 'institutionSettings',
   '/admin/catalog': 'academicCatalog',
+  '/admin/import': 'bulkImport',
 };
 
 const routePromises = new Map();
