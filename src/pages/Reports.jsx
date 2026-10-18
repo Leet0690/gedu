@@ -2,7 +2,6 @@ import { loadLogoDataUrl } from '../utils/loadLogoDataUrl.js';
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
-import { MODULES_DATA, getStudyYearsForDiploma } from '../data/modules';
 import { institutionConfig } from '../config/institution';
 import EmptyState from '../components/EmptyState';
 import { FilterSelect } from '../components/ui/FilterSelect';
@@ -545,9 +544,9 @@ const Reports = () => {
     activeAcademicYear, operationalAcademicYear, availableAcademicYearsList = []
   } = useApp() || {};
 
-  const [selectedDiploma, setSelectedDiploma] = useState(() => academicCatalog?.diplomas?.[0] || Object.keys(MODULES_DATA)[0]);
+  const [selectedDiploma, setSelectedDiploma] = useState('');
   const [selectedMajor, setSelectedMajor] = useState('');
-  const [selectedYear, setSelectedYear] = useState('1ère année');
+  const [selectedYear, setSelectedYear] = useState('');
   const [selectedAcademicYear, setSelectedAcademicYear] = useState(activeAcademicYear);
 
   useEffect(() => {
@@ -555,9 +554,10 @@ const Reports = () => {
   }, [activeAcademicYear]);
 
   useEffect(() => {
-    if (academicCatalog?.diplomas?.length && !academicCatalog.diplomas.includes(selectedDiploma)) {
-      setSelectedDiploma(academicCatalog.diplomas[0]);
+    if (selectedDiploma && academicCatalog?.diplomas?.length && !academicCatalog.diplomas.includes(selectedDiploma)) {
+      setSelectedDiploma('');
       setSelectedMajor('');
+      setSelectedYear('');
     }
   }, [academicCatalog, selectedDiploma]);
 
@@ -585,30 +585,32 @@ const Reports = () => {
   }, [loadStudentAttendanceForMonth]);
 
   const availableMajors = useMemo(() =>
-    selectedDiploma ? (academicCatalog?.filieres?.[selectedDiploma] || Object.keys(MODULES_DATA[selectedDiploma] || {})) : [],
+    selectedDiploma ? (academicCatalog?.filieres?.[selectedDiploma] || []) : Array.from(new Set(Object.values(academicCatalog?.filieres || {}).flat())),
     [academicCatalog, selectedDiploma]
   );
-  const availableStudyYears = useMemo(() => academicCatalog?.years?.[selectedDiploma] || getStudyYearsForDiploma(selectedDiploma), [academicCatalog, selectedDiploma]);
+  const availableStudyYears = useMemo(() => selectedDiploma
+    ? academicCatalog?.years?.[selectedDiploma] || []
+    : Array.from(new Set(Object.values(academicCatalog?.years || {}).flat())), [academicCatalog, selectedDiploma]);
 
   const getGroupStudents = useCallback((group) =>
     reportStudents.filter(student =>
-      student.diploma === group.diploma &&
-      student.major === group.major &&
+      (!group.diploma || student.diploma === group.diploma) &&
+      (!group.major || student.major === group.major) &&
       (group.year === 'Lauréat'
         ? student.graduationAcademicYear === selectedAcademicYear
-        : student.year === group.year)
+        : (!group.year || student.year === group.year))
     ),
   [reportStudents, selectedAcademicYear]);
 
   const getGroupModules = useCallback((group) => {
     const studyYears = group.year === 'Lauréat'
       ? new Set(getGroupStudents(group).map(student => student.year).filter(Boolean))
-      : new Set([group.year]);
+      : group.year ? new Set([group.year]) : null;
 
     const classModules = allModules.filter(module =>
-      module.diploma === group.diploma &&
-      module.major === group.major &&
-      studyYears.has(module.year)
+      (!group.diploma || module.diploma === group.diploma) &&
+      (!group.major || module.major === group.major) &&
+      (!studyYears || studyYears.has(module.year))
     );
 
     const yearScoped = filterModulesByAcademicYear(classModules, selectedAcademicYear);
@@ -628,20 +630,18 @@ const Reports = () => {
   );
 
   const availableModulesList = useMemo(() => {
-    if (!selectedDiploma || !selectedMajor || !selectedYear) return [];
     return getGroupModules(selectedGroup);
-  }, [getGroupModules, selectedDiploma, selectedMajor, selectedYear, selectedGroup]);
+  }, [getGroupModules, selectedGroup]);
 
   const availableModules = useMemo(() => availableModulesList.map(m => m.name), [availableModulesList]);
 
   useEffect(() => {
-    if (availableMajors.length > 0 && !availableMajors.includes(selectedMajor))
-      setSelectedMajor(availableMajors[0]);
+    if (selectedMajor && !availableMajors.includes(selectedMajor)) setSelectedMajor('');
   }, [availableMajors, selectedMajor]);
 
   useEffect(() => {
-    if (availableModules.length > 0 && !availableModules.includes(selectedModule))
-      setSelectedModule(availableModules[0]);
+    if (selectedModule && !availableModules.includes(selectedModule))
+      setSelectedModule('');
     else if (availableModules.length === 0 && selectedModule)
       setSelectedModule('');
   }, [availableModules, selectedModule]);
@@ -1337,8 +1337,8 @@ const Reports = () => {
           <label style={labelStyle}>Niveau</label>
           <FilterSelect 
             value={selectedDiploma} 
-            onChange={val => { setSelectedDiploma(val); setSelectedYear(getStudyYearsForDiploma(val)[0]); }} 
-            options={(academicCatalog?.diplomas || Object.keys(MODULES_DATA)).map(d => ({ label: d, value: d }))}
+            onChange={val => { setSelectedDiploma(val); setSelectedMajor(''); setSelectedYear(''); }}
+            options={[{ label: 'Tous les niveaux', value: '' }, ...(academicCatalog?.diplomas || []).map(d => ({ label: d, value: d }))]}
             style={{ minWidth: '180px' }} 
           />
         </div>
@@ -1348,6 +1348,7 @@ const Reports = () => {
             value={selectedYear} 
             onChange={setSelectedYear} 
             options={[
+              { label: 'Toutes les années', value: '' },
               ...availableStudyYears.map(y => ({ label: y, value: y })),
               ...(selectedAcademicYear !== operationalAcademicYear ? [{ label: "Lauréat (Diplômés)", value: "Lauréat" }] : [])
             ]} 
@@ -1356,7 +1357,7 @@ const Reports = () => {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <label style={labelStyle}>Filière</label>
-          <FilterSelect value={selectedMajor} onChange={val => setSelectedMajor(val)} options={availableMajors.map(m => ({ label: m, value: m }))} style={{ minWidth: '200px' }} />
+          <FilterSelect value={selectedMajor} onChange={val => setSelectedMajor(val)} options={[{ label: 'Toutes les filières', value: '' }, ...availableMajors.map(m => ({ label: m, value: m }))]} style={{ minWidth: '200px' }} />
         </div>
         <button
           onClick={handleExportClassExcel}

@@ -28,6 +28,7 @@ const ScheduleGeneration = lazy(() => loadRoute('scheduleGeneration'));
 const ContinuousTrainings = lazy(() => loadRoute('continuousTrainings'));
 const UserManagement = lazy(() => loadRoute('userManagement'));
 const InstitutionSettings = lazy(() => loadRoute('institutionSettings'));
+const AcademicCatalog = lazy(() => loadRoute('academicCatalog'));
 const StudentScheduleView = lazy(() => loadRoute('studentScheduleView'));
 
 const PageLoader = () => (
@@ -136,6 +137,7 @@ const AppContent = () => {
         <Route path="/admin/schedule-generation" element={<ProtectedRoute pageKey="schedule_generation"><ScheduleGeneration /></ProtectedRoute>} />
         <Route path="/admin/users" element={<ProtectedRoute pageKey="users"><UserManagement /></ProtectedRoute>} />
         <Route path="/admin/institution" element={<ProtectedRoute pageKey="users"><InstitutionSettings /></ProtectedRoute>} />
+        <Route path="/admin/catalog" element={<ProtectedRoute pageKey="catalog"><AcademicCatalog /></ProtectedRoute>} />
         <Route path="/admin/access-logs" element={<Navigate to="/" replace />} />
         <Route path="/portal/:teacherId" element={<TeacherPortal />} />
         <Route path="/teacher/:teacherId" element={<TeacherPortal />} />

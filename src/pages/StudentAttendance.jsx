@@ -4,7 +4,7 @@ import './AttendanceColors.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
-import { FILIERES, getModulesForFiliere, getStudyYearsForDiploma, getStudyYearsForMajor } from '../data/modules';
+import { getModulesForFiliere } from '../data/modules';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import { DatePicker } from '../components/ui';
@@ -145,7 +145,7 @@ const StudentAttendance = () => {
     }).sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
   }, [activeStudents, filterDiploma, filterMajor, filterYear, debouncedSearch, schedules, dayOfWeek, getActiveScheduleModule]);
 
-  const availableMajors = filterDiploma ? (academicCatalog?.filieres?.[filterDiploma] || FILIERES[filterDiploma] || []) : Array.from(new Set(activeStudents.map(s => s.major)));
+  const availableMajors = filterDiploma ? (academicCatalog?.filieres?.[filterDiploma] || []) : Array.from(new Set([...(Object.values(academicCatalog?.filieres || {}).flat()), ...activeStudents.map(s => s.major)]));
   const availableModules = useMemo(() => {
     if (filterMajor && filterYear) {
       const scheduledModules = (schedules || [])
@@ -497,7 +497,7 @@ const StudentAttendance = () => {
   const [mFilterFiliere, setMFilterFiliere] = useState('');
   const [mFilterAnnee, setMFilterAnnee] = useState('');
   const [mSearch, setMSearch] = useState('');
-  const allFilieres = useMemo(() => Array.from(new Set(Object.values(academicCatalog?.filieres || FILIERES).flat())), [academicCatalog]);
+  const allFilieres = useMemo(() => Array.from(new Set(Object.values(academicCatalog?.filieres || {}).flat())), [academicCatalog]);
   useEffect(() => {
     if (view === 'monthly') loadStudentAttendanceForMonth(mMonth, mYear);
   }, [view, mMonth, mYear, loadStudentAttendanceForMonth]);
@@ -739,7 +739,7 @@ const StudentAttendance = () => {
                   onChange={(val) => { setFilterDiploma(val); setFilterMajor(''); setFilterYear(''); setFilterModule(''); setFilterTime(''); }}
                   options={[
                     { label: "Choisir niveau", value: "" },
-                    ...(academicCatalog?.diplomas || Object.keys(FILIERES)).map(d => ({ label: d, value: d }))
+                    ...(academicCatalog?.diplomas || []).map(d => ({ label: d, value: d }))
                   ]}
                   style={{ width: '100%' }}
                 />
@@ -763,7 +763,7 @@ const StudentAttendance = () => {
                   onChange={(val) => { setFilterYear(val); setFilterModule(''); setFilterTime(''); }}
                   options={[
                     { label: "Année", value: "" },
-                    ...(academicCatalog?.years?.[filterDiploma] || getStudyYearsForDiploma(filterDiploma)).map(year => ({ label: year, value: year }))
+                    ...(filterDiploma ? academicCatalog?.years?.[filterDiploma] || [] : Array.from(new Set(Object.values(academicCatalog?.years || {}).flat()))).map(year => ({ label: year, value: year }))
                   ]}
                   style={{ width: '100%' }}
                 />
@@ -969,8 +969,9 @@ const StudentAttendance = () => {
                   options={[
                     { label: "Toutes années", value: "" },
                     ...(() => {
-                      const diploma = Object.keys(academicCatalog?.filieres || FILIERES).find(key => (academicCatalog?.filieres?.[key] || FILIERES[key] || []).includes(mFilterFiliere));
-                      return (academicCatalog?.years?.[diploma] || getStudyYearsForMajor(mFilterFiliere)).map(year => ({ label: year, value: year }));
+                      const diploma = Object.keys(academicCatalog?.filieres || {}).find(key => (academicCatalog?.filieres?.[key] || []).includes(mFilterFiliere));
+                      const years = mFilterFiliere ? academicCatalog?.years?.[diploma] || [] : Array.from(new Set(Object.values(academicCatalog?.years || {}).flat()));
+                      return years.map(year => ({ label: year, value: year }));
                     })()
                   ]}
                   style={{ width: '100%' }}

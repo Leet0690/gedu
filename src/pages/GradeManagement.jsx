@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
-import { FILIERES, getClassCode, getNextStudyYear, getStudyYearsForDiploma } from '../data/modules';
+import { getClassCode, getNextStudyYear, getStudyYearsForDiploma } from '../data/modules';
 import {
   dedupeModulesByName,
   filterModulesByAcademicYear,
@@ -147,13 +147,13 @@ const GradeManagement = () => {
     .map(student => getStudentAcademicSnapshot(student, filterAcademicYear, operationalAcademicYear))
     .filter(Boolean), [students, filterAcademicYear, operationalAcademicYear]);
   const availableDiplomas = useMemo(() => Array.from(new Set([
-    ...(academicCatalog?.diplomas || Object.keys(FILIERES)),
+    ...(academicCatalog?.diplomas || []),
     ...academicStudents.map(student => student.diploma).filter(Boolean),
   ])), [academicCatalog, academicStudents]);
   const availableMajors = useMemo(() => {
     const configuredMajors = filterDiploma
-      ? (academicCatalog?.filieres?.[filterDiploma] || FILIERES[filterDiploma] || [])
-      : Object.values(academicCatalog?.filieres || FILIERES).flat();
+      ? (academicCatalog?.filieres?.[filterDiploma] || [])
+      : Object.values(academicCatalog?.filieres || {}).flat();
     const historicalMajors = academicStudents
       .filter(student => !filterDiploma || student.diploma === filterDiploma)
       .map(student => student.major)
@@ -161,7 +161,7 @@ const GradeManagement = () => {
     return Array.from(new Set([...configuredMajors, ...historicalMajors]));
   }, [academicCatalog, academicStudents, filterDiploma]);
   const availableStudyYears = useMemo(() => {
-    const configuredYears = academicCatalog?.years?.[filterDiploma] || getStudyYearsForDiploma(filterDiploma);
+    const configuredYears = filterDiploma ? (academicCatalog?.years?.[filterDiploma] || []) : Object.values(academicCatalog?.years || {}).flat();
     const historicalYears = academicStudents
       .filter(student => !filterDiploma || student.diploma === filterDiploma)
       .map(student => student.year)

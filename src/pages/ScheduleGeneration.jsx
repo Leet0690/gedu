@@ -5,8 +5,8 @@ import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import {
-  FILIERES, DIPLOMA_CONFIG, getClassCode, getModulesForFiliere,
-  getStudyYearsForDiploma, getDiplomaForMajor
+  getClassCode, getModulesForFiliere,
+  getDiplomaForMajor
 } from '../data/modules';
 import {
   buildSessionPool, detectMergeGroups, generateSchedule,
@@ -76,8 +76,8 @@ const ScheduleGeneration = () => {
   // ── Compute all possible groups ──
   const allGroups = useMemo(() => {
     const groups = [];
-    for (const [diploma, filieres] of Object.entries(academicCatalog?.filieres || FILIERES)) {
-      const years = academicCatalog?.years?.[diploma] || getStudyYearsForDiploma(diploma);
+    for (const [diploma, filieres] of Object.entries(academicCatalog?.filieres || {})) {
+      const years = academicCatalog?.years?.[diploma] || [];
       for (const filiere of filieres) {
         for (const annee of years) {
           const mods = Array.from(new Set(getModulesForFiliere(diploma, filiere, annee) || []));

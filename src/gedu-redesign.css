@@ -822,3 +822,35 @@ body {
   .gedu-dashboard-meta { gap: 7px; }
   .gedu-dashboard-meta span { width: 100%; }
 }
+
+.academic-catalog-layout { display: grid; grid-template-columns: minmax(300px, 0.85fr) minmax(0, 1.15fr); gap: 20px; align-items: start; }
+.academic-catalog-form, .academic-catalog-list-card { padding: 24px; }
+.academic-catalog-form-grid { display: grid; gap: 14px; margin-top: 22px; }
+.academic-catalog-form-grid label { display: flex; flex-direction: column; gap: 7px; color: var(--text-muted); font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.academic-catalog-form-grid input { width: 100%; padding: 11px 13px; border: 1px solid var(--border); border-radius: 12px; color: var(--text-primary); background: var(--background); font-size: 13px; font-weight: 600; letter-spacing: normal; text-transform: none; outline: none; }
+.academic-catalog-form-grid input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1); }
+.academic-catalog-form-actions { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 22px; }
+.academic-catalog-form-actions small { color: var(--text-muted); font-size: 11px; line-height: 1.5; }
+.academic-catalog-groups { display: grid; gap: 10px; margin-top: 22px; }
+.academic-catalog-group { padding: 15px 16px; border: 1px solid var(--border-light); border-radius: 15px; background: var(--background); }
+.academic-catalog-group-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.academic-catalog-group-heading div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.academic-catalog-group-heading span { color: var(--primary); font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.academic-catalog-group-heading strong { overflow-wrap: anywhere; color: var(--text-primary); font-size: 14px; }
+.academic-catalog-delete-major { display: grid; width: 30px; height: 30px; flex: 0 0 30px; place-items: center; border: 1px solid var(--border-light); border-radius: 9px; color: var(--danger); background: transparent; cursor: pointer; }
+.academic-catalog-delete-major:hover { background: var(--danger-bg); }
+.academic-catalog-years { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.academic-catalog-year { display: inline-flex; align-items: center; gap: 7px; padding: 6px 9px; border: 1px solid rgba(var(--accent-rgb), 0.35); border-radius: 999px; color: var(--text-primary); background: rgba(var(--accent-rgb), 0.12); font-size: 11px; font-weight: 700; }
+.academic-catalog-year button { display: grid; padding: 0; border: 0; color: var(--text-muted); background: transparent; cursor: pointer; }
+.academic-catalog-year button:hover { color: var(--danger); }
+.academic-catalog-empty { margin-top: 22px; padding: 28px 18px; border: 1px dashed var(--border); border-radius: 14px; color: var(--text-muted); font-size: 13px; line-height: 1.6; text-align: center; }
+
+@media (max-width: 850px) {
+  .academic-catalog-layout { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 520px) {
+  .academic-catalog-form, .academic-catalog-list-card { padding: 16px; }
+  .academic-catalog-form-actions { align-items: stretch; flex-direction: column; }
+  .academic-catalog-form-actions .btn-modern { justify-content: center; }
+}

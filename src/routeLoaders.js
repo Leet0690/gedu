@@ -18,6 +18,7 @@ const routeLoaders = {
   continuousTrainings: () => import('./pages/ContinuousTrainings'),
   userManagement: () => import('./pages/UserManagement'),
   institutionSettings: () => import('./pages/InstitutionSettings'),
+  academicCatalog: () => import('./pages/AcademicCatalog'),
 };
 
 const routeKeysByPath = {
@@ -38,6 +39,7 @@ const routeKeysByPath = {
   '/admin/schedule-generation': 'scheduleGeneration',
   '/admin/users': 'userManagement',
   '/admin/institution': 'institutionSettings',
+  '/admin/catalog': 'academicCatalog',
 };
 
 const routePromises = new Map();

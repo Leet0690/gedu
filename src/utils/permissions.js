@@ -1,4 +1,4 @@
-export const MODULE_KEYS = ['dashboard', 'students', 'teachers', 'continuous', 'finance', 'modules', 'grades', 'reports', 'schedules', 'schedule_generation', 'attendance_students', 'attendance_teachers', 'logs', 'users'];
+export const MODULE_KEYS = ['dashboard', 'students', 'teachers', 'continuous', 'finance', 'modules', 'grades', 'reports', 'schedules', 'schedule_generation', 'attendance_students', 'attendance_teachers', 'logs', 'users', 'catalog'];
 export const isAdministrator = user => user?.isActive === true && ['admin', 'super_admin'].includes(user.role);
 
 export function hasModulePermission(user, module, level = 'view') {

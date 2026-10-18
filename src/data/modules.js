@@ -194,7 +194,28 @@ export const FILIERES = Object.fromEntries(
 
 // The starter catalog keeps the existing installation usable, while records
 // from Firestore extend it with each school's own programs and study years.
-export const buildAcademicCatalog = ({ modules = [], students = [], schedules = [], includeStarterCatalog = true } = {}) => {
+export const normalizeAcademicCatalogGroups = (groups = {}) => {
+  const normalized = {};
+  Object.entries(groups || {}).forEach(([diploma, majors]) => {
+    const cleanDiploma = String(diploma || '').trim();
+    if (!cleanDiploma || !majors || typeof majors !== 'object') return;
+    Object.entries(majors).forEach(([major, years]) => {
+      const cleanMajor = String(major || '').trim();
+      const yearValues = years instanceof Set
+        ? Array.from(years)
+        : Array.isArray(years)
+          ? years
+          : Object.keys(years || {});
+      const cleanYears = Array.from(new Set(yearValues.map(year => String(year || '').trim()).filter(Boolean)));
+      if (!cleanMajor || cleanYears.length === 0) return;
+      normalized[cleanDiploma] ||= {};
+      normalized[cleanDiploma][cleanMajor] = cleanYears;
+    });
+  });
+  return normalized;
+};
+
+export const buildAcademicCatalog = ({ modules = [], students = [], schedules = [], includeStarterCatalog = false, configuredGroups = {} } = {}) => {
   const catalog = {};
 
   const addGroup = (diploma, major, year) => {
@@ -211,6 +232,12 @@ export const buildAcademicCatalog = ({ modules = [], students = [], schedules = 
       });
     });
   }
+
+  Object.entries(normalizeAcademicCatalogGroups(configuredGroups)).forEach(([diploma, majors]) => {
+    Object.entries(majors).forEach(([major, years]) => {
+      years.forEach(year => addGroup(diploma, major, year));
+    });
+  });
 
   [...modules, ...students, ...schedules].forEach(item => {
     addGroup(item?.diploma, item?.major || item?.filiere, item?.year || item?.annee);

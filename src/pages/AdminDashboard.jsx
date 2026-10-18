@@ -14,14 +14,9 @@ import { generateBulletinGlobal } from '../utils/pdfGenerator';
 import { parseScore } from '../utils/gradeCalculations';
 import { getGradeByModuleName, getGradesForAcademicYear, getStudentGradeModules } from '../utils/gradeSync';
 import {
-  ALL_STUDY_YEARS,
-  FILIERES,
   getClassCode,
   getModulesForStudent,
   getModulesForFiliere,
-  getStudyYearsForDiploma,
-  getStudyYearsForDiplomas,
-  getStudyYearsForMajor,
   isKnownStudyYear,
   getDiplomaForMajor
 } from '../data/modules';
@@ -825,26 +820,26 @@ const getHourColors = (hour) => {
 };
 
 const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSemester, getScheduleModule, academicCatalog }) => {
-  const catalogFilieres = academicCatalog?.filieres || FILIERES;
+  const catalogFilieres = academicCatalog?.filieres || {};
   const diplomas = useMemo(() => Object.keys(catalogFilieres), [catalogFilieres]);
-  const defaultDiploma = diplomas.includes('Technicien Spécialisé') ? 'Technicien Spécialisé' : diplomas[0];
-  const [selectedDiploma, setSelectedDiploma] = useState(defaultDiploma);
+  const [selectedDiploma, setSelectedDiploma] = useState('');
 
-  const availableFilieres = useMemo(() => catalogFilieres[selectedDiploma] || [], [catalogFilieres, selectedDiploma]);
-  const [selectedFiliere, setSelectedFiliere] = useState(() => {
-    const defaultFilieres = catalogFilieres[defaultDiploma] || [];
-    return defaultFilieres.includes('Développement Informatique') ? 'Développement Informatique' : defaultFilieres[0];
-  });
+  const availableFilieres = useMemo(() => selectedDiploma
+    ? catalogFilieres[selectedDiploma] || []
+    : Array.from(new Set(Object.values(catalogFilieres).flat())), [catalogFilieres, selectedDiploma]);
+  const [selectedFiliere, setSelectedFiliere] = useState('');
 
-  const availableStudyYears = useMemo(() => academicCatalog?.years?.[selectedDiploma] || getStudyYearsForDiploma(selectedDiploma), [academicCatalog, selectedDiploma]);
-  const [selectedAnnee, setSelectedAnnee] = useState(availableStudyYears[0]);
+  const availableStudyYears = useMemo(() => selectedDiploma
+    ? academicCatalog?.years?.[selectedDiploma] || []
+    : Array.from(new Set(Object.values(academicCatalog?.years || {}).flat())), [academicCatalog, selectedDiploma]);
+  const [selectedAnnee, setSelectedAnnee] = useState('');
 
-  const groupLabel = useMemo(() => getGroupAbbreviation(selectedFiliere, selectedAnnee), [selectedFiliere, selectedAnnee]);
+  const groupLabel = useMemo(() => selectedFiliere && selectedAnnee ? getGroupAbbreviation(selectedFiliere, selectedAnnee) : 'Toutes les classes', [selectedFiliere, selectedAnnee]);
   const filteredSessions = useMemo(
     () => realSchedules.filter(s => 
-      (s.diploma || getDiplomaForMajor(s.filiere)) === selectedDiploma &&
-      s.filiere === selectedFiliere &&
-      s.annee === selectedAnnee
+      (!selectedDiploma || (s.diploma || getDiplomaForMajor(s.filiere)) === selectedDiploma) &&
+      (!selectedFiliere || s.filiere === selectedFiliere) &&
+      (!selectedAnnee || s.annee === selectedAnnee)
     ),
     [realSchedules, selectedDiploma, selectedFiliere, selectedAnnee]
   );
@@ -878,27 +873,26 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
               className="home-filter-select home-filter-select-level" 
               value={selectedDiploma} 
               onChange={val => { 
-                const nextFiliere = (catalogFilieres[val] || [])[0] || '';
                 setSelectedDiploma(val); 
-                setSelectedFiliere(nextFiliere);
-                setSelectedAnnee((academicCatalog?.years?.[val] || getStudyYearsForDiploma(val))[0]);
+                setSelectedFiliere('');
+                setSelectedAnnee('');
               }} 
-              options={diplomas.map(d => ({ label: d, value: d }))} 
+              options={[{ label: 'Tous les niveaux', value: '' }, ...diplomas.map(d => ({ label: d, value: d }))]}
             />
             <FilterSelect 
               className="home-filter-select home-filter-select-major" 
               value={selectedFiliere} 
               onChange={val => { 
                 setSelectedFiliere(val); 
-                setSelectedAnnee((academicCatalog?.years?.[selectedDiploma] || getStudyYearsForDiploma(selectedDiploma))[0]);
+                setSelectedAnnee('');
               }} 
-              options={availableFilieres.map(f => ({ label: f, value: f }))} 
+              options={[{ label: 'Toutes les filières', value: '' }, ...availableFilieres.map(f => ({ label: f, value: f }))]}
             />
             <FilterSelect 
               className="home-filter-select home-filter-select-year" 
               value={selectedAnnee} 
               onChange={val => setSelectedAnnee(val)} 
-              options={availableStudyYears.map(a => ({ label: a, value: a }))} 
+              options={[{ label: 'Toutes les années', value: '' }, ...availableStudyYears.map(a => ({ label: a, value: a }))]}
             />
           </div>
         </div>
@@ -1163,8 +1157,8 @@ const AdminDashboard = () => {
       const currentDiplomas = prev.diplomas || [];
       const isSelected = currentDiplomas.includes(dip);
       const newDiplomas = isSelected ? currentDiplomas.filter(d => d !== dip) : [...currentDiplomas, dip];
-      const allowedYears = Array.from(new Set(newDiplomas.flatMap(diploma => academicCatalog?.years?.[diploma] || getStudyYearsForDiploma(diploma))));
-      const allowedGroups = new Set(newDiplomas.flatMap(diploma => academicCatalog?.filieres?.[diploma] || FILIERES[diploma] || []));
+    const allowedYears = Array.from(new Set(newDiplomas.flatMap(diploma => academicCatalog?.years?.[diploma] || [])));
+    const allowedGroups = new Set(newDiplomas.flatMap(diploma => academicCatalog?.filieres?.[diploma] || []));
       return {
         ...prev,
         diplomas: newDiplomas,
@@ -1282,14 +1276,14 @@ const AdminDashboard = () => {
   }, [academicCatalog, activeStudents, operationalAcademicYear, promotionForm.fromAcademicYear, promotionDecisions]);
   const isYearFormatValid = useMemo(() => validateAcademicYearTransition(promotionForm.fromAcademicYear, promotionForm.toAcademicYear), [promotionForm]);
 
-  const allDiplomas = useMemo(() => academicCatalog?.diplomas || Object.keys(FILIERES), [academicCatalog]);
+  const allDiplomas = useMemo(() => academicCatalog?.diplomas || [], [academicCatalog]);
   const availableYears = useMemo(
-    () => diplomaFilter ? (academicCatalog?.years?.[diplomaFilter] || getStudyYearsForDiploma(diplomaFilter)) : Array.from(new Set(Object.values(academicCatalog?.years || {}).flat() || ALL_STUDY_YEARS)),
+    () => diplomaFilter ? (academicCatalog?.years?.[diplomaFilter] || []) : Array.from(new Set(Object.values(academicCatalog?.years || {}).flat())),
     [academicCatalog, diplomaFilter]
   );
   const availableMajors = useMemo(() => {
-    if (!diplomaFilter) return Array.from(new Set(Object.values(academicCatalog?.filieres || FILIERES).flat()));
-    return academicCatalog?.filieres?.[diplomaFilter] || FILIERES[diplomaFilter] || [];
+    if (!diplomaFilter) return Array.from(new Set(Object.values(academicCatalog?.filieres || {}).flat()));
+    return academicCatalog?.filieres?.[diplomaFilter] || [];
   }, [academicCatalog, diplomaFilter]);
   const getStudentActiveModules = useCallback((student) => {
     const studentYear = getStudentCurrentAcademicYear(student, operationalAcademicYear);
@@ -1303,8 +1297,8 @@ const AdminDashboard = () => {
       const currentDiplomas = prev.diplomas || (prev.diploma ? [prev.diploma] : []);
       const isSelected = currentDiplomas.includes(dip);
       const newDiplomas = isSelected ? currentDiplomas.filter(d => d !== dip) : [...currentDiplomas, dip];
-      const allowedYears = Array.from(new Set(newDiplomas.flatMap(diploma => academicCatalog?.years?.[diploma] || getStudyYearsForDiploma(diploma))));
-      const allowedGroups = new Set(newDiplomas.flatMap(diploma => academicCatalog?.filieres?.[diploma] || FILIERES[diploma] || []));
+      const allowedYears = Array.from(new Set(newDiplomas.flatMap(diploma => academicCatalog?.years?.[diploma] || [])));
+      const allowedGroups = new Set(newDiplomas.flatMap(diploma => academicCatalog?.filieres?.[diploma] || []));
       return {
         ...prev,
         diploma: undefined, 
@@ -2036,13 +2030,13 @@ const AdminDashboard = () => {
                           </div>
                           <div style={fGroup}>
                             <label style={lbl}>Année</label>
-                            <FilterSelect value={editFormData.year || ''} onChange={val => setEditFormData({...editFormData, year: val})} options={(academicCatalog?.years?.[editFormData.diploma] || getStudyYearsForDiploma(editFormData.diploma)).map(year => ({ value: year, label: year }))} />
+                            <FilterSelect value={editFormData.year || ''} onChange={val => setEditFormData({...editFormData, year: val})} options={(academicCatalog?.years?.[editFormData.diploma] || []).map(year => ({ value: year, label: year }))} />
                           </div>
                         </div>
                         <div className="form-grid">
                           <div style={fGroup}>
                             <label style={lbl}>Filière</label>
-                            <FilterSelect value={editFormData.major || ''} onChange={val => setEditFormData({...editFormData, major: val})} options={(academicCatalog?.filieres?.[editFormData.diploma] || FILIERES[editFormData.diploma] || []).map(f => ({ value: f, label: f }))} />
+                            <FilterSelect value={editFormData.major || ''} onChange={val => setEditFormData({...editFormData, major: val})} options={(academicCatalog?.filieres?.[editFormData.diploma] || []).map(f => ({ value: f, label: f }))} />
                           </div>
                           <div style={fGroup}>
                             <label style={lbl}>Matricule</label>
@@ -2076,7 +2070,7 @@ const AdminDashboard = () => {
                           <div style={fGroup}>
                             <label style={lbl}>Niveaux</label>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                              {Array.from(new Set((editFormData.diplomas || []).flatMap(diploma => academicCatalog?.years?.[diploma] || getStudyYearsForDiploma(diploma)))).map(y => (
+                              {Array.from(new Set((editFormData.diplomas || []).flatMap(diploma => academicCatalog?.years?.[diploma] || []))).map(y => (
                                 <SelectionTag key={y} active={(editFormData.years || []).includes(y)} onClick={() => toggleYearEdit(y)} label={y} />
                               ))}
                             </div>
@@ -2086,7 +2080,7 @@ const AdminDashboard = () => {
                         <div style={fGroup}>
                           <label style={lbl}>Filières</label>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxHeight: '75px', overflowY: 'auto', padding: '2px', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-lg)', background: 'var(--bg-subtle)' }}>
-                            {Array.from(new Set((editFormData.diplomas || []).flatMap(diploma => academicCatalog?.filieres?.[diploma] || FILIERES[diploma] || []))).map(f => (
+                            {Array.from(new Set((editFormData.diplomas || []).flatMap(diploma => academicCatalog?.filieres?.[diploma] || []))).map(f => (
                               <SelectionTag key={f} active={(editFormData.groups || []).includes(f)} onClick={() => toggleGroupEdit(f)} label={f} />
                             ))}
                           </div>
@@ -2268,13 +2262,13 @@ const AdminDashboard = () => {
                       </div>
                       <div style={fGroup}>
                         <label style={lbl}>Année d'étude</label>
-                        <FilterSelect value={addStudentForm.year} onChange={val => setAddStudentForm({...addStudentForm, year: val})} disabled={!addStudentForm.diploma} options={[{ value: '', label: 'Sélectionner...' }, ...(academicCatalog?.years?.[addStudentForm.diploma] || getStudyYearsForDiploma(addStudentForm.diploma)).map(year => ({ value: year, label: year }))]} />
+                        <FilterSelect value={addStudentForm.year} onChange={val => setAddStudentForm({...addStudentForm, year: val})} disabled={!addStudentForm.diploma} options={[{ value: '', label: 'Sélectionner...' }, ...(academicCatalog?.years?.[addStudentForm.diploma] || []).map(year => ({ value: year, label: year }))]} />
                       </div>
                     </div>
                     <div className="form-grid">
                       <div style={fGroup}>
                         <label style={lbl}>Filière</label>
-                        <FilterSelect value={addStudentForm.major} onChange={val => setAddStudentForm({...addStudentForm, major: val})} disabled={!addStudentForm.diploma} options={[{ value: '', label: 'Choisir...' }, ...(academicCatalog?.filieres?.[addStudentForm.diploma] || FILIERES[addStudentForm.diploma] || []).map(f => ({ value: f, label: f }))]} />
+                        <FilterSelect value={addStudentForm.major} onChange={val => setAddStudentForm({...addStudentForm, major: val})} disabled={!addStudentForm.diploma} options={[{ value: '', label: 'Choisir...' }, ...(academicCatalog?.filieres?.[addStudentForm.diploma] || []).map(f => ({ value: f, label: f }))]} />
                       </div>
                       <div style={fGroup}>
                         <label style={lbl}>Matricule</label>
@@ -2320,7 +2314,7 @@ const AdminDashboard = () => {
                       <div style={fGroup}>
                         <label style={lbl}>Niveaux d'enseignement</label>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                          {Array.from(new Set((addTeacherForm.diplomas || []).flatMap(diploma => academicCatalog?.years?.[diploma] || getStudyYearsForDiploma(diploma)))).map(y => (
+                          {Array.from(new Set((addTeacherForm.diplomas || []).flatMap(diploma => academicCatalog?.years?.[diploma] || []))).map(y => (
                             <SelectionTag key={y} active={(addTeacherForm.years || []).includes(y)} onClick={() => toggleAddTeacherYear(y)} label={y} />
                           ))}
                         </div>
@@ -2330,7 +2324,7 @@ const AdminDashboard = () => {
                     <div style={fGroup}>
                       <label style={lbl}>Filières assignées</label>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxHeight: '75px', overflowY: 'auto', padding: '2px', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-lg)', background: 'var(--bg-subtle)' }}>
-                        {Array.from(new Set((addTeacherForm.diplomas || []).flatMap(diploma => academicCatalog?.filieres?.[diploma] || FILIERES[diploma] || []))).map(f => (
+                        {Array.from(new Set((addTeacherForm.diplomas || []).flatMap(diploma => academicCatalog?.filieres?.[diploma] || []))).map(f => (
                           <SelectionTag key={f} active={(addTeacherForm.groups || []).includes(f)} onClick={() => toggleAddTeacherGroup(f)} label={f} />
                         ))}
                       </div>

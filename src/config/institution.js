@@ -186,7 +186,7 @@ export const DEFAULT_INSTITUTION = Object.freeze({
   paletteKey: 'campus',
   primaryColor: '',
   accentColor: '',
-  useStarterCatalog: true,
+  useStarterCatalog: false,
 });
 
 export const getInstitutionConfig = (overrides = {}) => {
@@ -204,7 +204,7 @@ export const getInstitutionConfig = (overrides = {}) => {
     authEmailDomain: normalizeDomain(env.VITE_AUTH_EMAIL_DOMAIN, DEFAULT_INSTITUTION.authEmailDomain),
     sessionEmailDomain: normalizeDomain(env.VITE_SESSION_EMAIL_DOMAIN, DEFAULT_INSTITUTION.sessionEmailDomain),
     studentIdPrefix: stringValue(env.VITE_STUDENT_ID_PREFIX, DEFAULT_INSTITUTION.studentIdPrefix).toUpperCase(),
-    useStarterCatalog: env.VITE_USE_STARTER_CATALOG !== 'false',
+    useStarterCatalog: env.VITE_USE_STARTER_CATALOG === 'true',
     ...overrides,
   };
 

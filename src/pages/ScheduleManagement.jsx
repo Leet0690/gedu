@@ -6,11 +6,9 @@ import { FilterSelect } from '../components/ui/FilterSelect';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import {
-  FILIERES,
   getClassCode,
   getDiplomaForMajor,
-  getModulesForFiliere,
-  getStudyYearsForDiploma
+  getModulesForFiliere
 } from '../data/modules';
 import {
   CalendarDays, Plus, Trash2, Clock, User, MapPin,
@@ -122,21 +120,21 @@ const ScheduleManagement = () => {
 
   const currentAcademicYear = activeAcademicYear || operationalAcademicYear || INITIAL_OPERATIONAL_ACADEMIC_YEAR;
 
-  const catalogFilieres = academicCatalog?.filieres || FILIERES;
+  const catalogFilieres = academicCatalog?.filieres || {};
   const diplomas = useMemo(() => Object.keys(catalogFilieres), [catalogFilieres]);
-  const defaultDiploma = diplomas.includes('Technicien Spécialisé') ? 'Technicien Spécialisé' : diplomas[0];
-  const [diploma, setDiploma] = useState(defaultDiploma);
-  const availableFilieres = useMemo(() => catalogFilieres[diploma] || [], [catalogFilieres, diploma]);
-  const [filiere, setFiliere] = useState(() => {
-    const defaultFilieres = catalogFilieres[defaultDiploma] || [];
-    return defaultFilieres.includes('Développement Informatique') ? 'Développement Informatique' : defaultFilieres[0];
-  });
-  const availableStudyYears = useMemo(() => academicCatalog?.years?.[diploma] || getStudyYearsForDiploma(diploma), [academicCatalog, diploma]);
-  const [annee, setAnnee] = useState(availableStudyYears[0]);
+  const [diploma, setDiploma] = useState('');
+  const availableFilieres = useMemo(() => diploma
+    ? catalogFilieres[diploma] || []
+    : Array.from(new Set(Object.values(catalogFilieres).flat())), [catalogFilieres, diploma]);
+  const [filiere, setFiliere] = useState('');
+  const availableStudyYears = useMemo(() => diploma
+    ? academicCatalog?.years?.[diploma] || []
+    : Array.from(new Set(Object.values(academicCatalog?.years || {}).flat())), [academicCatalog, diploma]);
+  const [annee, setAnnee] = useState('');
   const semester = activeSemester;
   const shareScopeKey = JSON.stringify([diploma, filiere, annee, currentAcademicYear, semester]);
 
-  const groupLabel = useMemo(() => getGroupAbbreviation(diploma, filiere, annee), [diploma, filiere, annee]);
+  const groupLabel = useMemo(() => diploma && filiere && annee ? getGroupAbbreviation(diploma, filiere, annee) : 'Toutes les classes', [diploma, filiere, annee]);
   const modulesBySemester = useMemo(() => {
     const configured = allModules.filter(m =>
       m.diploma === diploma &&
@@ -172,9 +170,9 @@ const ScheduleManagement = () => {
 
   const filteredSchedules = useMemo(
     () => yearSchedules.filter(s =>
-      (s.diploma || getDiplomaForMajor(s.filiere)) === diploma &&
-      s.filiere === filiere &&
-      s.annee === annee &&
+      (!diploma || (s.diploma || getDiplomaForMajor(s.filiere)) === diploma) &&
+      (!filiere || s.filiere === filiere) &&
+      (!annee || s.annee === annee) &&
       Boolean(getActiveScheduleModule(s))
     ),
     [yearSchedules, diploma, filiere, annee, getActiveScheduleModule]
@@ -199,6 +197,9 @@ const ScheduleManagement = () => {
 
   const openEdit = (session) => {
     setEditingSession(session);
+    setDiploma(session.diploma || getDiplomaForMajor(session.filiere));
+    setFiliere(session.filiere || '');
+    setAnnee(session.annee || '');
     setFormData({
       day: session.day,
       time: session.time,
@@ -215,6 +216,7 @@ const ScheduleManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isSaving || !canEdit) return;
+    if (!diploma || !filiere || !annee) return showToast('Choisissez un niveau, une filière et une année avant d’enregistrer.', 'warning');
     const moduleFields = serializeScheduleModules(formData);
     if (!moduleFields.module || !formData.teacherId) return showToast('Veuillez renseigner au moins un module et le formateur', 'warning');
     
@@ -353,20 +355,19 @@ const ScheduleManagement = () => {
           <FilterSelect
             value={diploma}
             onChange={val => {
-              const nextFiliere = (catalogFilieres[val] || [])[0] || '';
               setDiploma(val);
-              setFiliere(nextFiliere);
-              setAnnee((academicCatalog?.years?.[val] || getStudyYearsForDiploma(val))[0]);
+              setFiliere('');
+              setAnnee('');
             }}
-            options={diplomas.map(d => ({ label: d, value: d }))}
+            options={[{ label: 'Tous les niveaux', value: '' }, ...diplomas.map(d => ({ label: d, value: d }))]}
           />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 260px' }}>
           <label style={labelStyle}>Filière</label>
           <FilterSelect
             value={filiere}
-            onChange={val => { setFiliere(val); setAnnee((academicCatalog?.years?.[diploma] || getStudyYearsForDiploma(diploma))[0]); }}
-            options={availableFilieres.map(f => ({ label: f, value: f }))}
+            onChange={val => { setFiliere(val); setAnnee(''); }}
+            options={[{ label: 'Toutes les filières', value: '' }, ...availableFilieres.map(f => ({ label: f, value: f }))]}
           />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '0 1 180px' }}>
@@ -374,7 +375,7 @@ const ScheduleManagement = () => {
           <FilterSelect
             value={annee}
             onChange={val => setAnnee(val)}
-            options={availableStudyYears.map(a => ({ label: a, value: a }))}
+            options={[{ label: 'Toutes les années', value: '' }, ...availableStudyYears.map(a => ({ label: a, value: a }))]}
           />
         </div>
         <div className="app-filter-actions" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>

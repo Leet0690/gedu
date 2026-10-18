@@ -19,6 +19,7 @@ export const APP_MODULES = [
   { id: 'attendance_teachers', label: 'Présences Formateurs', path: '/admin/attendance-teachers', category: 'Suivi de Présence' },
   { id: 'logs', label: 'Journaux d’accès', path: '/admin/logs', category: 'Sécurité' },
   { id: 'users', label: 'Gestion Utilisateurs & Droits', path: '/admin/users', category: 'Sécurité' },
+  { id: 'catalog', label: 'Niveaux, filières & années', path: '/admin/catalog', category: 'Administration' },
 ];
 
 export const ROLE_PRESETS = {
@@ -38,7 +39,7 @@ export const ROLE_PRESETS = {
     badgeClass: 'badge-director',
     color: '#8b5cf6',
     defaultPermissions: APP_MODULES.reduce((acc, mod) => {
-      if (mod.id === 'users') {
+      if (mod.id === 'users' || mod.id === 'catalog') {
         acc[mod.id] = 'none';
       } else {
         acc[mod.id] = 'edit';

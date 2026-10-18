@@ -42,7 +42,7 @@ import {
   validateAcademicYear,
   validateAcademicYearTransition,
 } from '../utils/studentStatus';
-import { buildAcademicCatalog, isKnownStudyYear } from '../data/modules';
+import { buildAcademicCatalog, isKnownStudyYear, normalizeAcademicCatalogGroups } from '../data/modules';
 import { buildStudentClosure, buildStudentClosureUndo, buildStudentClosureCorrection, getClosureDecisionOptions } from '../utils/academicYearClosure';
 import { createReadCoordinator, createInFlightReader } from '../utils/readCoordinator';
 import { getPageCollections } from '../utils/dataRequirements';
@@ -544,6 +544,7 @@ export const AppProvider = ({ children }) => {
   // The active year is only the local year currently being viewed.
   const [activeAcademicYear, setActiveAcademicYearState] = useState(readCachedOperationalAcademicYear);
   const [institution, setInstitutionState] = useState(getInstitutionConfig);
+  const [academicCatalogDefinition, setAcademicCatalogDefinition] = useState({});
   useEffect(() => {
     applyInstitutionTheme(institution);
   }, [institution]);
@@ -551,8 +552,9 @@ export const AppProvider = ({ children }) => {
     modules,
     students,
     schedules,
-    includeStarterCatalog: institution.useStarterCatalog,
-  }), [institution.useStarterCatalog, modules, schedules, students]);
+    includeStarterCatalog: false,
+    configuredGroups: academicCatalogDefinition,
+  }), [academicCatalogDefinition, modules, schedules, students]);
   const operationalAcademicYearRef = useRef(operationalAcademicYear);
   const [loading, setLoading] = useState(true);
   const [teacherPortalSettingsError, setTeacherPortalSettingsError] = useState('');
@@ -630,7 +632,8 @@ export const AppProvider = ({ children }) => {
 
     const unsubscribe = onSnapshot(settingsRef, { includeMetadataChanges: true }, snapshot => {
       const settings = snapshot.exists() ? snapshot.data() : {};
-      setInstitutionState(getInstitutionConfig(settings.institution || {}));
+      setInstitutionState({ ...getInstitutionConfig(settings.institution || {}), useStarterCatalog: false });
+      setAcademicCatalogDefinition(normalizeAcademicCatalogGroups(settings.academicCatalog?.groups || {}));
       const hasOperationalAcademicYear = validateAcademicYear(settings?.operationalAcademicYear);
       const nextOperationalAcademicYear = hasOperationalAcademicYear
         ? settings.operationalAcademicYear
@@ -717,6 +720,35 @@ export const AppProvider = ({ children }) => {
       return false;
     }
   }, [institution, isAdmin, originalShowToast, setInstitutionState, showToast]);
+
+  const updateAcademicCatalog = useCallback(async (groups = {}) => {
+    if (!hasPermission('catalog', 'edit')) {
+      originalShowToast('Seul un administrateur peut modifier le catalogue des niveaux, filières et années.', 'error');
+      return false;
+    }
+
+    const normalizedGroups = normalizeAcademicCatalogGroups(groups);
+    const nextInstitution = getInstitutionConfig({ ...institution, useStarterCatalog: false });
+    try {
+      await setDoc(doc(db, 'settings', 'app'), {
+        academicCatalog: {
+          groups: normalizedGroups,
+          managed: true,
+          updatedAt: serverTimestamp(),
+        },
+        institution: nextInstitution,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+      setAcademicCatalogDefinition(normalizedGroups);
+      setInstitutionState(nextInstitution);
+      showToast('Catalogue académique mis à jour.', 'success');
+      return true;
+    } catch (error) {
+      console.error('Impossible de sauvegarder le catalogue académique :', error);
+      originalShowToast('Le catalogue académique n’a pas pu être enregistré.', 'error');
+      return false;
+    }
+  }, [hasPermission, institution, originalShowToast, showToast]);
 
   const setActiveSemester = useCallback(async (semester) => {
     if (!isAdmin) { originalShowToast('Seul un administrateur peut modifier le semestre actif.', 'error'); return false; }
@@ -2102,7 +2134,7 @@ export const AppProvider = ({ children }) => {
       accessLogs, logAppAccess, loadAccessLogs,
       activeSemester, setActiveSemester, getActiveScheduleModule, teacherPortalSettingsError, teacherPortalGradesError, studentPortalGradesError,
       activeAcademicYear, setActiveAcademicYear, operationalAcademicYear, availableAcademicYearsList,
-      institution, updateInstitution,
+      institution, updateInstitution, updateAcademicCatalog,
       confirmAction, notifications: visibleNotifications, activityError, markNotificationAsRead, clearNotifications,
       logActivity
     }}>

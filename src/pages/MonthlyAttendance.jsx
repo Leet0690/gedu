@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
-import { FILIERES, getStudyYearsForMajor } from '../data/modules';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import {
   getCalendarYearForAcademicMonth,
@@ -64,10 +63,10 @@ const MonthlyAttendance = () => {
   const [filterAnnee, setFilterAnnee] = useState('');
   const [search, setSearch] = useState('');
 
-  const allFilieres = useMemo(() => Array.from(new Set(Object.values(academicCatalog?.filieres || FILIERES).flat())), [academicCatalog]);
+  const allFilieres = useMemo(() => Array.from(new Set(Object.values(academicCatalog?.filieres || {}).flat())), [academicCatalog]);
   const allAnnees = useMemo(() => {
-    const diploma = Object.keys(academicCatalog?.filieres || FILIERES).find(key => (academicCatalog?.filieres?.[key] || FILIERES[key] || []).includes(filterFiliere));
-    return academicCatalog?.years?.[diploma] || getStudyYearsForMajor(filterFiliere);
+    const diploma = Object.keys(academicCatalog?.filieres || {}).find(key => (academicCatalog?.filieres?.[key] || []).includes(filterFiliere));
+    return filterFiliere ? (academicCatalog?.years?.[diploma] || []) : Array.from(new Set(Object.values(academicCatalog?.years || {}).flat()));
   }, [academicCatalog, filterFiliere]);
   const daysInMonth = useMemo(() => new Date(year, month + 1, 0).getDate(), [month, year]);
   const days = useMemo(() => Array.from({ length: daysInMonth }, (_, i) => i + 1), [daysInMonth]);

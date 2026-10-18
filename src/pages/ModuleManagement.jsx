@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
-import { ALL_STUDY_YEARS, MODULES_DATA, getClassCode, getDiplomaAbbreviation, getStudyYearsForDiploma } from '../data/modules';
+import { getClassCode, getDiplomaAbbreviation } from '../data/modules';
 import { getModuleOrder, sortModulesByOrder, DEFAULT_ACADEMIC_YEAR } from '../utils/gradeSync';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
@@ -29,7 +29,7 @@ import {
   GripVertical,
 } from 'lucide-react';
 
-const MODULE_FILTERS_STORAGE_KEY = 'ipfp_module_management_filters';
+const MODULE_FILTERS_STORAGE_KEY = 'ipfp_module_management_filters_v2';
 const labelStyle = { fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' };
 const HIGHER_EDUCATION_DIPLOMAS = ['Licence Professionnelle', 'Master spécialisé'];
 const DIPLOMA_LABELS = {
@@ -147,21 +147,18 @@ const ModuleManagement = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
-  const [filterAcademicYear, setFilterAcademicYear] = useState(() => {
-    const saved = getStoredModuleFilters().academicYear;
-    return saved || operationalAcademicYear || activeAcademicYear || DEFAULT_ACADEMIC_YEAR;
-  });
+  const [filterAcademicYear, setFilterAcademicYear] = useState(() => getStoredModuleFilters().academicYear || '');
   const [isReconduiring, setIsReconduiring] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
     coefficient: '1',
     order: '1',
-    diploma: 'Technicien Spécialisé',
-    major: 'Développement Informatique',
-    year: '1ère année',
-    semester: 'S1',
-    academicYear: DEFAULT_ACADEMIC_YEAR
+    diploma: '',
+    major: '',
+    year: '',
+    semester: '',
+    academicYear: ''
   });
 
   const [filterDiploma, setFilterDiploma] = useState(() => getStoredModuleFilters().diploma || '');
@@ -183,35 +180,20 @@ const ModuleManagement = () => {
   const [copyTargets, setCopyTargets] = useState([]);
   const [isCopying, setIsCopying] = useState(false);
 
-  const diplomas = ['Technicien Spécialisé', 'Technicien', 'Licence Professionnelle', 'Master spécialisé']
-    .filter(diploma => MODULES_DATA[diploma]);
-  (academicCatalog?.diplomas || []).forEach(diploma => {
-    if (!diplomas.includes(diploma)) diplomas.push(diploma);
-  });
-  const majors = filterDiploma ? (academicCatalog?.filieres?.[filterDiploma] || Object.keys(MODULES_DATA[filterDiploma] || {})) : [];
-  const filterYears = filterDiploma ? (academicCatalog?.years?.[filterDiploma] || getStudyYearsForDiploma(filterDiploma)) : ALL_STUDY_YEARS;
-  const formYears = academicCatalog?.years?.[formData.diploma] || getStudyYearsForDiploma(formData.diploma);
+  const diplomas = academicCatalog?.diplomas || [];
+  const majors = filterDiploma ? (academicCatalog?.filieres?.[filterDiploma] || []) : [];
+  const filterYears = filterDiploma ? (academicCatalog?.years?.[filterDiploma] || []) : [];
+  const formYears = academicCatalog?.years?.[formData.diploma] || [];
   const formSemesterOptions = getSemesterOptions(formData.diploma);
   const filterSemesterOptions = filterDiploma ? getSemesterOptions(filterDiploma) : getSemesterOptions('');
   const hideYearChoice = isHigherEducationDiploma(formData.diploma);
 
-  useEffect(() => {
-    if (!filterAcademicYear && (operationalAcademicYear || activeAcademicYear)) {
-      setFilterAcademicYear(operationalAcademicYear || activeAcademicYear);
-    }
-  }, [operationalAcademicYear, activeAcademicYear, filterAcademicYear]);
-
   const academicYearOptions = useMemo(() => {
-    const list = availableAcademicYearsList?.length
-      ? [...availableAcademicYearsList]
-      : [DEFAULT_ACADEMIC_YEAR, '2026-2027'];
+    const list = [...(availableAcademicYearsList || [])];
     if (filterAcademicYear && !list.includes(filterAcademicYear)) {
       list.push(filterAcademicYear);
     }
-    if (!list.includes(DEFAULT_ACADEMIC_YEAR)) {
-      list.unshift(DEFAULT_ACADEMIC_YEAR);
-    }
-    return Array.from(new Set(list)).map(year => ({ label: year, value: year }));
+    return [{ label: 'Toutes les années', value: '' }, ...Array.from(new Set(list)).map(year => ({ label: year, value: year }))];
   }, [availableAcademicYearsList, filterAcademicYear]);
 
   useEffect(() => {
@@ -227,7 +209,7 @@ const ModuleManagement = () => {
   // All available groups across all diplomas for the copy modal
   const allGroups = useMemo(() => {
     const groups = [];
-    Object.entries(academicCatalog?.groups || MODULES_DATA).forEach(([diploma, majorMap]) => {
+    Object.entries(academicCatalog?.groups || {}).forEach(([diploma, majorMap]) => {
       Object.entries(majorMap).forEach(([major, yearMap]) => {
         const yearKeys = yearMap instanceof Set ? Array.from(yearMap) : Object.keys(yearMap);
         yearKeys.forEach(year => {
@@ -275,10 +257,10 @@ const ModuleManagement = () => {
   };
 
   const resetForm = () => {
-    const defaultDiploma = filterDiploma || diplomas[0] || Object.keys(MODULES_DATA)[0];
-    const defaultMajor = filterMajor || (academicCatalog?.filieres?.[defaultDiploma] || Object.keys(MODULES_DATA[defaultDiploma] || {}))[0] || '';
-    const defaultYear = filterYear || (academicCatalog?.years?.[defaultDiploma] || getStudyYearsForDiploma(defaultDiploma))[0];
-    const defaultSemester = filterSemester || 'S1';
+    const defaultDiploma = filterDiploma || '';
+    const defaultMajor = filterMajor || '';
+    const defaultYear = filterYear || '';
+    const defaultSemester = filterSemester || '';
     setFormData({
       name: '',
       coefficient: '1',
@@ -287,7 +269,7 @@ const ModuleManagement = () => {
       major: defaultMajor,
       semester: defaultSemester,
       year: defaultYear,
-      academicYear: filterAcademicYear || DEFAULT_ACADEMIC_YEAR
+      academicYear: filterAcademicYear || operationalAcademicYear || activeAcademicYear || ''
     });
     setIsEditing(false);
     setSelectedIds([]);
@@ -866,9 +848,9 @@ const ModuleManagement = () => {
                       <input list="institution-diplomas" className="input-premium" value={formData.diploma} onChange={e => setFormData({
                         ...formData,
                         diploma: e.target.value,
-                        major: (academicCatalog?.filieres?.[e.target.value] || Object.keys(MODULES_DATA[e.target.value] || {}))[0] || '',
-                        year: (academicCatalog?.years?.[e.target.value] || getStudyYearsForDiploma(e.target.value))[0] || '',
-                        semester: 'S1'
+                        major: (academicCatalog?.filieres?.[e.target.value] || [])[0] || '',
+                        year: (academicCatalog?.years?.[e.target.value] || [])[0] || '',
+                        semester: ''
                       })} required />
                       <datalist id="institution-diplomas">
                         {diplomas.map(d => <option key={d} value={d}>{getDiplomaLabel(d)}</option>)}
@@ -906,7 +888,7 @@ const ModuleManagement = () => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', gridColumn: hideYearChoice ? '1 / -1' : undefined }}>
                     <label style={labelStyle}>Filière</label>
                     <input list="institution-majors" className="input-premium" value={formData.major} onChange={e => setFormData({ ...formData, major: e.target.value })} required />
-                    <datalist id="institution-majors">{(academicCatalog?.filieres?.[formData.diploma] || Object.keys(MODULES_DATA[formData.diploma] || {})).map(major => <option key={major} value={major} />)}</datalist>
+                     <datalist id="institution-majors">{(academicCatalog?.filieres?.[formData.diploma] || []).map(major => <option key={major} value={major} />)}</datalist>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
