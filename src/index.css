@@ -11528,11 +11528,19 @@ body:has(.app-modal-overlay) .app-modal-overlay {
 .app-loader-shell::after{
   display: none;
 }
-/* Official supplied artwork is displayed intact; no recreated logo. */
 .ipfp-brand { display: inline-flex; align-items: center; max-width: 100%; }
 .ipfpp-logo { display: block; width: 210px; max-width: 100%; height: auto; border-radius: 6px; }
 .ipfp-brand.is-compact .ipfpp-logo { width: var(--logo-size); }
 .ipfpp-logo-transparent { overflow: hidden; border-radius: 0; }
+.ipfp-logo-placeholder { display: inline-flex; align-items: center; gap: 10px; min-width: 0; color: var(--primary); }
+.ipfp-logo-placeholder-mark { display: grid; width: var(--logo-size); height: var(--logo-size); flex: 0 0 var(--logo-size); place-items: center; color: var(--primary-foreground); background: var(--primary); border: 3px solid var(--accent); border-radius: 14px; box-shadow: 0 7px 16px rgba(var(--primary-rgb), 0.18); }
+.ipfp-logo-placeholder-copy { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.ipfp-logo-placeholder-copy strong { overflow: hidden; font-size: 16px; line-height: 1.05; text-overflow: ellipsis; white-space: nowrap; }
+.ipfp-logo-placeholder-copy small { max-width: 210px; overflow: hidden; color: var(--text-secondary); font-size: 10px; font-weight: 600; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+.ipfp-logo-placeholder.is-on-dark { color: #fff; }
+.ipfp-logo-placeholder.is-on-dark .ipfp-logo-placeholder-mark { color: var(--primary); background: #fff; }
+.ipfp-logo-placeholder.is-on-dark .ipfp-logo-placeholder-copy small { color: rgba(255, 255, 255, 0.76); }
+.ipfp-brand.is-compact .ipfp-logo-placeholder-copy { display: none; }
 .premium-sidenav-logo .ipfpp-logo-transparent { filter: none !important; }
 .premium-sidenav-brand:has(.ipfpp-logo-transparent) { min-height: 100px; }
 .premium-sidenav.is-collapsed .premium-sidenav-brand { min-height: 80px; }

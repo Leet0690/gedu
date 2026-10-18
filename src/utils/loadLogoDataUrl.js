@@ -11,7 +11,8 @@ const blobToDataUrl = (blob) => new Promise((resolve, reject) => {
 
 export const loadLogoDataUrl = (requestedLogoUrl = '') => {
   const runtimeLogoUrl = typeof window !== 'undefined' ? window.__GEDU_INSTITUTION__?.logoUrl : '';
-  const logoUrl = requestedLogoUrl || runtimeLogoUrl || institutionConfig.logoUrl || '/logo-ipfpp.png';
+  const logoUrl = requestedLogoUrl || runtimeLogoUrl || institutionConfig.logoUrl;
+  if (!logoUrl) return Promise.resolve(null);
   if (!logoDataUrlPromises.has(logoUrl)) {
     const promise = logoUrl.startsWith('data:')
       ? Promise.resolve(logoUrl)

@@ -172,14 +172,12 @@ const getOrigin = () => {
 
 export const DEFAULT_INSTITUTION = Object.freeze({
   name: 'Établissement de Formation Professionnelle',
-  // Keep the legacy default for existing deployments; new installations can
-  // override it with VITE_INSTITUTION_SHORT_NAME or the admin profile screen.
   shortName: 'IPFP',
   appName: 'Gestion EFP',
   typeLabel: 'École / institut de formation professionnelle',
   city: '',
   country: 'Maroc',
-  logoUrl: '/logo-ipfpp.png',
+  logoUrl: '',
   portalUrl: '',
   portalHostname: '',
   authEmailDomain: 'ipfp.edu',

@@ -42,10 +42,12 @@ const drawHeader = (doc, title, logoDataUrl, withLine = true) => {
   doc.setTextColor(0); // Reset text color to black
 
   // Logo
-  try {
-    doc.addImage(logoDataUrl, 'PNG', margin, 8, 39.11, 22);
-  } catch (e) {
-    console.error("Logo not found", e);
+  if (logoDataUrl) {
+    try {
+      doc.addImage(logoDataUrl, 'PNG', margin, 8, 39.11, 22);
+    } catch (e) {
+      console.error("Logo not found", e);
+    }
   }
 
   // Accreditation Text (Right side)

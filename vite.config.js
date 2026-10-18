@@ -13,22 +13,16 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.svg', 'logo.jpg', 'logo-ipfpp.png', 'pwa-192.png', 'pwa-512.png'],
         manifest: {
           name: appName,
           short_name: shortName,
           description: `Portail de gestion académique — ${institutionName}`,
-          theme_color: '#023471',
-          background_color: '#F5F7FA',
+          theme_color: '#236247',
+          background_color: '#f5fbf7',
           display: 'standalone',
           start_url: '/',
           scope: '/',
           lang: 'fr',
-          icons: [
-            { src: 'pwa-192.png', sizes: '192x192', type: 'image/png' },
-            { src: 'pwa-512.png', sizes: '512x512', type: 'image/png' },
-            { src: 'pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
-          ],
         },
         workbox: {
           clientsClaim: true,
