@@ -1,0 +1,440 @@
+/* GEDU visual refresh: a calmer, clearer campus operations workspace. */
+
+:root {
+  --primary: #123e73;
+  --primary-light: #235d99;
+  --primary-dark: #08254a;
+  --primary-ultra-light: #edf5ff;
+  --primary-rgb: 18, 62, 115;
+  --accent: #f2b84b;
+  --accent-rgb: 242, 184, 75;
+  --background: #f4f7fb;
+  --foreground: #15243b;
+  --card: #ffffff;
+  --border: #dfe7f1;
+  --border-light: #edf1f6;
+  --muted-foreground: #6b7b91;
+  --text-secondary: #52647b;
+  --shadow-xs: 0 1px 2px rgba(8, 37, 74, 0.04);
+  --shadow-sm: 0 5px 16px rgba(8, 37, 74, 0.06);
+  --shadow-md: 0 12px 32px rgba(8, 37, 74, 0.08);
+  --shadow-lg: 0 20px 48px rgba(8, 37, 74, 0.11);
+}
+
+body {
+  background:
+    radial-gradient(circle at 94% 0%, rgba(106, 168, 235, 0.13), transparent 28rem),
+    radial-gradient(circle at 10% 100%, rgba(242, 184, 75, 0.07), transparent 24rem),
+    var(--background);
+}
+
+.premium-dashboard-layout,
+.premium-layout-main {
+  background: transparent;
+}
+
+.premium-layout-main::before {
+  opacity: 0.75;
+  background:
+    linear-gradient(125deg, rgba(255, 255, 255, 0.68), transparent 35%),
+    radial-gradient(circle at 70% 0%, rgba(199, 224, 251, 0.25), transparent 25rem);
+}
+
+.premium-sidenav {
+  background: linear-gradient(180deg, #0a2447 0%, #0c315d 52%, #071b38 100%) !important;
+  border-right-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 18px 0 44px rgba(8, 37, 74, 0.13);
+}
+
+.premium-sidenav::after {
+  content: '';
+  position: absolute;
+  width: 260px;
+  height: 260px;
+  top: -150px;
+  right: -150px;
+  border-radius: 50%;
+  background: rgba(103, 168, 235, 0.13);
+  filter: blur(2px);
+  pointer-events: none;
+}
+
+.premium-sidenav-brand {
+  min-height: 96px;
+  border-bottom-color: rgba(255, 255, 255, 0.13) !important;
+}
+
+.premium-sidenav-nav {
+  padding: 18px 14px !important;
+}
+
+.premium-sidenav-category-trigger {
+  color: rgba(226, 236, 250, 0.62) !important;
+  letter-spacing: 0.12em;
+}
+
+.premium-sidenav-category-items {
+  border-left-color: rgba(157, 197, 240, 0.2) !important;
+}
+
+.premium-sidenav-link {
+  min-height: 44px;
+  border-radius: 13px !important;
+  color: rgba(239, 246, 255, 0.82) !important;
+}
+
+.premium-sidenav-link:hover {
+  border-color: rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none;
+}
+
+.premium-sidenav-link.is-active {
+  color: #09254a !important;
+  font-weight: 750;
+}
+
+.premium-sidenav-link.is-active > div {
+  color: #09254a !important;
+}
+
+.premium-sidenav-active-bubble {
+  background: linear-gradient(135deg, #ffd879, #eeae39) !important;
+  box-shadow: 0 7px 18px rgba(242, 184, 75, 0.22) !important;
+}
+
+.premium-sidenav-link.is-active::before {
+  display: none;
+}
+
+.admin-toolbar {
+  min-height: 82px;
+  padding: 12px clamp(18px, 2.5vw, 34px);
+  background: rgba(255, 255, 255, 0.86);
+  border-bottom-color: rgba(210, 222, 237, 0.9);
+  box-shadow: 0 8px 26px rgba(8, 37, 74, 0.045);
+  backdrop-filter: blur(16px);
+}
+
+.admin-toolbar-menu {
+  width: 40px;
+  height: 40px;
+  border-color: #d8e3f0;
+  border-radius: 12px;
+  background: #f5f9ff;
+}
+
+.admin-toolbar-menu:hover {
+  background: #e8f2ff;
+  color: var(--primary-light);
+}
+
+.admin-toolbar-title > span {
+  color: #8a99ad;
+  letter-spacing: 0.14em;
+}
+
+.admin-toolbar-title > strong {
+  color: #0c2f5b;
+  font-size: 17px;
+}
+
+.admin-toolbar-field {
+  border-color: #e1e9f3;
+  border-radius: 13px;
+  background: rgba(248, 251, 255, 0.92);
+}
+
+.admin-toolbar-session {
+  border-left-color: #e2eaf3;
+}
+
+.admin-toolbar-avatar {
+  background: linear-gradient(145deg, #2e6eaa, #0c315d);
+  border-color: rgba(36, 94, 153, 0.26);
+  box-shadow: 0 5px 14px rgba(12, 49, 93, 0.16);
+}
+
+.admin-toolbar-logout {
+  border-radius: 12px;
+  background: #f8fafc;
+  box-shadow: none;
+}
+
+.premium-main-scroll {
+  padding: 28px !important;
+  scrollbar-color: #c6d3e3 transparent;
+}
+
+.max-w-container {
+  max-width: 1380px !important;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.home-dashboard-stack {
+  gap: 18px;
+}
+
+.gedu-dashboard-intro {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 28px;
+  min-height: 220px;
+  padding: 30px 32px;
+  overflow: hidden;
+  border: 1px solid rgba(140, 181, 224, 0.32);
+  border-radius: 24px;
+  background:
+    linear-gradient(118deg, rgba(13, 54, 101, 0.98), rgba(25, 85, 143, 0.96) 62%, rgba(42, 112, 169, 0.93)),
+    #123e73;
+  box-shadow: 0 18px 38px rgba(13, 54, 101, 0.16);
+}
+
+.gedu-dashboard-intro::before,
+.gedu-dashboard-intro::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.gedu-dashboard-intro::before {
+  width: 310px;
+  height: 310px;
+  right: 15%;
+  top: -230px;
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.gedu-dashboard-intro::after {
+  width: 220px;
+  height: 220px;
+  right: -60px;
+  bottom: -140px;
+  border: 22px solid rgba(242, 184, 75, 0.24);
+}
+
+.gedu-dashboard-intro-copy,
+.gedu-dashboard-intro-identity {
+  position: relative;
+  z-index: 1;
+}
+
+.gedu-dashboard-intro-copy {
+  max-width: 720px;
+}
+
+.gedu-dashboard-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #ffd879;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.gedu-dashboard-eyebrow-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ffd879;
+  box-shadow: 0 0 0 5px rgba(255, 216, 121, 0.13);
+}
+
+.gedu-dashboard-intro h1 {
+  max-width: 670px;
+  margin-top: 16px;
+  color: #ffffff;
+  font-size: clamp(28px, 3.2vw, 44px);
+  font-weight: 750;
+  letter-spacing: -0.045em;
+  line-height: 1.05;
+}
+
+.gedu-dashboard-intro-copy > p {
+  max-width: 560px;
+  margin-top: 13px;
+  color: rgba(232, 242, 253, 0.78);
+  font-size: 14px;
+}
+
+.gedu-dashboard-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.gedu-dashboard-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(242, 248, 255, 0.85);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.gedu-dashboard-intro-identity {
+  align-self: flex-end;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-width: 215px;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 17px;
+  background: rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(10px);
+}
+
+.gedu-dashboard-intro-mark {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border-radius: 14px;
+  background: #ffd879;
+  color: #0a2c54;
+}
+
+.gedu-dashboard-intro-identity > div:last-child {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gedu-dashboard-intro-identity span,
+.gedu-dashboard-intro-identity small {
+  color: rgba(231, 241, 252, 0.66);
+  font-size: 10px;
+}
+
+.gedu-dashboard-intro-identity strong {
+  color: #ffffff;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+
+.gedu-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.gedu-quick-action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px 13px;
+  border: 1px solid #e1e9f3;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-xs);
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.gedu-quick-action:hover {
+  transform: translateY(-2px);
+  border-color: #c8d9ec;
+  box-shadow: var(--shadow-sm);
+}
+
+.gedu-quick-action > span:nth-child(2) {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gedu-quick-action strong {
+  overflow: hidden;
+  color: #1d385a;
+  font-size: 11px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gedu-quick-action small {
+  overflow: hidden;
+  color: #8492a5;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gedu-quick-action > svg {
+  margin-left: auto;
+  flex: 0 0 auto;
+  color: #8da0b8;
+}
+
+.gedu-quick-action-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border-radius: 11px;
+}
+
+.gedu-quick-action-icon--blue { background: #eaf3ff; color: #2d70b6; }
+.gedu-quick-action-icon--amber { background: #fff5df; color: #bd7c11; }
+.gedu-quick-action-icon--violet { background: #f0edff; color: #7561c8; }
+.gedu-quick-action-icon--green { background: #e9f8ef; color: #2f9462; }
+
+.home-dashboard-page .glass-card {
+  border-color: #e1e9f3;
+  border-radius: 19px;
+  box-shadow: 0 4px 16px rgba(8, 37, 74, 0.045);
+}
+
+.home-dashboard-page .glass-card:hover {
+  transform: translateY(-2px);
+  border-color: #cbdced;
+  box-shadow: var(--shadow-md);
+}
+
+.home-stat-card {
+  border-radius: 19px !important;
+}
+
+@media (max-width: 1100px) {
+  .gedu-dashboard-intro { min-height: 205px; }
+  .gedu-dashboard-intro-identity { min-width: 190px; }
+  .gedu-quick-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 760px) {
+  .premium-main-scroll { padding: 16px !important; }
+  .gedu-dashboard-intro {
+    min-height: 0;
+    flex-direction: column;
+    gap: 22px;
+    padding: 24px;
+    border-radius: 21px;
+  }
+  .gedu-dashboard-intro h1 { font-size: 31px; }
+  .gedu-dashboard-intro-identity { align-self: stretch; }
+  .gedu-quick-actions { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 420px) {
+  .gedu-dashboard-intro { padding: 20px; }
+  .gedu-dashboard-intro h1 { font-size: 27px; }
+  .gedu-dashboard-meta { gap: 7px; }
+  .gedu-dashboard-meta span { width: 100%; }
+}

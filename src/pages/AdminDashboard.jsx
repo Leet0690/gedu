@@ -92,7 +92,9 @@ import {
   Undo2,
   Presentation,
   CalendarCheck,
-  BarChart3
+  BarChart3,
+  School,
+  ArrowUpRight
 } from 'lucide-react';
 
 const labelStyle = { fontSize: 'var(--text-xs)', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', paddingLeft: '2px' };
@@ -1089,6 +1091,11 @@ const AdminDashboard = () => {
   const isDashboard = location.pathname === '/';
   const dashboardMonthIndex = new Date().getMonth();
   const currentCalendarYear = new Date().getFullYear();
+  const dashboardDate = new Intl.DateTimeFormat('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  }).format(new Date());
   const attendanceCalendarYear = getCalendarYearForAcademicMonth(activeAcademicYear, dashboardMonthIndex) || currentCalendarYear;
   const attendanceMonthKey = `${attendanceCalendarYear}-${String(dashboardMonthIndex + 1).padStart(2, '0')}`;
   const teacherAttendanceMonthKey = `${currentCalendarYear}-${String(dashboardMonthIndex + 1).padStart(2, '0')}`;
@@ -1720,6 +1727,54 @@ const AdminDashboard = () => {
 
       {isDashboard && (
         <div className="home-dashboard-stack">
+          <section className="gedu-dashboard-intro" aria-labelledby="gedu-dashboard-title">
+            <div className="gedu-dashboard-intro-copy">
+              <span className="gedu-dashboard-eyebrow">
+                <span className="gedu-dashboard-eyebrow-dot" aria-hidden="true" />
+                Centre de pilotage
+              </span>
+              <h1 id="gedu-dashboard-title">Pilotez votre établissement avec clarté.</h1>
+              <p>
+                Une vue simple de vos apprenants, de votre équipe et de l’activité pédagogique.
+              </p>
+              <div className="gedu-dashboard-meta">
+                <span><Calendar size={14} /> {dashboardDate}</span>
+                <span><CalendarCheck size={14} /> Année {activeAcademicYear || operationalAcademicYear}</span>
+              </div>
+            </div>
+            <div className="gedu-dashboard-intro-identity">
+              <div className="gedu-dashboard-intro-mark" aria-hidden="true"><School size={24} /></div>
+              <div>
+                <span>Établissement actif</span>
+                <strong>{institution?.shortName || 'EFP'}</strong>
+                <small>{institution?.typeLabel || 'Formation professionnelle'}</small>
+              </div>
+            </div>
+          </section>
+
+          <nav className="gedu-quick-actions" aria-label="Actions rapides">
+            <Link to="/admin/students" className="gedu-quick-action">
+              <span className="gedu-quick-action-icon gedu-quick-action-icon--blue"><UsersIcon size={17} /></span>
+              <span><strong>Ajouter un stagiaire</strong><small>Créer un dossier</small></span>
+              <ArrowUpRight size={15} aria-hidden="true" />
+            </Link>
+            <Link to="/admin/grades" className="gedu-quick-action">
+              <span className="gedu-quick-action-icon gedu-quick-action-icon--amber"><FileText size={17} /></span>
+              <span><strong>Suivre les notes</strong><small>Évaluer les modules</small></span>
+              <ArrowUpRight size={15} aria-hidden="true" />
+            </Link>
+            <Link to="/admin/schedules" className="gedu-quick-action">
+              <span className="gedu-quick-action-icon gedu-quick-action-icon--violet"><Calendar size={17} /></span>
+              <span><strong>Organiser les cours</strong><small>Voir les emplois du temps</small></span>
+              <ArrowUpRight size={15} aria-hidden="true" />
+            </Link>
+            <Link to="/admin/reports" className="gedu-quick-action">
+              <span className="gedu-quick-action-icon gedu-quick-action-icon--green"><LineChart size={17} /></span>
+              <span><strong>Ouvrir les rapports</strong><small>Décider avec les données</small></span>
+              <ArrowUpRight size={15} aria-hidden="true" />
+            </Link>
+          </nav>
+
           <div className="home-stats-grid">
             <StatCard delay={0.05} icon={UsersIcon} tone="primary" value={activeYearStudents.length} label="Stagiaires" detail="Effectif inscrit" />
             <StatCard delay={0.1} icon={Presentation} tone="warning" value={(teachers || []).length} label="Formateurs" detail="Équipe pédagogique" />
