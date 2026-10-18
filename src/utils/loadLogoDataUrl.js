@@ -1,3 +1,5 @@
+import { institutionConfig } from '../config/institution.js';
+
 let logoDataUrlPromise;
 
 const blobToDataUrl = (blob) => new Promise((resolve, reject) => {
@@ -9,7 +11,7 @@ const blobToDataUrl = (blob) => new Promise((resolve, reject) => {
 
 export const loadLogoDataUrl = () => {
   if (!logoDataUrlPromise) {
-    logoDataUrlPromise = fetch('/logo-ipfpp.png', { cache: 'force-cache' })
+    logoDataUrlPromise = fetch(institutionConfig.logoUrl || '/logo-ipfpp.png', { cache: 'force-cache' })
       .then(response => {
         if (!response.ok) throw new Error(`Logo unavailable: ${response.status}`);
         return response.blob();

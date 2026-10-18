@@ -1,36 +1,39 @@
-# IPFP Manager
+# Gestion EFP
 
-Application de gestion academique de l'Institut Polytechnique de la Formation Professionnelle.
+Plateforme de gestion académique pour les écoles et instituts de formation professionnelle.
 
-## Demarrage local
+## Démarrage local
 
 ```bash
 npm install
 npm run dev
 ```
 
-L'application Vite est disponible par defaut sur `http://localhost:5000`.
+L’application Vite est disponible par défaut sur `http://localhost:5000`.
 
-## Verification
+## Personnaliser pour un établissement
+
+Copiez `.env.example` vers `.env`, puis renseignez la configuration Firebase et les variables `VITE_INSTITUTION_*` : nom, sigle, logo, portail public, domaine email technique et préfixe des matricules.
+
+Après connexion avec un compte administrateur, la page **Administration → Établissement** permet aussi d’enregistrer le profil dans Firestore (`settings/app`). Le logo peut être une URL HTTPS accessible par les utilisateurs.
+
+Le référentiel académique peut être personnalisé depuis **Modules**. Pour une nouvelle installation qui ne doit pas afficher le catalogue de démarrage existant, définissez `VITE_USE_STARTER_CATALOG=false`, puis créez les niveaux, filières, années et modules de l’établissement.
+
+## Vérification
 
 ```bash
-npm run build
 npm run lint
+npm test
+npm run build
 ```
-
-## Lectures Firestore
-
-Le chargement par page, le cache en mémoire et les modalités d'actualisation sont décrits dans [le guide de réduction des lectures](docs/firestore-reads.md).
 
 ## Configuration Firebase
 
-Copier `.env.example` vers `.env`, puis renseigner les variables locales. Le fichier `.env` contient des identifiants sensibles et ne doit pas etre versionne.
+Copiez `.env.example` vers `.env`. Les identifiants Firebase peuvent être exposés côté client, mais le fichier `.env` ne doit pas être versionné. Les règles Firestore et les profils utilisateurs restent obligatoires pour protéger les données.
 
-## Deploiement
+## Déploiement
 
 ```bash
 npm run build
 firebase deploy --only hosting
 ```
-
-Firebase Hosting publie la build `dist` sur les sites configures dans `firebase.json`.

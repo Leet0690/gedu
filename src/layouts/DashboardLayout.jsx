@@ -83,6 +83,7 @@ const NAV_CATEGORIES = [
       { to: "/admin/continuous", icon: GraduationCap, label: "Formations Continues", color: "text-brand-500", pageKey: 'continuous' },
       { to: "/admin/finance", icon: Wallet, label: "Finance", color: "text-green-600", pageKey: 'finance' },
       { to: "/admin/users", icon: ShieldCheck, label: "Utilisateurs & Droits", color: "text-blue-600", pageKey: 'users' },
+      { to: "/admin/institution", icon: School, label: "Établissement", color: "text-indigo-600", pageKey: 'users' },
     ]
   }
 ];
@@ -149,7 +150,7 @@ const SidebarCategory = ({ cat, isSidebarOpen, renderNavLink, location, isMobile
 };
 
 export default function DashboardLayout({ children }) {
-  const { activeSemester, setActiveSemester, activeAcademicYear, setActiveAcademicYear, operationalAcademicYear, availableAcademicYearsList } = useApp();
+  const { activeSemester, setActiveSemester, activeAcademicYear, setActiveAcademicYear, operationalAcademicYear, availableAcademicYearsList, institution } = useApp();
   const { adminUser, hasPermission, logout: adminAuthLogout } = useAdminAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -305,6 +306,7 @@ export default function DashboardLayout({ children }) {
           activeSemester={activeSemester}
           onSemesterChange={setActiveSemester}
           adminUser={adminUser}
+          institution={institution}
           onLogout={adminAuthLogout}
         />
 
@@ -324,10 +326,11 @@ export default function DashboardLayout({ children }) {
             </motion.div>
             
             <footer className="premium-app-footer" style={{ textAlign: 'center', padding: '48px 0 24px', marginTop: '40px' }}>
+              <p className="institution-app-footer-label" style={{ fontSize: '11px', fontWeight: '500', color: 'var(--text-faint)', letterSpacing: '0.08em' }}>{institution?.appName || 'Gestion EFP'} · {new Date().getFullYear()}</p>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '8px' }}>
                 <School size={14} style={{ color: 'var(--primary)' }} />
                 <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-tertiary)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                  Institut Polytechnique de la Formation Professionnelle
+                  {institution?.name || 'Établissement de Formation Professionnelle'}
                 </span>
               </div>
               <p style={{ fontSize: '11px', fontWeight: '500', color: 'var(--text-faint)', letterSpacing: '0.08em' }}>IPFPP Manager · 2026</p>

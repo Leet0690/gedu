@@ -11575,3 +11575,5 @@ body:has(.app-modal-overlay) .app-modal-overlay {
 .form-grid > * { min-width: 0; }
 
 .form-grid input, .form-grid select, .form-grid [role="combobox"] { min-width: 0; max-width: 100%; }
+
+.premium-app-footer > p:not(.institution-app-footer-label) { display: none; }

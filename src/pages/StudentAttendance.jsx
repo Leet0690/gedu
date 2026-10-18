@@ -72,7 +72,7 @@ const formatLocalDate = (date) => {
 const StudentAttendance = () => {
   const { hasPermission } = useAdminAuth();
   const canEdit = hasPermission('attendance_students', 'edit');
-  const { students, teachers, studentAttendance, updateStudentAttendance, loadAttendanceForSession, loadStudentAttendanceForMonth, loading, schedules: rawSchedules, teacherAttendance, updateTeacherAttendance, loadTeacherAttendanceForDate, modules: allModules = [], activeSemester = 'S1', getActiveScheduleModule, activeAcademicYear, operationalAcademicYear, confirmAction } = useApp();
+  const { students, teachers, studentAttendance, updateStudentAttendance, loadAttendanceForSession, loadStudentAttendanceForMonth, loading, schedules: rawSchedules, teacherAttendance, updateTeacherAttendance, loadTeacherAttendanceForDate, modules: allModules = [], academicCatalog, activeSemester = 'S1', getActiveScheduleModule, activeAcademicYear, operationalAcademicYear, confirmAction } = useApp();
   const { showToast } = useToast();
   const todayDate = useMemo(() => formatLocalDate(new Date()), []);
   const writableAcademicYear = operationalAcademicYear;
@@ -145,7 +145,7 @@ const StudentAttendance = () => {
     }).sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
   }, [activeStudents, filterDiploma, filterMajor, filterYear, debouncedSearch, schedules, dayOfWeek, getActiveScheduleModule]);
 
-  const availableMajors = filterDiploma ? (FILIERES[filterDiploma] || []) : Array.from(new Set(activeStudents.map(s => s.major)));
+  const availableMajors = filterDiploma ? (academicCatalog?.filieres?.[filterDiploma] || FILIERES[filterDiploma] || []) : Array.from(new Set(activeStudents.map(s => s.major)));
   const availableModules = useMemo(() => {
     if (filterMajor && filterYear) {
       const scheduledModules = (schedules || [])
@@ -497,7 +497,7 @@ const StudentAttendance = () => {
   const [mFilterFiliere, setMFilterFiliere] = useState('');
   const [mFilterAnnee, setMFilterAnnee] = useState('');
   const [mSearch, setMSearch] = useState('');
-  const allFilieres = useMemo(() => Array.from(new Set(Object.values(FILIERES).flat())), []);
+  const allFilieres = useMemo(() => Array.from(new Set(Object.values(academicCatalog?.filieres || FILIERES).flat())), [academicCatalog]);
   useEffect(() => {
     if (view === 'monthly') loadStudentAttendanceForMonth(mMonth, mYear);
   }, [view, mMonth, mYear, loadStudentAttendanceForMonth]);
@@ -739,7 +739,7 @@ const StudentAttendance = () => {
                   onChange={(val) => { setFilterDiploma(val); setFilterMajor(''); setFilterYear(''); setFilterModule(''); setFilterTime(''); }}
                   options={[
                     { label: "Choisir niveau", value: "" },
-                    ...Object.keys(FILIERES).map(d => ({ label: d, value: d }))
+                    ...(academicCatalog?.diplomas || Object.keys(FILIERES)).map(d => ({ label: d, value: d }))
                   ]}
                   style={{ width: '100%' }}
                 />
@@ -763,7 +763,7 @@ const StudentAttendance = () => {
                   onChange={(val) => { setFilterYear(val); setFilterModule(''); setFilterTime(''); }}
                   options={[
                     { label: "Année", value: "" },
-                    ...getStudyYearsForDiploma(filterDiploma).map(year => ({ label: year, value: year }))
+                    ...(academicCatalog?.years?.[filterDiploma] || getStudyYearsForDiploma(filterDiploma)).map(year => ({ label: year, value: year }))
                   ]}
                   style={{ width: '100%' }}
                 />
@@ -968,7 +968,10 @@ const StudentAttendance = () => {
                   onChange={(val) => setMFilterAnnee(val)}
                   options={[
                     { label: "Toutes années", value: "" },
-                    ...getStudyYearsForMajor(mFilterFiliere).map(year => ({ label: year, value: year }))
+                    ...(() => {
+                      const diploma = Object.keys(academicCatalog?.filieres || FILIERES).find(key => (academicCatalog?.filieres?.[key] || FILIERES[key] || []).includes(mFilterFiliere));
+                      return (academicCatalog?.years?.[diploma] || getStudyYearsForMajor(mFilterFiliere)).map(year => ({ label: year, value: year }));
+                    })()
                   ]}
                   style={{ width: '100%' }}
                 />

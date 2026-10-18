@@ -5,6 +5,8 @@ import { APP_MODULES } from '../services/userService';
 import { hasModulePermission } from '../utils/permissions';
 import { getLoginDestination } from '../utils/authSession';
 import { useAdminAuth } from '../context/AdminAuthContext';
+import { useApp } from '../context/AppContext';
+import { institutionConfig } from '../config/institution';
 import Logo from '../components/Logo';
 import { Lock, User, ArrowRight, CircleAlert, Loader2, Eye, EyeOff, ShieldCheck, Sparkles, GraduationCap } from 'lucide-react';
 
@@ -15,6 +17,7 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login, adminUser, isAuthenticated, authError } = useAdminAuth();
+  const { institution = institutionConfig } = useApp() || {};
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -60,7 +63,7 @@ const Login = () => {
           </div>
           <div className="login-premium-brand-copy">
             <span className="login-premium-eyebrow"><Sparkles size={12} /> Plateforme de gestion</span>
-            <h1>IPFPP<br />Manager</h1>
+            <h1>{institution.shortName}<br />{institution.appName.replace(`${institution.shortName} `, '') || 'Manager'}</h1>
             <p>Un espace unifié pour piloter les formations, les présences et les résultats académiques.</p>
           </div>
           <div className="login-premium-feature-list">
@@ -186,7 +189,7 @@ const Login = () => {
         </section>
 
         <p className="login-premium-footer">
-          Institut Polytechnique de la Formation Professionnelle
+          {institution.name}
         </p>
       </motion.div>
     </div>

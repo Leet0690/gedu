@@ -54,7 +54,7 @@ const StatusCell = ({ status }) => {
 const labelStyle = { fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px', display: 'block' };
 
 const MonthlyAttendance = () => {
-  const { students, studentAttendance, loadStudentAttendanceForMonth, loading, activeAcademicYear, operationalAcademicYear } = useApp();
+  const { students, studentAttendance, loadStudentAttendanceForMonth, loading, activeAcademicYear, operationalAcademicYear, academicCatalog } = useApp();
 
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth());
@@ -64,8 +64,11 @@ const MonthlyAttendance = () => {
   const [filterAnnee, setFilterAnnee] = useState('');
   const [search, setSearch] = useState('');
 
-  const allFilieres = useMemo(() => Array.from(new Set(Object.values(FILIERES).flat())), []);
-  const allAnnees = useMemo(() => getStudyYearsForMajor(filterFiliere), [filterFiliere]);
+  const allFilieres = useMemo(() => Array.from(new Set(Object.values(academicCatalog?.filieres || FILIERES).flat())), [academicCatalog]);
+  const allAnnees = useMemo(() => {
+    const diploma = Object.keys(academicCatalog?.filieres || FILIERES).find(key => (academicCatalog?.filieres?.[key] || FILIERES[key] || []).includes(filterFiliere));
+    return academicCatalog?.years?.[diploma] || getStudyYearsForMajor(filterFiliere);
+  }, [academicCatalog, filterFiliere]);
   const daysInMonth = useMemo(() => new Date(year, month + 1, 0).getDate(), [month, year]);
   const days = useMemo(() => Array.from({ length: daysInMonth }, (_, i) => i + 1), [daysInMonth]);
   const activeStudents = useMemo(() => {

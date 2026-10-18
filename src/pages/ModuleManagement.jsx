@@ -139,7 +139,8 @@ const ModuleManagement = () => {
     confirmAction,
     activeAcademicYear,
     operationalAcademicYear,
-    availableAcademicYearsList = []
+    availableAcademicYearsList = [],
+    academicCatalog
   } = useApp();
   const { showToast } = useToast();
 
@@ -184,9 +185,12 @@ const ModuleManagement = () => {
 
   const diplomas = ['Technicien Spécialisé', 'Technicien', 'Licence Professionnelle', 'Master spécialisé']
     .filter(diploma => MODULES_DATA[diploma]);
-  const majors = filterDiploma ? Object.keys(MODULES_DATA[filterDiploma] || {}) : [];
-  const filterYears = filterDiploma ? getStudyYearsForDiploma(filterDiploma) : ALL_STUDY_YEARS;
-  const formYears = getStudyYearsForDiploma(formData.diploma);
+  (academicCatalog?.diplomas || []).forEach(diploma => {
+    if (!diplomas.includes(diploma)) diplomas.push(diploma);
+  });
+  const majors = filterDiploma ? (academicCatalog?.filieres?.[filterDiploma] || Object.keys(MODULES_DATA[filterDiploma] || {})) : [];
+  const filterYears = filterDiploma ? (academicCatalog?.years?.[filterDiploma] || getStudyYearsForDiploma(filterDiploma)) : ALL_STUDY_YEARS;
+  const formYears = academicCatalog?.years?.[formData.diploma] || getStudyYearsForDiploma(formData.diploma);
   const formSemesterOptions = getSemesterOptions(formData.diploma);
   const filterSemesterOptions = filterDiploma ? getSemesterOptions(filterDiploma) : getSemesterOptions('');
   const hideYearChoice = isHigherEducationDiploma(formData.diploma);
@@ -223,15 +227,16 @@ const ModuleManagement = () => {
   // All available groups across all diplomas for the copy modal
   const allGroups = useMemo(() => {
     const groups = [];
-    Object.entries(MODULES_DATA).forEach(([diploma, majorMap]) => {
+    Object.entries(academicCatalog?.groups || MODULES_DATA).forEach(([diploma, majorMap]) => {
       Object.entries(majorMap).forEach(([major, yearMap]) => {
-        Object.keys(yearMap).forEach(year => {
+        const yearKeys = yearMap instanceof Set ? Array.from(yearMap) : Object.keys(yearMap);
+        yearKeys.forEach(year => {
           groups.push({ diploma, major, year, code: getClassCode(diploma, major, year) });
         });
       });
     });
     return groups;
-  }, []);
+  }, [academicCatalog]);
 
   const isFiltersSelected = !!(filterYear && filterDiploma && filterMajor);
 
@@ -270,9 +275,9 @@ const ModuleManagement = () => {
   };
 
   const resetForm = () => {
-    const defaultDiploma = filterDiploma || Object.keys(MODULES_DATA)[0];
-    const defaultMajor = filterMajor || Object.keys(MODULES_DATA[defaultDiploma] || {})[0] || '';
-    const defaultYear = filterYear || getStudyYearsForDiploma(defaultDiploma)[0];
+    const defaultDiploma = filterDiploma || diplomas[0] || Object.keys(MODULES_DATA)[0];
+    const defaultMajor = filterMajor || (academicCatalog?.filieres?.[defaultDiploma] || Object.keys(MODULES_DATA[defaultDiploma] || {}))[0] || '';
+    const defaultYear = filterYear || (academicCatalog?.years?.[defaultDiploma] || getStudyYearsForDiploma(defaultDiploma))[0];
     const defaultSemester = filterSemester || 'S1';
     setFormData({
       name: '',
@@ -857,26 +862,24 @@ const ModuleManagement = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={labelStyle}>Niveau</label>
-                    <FilterSelect
-                      value={formData.diploma}
-                      onChange={val => setFormData({
+                    <>
+                      <input list="institution-diplomas" className="input-premium" value={formData.diploma} onChange={e => setFormData({
                         ...formData,
-                        diploma: val,
-                        major: Object.keys(MODULES_DATA[val] || {})[0] || '',
-                        year: getStudyYearsForDiploma(val)[0],
+                        diploma: e.target.value,
+                        major: (academicCatalog?.filieres?.[e.target.value] || Object.keys(MODULES_DATA[e.target.value] || {}))[0] || '',
+                        year: (academicCatalog?.years?.[e.target.value] || getStudyYearsForDiploma(e.target.value))[0] || '',
                         semester: 'S1'
-                      })}
-                      options={diplomas.map(d => ({ label: getDiplomaLabel(d), value: d }))}
-                    />
+                      })} required />
+                      <datalist id="institution-diplomas">
+                        {diplomas.map(d => <option key={d} value={d}>{getDiplomaLabel(d)}</option>)}
+                      </datalist>
+                    </>
                   </div>
                   {!hideYearChoice ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       <label style={labelStyle}>Année</label>
-                      <FilterSelect
-                        value={formData.year}
-                        onChange={val => setFormData({ ...formData, year: val })}
-                        options={formYears.map(year => ({ label: year, value: year }))}
-                      />
+                      <input list="institution-years" className="input-premium" value={formData.year} onChange={e => setFormData({ ...formData, year: e.target.value })} required />
+                      <datalist id="institution-years">{formYears.map(year => <option key={year} value={year} />)}</datalist>
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -902,11 +905,8 @@ const ModuleManagement = () => {
                   )}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', gridColumn: hideYearChoice ? '1 / -1' : undefined }}>
                     <label style={labelStyle}>Filière</label>
-                    <FilterSelect
-                      value={formData.major}
-                      onChange={val => setFormData({ ...formData, major: val })}
-                      options={Object.keys(MODULES_DATA[formData.diploma] || {}).map(m => ({ label: m, value: m }))}
-                    />
+                    <input list="institution-majors" className="input-premium" value={formData.major} onChange={e => setFormData({ ...formData, major: e.target.value })} required />
+                    <datalist id="institution-majors">{(academicCatalog?.filieres?.[formData.diploma] || Object.keys(MODULES_DATA[formData.diploma] || {})).map(major => <option key={major} value={major} />)}</datalist>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>

@@ -8,7 +8,7 @@ export default function AdminTopbar({
   pageTitle, isSidebarOpen, onToggleSidebar, onOpenMobileMenu, isOnline,
   showAcademicYearSelector, activeAcademicYear, operationalAcademicYear,
   availableAcademicYearsList, onAcademicYearChange, activeSemester, onSemesterChange,
-  adminUser, onLogout,
+  adminUser, institution, onLogout,
 }) {
   return (
     <header className="admin-toolbar">
@@ -22,7 +22,7 @@ export default function AdminTopbar({
         </button>
         <div className="admin-toolbar-title">
           <span>Espace de gestion</span>
-          <strong>{pageTitle || 'IPFP'}</strong>
+          <strong>{pageTitle || institution?.shortName || 'EFP'}</strong>
         </div>
       </div>
 

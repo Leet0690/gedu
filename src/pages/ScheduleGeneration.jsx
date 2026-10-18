@@ -48,7 +48,7 @@ const STEPS = [
 
 const ScheduleGeneration = () => {
   const {
-    teachers, schedules, modules: moduleCatalog,
+    teachers, schedules, modules: moduleCatalog, academicCatalog,
     activeSemester, addSchedule, confirmAction,
     activeAcademicYear, operationalAcademicYear
   } = useApp();
@@ -76,8 +76,8 @@ const ScheduleGeneration = () => {
   // ── Compute all possible groups ──
   const allGroups = useMemo(() => {
     const groups = [];
-    for (const [diploma, filieres] of Object.entries(FILIERES)) {
-      const years = getStudyYearsForDiploma(diploma);
+    for (const [diploma, filieres] of Object.entries(academicCatalog?.filieres || FILIERES)) {
+      const years = academicCatalog?.years?.[diploma] || getStudyYearsForDiploma(diploma);
       for (const filiere of filieres) {
         for (const annee of years) {
           const mods = Array.from(new Set(getModulesForFiliere(diploma, filiere, annee) || []));
@@ -98,7 +98,7 @@ const ScheduleGeneration = () => {
       }
     }
     return groups;
-  }, [scopedModuleCatalog]);
+  }, [academicCatalog, scopedModuleCatalog]);
 
   const groupsByDiploma = useMemo(() => {
     const map = {};

@@ -115,7 +115,7 @@ const MiniStat = ({ label, value, icon: Icon }) => (
 const GradeManagement = () => {
   const { hasPermission } = useAdminAuth();
   const canEdit = hasPermission('grades', 'edit');
-  const { students = [], teachers = [], grades = {}, batchUpdateGrades, loading = false, modules: allModules = [], confirmAction, activeAcademicYear, operationalAcademicYear, availableAcademicYearsList = [] } = useApp() || {};
+  const { students = [], teachers = [], grades = {}, batchUpdateGrades, loading = false, modules: allModules = [], academicCatalog, confirmAction, activeAcademicYear, operationalAcademicYear, availableAcademicYearsList = [] } = useApp() || {};
   const { showToast } = useToast();
   const [entryMode, setEntryMode] = useState('student');
   const [selectedStudentId, setSelectedStudentId] = useState('');
@@ -147,25 +147,27 @@ const GradeManagement = () => {
     .map(student => getStudentAcademicSnapshot(student, filterAcademicYear, operationalAcademicYear))
     .filter(Boolean), [students, filterAcademicYear, operationalAcademicYear]);
   const availableDiplomas = useMemo(() => Array.from(new Set([
-    ...Object.keys(FILIERES),
+    ...(academicCatalog?.diplomas || Object.keys(FILIERES)),
     ...academicStudents.map(student => student.diploma).filter(Boolean),
-  ])), [academicStudents]);
+  ])), [academicCatalog, academicStudents]);
   const availableMajors = useMemo(() => {
-    const configuredMajors = filterDiploma ? (FILIERES[filterDiploma] || []) : Object.values(FILIERES).flat();
+    const configuredMajors = filterDiploma
+      ? (academicCatalog?.filieres?.[filterDiploma] || FILIERES[filterDiploma] || [])
+      : Object.values(academicCatalog?.filieres || FILIERES).flat();
     const historicalMajors = academicStudents
       .filter(student => !filterDiploma || student.diploma === filterDiploma)
       .map(student => student.major)
       .filter(Boolean);
     return Array.from(new Set([...configuredMajors, ...historicalMajors]));
-  }, [academicStudents, filterDiploma]);
+  }, [academicCatalog, academicStudents, filterDiploma]);
   const availableStudyYears = useMemo(() => {
-    const configuredYears = getStudyYearsForDiploma(filterDiploma);
+    const configuredYears = academicCatalog?.years?.[filterDiploma] || getStudyYearsForDiploma(filterDiploma);
     const historicalYears = academicStudents
       .filter(student => !filterDiploma || student.diploma === filterDiploma)
       .map(student => student.year)
       .filter(Boolean);
     return Array.from(new Set([...configuredYears, ...historicalYears]));
-  }, [academicStudents, filterDiploma]);
+  }, [academicCatalog, academicStudents, filterDiploma]);
 
   // ── PDF States ──
   const [showDocPanel, setShowDocPanel] = useState(false);

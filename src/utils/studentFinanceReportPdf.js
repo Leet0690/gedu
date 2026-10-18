@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import { institutionConfig } from '../config/institution.js';
 
 const MARGIN = 10;
 const FOOTER_SPACE = 14;
@@ -62,7 +63,7 @@ export function buildStudentFinanceReportPdf({
   }
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-  doc.setProperties({ title: 'Liste des stagiaires - Paiements', author: 'IPFP' });
+  doc.setProperties({ title: 'Liste des stagiaires - Paiements', author: institutionConfig.shortName });
   const width = doc.internal.pageSize.getWidth();
   const height = doc.internal.pageSize.getHeight();
   const tableWidth = width - MARGIN * 2;
@@ -75,7 +76,7 @@ export function buildStudentFinanceReportPdf({
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
     doc.setTextColor(...COLORS.navy);
-    doc.text('IPFP', MARGIN, 13);
+    doc.text(institutionConfig.shortName, MARGIN, 13);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(...COLORS.muted);
@@ -216,7 +217,7 @@ export function buildStudentFinanceReportPdf({
     doc.setTextColor(...COLORS.muted);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.3);
-    doc.text('IPFP - Suivi des paiements des stagiaires', MARGIN, height - 6);
+    doc.text(`${institutionConfig.shortName} - Suivi des paiements des stagiaires`, MARGIN, height - 6);
     doc.text(`Page ${page} / ${pageCount}`, width - MARGIN, height - 6, { align: 'right' });
   }
   return doc;

@@ -1,11 +1,12 @@
 import { doc, setDoc, getDocFromServer, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { institutionConfig } from '../config/institution.js';
 
 export function createTemporaryPortalIdentity(auth) {
   // Use the project's existing password provider. No anonymous-provider setup
   // is required, and these random credentials never leave this page's memory.
-  const email = `portal-${crypto.randomUUID()}@sessions.ipfp.invalid`;
-  const password = `IpFp!A9-${crypto.randomUUID()}-${crypto.randomUUID()}`;
+  const email = `portal-${crypto.randomUUID()}@${institutionConfig.sessionEmailDomain}`;
+  const password = `Efp!A9-${crypto.randomUUID()}-${crypto.randomUUID()}`;
   return createUserWithEmailAndPassword(auth, email, password);
 }
 

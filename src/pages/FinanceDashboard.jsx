@@ -7,6 +7,7 @@ import { cn } from '../lib/cn';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { useDebounce } from '../utils/useDebounce';
+import { institutionConfig } from '../config/institution';
 
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
@@ -584,7 +585,7 @@ const FinanceDashboard = () => {
       doc.text(`${formatMoney(total)} DH`, w - margin, y, { align: 'right' });
 
       doc.setFontSize(5.5); doc.setFont('helvetica', 'italic');
-      doc.text('Signature et Cachet IPFP', w - margin, offsetY + 99, { align: 'right' });
+      doc.text(`Signature et Cachet ${institutionConfig.shortName}`, w - margin, offsetY + 99, { align: 'right' });
     };
 
     drawReceiptCopy(0, 'COPIE STAGIAIRE');
@@ -678,7 +679,7 @@ const FinanceDashboard = () => {
 
     doc.setFontSize(8); doc.setFont('helvetica', 'italic');
     doc.text('Signature formateur', margin, 196);
-    doc.text('Signature et Cachet IPFP', w - margin - 38, 196);
+    doc.text(`Signature et Cachet ${institutionConfig.shortName}`, w - margin - 38, 196);
     doc.save(`Recu_${salaryReceiptNumber}_Formateur_${(salary.teacherName || 'Formateur').replace(/\s+/g, '_')}_${salary.month}_${salary.year}.pdf`);
     showToast('Reçu formateur généré', 'success');
   };

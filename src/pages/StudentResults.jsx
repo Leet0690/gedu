@@ -21,6 +21,7 @@ import {
   getStudentAcademicSnapshot,
 } from '../utils/studentStatus';
 import { getDiplomaAbbreviation } from '../data/modules';
+import { institutionConfig } from '../config/institution';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import './StudentResults.css';
@@ -91,7 +92,7 @@ const StudentResults = () => {
   useEffect(() => {
     if (student) {
       const yearLabel = activeStudyYear?.label ? ` (${activeStudyYear.label})` : '';
-      document.title = `${student.lastName || ''} ${student.firstName || ''}${yearLabel} - Résultats IPFP`.trim() || 'Résultats Stagiaire';
+      document.title = `${student.lastName || ''} ${student.firstName || ''}${yearLabel} - Résultats ${institutionConfig.shortName}`.trim() || 'Résultats Stagiaire';
     }
   }, [student, activeStudyYear]);
 
@@ -618,7 +619,7 @@ const StudentResults = () => {
 
       {/* Footer System Watermark */}
       <div style={{ textAlign: 'center', marginTop: 'var(--space-10)', opacity: 0.35 }}>
-        <p style={{ fontSize: '10px', fontWeight: '850', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.15em', margin: 0 }}>Document Académique Officiel · Système d'Information IPFP</p>
+        <p style={{ fontSize: '10px', fontWeight: '850', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.15em', margin: 0 }}>Document Académique Officiel · Système d'Information {institutionConfig.shortName}</p>
       </div>
     </div>
   );

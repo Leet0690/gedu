@@ -42,7 +42,7 @@ import {
   validateAcademicYear,
   validateAcademicYearTransition,
 } from '../utils/studentStatus';
-import { isKnownStudyYear } from '../data/modules';
+import { buildAcademicCatalog, isKnownStudyYear } from '../data/modules';
 import { buildStudentClosure, buildStudentClosureUndo, buildStudentClosureCorrection, getClosureDecisionOptions } from '../utils/academicYearClosure';
 import { createReadCoordinator, createInFlightReader } from '../utils/readCoordinator';
 import { getPageCollections } from '../utils/dataRequirements';
@@ -52,6 +52,7 @@ import { getTeacherPortalSettings, publishScheduleSettings } from '../services/t
 import { getPublicScheduleSettings } from '../utils/publicScheduleSettings';
 import { loadTeacherPortalGrades, loadStudentPortalGrades, closeTeacherGradePortalConnection } from '../services/teacherGradePortalService';
 import { recordClassAttendanceActivity } from '../services/classAttendanceActivity';
+import { getInstitutionConfig } from '../config/institution';
 
 const AppContext = createContext();
 const ACCESS_LOG_LIMIT = 5;
@@ -542,6 +543,13 @@ export const AppProvider = ({ children }) => {
   const [archivedAcademicYears, setArchivedAcademicYears] = useState([]);
   // The active year is only the local year currently being viewed.
   const [activeAcademicYear, setActiveAcademicYearState] = useState(readCachedOperationalAcademicYear);
+  const [institution, setInstitutionState] = useState(getInstitutionConfig);
+  const academicCatalog = useMemo(() => buildAcademicCatalog({
+    modules,
+    students,
+    schedules,
+    includeStarterCatalog: institution.useStarterCatalog,
+  }), [institution.useStarterCatalog, modules, schedules, students]);
   const operationalAcademicYearRef = useRef(operationalAcademicYear);
   const [loading, setLoading] = useState(true);
   const [teacherPortalSettingsError, setTeacherPortalSettingsError] = useState('');
@@ -619,6 +627,7 @@ export const AppProvider = ({ children }) => {
 
     const unsubscribe = onSnapshot(settingsRef, { includeMetadataChanges: true }, snapshot => {
       const settings = snapshot.exists() ? snapshot.data() : {};
+      setInstitutionState(getInstitutionConfig(settings.institution || {}));
       const hasOperationalAcademicYear = validateAcademicYear(settings?.operationalAcademicYear);
       const nextOperationalAcademicYear = hasOperationalAcademicYear
         ? settings.operationalAcademicYear
@@ -683,6 +692,28 @@ export const AppProvider = ({ children }) => {
 
     return unsubscribe;
   }, [isAuthenticated, isDirectorAuth, isAdmin]);
+
+  const updateInstitution = useCallback(async (updates = {}) => {
+    if (!isAdmin) {
+      originalShowToast('Seul un administrateur peut modifier le profil de l’établissement.', 'error');
+      return false;
+    }
+
+    const nextInstitution = getInstitutionConfig({ ...institution, ...updates });
+    try {
+      await setDoc(doc(db, 'settings', 'app'), {
+        institution: nextInstitution,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+      setInstitutionState(nextInstitution);
+      showToast('Profil de l’établissement mis à jour.', 'success');
+      return true;
+    } catch (error) {
+      console.error('Impossible de sauvegarder le profil de l’établissement :', error);
+      originalShowToast('Le profil de l’établissement n’a pas pu être enregistré.', 'error');
+      return false;
+    }
+  }, [institution, isAdmin, originalShowToast, setInstitutionState, showToast]);
 
   const setActiveSemester = useCallback(async (semester) => {
     if (!isAdmin) { originalShowToast('Seul un administrateur peut modifier le semestre actif.', 'error'); return false; }
@@ -2060,7 +2091,7 @@ export const AppProvider = ({ children }) => {
       loadAttendanceForSession, loadStudentAttendanceForMonth, loadTeacherAttendanceForDate, loadTeacherAttendanceForMonth,
       schedules, addSchedule, updateSchedule, deleteSchedule, clearAllSchedules, migrateTeacherTokens,
       payments, salaries, expenses, loadFinancialData, loadCollection, addPayment, updatePayment, deletePayment, addSalary, updateSalary, deleteSalary, addExpense, deleteExpense,
-      modules, addModule, updateModule, deleteModule, reorderModules, copyModulesToAcademicYear,
+      modules, academicCatalog, addModule, updateModule, deleteModule, reorderModules, copyModulesToAcademicYear,
       continuousTrainings, addContinuousTraining, updateContinuousTraining, deleteContinuousTraining,
       continuousTrainingTypes, addContinuousTrainingType, renameContinuousTrainingType, deleteContinuousTrainingType,
       ctStudents, addCtStudent, updateCtStudent, deleteCtStudent,
@@ -2068,6 +2099,7 @@ export const AppProvider = ({ children }) => {
       accessLogs, logAppAccess, loadAccessLogs,
       activeSemester, setActiveSemester, getActiveScheduleModule, teacherPortalSettingsError, teacherPortalGradesError, studentPortalGradesError,
       activeAcademicYear, setActiveAcademicYear, operationalAcademicYear, availableAcademicYearsList,
+      institution, updateInstitution,
       confirmAction, notifications: visibleNotifications, activityError, markNotificationAsRead, clearNotifications,
       logActivity
     }}>

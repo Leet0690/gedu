@@ -1,10 +1,12 @@
-import { FILIERES, getStudyYearsForDiploma, getDiplomaForMajor } from '../data/modules.js';
+import { getDiplomaForMajor } from '../data/modules.js';
 import { getScheduleModuleForSemester } from './scheduleSemester.js';
 
 export const isScheduleShareToken = token => typeof token === 'string' && /^[A-Za-z0-9_-]{43}$/.test(token);
 export const normalizeScheduleScope = (scope = {}) => {
   const { diploma, filiere, annee, academicYear, semester } = scope;
-  if (!Object.hasOwn(FILIERES, diploma) || !FILIERES[diploma].includes(filiere) || !getStudyYearsForDiploma(diploma).includes(annee) ||
+  if (typeof diploma !== 'string' || !diploma.trim() || diploma.length > 240 ||
+    typeof filiere !== 'string' || !filiere.trim() || filiere.length > 240 ||
+    typeof annee !== 'string' || !annee.trim() || annee.length > 120 ||
     !/^\d{4}-\d{4}$/.test(academicYear || '') || Number(academicYear.slice(5)) !== Number(academicYear.slice(0, 4)) + 1 || !['S1', 'S2'].includes(semester)) {
     throw new Error('Le groupe, l’année ou le semestre est invalide.');
   }

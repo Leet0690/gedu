@@ -192,6 +192,42 @@ export const FILIERES = Object.fromEntries(
   Object.entries(MODULES_DATA).map(([diploma, filieres]) => [diploma, Object.keys(filieres)])
 );
 
+// The starter catalog keeps the existing installation usable, while records
+// from Firestore extend it with each school's own programs and study years.
+export const buildAcademicCatalog = ({ modules = [], students = [], schedules = [], includeStarterCatalog = true } = {}) => {
+  const catalog = {};
+
+  const addGroup = (diploma, major, year) => {
+    if (!diploma || !major || !year) return;
+    catalog[diploma] ||= {};
+    catalog[diploma][major] ||= new Set();
+    catalog[diploma][major].add(year);
+  };
+
+  if (includeStarterCatalog) {
+    Object.entries(MODULES_DATA).forEach(([diploma, majors]) => {
+      Object.entries(majors).forEach(([major, years]) => {
+        Object.keys(years).forEach(year => addGroup(diploma, major, year));
+      });
+    });
+  }
+
+  [...modules, ...students, ...schedules].forEach(item => {
+    addGroup(item?.diploma, item?.major || item?.filiere, item?.year || item?.annee);
+  });
+
+  const filieres = Object.fromEntries(Object.entries(catalog).map(([diploma, majors]) => [diploma, Object.keys(majors)]));
+  const years = Object.fromEntries(Object.entries(catalog).map(([diploma, majors]) => [
+    diploma,
+    Array.from(new Set(Object.values(majors).flatMap(values => Array.from(values))))
+      .sort((a, b) => String(a).localeCompare(String(b), 'fr', { numeric: true }))
+  ]));
+
+  return { diplomas: Object.keys(catalog), filieres, years, groups: catalog };
+};
+
+export const getCatalogStudyYears = (catalog, diploma) => catalog?.years?.[diploma] || [];
+
 export const getStudyYearsForDiploma = (diploma) =>
   DIPLOMA_CONFIG[diploma]?.years || ALL_STUDY_YEARS;
 

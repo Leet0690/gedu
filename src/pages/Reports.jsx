@@ -3,6 +3,7 @@ import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { MODULES_DATA, getStudyYearsForDiploma } from '../data/modules';
+import { institutionConfig } from '../config/institution';
 import EmptyState from '../components/EmptyState';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import {
@@ -497,14 +498,14 @@ const buildXlsxBlob = ({
       name: 'docProps/app.xml',
       content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
-  <Application>IPFP</Application>
+  <Application>${institutionConfig.shortName}</Application>
 </Properties>`,
     },
     {
       name: 'docProps/core.xml',
       content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-  <dc:creator>IPFP</dc:creator>
+  <dc:creator>${institutionConfig.shortName}</dc:creator>
   <dc:title>${escapedSheetName}</dc:title>
   <dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString()}</dcterms:created>
 </cp:coreProperties>`,
@@ -536,12 +537,12 @@ const buildXlsxBlob = ({
 
 const Reports = () => {
   const {
-    students = [], grades = {}, modules: allModules = [],
+    students = [], grades = {}, modules: allModules = [], academicCatalog,
     studentAttendance = [], loadStudentAttendanceForMonth,
     activeAcademicYear, operationalAcademicYear, availableAcademicYearsList = []
   } = useApp() || {};
 
-  const [selectedDiploma, setSelectedDiploma] = useState(Object.keys(MODULES_DATA)[0]);
+  const [selectedDiploma, setSelectedDiploma] = useState(() => academicCatalog?.diplomas?.[0] || Object.keys(MODULES_DATA)[0]);
   const [selectedMajor, setSelectedMajor] = useState('');
   const [selectedYear, setSelectedYear] = useState('1ère année');
   const [selectedAcademicYear, setSelectedAcademicYear] = useState(activeAcademicYear);
@@ -549,6 +550,13 @@ const Reports = () => {
   useEffect(() => {
     setSelectedAcademicYear(activeAcademicYear);
   }, [activeAcademicYear]);
+
+  useEffect(() => {
+    if (academicCatalog?.diplomas?.length && !academicCatalog.diplomas.includes(selectedDiploma)) {
+      setSelectedDiploma(academicCatalog.diplomas[0]);
+      setSelectedMajor('');
+    }
+  }, [academicCatalog, selectedDiploma]);
 
   const [selectedModule, setSelectedModule] = useState('');
   const [rankSort, setRankSort] = useState('avg_desc');
@@ -574,10 +582,10 @@ const Reports = () => {
   }, [loadStudentAttendanceForMonth]);
 
   const availableMajors = useMemo(() =>
-    selectedDiploma ? Object.keys(MODULES_DATA[selectedDiploma] || {}) : [],
-    [selectedDiploma]
+    selectedDiploma ? (academicCatalog?.filieres?.[selectedDiploma] || Object.keys(MODULES_DATA[selectedDiploma] || {})) : [],
+    [academicCatalog, selectedDiploma]
   );
-  const availableStudyYears = useMemo(() => getStudyYearsForDiploma(selectedDiploma), [selectedDiploma]);
+  const availableStudyYears = useMemo(() => academicCatalog?.years?.[selectedDiploma] || getStudyYearsForDiploma(selectedDiploma), [academicCatalog, selectedDiploma]);
 
   const getGroupStudents = useCallback((group) =>
     reportStudents.filter(student =>
@@ -1325,7 +1333,7 @@ const Reports = () => {
           <FilterSelect 
             value={selectedDiploma} 
             onChange={val => { setSelectedDiploma(val); setSelectedYear(getStudyYearsForDiploma(val)[0]); }} 
-            options={Object.keys(MODULES_DATA).map(d => ({ label: d, value: d }))} 
+            options={(academicCatalog?.diplomas || Object.keys(MODULES_DATA)).map(d => ({ label: d, value: d }))}
             style={{ minWidth: '180px' }} 
           />
         </div>

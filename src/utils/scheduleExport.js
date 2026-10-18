@@ -1,5 +1,6 @@
 import { loadLogoDataUrl } from './loadLogoDataUrl.js';
 import { getScheduleModuleForSemester } from './scheduleSemester.js';
+import { institutionConfig } from '../config/institution.js';
 
 export const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 export const START_HOUR = 8;
@@ -144,7 +145,7 @@ export const createScheduleExportDocument = ({
   header.dataset.exportHeader = '';
   const heading = element('div', { flex: '1', minWidth: '0' });
   heading.append(
-    element('div', { fontSize: '14px', fontWeight: '700', color: muted, marginBottom: '7px' }, 'IPFP'),
+    element('div', { fontSize: '14px', fontWeight: '700', color: muted, marginBottom: '7px' }, institutionConfig.shortName),
     element('h1', { margin: '0 0 8px', fontSize: '30px', fontWeight: '700', lineHeight: '1.15', color: ink }, 'Emploi du temps'),
     element('div', { fontSize: '18px', fontWeight: '700', overflowWrap: 'anywhere' }, filiere || 'Planning hebdomadaire'),
     element('div', { fontSize: '14px', color: muted, marginTop: '4px' }, [diploma, annee].filter(Boolean).join('  •  ')),
@@ -156,8 +157,8 @@ export const createScheduleExportDocument = ({
     element('div', { fontSize: '15px', color: muted }, `${academicYear}  ·  ${semester}`),
   );
   const logo = element('img', { width: '260px', height: '146.25px', objectFit: 'contain', flexShrink: '0' });
-  logo.src = '/logo-ipfpp.png';
-  logo.alt = 'IPFPP';
+  logo.src = institutionConfig.logoUrl || '/logo-ipfpp.png';
+  logo.alt = `${institutionConfig.shortName} — ${institutionConfig.name}`;
   header.append(logo, heading, identity);
   root.append(header);
 
@@ -218,6 +219,8 @@ export const createScheduleExportDocument = ({
   root.append(table);
   const footer = element('footer', { marginTop: '16px', display: 'flex', justifyContent: 'space-between', color: muted, fontSize: '12px' });
   footer.append(element('span', { fontWeight: '700' }, 'IPFP  •  Planning des enseignements'), element('span', {}, `Édité le ${new Date().toLocaleDateString('fr-FR')}`));
+  footer.firstChild.textContent = `${institutionConfig.shortName} • Planning des enseignements`;
+  footer.lastChild.textContent = `Édité le ${new Date().toLocaleDateString('fr-FR')}`;
   root.append(footer);
   return root;
 };
@@ -314,7 +317,7 @@ export const exportSchedule = async ({ format, ...options }) => {
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(8);
     pdf.setTextColor(102, 119, 138);
-    pdf.text('IPFP | Emploi du temps', margin, pdf.internal.pageSize.getHeight() - 5);
+    pdf.text(`${institutionConfig.shortName} | Emploi du temps`, margin, pdf.internal.pageSize.getHeight() - 5);
     pdf.text(`${index + 1} / ${slices.length}`, pdf.internal.pageSize.getWidth() - margin, pdf.internal.pageSize.getHeight() - 5, { align: 'right' });
   }
   pdf.save(`${filename}.pdf`);

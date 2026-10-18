@@ -13,7 +13,7 @@
         let p = request.resource.data;
         return p.keys().hasOnly(['diploma', 'filiere', 'annee', 'academicYear', 'semester', 'publishedAt']) &&
           p.diploma is string && p.diploma.size() <= 240 && p.filiere is string && p.filiere.size() <= 240 &&
-          p.annee in ['1ère année', '2ème année'] && p.academicYear is string && p.academicYear.matches('[0-9]{4}-[0-9]{4}') &&
+          p.annee is string && p.annee.size() > 0 && p.annee.size() <= 120 && p.academicYear is string && p.academicYear.matches('[0-9]{4}-[0-9]{4}') &&
           p.semester in ['S1', 'S2'] && p.publishedAt == request.time;
       }
       allow get: if validToken();

@@ -11,6 +11,7 @@ import {
   KeyRound
 } from 'lucide-react';
 import Logo from '../components/Logo';
+import { institutionConfig } from '../config/institution';
 import { 
   MAINTENANCE_CONFIG, 
   getRemainingTime, 
@@ -161,7 +162,7 @@ const MaintenancePage = () => {
           maxWidth: '620px',
           margin: '0 auto 36px auto'
         }}>
-          L'Institut Privé de Formation Professionnelle effectue une mise à niveau complète de son infrastructure serveur.
+          {institutionConfig.name} effectue une mise à niveau complète de son infrastructure serveur.
           L'accès à l'ensemble des services (espace formateurs, consultation des bulletins et administration) sera rétabli automatiquement dès la fin du compte à rebours.
         </p>
 
@@ -557,7 +558,7 @@ const MaintenancePage = () => {
         textAlign: 'center',
         lineHeight: 1.5
       }}>
-        © {new Date().getFullYear()} IPFP — Institut Privé de Formation Professionnelle • Tous droits réservés
+        © {new Date().getFullYear()} {institutionConfig.shortName} — {institutionConfig.name} • Tous droits réservés
       </div>
     </div>
   );

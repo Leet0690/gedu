@@ -1,4 +1,6 @@
-const USERNAME_DOMAIN = '@ipfp.edu';
+import { institutionConfig } from '../config/institution.js';
+
+const getUsernameDomain = () => `@${institutionConfig.authEmailDomain}`;
 
 // Creation and sign-in must resolve a username to the same Firebase identity.
 export function toAuthEmail(identifier) {
@@ -8,10 +10,11 @@ export function toAuthEmail(identifier) {
     error.code = 'auth/invalid-identifier';
     throw error;
   }
-  return value.includes('@') ? value : `${value}${USERNAME_DOMAIN}`;
+  return value.includes('@') ? value : `${value}${getUsernameDomain()}`;
 }
 
 export function getLoginIdentifier(email) {
   const value = typeof email === 'string' ? email.trim().toLowerCase() : '';
-  return value.endsWith(USERNAME_DOMAIN) ? value.slice(0, -USERNAME_DOMAIN.length) : value;
+  const usernameDomain = getUsernameDomain();
+  return value.endsWith(usernameDomain) ? value.slice(0, -usernameDomain.length) : value;
 }
