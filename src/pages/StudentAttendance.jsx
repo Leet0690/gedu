@@ -72,7 +72,7 @@ const formatLocalDate = (date) => {
 const StudentAttendance = () => {
   const { hasPermission } = useAdminAuth();
   const canEdit = hasPermission('attendance_students', 'edit');
-  const { students, teachers, studentAttendance, updateStudentAttendance, loadAttendanceForSession, loadStudentAttendanceForMonth, loading, schedules: rawSchedules, teacherAttendance, updateTeacherAttendance, loadTeacherAttendanceForDate, modules: allModules = [], activeSemester = 'S1', getActiveScheduleModule, activeAcademicYear, operationalAcademicYear } = useApp();
+  const { students, teachers, studentAttendance, updateStudentAttendance, loadAttendanceForSession, loadStudentAttendanceForMonth, loading, schedules: rawSchedules, teacherAttendance, updateTeacherAttendance, loadTeacherAttendanceForDate, modules: allModules = [], activeSemester = 'S1', getActiveScheduleModule, activeAcademicYear, operationalAcademicYear, confirmAction } = useApp();
   const { showToast } = useToast();
   const todayDate = useMemo(() => formatLocalDate(new Date()), []);
   const writableAcademicYear = operationalAcademicYear;
@@ -217,16 +217,26 @@ const StudentAttendance = () => {
   }, [filterModule, availableModules]);
 
   const stats = useMemo(() => {
-    let presents = 0, absents = 0;
+    let presents = 0, absents = 0, unmarked = 0;
     const safeModule = (filterModule || 'global').replace(/[^a-zA-Z0-9]/g, '_');
     filteredStudents.forEach(s => {
       const record = findStudentAttendanceRecord(studentAttendance, s.id, safeModule, selectedDate, selectedSession?.time);
       if (record) {
         if (record.status === 'present') presents++;
         else if (record.status === 'absent') absents++;
-      }
+        else unmarked++;
+      } else unmarked++;
     });
-    return { presents, absents, total: filteredStudents.length };
+    return { presents, absents, unmarked, total: filteredStudents.length };
+  }, [filteredStudents, studentAttendance, filterModule, selectedDate, selectedSession]);
+
+  const unmarkedStudents = useMemo(() => {
+    if (!filterModule) return [];
+    const safeModule = filterModule.replace(/[^a-zA-Z0-9]/g, '_');
+    return filteredStudents.filter(student => {
+      const record = findStudentAttendanceRecord(studentAttendance, student.id, safeModule, selectedDate, selectedSession?.time);
+      return !record || !isFinalAttendanceStatus(record.status);
+    });
   }, [filteredStudents, studentAttendance, filterModule, selectedDate, selectedSession]);
 
   const multiGroupProgress = useMemo(() => {
@@ -390,6 +400,45 @@ const StudentAttendance = () => {
       await autoMarkTeacherIfReady(matchingSession, extraRecords);
 
       showToast(`${filteredStudents.length} stagiaire(s) marqué(s) présent(s).`, 'success');
+    } catch { showToast("Erreur lors de l'enregistrement groupé.", 'error'); }
+    finally { setBulkLoading(false); }
+  };
+
+  const handleMarkUnmarkedAbsent = async () => {
+    if (!allowAttendanceWrite()) return;
+    if (!filterModule || !selectedSession || unmarkedStudents.length === 0) return;
+    const confirmed = await confirmAction({
+      title: 'Marquer les non-pointés absents ?',
+      message: `Cette action marquera ${unmarkedStudents.length} stagiaire(s) encore non pointé(s) comme absent(s) pour cette séance.`,
+      type: 'warning'
+    });
+    if (!confirmed) return;
+
+    setBulkLoading(true);
+    try {
+      const safeModule = filterModule.replace(/[^a-zA-Z0-9]/g, '_');
+      const attendanceUpdates = unmarkedStudents.map(student => {
+        const record = findStudentAttendanceRecord(studentAttendance, student.id, safeModule, selectedDate, selectedSession.time);
+        const targetTime = record?.timeSlot || selectedSession.time || '';
+        return {
+          student,
+          record,
+          targetTime,
+          extraRecord: {
+            id: record?.id || makeStudentAttendanceDocId(student.id, filterModule, selectedDate, targetTime),
+            studentId: student.id,
+            moduleId: filterModule,
+            date: selectedDate,
+            status: 'absent',
+            timeSlot: targetTime
+          }
+        };
+      });
+      await Promise.all(attendanceUpdates.map(({ student, record, targetTime }) =>
+        updateStudentAttendance(student.id, filterModule, selectedDate, 'absent', record?.comment || '', 'admin', targetTime, record?.id || '')
+      ));
+      await autoMarkTeacherIfReady(selectedSession, attendanceUpdates.map(({ extraRecord }) => extraRecord));
+      showToast(`${unmarkedStudents.length} stagiaire(s) marqué(s) absent(s).`, 'success');
     } catch { showToast("Erreur lors de l'enregistrement groupé.", 'error'); }
     finally { setBulkLoading(false); }
   };
@@ -751,6 +800,7 @@ const StudentAttendance = () => {
               <MiniStat label="Effectif" value={stats.total} />
               <MiniStat label="Présents" value={stats.presents} />
               <MiniStat label="Absents" value={stats.absents} />
+              <MiniStat label="Non pointés" value={stats.unmarked} />
               <MiniStat label="Taux" value={stats.total > 0 ? `${Math.round((stats.presents / stats.total) * 100)}%` : '—'} />
               <button
                 onClick={handleMarkAllPresent}
@@ -760,6 +810,16 @@ const StudentAttendance = () => {
               >
                 <CheckCheck size={15} />
                 {bulkLoading ? 'Enregistrement...' : 'Tous Présents'}
+              </button>
+              <button
+                onClick={handleMarkUnmarkedAbsent}
+                disabled={bulkLoading || !canEditAttendance || unmarkedStudents.length === 0}
+                className="btn-modern"
+                title="À utiliser après la fin de la journée, une fois les deux sous-groupes vérifiés"
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 18px', fontSize: '13px', color: '#dc2626', background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.2)', opacity: bulkLoading || !canEditAttendance || unmarkedStudents.length === 0 ? 0.55 : 1, cursor: bulkLoading || !canEditAttendance || unmarkedStudents.length === 0 ? 'not-allowed' : 'pointer' }}
+              >
+                <XCircle size={15} />
+                {bulkLoading ? 'Enregistrement...' : 'Non pointés → Absents'}
               </button>
             </motion.div>
           )}

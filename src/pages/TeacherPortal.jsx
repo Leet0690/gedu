@@ -2,7 +2,7 @@ import PortalBrand from '../components/PortalBrand';
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import '../components/PortalTheme.css';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { filterSchedulesForAcademicYear, INITIAL_OPERATIONAL_ACADEMIC_YEAR } from '../utils/studentStatus';
 import { useToast } from '../context/ToastContext';
@@ -37,10 +37,10 @@ import {
 import { FilterSelect } from '../components/ui/FilterSelect';
 import { getStudentCurrentAcademicYear, isActiveStudent } from '../utils/studentStatus';
 import { getGradeByModuleName } from '../utils/gradeSync';
-import { findStudentAttendanceRecord, isTeacherSessionComplete } from '../utils/attendanceKeys';
+import { findStudentAttendanceRecord } from '../utils/attendanceKeys';
 import { getLocalDate } from '../utils/localDate';
 
-const APP_VERSION = '2.5.1';
+const APP_VERSION = '2.5.2';
 const VERSION_KEY = 'ipfp_app_version';
 
 const readStoredAppVersion = () => {
@@ -128,7 +128,6 @@ const TeacherPortal = () => {
   const [selectedDate, setSelectedDate] = useState(() => getLocalDate());
   const [attendanceSuccess, setAttendanceSuccess] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
-  const [showUnmarkedWarning, setShowUnmarkedWarning] = useState(false);
   const [completedSessionIds, setCompletedSessionIds] = useState(new Set());
   const [showVersionBanner, setShowVersionBanner] = useState(() => {
     const storedVersion = readStoredAppVersion();
@@ -138,8 +137,6 @@ const TeacherPortal = () => {
     }
     return storedVersion !== APP_VERSION;
   });
-  const firstUnmarkedRef = useRef(null);
-  const autoSavedTeacherSessionsRef = useRef(new Set());
   const [changedAttendanceSessions, setChangedAttendanceSessions] = useState(() => new Set());
   const notifyingAttendanceSessionsRef = useRef(new Set());
 
@@ -228,55 +225,11 @@ const TeacherPortal = () => {
     , candidates[0]);
   }, [teacher, teacherAttendance, selectedDate, getSessionModule]);
 
-  // Helper: check if ALL students of a given session's group have student attendance records
-  const isSessionStudentAttendanceComplete = useCallback((session) => {
-    if (!session || !teacher) return false;
-    const sessionModule = getSessionModule(session);
-    if (!sessionModule) return false;
-    const groupStudents = students
-      .filter(isActiveStudent)
-      .filter(s => s.major === session.filiere && s.year === session.annee);
-    if (groupStudents.length === 0) return false;
-    return groupStudents.every(s => {
-      const record = getStudentRecordForSession(s.id, session, sessionModule);
-      return record && ['present', 'absent'].includes(record.status);
-    });
-  }, [teacher, students, getSessionModule, getStudentRecordForSession]);
-
-  useEffect(() => {
-    if (!teacher || todaysSessions.length === 0 || accessMode !== 'attendance') return;
-    todaysSessions.forEach(session => {
-      if (!isSessionStudentAttendanceComplete(session)) return;
-      if (getTeacherRecordForSession(session)) return;
-
-      const sessionModule = getSessionModule(session);
-      if (!sessionModule) return;
-      const autoSaveKey = makeTeacherAttendanceDocId(teacher.id, sessionModule, session.time, selectedDate);
-      if (autoSavedTeacherSessionsRef.current.has(autoSaveKey)) return;
-
-      autoSavedTeacherSessionsRef.current.add(autoSaveKey);
-      updateTeacherAttendance(
-        teacher.id,
-        selectedDate,
-        'present',
-        `Appel stagiaires complété: ${sessionModule}`,
-        calcDuration(session.time) || 4,
-        sessionModule,
-        session.time || '',
-        teacherId
-      ).catch(() => {
-        autoSavedTeacherSessionsRef.current.delete(autoSaveKey);
-        showToast("Erreur lors de l'enregistrement de la présence formateur.", 'error');
-      });
-    });
-  }, [teacher, todaysSessions, selectedDate, accessMode, isSessionStudentAttendanceComplete, getTeacherRecordForSession, getSessionModule, updateTeacherAttendance, teacherId, showToast]);
-
   useEffect(() => {
     if (!teacher || accessMode !== 'attendance') return;
     todaysSessions.forEach(session => {
       const key = `${session.id}:${selectedDate}`;
       if (!changedAttendanceSessions.has(key) || notifyingAttendanceSessionsRef.current.has(key)) return;
-      if (!isSessionStudentAttendanceComplete(session)) return;
       const record = getTeacherRecordForSession(session);
       if (record?.status !== 'present') return;
       notifyingAttendanceSessionsRef.current.add(key);
@@ -299,17 +252,20 @@ const TeacherPortal = () => {
         }))
         .catch(() => showToast("L'appel est enregistré, mais la notification n'a pas pu être envoyée.", 'warning'));
     });
-  }, [teacher, accessMode, todaysSessions, selectedDate, changedAttendanceSessions, isSessionStudentAttendanceComplete, getTeacherRecordForSession, notifyTeacherClassAttendance, teacherId, showToast]);
+  }, [teacher, accessMode, todaysSessions, selectedDate, changedAttendanceSessions, getTeacherRecordForSession, notifyTeacherClassAttendance, teacherId, showToast]);
 
   // A present record for a shared time slot must never validate another group.
-  // A session is complete only when its own students are all marked, or when
-  // the teacher explicitly declared an absence for the slot.
+  // The teacher validates each scheduled session explicitly. Student rows left
+  // blank remain available for the administration to complete later.
+  const isTeacherSessionRecorded = useCallback((record) =>
+    record?.status === 'present' || record?.status === 'absent', []);
+
   useEffect(() => {
     if (!teacher || todaysSessions.length === 0 || accessMode !== 'attendance') return;
     const completed = new Set();
     todaysSessions.forEach(session => {
       const record = getTeacherRecordForSession(session);
-      if (isTeacherSessionComplete(record, isSessionStudentAttendanceComplete(session))) {
+      if (isTeacherSessionRecorded(record)) {
         completed.add(session.id);
       }
     });
@@ -318,17 +274,17 @@ const TeacherPortal = () => {
       if (isIdentical) return prev;
       return completed;
     });
-  }, [teacher, todaysSessions, accessMode, getTeacherRecordForSession, isSessionStudentAttendanceComplete]);
+  }, [teacher, todaysSessions, accessMode, getTeacherRecordForSession, isTeacherSessionRecorded]);
 
   // Check if attendance was already submitted today
-  // All sessions must be completed (student attendance done for each group, or teacher absent)
+  // All sessions must have an explicit teacher attendance record.
   const alreadyDoneToday = useMemo(() => {
     if (!teacher || todaysSessions.length === 0 || accessMode !== 'attendance') return false;
     return todaysSessions.every(session => {
       const record = getTeacherRecordForSession(session);
-      return isTeacherSessionComplete(record, isSessionStudentAttendanceComplete(session));
+      return isTeacherSessionRecorded(record);
     });
-  }, [teacher, todaysSessions, accessMode, getTeacherRecordForSession, isSessionStudentAttendanceComplete]);
+  }, [teacher, todaysSessions, accessMode, getTeacherRecordForSession, isTeacherSessionRecorded]);
 
   const [selectedSessionId, setSelectedSessionId] = useState('');
   const currentSession = useMemo(() => {
@@ -488,22 +444,14 @@ const TeacherPortal = () => {
     setLocalGrades(lg);
   }, [relevantStudents, selectedSubject, grades, operationalAcademicYear]);
 
-  const allAttended = useMemo(() => {
-    if (!currentSession || !relevantStudents || relevantStudents.length === 0 || !currentAttendanceModule) return false;
-    return relevantStudents.every(s => {
-      const record = getStudentRecordForSession(s.id, currentSession, currentAttendanceModule);
-      return record && ['present', 'absent'].includes(record.status);
-    });
-  }, [currentSession, relevantStudents, currentAttendanceModule, getStudentRecordForSession]);
-
   // Track if ALL sessions for the day are completed
   const allSessionsCompleted = useMemo(() => {
     if (todaysSessions.length === 0) return false;
     return todaysSessions.every(session => {
       const record = getTeacherRecordForSession(session);
-      return isTeacherSessionComplete(record, isSessionStudentAttendanceComplete(session));
+      return isTeacherSessionRecorded(record);
     });
-  }, [todaysSessions, getTeacherRecordForSession, isSessionStudentAttendanceComplete]);
+  }, [todaysSessions, getTeacherRecordForSession, isTeacherSessionRecorded]);
 
   const unmarkedStudents = useMemo(() => {
     if (!currentSession || !currentAttendanceModule || !relevantStudents.length) return [];
@@ -513,26 +461,19 @@ const TeacherPortal = () => {
     });
   }, [currentSession, relevantStudents, currentAttendanceModule, getStudentRecordForSession]);
 
-  useEffect(() => {
-    if (allAttended) setShowUnmarkedWarning(false);
-  }, [allAttended]);
+  const markedPresentStudents = useMemo(() => {
+    if (!currentSession || !currentAttendanceModule) return [];
+    return relevantStudents.filter(student =>
+      getStudentRecordForSession(student.id, currentSession, currentAttendanceModule)?.status === 'present'
+    );
+  }, [currentSession, relevantStudents, currentAttendanceModule, getStudentRecordForSession]);
 
-  useEffect(() => {
-    if (showUnmarkedWarning && firstUnmarkedRef.current) {
-      firstUnmarkedRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  }, [showUnmarkedWarning]);
-
-  React.useEffect(() => {
-    if (activeTab === 'attendance' && !allAttended) {
-      const handleBeforeUnload = (e) => {
-        e.preventDefault();
-        e.returnValue = "Veuillez terminer l'appel avant de quitter.";
-      };
-      window.addEventListener('beforeunload', handleBeforeUnload);
-      return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }
-  }, [activeTab, allAttended]);
+  // A single present student is enough for the teacher to validate the session.
+  // Blank rows are intentionally left for the administration to resolve later.
+  const canValidateSession = Boolean(
+    currentSession &&
+    (markedPresentStudents.length > 0 || (relevantStudents.length > 0 && unmarkedStudents.length === 0))
+  );
 
   if (loading) {
     return (
@@ -638,8 +579,8 @@ const TeacherPortal = () => {
 
   const handleValidateSession = async () => {
     try {
-    if (!currentSession || !allAttended) {
-      setShowUnmarkedWarning(true);
+    if (!currentSession || !canValidateSession) {
+      showToast("Marquez au moins un stagiaire présent avant de valider la séance.", 'warning');
       return;
     }
     const sessionModule = getSessionModule(currentSession) || selectedSubject;
@@ -650,6 +591,9 @@ const TeacherPortal = () => {
     const nextCompleted = new Set(completedSessionIds);
     nextCompleted.add(currentSession.id);
     setCompletedSessionIds(nextCompleted);
+    const sessionKey = `${currentSession.id}:${selectedDate}`;
+    notifyingAttendanceSessionsRef.current.delete(sessionKey);
+    setChangedAttendanceSessions(previous => new Set(previous).add(sessionKey));
     showToast(`Séance "${sessionModule}" validée.`, 'success');
 
     // Move to next uncompleted session using updated set
@@ -770,7 +714,9 @@ const TeacherPortal = () => {
   const handleAttendanceChange = async (studentId, status) => {
     try {
     if (!currentAttendanceModule || !currentSession) return;
+    if (status !== 'present') return;
     const record = getStudentRecordForSession(studentId, currentSession, currentAttendanceModule);
+    if (record?.status === 'absent') return;
     await updateStudentAttendance(studentId, currentAttendanceModule, selectedDate, status, record?.comment || '', teacher.id, currentSession.time, record?.id || '', teacherId);
     const sessionKey = `${currentSession.id}:${selectedDate}`;
     notifyingAttendanceSessionsRef.current.delete(sessionKey);
@@ -785,7 +731,7 @@ const TeacherPortal = () => {
     try {
     if (!currentAttendanceModule || !currentSession) return;
     const record = getStudentRecordForSession(studentId, currentSession, currentAttendanceModule);
-    if (!record) return;
+    if (!record || record.status !== 'present') return;
     await updateStudentAttendance(studentId, currentAttendanceModule, selectedDate, '', record.comment || '', teacher.id, currentSession.time, record.id, teacherId);
 
     } catch (error) {
@@ -797,7 +743,8 @@ const TeacherPortal = () => {
     try {
     if (!currentAttendanceModule || !currentSession) return;
     const record = getStudentRecordForSession(studentId, currentSession, currentAttendanceModule);
-    await updateStudentAttendance(studentId, currentAttendanceModule, selectedDate, record?.status || 'present', comment, teacher.id, currentSession.time, record?.id || '', teacherId);
+    if (!record?.status || record.status === 'absent') return;
+    await updateStudentAttendance(studentId, currentAttendanceModule, selectedDate, record.status, comment, teacher.id, currentSession.time, record.id, teacherId);
     const sessionKey = `${currentSession.id}:${selectedDate}`;
     notifyingAttendanceSessionsRef.current.delete(sessionKey);
     setChangedAttendanceSessions(previous => new Set(previous).add(sessionKey));
@@ -961,10 +908,17 @@ const TeacherPortal = () => {
             <span style={{ padding: '6px 14px', fontSize: '12px', fontWeight: '800', color: 'var(--primary)', background: 'rgba(var(--primary-rgb), 0.08)', borderRadius: 'var(--radius-pill)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
               <Users size={13} /> {relevantStudents.length} Stagiaires
             </span>
-            <span style={{ padding: '6px 14px', fontSize: '12px', fontWeight: '800', color: allAttended ? 'var(--success)' : 'var(--warning)', background: allAttended ? 'rgba(22, 163, 74, 0.08)' : 'rgba(217, 119, 6, 0.08)', borderRadius: 'var(--radius-pill)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              {allAttended ? <CheckCircle2 size={13} /> : <AlertTriangle size={13} />}
-              {allAttended ? 'Appel complet' : `${unmarkedStudents.length} non pointé(s)`}
+            <span style={{ padding: '6px 14px', fontSize: '12px', fontWeight: '800', color: canValidateSession ? 'var(--success)' : 'var(--warning)', background: canValidateSession ? 'rgba(22, 163, 74, 0.08)' : 'rgba(217, 119, 6, 0.08)', borderRadius: 'var(--radius-pill)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              {canValidateSession ? <CheckCircle2 size={13} /> : <AlertTriangle size={13} />}
+              {markedPresentStudents.length > 0
+                ? `${markedPresentStudents.length} présent(s)${unmarkedStudents.length > 0 ? ` · ${unmarkedStudents.length} non pointé(s)` : ''}`
+                : `${unmarkedStudents.length} non pointé(s)`}
             </span>
+            {unmarkedStudents.length > 0 && (
+              <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>
+                Les non-pointés seront traités par l'administration.
+              </span>
+            )}
           </div>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             {!completedSessionIds.has(currentSession.id) && (
@@ -972,7 +926,7 @@ const TeacherPortal = () => {
                 <button onClick={handleDeclareAbsent} className="btn-modern" style={{ padding: '10px 18px', background: 'rgba(220,38,38,0.05)', color: '#dc2626', border: '1px solid rgba(220, 38, 38, 0.18)', borderRadius: 'var(--radius-lg)', fontSize: '12px', fontWeight: '800' }}>
                   <CalendarX size={15} style={{ marginRight: '6px' }} /> Déclarer mon absence
                 </button>
-                <button onClick={handleValidateSession} disabled={!allAttended} className={`btn-modern ${allAttended ? 'primary' : 'secondary'}`} style={{ padding: '10px 20px', opacity: allAttended ? 1 : 0.5, cursor: allAttended ? 'pointer' : 'not-allowed' }}>
+                <button onClick={handleValidateSession} disabled={!canValidateSession} className={`btn-modern ${canValidateSession ? 'primary' : 'secondary'}`} style={{ padding: '10px 20px', opacity: canValidateSession ? 1 : 0.5, cursor: canValidateSession ? 'pointer' : 'not-allowed' }}>
                   <CheckCircle2 size={16} style={{ marginRight: '6px' }} />
                   Valider la séance ({completedSessionIds.size + 1}/{todaysSessions.length})
                 </button>
@@ -1036,35 +990,6 @@ const TeacherPortal = () => {
         </motion.div>
       )}
 
-      {/* Unmarked warning banner */}
-      <AnimatePresence>
-        {showUnmarkedWarning && !allAttended && activeTab === 'attendance' && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-            style={{ marginBottom: 'var(--space-4)', padding: '16px 20px', borderRadius: 'var(--radius-xl)', background: 'rgba(220,38,38,0.05)', border: '1px solid rgba(220,38,38,0.18)', display: 'flex', flexDirection: 'column', gap: '12px' }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <AlertTriangle size={18} style={{ color: '#dc2626', flexShrink: 0 }} />
-                <span style={{ fontSize: '13px', fontWeight: '800', color: '#dc2626' }}>
-                  {unmarkedStudents.length} stagiaire{unmarkedStudents.length > 1 ? 's' : ''} n'ont pas encore été marqué{unmarkedStudents.length > 1 ? 's' : ''} — l'appel ne peut pas être validé.
-                </span>
-              </div>
-              <button onClick={() => setShowUnmarkedWarning(false)} className="close-button close-button-sm" aria-label="Fermer l'alerte" title="Fermer">
-                <X size={16} />
-              </button>
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-              {unmarkedStudents.map(s => (
-                <span key={s.id} style={{ fontSize: '11px', fontWeight: '800', padding: '4px 12px', borderRadius: 'var(--radius-pill)', background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.15)', color: '#dc2626' }}>
-                  {s.lastName} {s.firstName}
-                </span>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Main Table */}
       <div className="glass-card grade-premium-table-shell" style={{ border: '1px solid rgba(var(--primary-rgb), 0.15)', background: 'rgba(255,255,255,0.9)', overflow: 'hidden' }}>
         {activeTab === 'attendance' && !currentSession ? (
@@ -1125,26 +1050,28 @@ const TeacherPortal = () => {
                 </tr>
               </thead>
               <tbody>
-                {(() => { let firstUnmarkedAssigned = false; return relevantStudents.map((s, idx) => {
+                {relevantStudents.map((s, idx) => {
                   const record = getStudentRecordForSession(s.id, currentSession, currentAttendanceModule);
                   const status = record?.status || '';
                   const comment = record?.comment || '';
-                  const isUnmarked = showUnmarkedWarning && !['present', 'absent'].includes(status);
-                  const isFirstUnmarked = isUnmarked && !firstUnmarkedAssigned && (firstUnmarkedAssigned = true);
                   return (
-                    <tr key={s.id} ref={isFirstUnmarked ? firstUnmarkedRef : null} className="grade-premium-table-row" style={{ background: isUnmarked ? 'rgba(220,38,38,0.05)' : (idx % 2 === 0 ? 'white' : 'var(--bg-subtle)'), borderLeft: isUnmarked ? '3px solid rgba(220,38,38,0.5)' : '3px solid transparent' }}>
+                    <tr key={s.id} className="grade-premium-table-row" style={{ background: idx % 2 === 0 ? 'white' : 'var(--bg-subtle)', borderLeft: '3px solid transparent' }}>
                       <td style={{ ...tdStyle, textAlign: 'center' }}>
-                        <span style={{ fontSize: '11px', fontWeight: '800', color: isUnmarked ? '#dc2626' : 'var(--text-faint)' }}>{idx + 1}</span>
+                        <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-faint)' }}>{idx + 1}</span>
                       </td>
                       <td style={tdStyle}>
-                        <p style={{ fontSize: '13px', fontWeight: '800', color: isUnmarked ? '#dc2626' : 'var(--text-primary)' }}>{s.lastName} {s.firstName}</p>
+                        <p style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>{s.lastName} {s.firstName}</p>
                         <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>Matricule: {s.regNo}</p>
                       </td>
                       <td style={{ ...tdStyle, textAlign: 'center' }}>
                         <div style={{ display: 'inline-flex', background: 'rgba(0,0,0,0.03)', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-xl)', padding: '4px', alignItems: 'center' }}>
-                          <StatusBtn active={status === 'present'} color="#16a34a" onClick={() => handleAttendanceChange(s.id, 'present')}>Présent</StatusBtn>
-                          <StatusBtn active={status === 'absent'} color="#dc2626" onClick={() => handleAttendanceChange(s.id, 'absent')}>Absent</StatusBtn>
-                          {status && (
+                          {status !== 'absent' && (
+                            <StatusBtn active={status === 'present'} color="#16a34a" onClick={() => handleAttendanceChange(s.id, 'present')}>Présent</StatusBtn>
+                          )}
+                          {status === 'absent' && (
+                            <span style={{ padding: '6px 12px', fontSize: '11px', fontWeight: '800', color: '#dc2626' }}>Absent (administration)</span>
+                          )}
+                          {status === 'present' && (
                             <button onClick={() => handleClearAttendance(s.id)} style={{ marginLeft: '4px', padding: '4px', border: 'none', borderRadius: '50%', background: 'rgba(0,0,0,0.04)', cursor: 'pointer', color: 'var(--text-faint)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px' }} title="Effacer">
                               <X size={10} />
                             </button>
@@ -1152,11 +1079,11 @@ const TeacherPortal = () => {
                         </div>
                       </td>
                       <td style={tdStyle}>
-                        <input type="text" className="input-premium" placeholder="Écrire une observation..." style={{ width: '100%', fontSize: '12px', background: 'rgba(255, 255, 255, 0.6)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-md)', padding: '6px 10px' }} value={comment} onChange={(e) => handleAttendanceComment(s.id, e.target.value)} />
+                        <input type="text" className="input-premium" placeholder="Écrire une observation..." disabled={!status || status === 'absent'} style={{ width: '100%', fontSize: '12px', background: 'rgba(255, 255, 255, 0.6)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-md)', padding: '6px 10px', opacity: status && status !== 'absent' ? 1 : 0.55 }} value={comment} onChange={(e) => handleAttendanceComment(s.id, e.target.value)} />
                       </td>
                     </tr>
                   );
-                }); })()}
+                })}
               </tbody>
             </table>
           </div>
