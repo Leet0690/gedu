@@ -1,7 +1,0 @@
-﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <title>IPFPP</title>
-  <path fill="#023471" d="M5 12 23 4l18 8-18 8Z M13 19l10 5 8-4v7l-8 4-10-5Z M13 29l10 5v15L13 57Z M30 23h17c10 0 15 6 15 15S56 53 46 53h-5v9H30V42h16c4 0 6-1 6-4s-2-5-6-5H30Z"/>
-  <path fill="#FDC006" d="m3 62 32-28v27L24 51Z"/>
-  <path fill="none" stroke="#023471" stroke-linecap="round" stroke-width="2" d="M8 14v15"/>
-  <circle cx="8" cy="30" r="2" fill="#023471"/>
-</svg>
