@@ -1,3 +1,4 @@
+import { educationText } from '../utils/education';
 import { ChevronLeft, LogOut, Menu, WifiOff } from 'lucide-react';
 import { AcademicYearSelector } from './AcademicYearSelector';
 import { SemesterToggle } from './SemesterToggle';
@@ -29,7 +30,7 @@ export default function AdminTopbar({
       <div className="admin-toolbar-filters" role="group" aria-label="Période académique">
         {showAcademicYearSelector && availableAcademicYearsList?.length > 0 && (
           <div className="admin-toolbar-field">
-            <span className="admin-toolbar-label">Année académique</span>
+            <span className="admin-toolbar-label">{educationText("Année académique")}</span>
             <AcademicYearSelector activeYear={activeAcademicYear} operationalYear={operationalAcademicYear}
               availableYears={availableAcademicYearsList} onChange={onAcademicYearChange} />
           </div>
@@ -48,7 +49,7 @@ export default function AdminTopbar({
           <span className="admin-toolbar-avatar" aria-hidden="true">{(adminUser?.displayName || adminUser?.email || 'A').charAt(0).toUpperCase()}</span>
           <div>
             <strong>{adminUser?.displayName || 'Administrateur'}</strong>
-            <span>{ROLE_PRESETS[adminUser?.role]?.label || 'Utilisateur'}</span>
+            <span>{educationText(ROLE_PRESETS[adminUser?.role]?.label || 'Utilisateur')}</span>
           </div>
         </div>
         <button type="button" className="admin-toolbar-logout" onClick={onLogout} aria-label="Se déconnecter" title="Se déconnecter">

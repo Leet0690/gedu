@@ -1,3 +1,4 @@
+import { educationText } from '../utils/education';
 import PortalBrand from '../components/PortalBrand';
 import React, { useMemo, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
@@ -22,6 +23,8 @@ import {
 } from '../utils/studentStatus';
 import { getDiplomaAbbreviation } from '../data/modules';
 import { institutionConfig } from '../config/institution';
+import { SchoolStudentResults } from './SchoolRecords';
+import { isSchoolStudent } from '../config/educationProfiles';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import './StudentResults.css';
@@ -300,7 +303,7 @@ const StudentResults = () => {
           <div
             className="student-results-year-tabs"
             role="tablist"
-            aria-label="Année d'étude à consulter"
+            aria-label={educationText("Année d'étude à consulter")}
             onKeyDown={handleYearKeyDown}
           >
             {availableYears.map((yr) => {
@@ -356,7 +359,7 @@ const StudentResults = () => {
       >
         <MetricCard 
           icon={CheckCircle} 
-          label="Modules validés" 
+          label={educationText("Modules validés")}
           value={`${validatedModules} / ${moduleNames.length}`}
           desc={`${completedModules} module(s) évalué(s) cette année`}
         />
@@ -393,19 +396,19 @@ const StudentResults = () => {
             </div>
             <h3 style={{ fontSize: '11px', fontWeight: '900', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>Relevé de Notes Détaillé</h3>
             <div style={{ height: '1px', flex: 1, background: 'var(--border-light)' }} />
-            <span className="badge-status primary" style={{ fontSize: '10px', padding: '3px 10px' }}>{moduleNames.length} Modules</span>
+            <span className="badge-status primary" style={{ fontSize: '10px', padding: '3px 10px' }}>{moduleNames.length}{educationText(" Modules")}</span>
           </div>
 
           <div className="grade-premium-table-shell" style={{ overflow: 'hidden', border: '1px solid rgba(var(--primary-rgb), 0.12)' }}>
             {moduleNames.length === 0 ? (
-              <EmptyState title="Aucune donnée" message="Les modules ne sont pas encore configurés pour votre filière." icon="book-open" />
+              <EmptyState title="Aucune donnée" message={educationText("Les modules ne sont pas encore configurés pour votre filière.")} icon="book-open" />
             ) : (
               <div style={{ overflowX: 'auto' }}>
                 <table className="grade-premium-table" style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', minWidth: '850px' }}>
                   <thead>
                     <tr>
                       <th style={{ padding: '16px', fontSize: '11px', fontWeight: '800', width: '40px', textAlign: 'center' }}>#</th>
-                      <th style={{ padding: '16px', fontSize: '11px', fontWeight: '800' }}>Libellé du Module</th>
+                      <th style={{ padding: '16px', fontSize: '11px', fontWeight: '800' }}>{educationText("Libellé du Module")}</th>
                       <th style={{ padding: '16px', fontSize: '11px', fontWeight: '800', textAlign: 'center', width: '70px' }}>C1</th>
                       <th style={{ padding: '16px', fontSize: '11px', fontWeight: '800', textAlign: 'center', width: '70px' }}>C2</th>
                       <th style={{ padding: '16px', fontSize: '11px', fontWeight: '800', textAlign: 'center', width: '70px' }}>C3</th>
@@ -663,4 +666,11 @@ const MetricCard = ({ icon: Icon, label, value, desc, color }) => (
   </div>
 );
 
-export default StudentResults;
+function EducationStudentResults() {
+  const { institution, students } = useApp();
+  const { studentId } = useParams();
+  return institution.educationType === 'private_school' || isSchoolStudent(students.find(student => student.token === studentId))
+    ? <SchoolStudentResults /> : <StudentResults />;
+}
+
+export default EducationStudentResults;

@@ -1,3 +1,4 @@
+import { educationText } from '../utils/education';
 import './DashboardStats.css';
 import './DirectoryColors.css';
 import { useAdminAuth } from '../context/AdminAuthContext';
@@ -28,6 +29,8 @@ import ClosureDecisions from '../components/ClosureDecisions';
 import ClosureDecisionEditor from '../components/ClosureDecisionEditor';
 import { getClosureOutcome, getClosureDecisionOptions } from '../utils/academicYearClosure';
 import { getPortalBaseUrl } from '../config/institution';
+import { isSchoolStudent } from '../config/educationProfiles';
+import SchoolOverview from '../components/SchoolOverview';
 import {
   STUDENT_STATUS,
   getAcademicYearTransition,
@@ -302,7 +305,7 @@ const TodaySessionsWidget = ({ schedules, teachers, getScheduleModule, activeSem
                 </div>
                 <div className="home-session-content">
                   <p className="home-session-module">
-                    {session.displayModule || 'Module non défini'}
+                    {session.displayModule || educationText("Module non défini")}
                   </p>
                   <div className="home-session-meta">
                     {teacher && (
@@ -705,9 +708,7 @@ const GradesBreakdownWidget = ({ students, grades, allModules, activeSemester, o
       </div>
 
       {groups.length === 0 ? (
-        <div className="home-widget-empty">
-          Aucun stagiaire enregistré
-        </div>
+        <div className="home-widget-empty">{educationText("Aucun stagiaire enregistré")}</div>
       ) : (
         <div className="home-widget-list home-grade-list">
           {groups.map((g) => (
@@ -886,7 +887,7 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
                 setSelectedFiliere(val); 
                 setSelectedAnnee('');
               }} 
-              options={[{ label: 'Toutes les filières', value: '' }, ...availableFilieres.map(f => ({ label: f, value: f }))]}
+              options={[{ label: educationText("Toutes les filières"), value: '' }, ...availableFilieres.map(f => ({ label: f, value: f }))]}
             />
             <FilterSelect 
               className="home-filter-select home-filter-select-year" 
@@ -1041,7 +1042,7 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
                             </span>
                           </div>
                           <div className="home-schedule-event-title">
-                            {getScheduleModule(session) || 'Module non défini'}
+                            {getScheduleModule(session) || educationText("Module non défini")}
                           </div>
                           {teacher && (
                             <div className="home-schedule-event-teacher">
@@ -1055,7 +1056,7 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
                           {/* Hover Tooltip */}
                           <div className={`schedule-tooltip ${['Vendredi', 'Samedi', 'Dimanche'].includes(day) ? 'tooltip-above' : ''}`}>
                             <div style={{ fontWeight: '800', fontSize: '10px', marginBottom: '4px', borderBottom: '1px solid var(--event-border)', paddingBottom: '3px', color: 'var(--event-color)' }}>
-                              {moduleName || 'Module non défini'}
+                              {moduleName || educationText("Module non défini")}
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', color: 'var(--event-text)', opacity: 0.95, fontSize: '9px' }}>
                               <div>🕒 {session.start} – {session.end} ({session.type || 'Cours'})</div>
@@ -1140,6 +1141,7 @@ const AdminDashboard = () => {
   const [isPromotingAcademicYear, setIsPromotingAcademicYear] = useState(false);
   const [promotionResult, setPromotionResult] = useState(null);
   const [promotionDecisions, setPromotionDecisions] = useState({});
+  const [promotionPlacements, setPromotionPlacements] = useState({});
   useEffect(() => { setPromotionDecisions({}); }, [operationalAcademicYear]);
 
   // Add student & teacher form states and helper handlers
@@ -1256,6 +1258,7 @@ const AdminDashboard = () => {
   const activeStudents = useMemo(() => (students || []).filter(isActiveStudent), [students]);
   const promotionPreview = useMemo(() => {
     const eligible = activeStudents
+      .filter(student => isSchoolStudent(student) === (institution.educationType === 'private_school'))
       .filter(student => isStudentCurrentlyInAcademicYear(
         student,
         promotionForm.fromAcademicYear,
@@ -1273,7 +1276,7 @@ const AdminDashboard = () => {
       filiereBreakdown[key][outcome]++;
     });
     return { ...counts, total: eligible.length, eligible, filiereBreakdown };
-  }, [academicCatalog, activeStudents, operationalAcademicYear, promotionForm.fromAcademicYear, promotionDecisions]);
+  }, [academicCatalog, activeStudents, institution.educationType, operationalAcademicYear, promotionForm.fromAcademicYear, promotionDecisions]);
   const isYearFormatValid = useMemo(() => validateAcademicYearTransition(promotionForm.fromAcademicYear, promotionForm.toAcademicYear), [promotionForm]);
 
   const allDiplomas = useMemo(() => academicCatalog?.diplomas || [], [academicCatalog]);
@@ -1376,10 +1379,13 @@ const AdminDashboard = () => {
     setIsSaving(true);
     try {
       const finalData = { ...editFormData };
-      if (!finalData.diplomas && finalData.diploma) {
+      if (activeTab === 'teachers' && !finalData.diplomas && finalData.diploma) {
         finalData.diplomas = [finalData.diploma];
       }
-      delete finalData.diploma;
+      if (activeTab === 'teachers') delete finalData.diploma;
+      delete finalData.__sourceStudent;
+      delete finalData.isHistoricalSnapshot;
+      delete finalData.academicStatus;
 
       if (activeTab === 'students') {
         await updateStudent(selectedItem.id, finalData);
@@ -1426,6 +1432,7 @@ const AdminDashboard = () => {
         fromAcademicYear: promotionForm.fromAcademicYear,
         toAcademicYear: promotionForm.toAcademicYear,
         decisions: promotionDecisions,
+        placements: promotionPlacements,
       });
       if (result.error) return;
       setPromotionResult(result);
@@ -1435,13 +1442,13 @@ const AdminDashboard = () => {
     } finally {
       setIsPromotingAcademicYear(false);
     }
-  }, [confirmAction, promoteAcademicYear, promotionForm, promotionPreview, promotionDecisions, isYearFormatValid, showToast]);
+  }, [confirmAction, promoteAcademicYear, promotionForm, promotionPreview, promotionDecisions, promotionPlacements, isYearFormatValid, showToast]);
 
   const handleUndoPromotion = useCallback(async () => {
     if (!promotionResult?.operationId) return;
     const confirmed = await confirmAction({
       title: 'Annuler la cl\u00f4ture ?',
-      message: 'Cette action restaurera tous les stagiaires \u00e0 leur \u00e9tat pr\u00e9c\u00e9dent. Voulez-vous continuer ?',
+      message: educationText("Cette action restaurera tous les stagiaires à leur état précédent. Voulez-vous continuer ?"),
       type: 'warning'
     });
     if (!confirmed) return;
@@ -1546,16 +1553,16 @@ const AdminDashboard = () => {
       cell: ({ row }) => (
         <div>
           <p style={{ fontSize: '10px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
-            {activeTab === 'students' ? 'Matricule' : 'Modules'}
+            {activeTab === 'students' ? 'Matricule' : educationText("Modules")}
           </p>
           <span style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
-            {activeTab === 'students' ? row.original.regNo : `${(row.original.subjects || [row.original.subject]).length} module(s)`}
+            {activeTab === 'students' ? row.original.regNo : `${(row.original.subjects || [row.original.subject]).length} ${educationText('module(s)')}`}
           </span>
         </div>
       ),
     },
     {
-      accessorKey: 'token', header: activeTab === 'students' ? 'Lien' : 'Liens Formateur',
+      accessorKey: 'token', header: activeTab === 'students' ? 'Lien' : educationText('Liens Formateur'),
       cell: ({ row }) => {
         if (activeTab === 'students') {
           const tokenForLink = row.original.token || row.original.id;
@@ -1683,10 +1690,10 @@ const AdminDashboard = () => {
           <div className="directory-premium-header-copy">
             <span className="directory-premium-eyebrow">{activeTab === 'students' ? 'Gestion des apprenants' : 'Gestion pédagogique'}</span>
             <h1>
-              {activeTab === 'students' ? 'Liste des Stagiaires' : 'Liste des Formateurs'}
+              {activeTab === 'students' ? educationText("Liste des Stagiaires") : educationText("Liste des Formateurs")}
             </h1>
             <p>
-              {activeTab === 'teachers' ? 'Votre équipe pédagogique, ses modules et ses portails en un seul endroit.' : 'Vos stagiaires, leurs parcours et leurs dossiers en un seul endroit.'}
+              {activeTab === 'teachers' ? educationText("Votre équipe pédagogique, ses modules et ses portails en un seul endroit.") : educationText("Vos stagiaires, leurs parcours et leurs dossiers en un seul endroit.")}
             </p>
           </div>
           <div className="directory-premium-header-actions">
@@ -1710,7 +1717,7 @@ const AdminDashboard = () => {
               }}
               className="btn-modern primary"
             >
-              <Plus size={14} style={{ marginRight: '6px' }} /> {activeTab === 'teachers' ? 'Ajouter un formateur' : 'Ajouter un stagiaire'}
+              <Plus size={14} style={{ marginRight: '6px' }} /> {activeTab === 'teachers' ? educationText("Ajouter un formateur") : educationText("Ajouter un stagiaire")}
             </button>
           </div>
           <div className="directory-premium-header-orb" aria-hidden="true">
@@ -1749,12 +1756,12 @@ const AdminDashboard = () => {
           <nav className="gedu-quick-actions" aria-label="Actions rapides">
             <Link to="/admin/students" className="gedu-quick-action">
               <span className="gedu-quick-action-icon gedu-quick-action-icon--emerald"><UsersIcon size={17} /></span>
-              <span><strong>Ajouter un stagiaire</strong><small>Créer un dossier</small></span>
+              <span><strong>{educationText("Ajouter un stagiaire")}</strong><small>Créer un dossier</small></span>
               <ArrowUpRight size={15} aria-hidden="true" />
             </Link>
             <Link to="/admin/grades" className="gedu-quick-action">
               <span className="gedu-quick-action-icon gedu-quick-action-icon--amber"><FileText size={17} /></span>
-              <span><strong>Suivre les notes</strong><small>Évaluer les modules</small></span>
+              <span><strong>Suivre les notes</strong><small>{educationText("Évaluer les modules")}</small></span>
               <ArrowUpRight size={15} aria-hidden="true" />
             </Link>
             <Link to="/admin/schedules" className="gedu-quick-action">
@@ -1770,20 +1777,20 @@ const AdminDashboard = () => {
           </nav>
 
           <div className="home-stats-grid">
-            <StatCard delay={0.05} icon={UsersIcon} tone="primary" value={activeYearStudents.length} label="Stagiaires" detail="Effectif inscrit" />
-            <StatCard delay={0.1} icon={Presentation} tone="warning" value={(teachers || []).length} label="Formateurs" detail="Équipe pédagogique" />
-            <StatCard delay={0.15} icon={CalendarCheck} tone="success" value={studentAttendanceRate === null ? '—' : `${studentAttendanceRate}%`} label="Présence stagiaires" detail={`${currentMonthName} ${attendanceCalendarYear}`} />
-            <StatCard delay={0.2} icon={BarChart3} tone="info" value={teacherAttendanceRate === null ? '—' : `${teacherAttendanceRate}%`} label="Présence formateurs" detail={`${currentMonthName} ${attendanceCalendarYear}`} />
+            <StatCard delay={0.05} icon={UsersIcon} tone="primary" value={activeYearStudents.length} label={educationText("Stagiaires")} detail="Effectif inscrit" />
+            <StatCard delay={0.1} icon={Presentation} tone="warning" value={(teachers || []).length} label={educationText("Formateurs")} detail="Équipe pédagogique" />
+            <StatCard delay={0.15} icon={CalendarCheck} tone="success" value={studentAttendanceRate === null ? '—' : `${studentAttendanceRate}%`} label={educationText("Présence stagiaires")} detail={`${currentMonthName} ${attendanceCalendarYear}`} />
+            <StatCard delay={0.2} icon={BarChart3} tone="info" value={teacherAttendanceRate === null ? '—' : `${teacherAttendanceRate}%`} label={educationText("Présence formateurs")} detail={`${currentMonthName} ${attendanceCalendarYear}`} />
           </div>
 
           {/* New Requested Order in Grid format to keep dimensions */}
           <div className="home-dashboard-widget-grid">
             <TodaySessionsWidget schedules={activeYearSchedules} teachers={teachers || []} getScheduleModule={getActiveScheduleModule} activeSemester={activeSemester} setActiveSemester={setActiveSemester} />
-            <GradesBreakdownWidget students={activeYearStudents} grades={grades || {}} allModules={allModules || []} activeSemester={activeSemester} operationalAcademicYear={operationalAcademicYear} />
+            {institution.educationType === 'private_school' ? <SchoolOverview students={activeYearStudents} /> : <GradesBreakdownWidget students={activeYearStudents} grades={grades || {}} allModules={allModules || []} activeSemester={activeSemester} operationalAcademicYear={operationalAcademicYear} />}
           </div>
 
           <div className="home-dashboard-widget-grid">
-            <PendingTasksWidget students={activeYearStudents} teachers={teachers || []} grades={grades || {}} teacherAttendance={teacherAttendance || []} allModules={allModules || []} activeSemester={activeSemester} operationalAcademicYear={operationalAcademicYear} />
+            {institution.educationType === 'private_school' ? <SchoolOverview students={activeYearStudents} tasks /> : <PendingTasksWidget students={activeYearStudents} teachers={teachers || []} grades={grades || {}} teacherAttendance={teacherAttendance || []} allModules={allModules || []} activeSemester={activeSemester} operationalAcademicYear={operationalAcademicYear} />}
             <ActivityFeedWidget notifications={notifications || []} />
           </div>
 
@@ -1797,31 +1804,31 @@ const AdminDashboard = () => {
             <div className="directory-overview-grid" aria-label="Vue d'ensemble de l'équipe pédagogique">
               <div className="directory-overview-card directory-overview-team">
                 <Presentation size={23} aria-hidden="true" />
-                <div><span>Équipe pédagogique</span><strong>{(teachers || []).length}</strong><p>Formateurs enregistrés</p></div>
+                <div><span>Équipe pédagogique</span><strong>{(teachers || []).length}</strong><p>{educationText("Formateurs enregistrés")}</p></div>
               </div>
               <div className="directory-overview-card directory-overview-modules">
                 <FileText size={23} aria-hidden="true" />
-                <div><span>Modules enseignés</span><strong>{new Set((teachers || []).flatMap(teacher => teacher.subjects || [teacher.subject]).filter(Boolean)).size}</strong><p>Modules distincts attribués</p></div>
+                <div><span>{educationText("Modules enseignés")}</span><strong>{new Set((teachers || []).flatMap(teacher => teacher.subjects || [teacher.subject]).filter(Boolean)).size}</strong><p>{educationText("Modules distincts attribués")}</p></div>
               </div>
               <div className="directory-overview-card directory-overview-results">
                 <Search size={23} aria-hidden="true" />
-                <div><span>Résultats de recherche</span><strong>{table.getFilteredRowModel().rows.length}</strong><p>Formateurs correspondant aux filtres</p></div>
+                <div><span>Résultats de recherche</span><strong>{table.getFilteredRowModel().rows.length}</strong><p>{educationText("Formateurs correspondant aux filtres")}</p></div>
               </div>
             </div>
           )}
           {activeTab === 'students' && (
-            <div className="directory-overview-grid" aria-label="Vue d'ensemble des stagiaires">
+            <div className="directory-overview-grid" aria-label={educationText("Vue d'ensemble des stagiaires")}>
               <div className="directory-overview-card directory-overview-team">
                 <UsersIcon size={23} aria-hidden="true" />
-                <div><span>Stagiaires inscrits</span><strong>{activeYearStudents.length}</strong><p>Année {activeAcademicYear || operationalAcademicYear}</p></div>
+                <div><span>{educationText("Stagiaires inscrits")}</span><strong>{activeYearStudents.length}</strong><p>Année {activeAcademicYear || operationalAcademicYear}</p></div>
               </div>
               <div className="directory-overview-card directory-overview-modules">
                 <GraduationCap size={23} aria-hidden="true" />
-                <div><span>Filières représentées</span><strong>{new Set(activeYearStudents.map(student => student.major).filter(Boolean)).size}</strong><p>Parcours des stagiaires inscrits</p></div>
+                <div><span>{educationText("Filières représentées")}</span><strong>{new Set(activeYearStudents.map(student => student.major).filter(Boolean)).size}</strong><p>{educationText("Parcours des stagiaires inscrits")}</p></div>
               </div>
               <div className="directory-overview-card directory-overview-results">
                 <Search size={23} aria-hidden="true" />
-                <div><span>Résultats de recherche</span><strong>{!statusFilter && !(diplomaFilter && yearFilter && categoryFilter) ? '—' : table.getFilteredRowModel().rows.length}</strong><p>{!statusFilter && !(diplomaFilter && yearFilter && categoryFilter) ? 'Sélectionnez vos filtres pour afficher la liste' : 'Stagiaires correspondant aux filtres'}</p></div>
+                <div><span>Résultats de recherche</span><strong>{!statusFilter && !(diplomaFilter && yearFilter && categoryFilter) ? '—' : table.getFilteredRowModel().rows.length}</strong><p>{!statusFilter && !(diplomaFilter && yearFilter && categoryFilter) ? 'Sélectionnez vos filtres pour afficher la liste' : educationText("Stagiaires correspondant aux filtres")}</p></div>
               </div>
             </div>
           )}
@@ -1836,14 +1843,14 @@ const AdminDashboard = () => {
 
             {activeTab === 'students' && (
               <div>
-                <label style={labelStyle}>Année académique</label>
+                <label style={labelStyle}>{educationText("Année académique")}</label>
                 <FilterSelect
                   style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }}
                   value={academicYearFilter}
                   onChange={(val) => setAcademicYearFilter(val)}
-                  placeholder="Toutes années académiques"
+                  placeholder={educationText("Toutes années académiques")}
                   options={[
-                    { value: '', label: 'Toutes les années académiques' },
+                    { value: '', label: educationText("Toutes les années académiques") },
                     ...availableAcademicYearsList.map(y => ({ value: y, label: `Année ${y}` }))
                   ]}
                 />
@@ -1861,14 +1868,14 @@ const AdminDashboard = () => {
                 }} options={[
                   { value: '', label: 'Tous les statuts' },
                   { value: STUDENT_STATUS.ACTIVE, label: 'Actifs' },
-                  { value: STUDENT_STATUS.LAUREAT, label: 'Lauréats' },
+                  { value: STUDENT_STATUS.LAUREAT, label: educationText("Lauréats") },
                   { value: STUDENT_STATUS.WITHDRAWN, label: 'Abandons — dossiers conservés' },
                 ]} />
               </div>
             )}
 
             <div>
-              <label style={labelStyle}>Niveau</label>
+              <label style={labelStyle}>{educationText("Niveau")}</label>
               <FilterSelect
                 style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }}
                 value={diplomaFilter}
@@ -1885,7 +1892,7 @@ const AdminDashboard = () => {
             </div>
 
             <div>
-              <label style={labelStyle}>Année</label>
+              <label style={labelStyle}>{educationText("Année")}</label>
               <FilterSelect
                 style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }}
                 value={yearFilter}
@@ -1896,7 +1903,7 @@ const AdminDashboard = () => {
                   ? [
                       { value: '', label: diplomaFilter ? "Choisir l'année..." : "Sélectionner niveau d'abord" }, 
                       ...availableYears.map(y => ({ value: y, label: y })),
-                      ...(academicYearFilter !== operationalAcademicYear ? [{ label: "Lauréat (Diplômés)", value: "Lauréat" }] : [])
+                      ...(academicYearFilter !== operationalAcademicYear ? [{ label: educationText("Lauréat (Diplômés)"), value: "Lauréat" }] : [])
                     ]
                   : [{ value: '', label: 'Toutes années' }, ...availableYears.map(y => ({ value: y, label: y }))]
                 }
@@ -1904,16 +1911,16 @@ const AdminDashboard = () => {
             </div>
 
             <div>
-              <label style={labelStyle}>Filière</label>
+              <label style={labelStyle}>{educationText("Filière")}</label>
               <FilterSelect
                 style={{ width: '100%', fontSize: '13px', padding: '9px 12px' }}
                 value={categoryFilter}
                 onChange={(val) => setCategoryFilter(val)}
                 disabled={activeTab === 'students' && !diplomaFilter}
-                placeholder={activeTab === 'students' ? (diplomaFilter ? "Choisir la filière..." : "Sélectionner niveau") : "Toutes filières"}
+                placeholder={activeTab === 'students' ? (diplomaFilter ? educationText("Choisir la filière...") : "Sélectionner niveau") : educationText("Toutes filières")}
                 options={activeTab === 'students'
                   ? [{ value: '', label: diplomaFilter ? "Choisir la filière..." : "Sélectionner niveau d'abord" }, ...availableMajors.map(m => ({ value: m, label: m }))]
-                  : [{ value: '', label: 'Toutes filières' }, ...availableMajors.map(m => ({ value: m, label: m }))]
+                  : [{ value: '', label: educationText("Toutes filières") }, ...availableMajors.map(m => ({ value: m, label: m }))]
                 }
               />
             </div>
@@ -1938,9 +1945,7 @@ const AdminDashboard = () => {
               <h3 style={{ fontSize: 'var(--text-base)', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
                 Sélectionnez vos filtres
               </h3>
-              <p style={{ fontSize: '13px', maxWidth: '360px', lineHeight: '1.5' }}>
-                Veuillez choisir un niveau, une année d'étude et une filière ci-dessus pour afficher la liste des stagiaires.
-              </p>
+              <p style={{ fontSize: '13px', maxWidth: '360px', lineHeight: '1.5' }}>{educationText("Veuillez choisir un niveau, une année d'étude et une filière ci-dessus pour afficher la liste des stagiaires.")}</p>
             </div>
           ) : (
             <>
@@ -2004,7 +2009,7 @@ const AdminDashboard = () => {
               {modalMode === 'edit' && selectedItem && (
                 <form onSubmit={handleUpdate}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                    <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900' }}>Modifier {activeTab === 'students' ? 'le stagiaire' : 'le formateur'}</h2>
+                    <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900' }}>Modifier {activeTab === 'students' ? educationText("le stagiaire") : educationText("le formateur")}</h2>
                     {saveSuccess && <motion.span initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} style={{ color: 'var(--success)', fontSize: '13px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <CheckCircle2 size={16} /> Enregistré
                     </motion.span>}
@@ -2025,17 +2030,17 @@ const AdminDashboard = () => {
                         </div>
                         <div className="form-grid">
                           <div style={fGroup}>
-                            <label style={lbl}>Niveau</label>
+                            <label style={lbl}>{educationText("Niveau")}</label>
                             <FilterSelect value={editFormData.diploma || ''} onChange={val => setEditFormData({...editFormData, diploma: val, major: '', year: ''})} options={allDiplomas.map(d => ({ value: d, label: d }))} />
                           </div>
                           <div style={fGroup}>
-                            <label style={lbl}>Année</label>
+                            <label style={lbl}>{educationText("Année")}</label>
                             <FilterSelect value={editFormData.year || ''} onChange={val => setEditFormData({...editFormData, year: val})} options={(academicCatalog?.years?.[editFormData.diploma] || []).map(year => ({ value: year, label: year }))} />
                           </div>
                         </div>
                         <div className="form-grid">
                           <div style={fGroup}>
-                            <label style={lbl}>Filière</label>
+                            <label style={lbl}>{educationText("Filière")}</label>
                             <FilterSelect value={editFormData.major || ''} onChange={val => setEditFormData({...editFormData, major: val})} options={(academicCatalog?.filieres?.[editFormData.diploma] || []).map(f => ({ value: f, label: f }))} />
                           </div>
                           <div style={fGroup}>
@@ -2059,7 +2064,7 @@ const AdminDashboard = () => {
                         
                         <div className="form-grid">
                           <div style={fGroup}>
-                            <label style={lbl}>Diplômes assignés</label>
+                            <label style={lbl}>{educationText("Diplômes assignés")}</label>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                               {allDiplomas.map(dip => (
                                 <SelectionTag key={dip} active={(editFormData.diplomas || []).includes(dip)} onClick={() => toggleDiplomaEdit(dip)} label={dip} />
@@ -2068,7 +2073,7 @@ const AdminDashboard = () => {
                           </div>
 
                           <div style={fGroup}>
-                            <label style={lbl}>Niveaux</label>
+                            <label style={lbl}>{educationText("Niveaux")}</label>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                               {Array.from(new Set((editFormData.diplomas || []).flatMap(diploma => academicCatalog?.years?.[diploma] || []))).map(y => (
                                 <SelectionTag key={y} active={(editFormData.years || []).includes(y)} onClick={() => toggleYearEdit(y)} label={y} />
@@ -2078,7 +2083,7 @@ const AdminDashboard = () => {
                         </div>
 
                         <div style={fGroup}>
-                          <label style={lbl}>Filières</label>
+                          <label style={lbl}>{educationText("Filières")}</label>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxHeight: '75px', overflowY: 'auto', padding: '2px', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-lg)', background: 'var(--bg-subtle)' }}>
                             {Array.from(new Set((editFormData.diplomas || []).flatMap(diploma => academicCatalog?.filieres?.[diploma] || []))).map(f => (
                               <SelectionTag key={f} active={(editFormData.groups || []).includes(f)} onClick={() => toggleGroupEdit(f)} label={f} />
@@ -2088,7 +2093,7 @@ const AdminDashboard = () => {
 
                         <div style={fGroup}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <label style={lbl}>Modules ({ (editFormData.subjects || []).length })</label>
+                            <label style={lbl}>{educationText("Modules (")}{ (editFormData.subjects || []).length })</label>
                             <input className="input-premium" style={{ height: '26px', fontSize: '11px', width: '130px' }} placeholder="Filtrer..." value={editModuleSearch} onChange={e => setEditModuleSearch(e.target.value)} />
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '120px', overflowY: 'auto', background: 'var(--bg-subtle)', padding: '6px', borderRadius: 'var(--radius-xl)' }}>
@@ -2158,8 +2163,8 @@ const AdminDashboard = () => {
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', paddingTop: '24px', borderTop: '1px solid var(--border-light)' }}>
                     <InfoBox label="ID / Matricule" value={selectedItem.regNo || selectedItem.id.substring(0,8)} icon={Fingerprint} />
-                    <InfoBox label="Filière / Module" value={selectedItem.major || (selectedItem.subjects || []).join(', ')} icon={Book} />
-                    <InfoBox label="Année" value={selectedItem.year || 'N/A'} icon={Calendar} />
+                    <InfoBox label={educationText("Filière / Module")} value={selectedItem.major || (selectedItem.subjects || []).join(', ')} icon={Book} />
+                    <InfoBox label={educationText("Année")} value={selectedItem.year || 'N/A'} icon={Calendar} />
                     <InfoBox label="Statut" value={getStudentStatusLabel(selectedItem.__sourceStudent || selectedItem)} icon={CheckCircle2} valueColor="var(--primary)" />
                   </div>
                   {activeTab === 'students' && isAdmin && (
@@ -2223,7 +2228,7 @@ const AdminDashboard = () => {
               {modalMode === 'add-student' && (
                 <form onSubmit={handleAddStudentSubmit}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                    <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900' }}>Inscription Stagiaire</h2>
+                    <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900' }}>{educationText("Inscription Stagiaire")}</h2>
                   </div>
                   {addStudentForm.academicYear && addStudentForm.academicYear !== operationalAcademicYear && (
                     <div style={{ marginBottom: '16px', padding: '8px 12px', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -2235,7 +2240,7 @@ const AdminDashboard = () => {
                   )}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     <div style={fGroup}>
-                      <label style={lbl}>Année académique d'inscription</label>
+                      <label style={lbl}>{educationText("Année académique d'inscription")}</label>
                       <FilterSelect
                         value={addStudentForm.academicYear}
                         onChange={val => setAddStudentForm({ ...addStudentForm, academicYear: val })}
@@ -2257,17 +2262,17 @@ const AdminDashboard = () => {
                     </div>
                     <div className="form-grid">
                       <div style={fGroup}>
-                        <label style={lbl}>Niveau</label>
+                        <label style={lbl}>{educationText("Niveau")}</label>
                         <FilterSelect value={addStudentForm.diploma} onChange={val => setAddStudentForm({...addStudentForm, diploma: val, major: '', year: ''})} options={[{ value: '', label: 'Sélectionner...' }, ...allDiplomas.map(d => ({ value: d, label: d }))]} />
                       </div>
                       <div style={fGroup}>
-                        <label style={lbl}>Année d'étude</label>
+                        <label style={lbl}>{educationText("Année d'étude")}</label>
                         <FilterSelect value={addStudentForm.year} onChange={val => setAddStudentForm({...addStudentForm, year: val})} disabled={!addStudentForm.diploma} options={[{ value: '', label: 'Sélectionner...' }, ...(academicCatalog?.years?.[addStudentForm.diploma] || []).map(year => ({ value: year, label: year }))]} />
                       </div>
                     </div>
                     <div className="form-grid">
                       <div style={fGroup}>
-                        <label style={lbl}>Filière</label>
+                        <label style={lbl}>{educationText("Filière")}</label>
                         <FilterSelect value={addStudentForm.major} onChange={val => setAddStudentForm({...addStudentForm, major: val})} disabled={!addStudentForm.diploma} options={[{ value: '', label: 'Choisir...' }, ...(academicCatalog?.filieres?.[addStudentForm.diploma] || []).map(f => ({ value: f, label: f }))]} />
                       </div>
                       <div style={fGroup}>
@@ -2277,9 +2282,7 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
-                    <button type="submit" className="btn-modern primary" style={{ flex: 1, justifyContent: 'center' }}>
-                      Inscrire le stagiaire
-                    </button>
+                    <button type="submit" className="btn-modern primary" style={{ flex: 1, justifyContent: 'center' }}>{educationText("Inscrire le stagiaire")}</button>
                   </div>
                 </form>
               )}
@@ -2287,7 +2290,7 @@ const AdminDashboard = () => {
               {modalMode === 'add-teacher' && (
                 <form onSubmit={handleAddTeacherSubmit}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                    <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900' }}>Nouveau Formateur</h2>
+                    <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900' }}>{educationText("Nouveau Formateur")}</h2>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     <div className="form-grid">
@@ -2303,7 +2306,7 @@ const AdminDashboard = () => {
                     
                     <div className="form-grid">
                       <div style={fGroup}>
-                        <label style={lbl}>Diplômes assignés</label>
+                        <label style={lbl}>{educationText("Diplômes assignés")}</label>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                           {allDiplomas.map(dip => (
                             <SelectionTag key={dip} active={(addTeacherForm.diplomas || []).includes(dip)} onClick={() => toggleAddTeacherDiploma(dip)} label={dip} />
@@ -2322,7 +2325,7 @@ const AdminDashboard = () => {
                     </div>
 
                     <div style={fGroup}>
-                      <label style={lbl}>Filières assignées</label>
+                      <label style={lbl}>{educationText("Filières assignées")}</label>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxHeight: '75px', overflowY: 'auto', padding: '2px', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-lg)', background: 'var(--bg-subtle)' }}>
                         {Array.from(new Set((addTeacherForm.diplomas || []).flatMap(diploma => academicCatalog?.filieres?.[diploma] || []))).map(f => (
                           <SelectionTag key={f} active={(addTeacherForm.groups || []).includes(f)} onClick={() => toggleAddTeacherGroup(f)} label={f} />
@@ -2332,7 +2335,7 @@ const AdminDashboard = () => {
 
                     <div style={fGroup}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <label style={lbl}>Modules ({ (addTeacherForm.subjects || []).length })</label>
+                        <label style={lbl}>{educationText("Modules (")}{ (addTeacherForm.subjects || []).length })</label>
                         <input className="input-premium" style={{ height: '26px', fontSize: '11px', width: '130px' }} placeholder="Filtrer..." value={addTeacherModuleSearch} onChange={e => setAddTeacherModuleSearch(e.target.value)} />
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '120px', overflowY: 'auto', background: 'var(--bg-subtle)', padding: '6px', borderRadius: 'var(--radius-xl)' }}>
@@ -2376,9 +2379,7 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
-                    <button type="submit" className="btn-modern primary" style={{ flex: 1, justifyContent: 'center' }}>
-                      Enregistrer le formateur
-                    </button>
+                    <button type="submit" className="btn-modern primary" style={{ flex: 1, justifyContent: 'center' }}>{educationText("Enregistrer le formateur")}</button>
                   </div>
                 </form>
               )}
@@ -2471,7 +2472,7 @@ const AdminDashboard = () => {
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '18px' }}>
                     <InfoBox label="Promus" value={promotionResult.promotedCount} icon={ArrowRight} valueColor="var(--primary)" />
-                    <InfoBox label={'Laur\u00e9ats'} value={promotionResult.graduatedCount} icon={GraduationCap} valueColor="#a16207" />
+                    <InfoBox label={educationText("Lauréats")} value={promotionResult.graduatedCount} icon={GraduationCap} valueColor="#a16207" />
                     <InfoBox label="Redoublants" value={promotionResult.repeatedCount} icon={RotateCw} valueColor="var(--warning)" />
                     <InfoBox label="Abandons" value={promotionResult.withdrawnCount} icon={UsersIcon} valueColor="var(--text-muted)" />
                     <InfoBox label="Total" value={promotionResult.promotedCount + promotionResult.graduatedCount + promotionResult.repeatedCount + promotionResult.withdrawnCount} icon={UsersIcon} valueColor="var(--success)" />
@@ -2480,10 +2481,10 @@ const AdminDashboard = () => {
                   {/* Improvement #7: Breakdown by filière */}
                   {promotionResult.breakdown && Object.keys(promotionResult.breakdown).length > 0 && (
                     <div style={{ marginBottom: '18px' }}>
-                      <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>D&eacute;tail par fili&egrave;re</p>
+                      <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>{educationText("Détail par filière")}</p>
                       <div style={{ borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-light)', overflow: 'hidden' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: '2fr repeat(4, 1fr)', gap: '0', padding: '8px 12px', background: 'var(--bg-subtle)', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                          <span>Fili&egrave;re</span><span style={{ textAlign: 'center' }}>Promus</span><span style={{ textAlign: 'center' }}>Laur&eacute;ats</span><span>Redoubl.</span><span>Abandons</span>
+                          <span>{educationText("Filière")}</span><span style={{ textAlign: 'center' }}>Promus</span><span style={{ textAlign: 'center' }}>{educationText("Lauréats")}</span><span>Redoubl.</span><span>Abandons</span>
                         </div>
                         {Object.entries(promotionResult.breakdown).map(([filiere, counts]) => (
                           <div key={filiere} style={{ display: 'grid', gridTemplateColumns: '2fr repeat(4, 1fr)', padding: '8px 12px', borderTop: '1px solid var(--border-light)', fontSize: '12px', fontWeight: '600' }}>
@@ -2518,7 +2519,7 @@ const AdminDashboard = () => {
                     </div>
                     <div>
                       <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900', color: 'var(--text-primary)' }}>Cl&ocirc;turer l&apos;ann&eacute;e scolaire</h2>
-                      <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '600' }}>Passage, lauréat, redoublement ou abandon selon vos décisions.</p>
+                      <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '600' }}>{educationText("Passage, lauréat, redoublement ou abandon selon vos décisions.")}</p>
                     </div>
                   </div>
 
@@ -2536,21 +2537,22 @@ const AdminDashboard = () => {
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '18px' }}>
                     <InfoBox label="Promus" value={promotionPreview.promoted} icon={ArrowRight} valueColor="var(--primary)" />
-                    <InfoBox label={'Laur\u00e9ats'} value={promotionPreview.graduated} icon={GraduationCap} valueColor="#a16207" />
+                    <InfoBox label={educationText("Lauréats")} value={promotionPreview.graduated} icon={GraduationCap} valueColor="#a16207" />
                     <InfoBox label="Redoublants" value={promotionPreview.repeated} icon={RotateCw} valueColor="var(--warning)" />
                     <InfoBox label="Abandons" value={promotionPreview.withdrawn} icon={UsersIcon} valueColor="var(--text-muted)" />
                     <InfoBox label="Sans décision" value={promotionPreview.pending} icon={UsersIcon} valueColor="var(--danger)" />
                   </div>
 
                   <ClosureDecisions students={promotionPreview.eligible} decisions={promotionDecisions}
+                    placements={promotionPlacements} onPlacementChange={setPromotionPlacements} catalog={academicCatalog}
                     onChange={setPromotionDecisions} disabled={isPromotingAcademicYear} />
                   {/* Improvement #7: Breakdown by filière in preview */}
                   {Object.keys(promotionPreview.filiereBreakdown).length > 0 && (
                     <div style={{ marginBottom: '18px' }}>
-                      <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>D&eacute;tail par fili&egrave;re</p>
+                      <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>{educationText("Détail par filière")}</p>
                       <div style={{ borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-light)', overflow: 'hidden' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: '2fr repeat(4, 1fr)', gap: '0', padding: '8px 12px', background: 'var(--bg-subtle)', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                          <span>Fili&egrave;re</span><span style={{ textAlign: 'center' }}>Promus</span><span style={{ textAlign: 'center' }}>Laur&eacute;ats</span><span>Redoubl.</span><span>Abandons</span>
+                          <span>{educationText("Filière")}</span><span style={{ textAlign: 'center' }}>Promus</span><span style={{ textAlign: 'center' }}>{educationText("Lauréats")}</span><span>Redoubl.</span><span>Abandons</span>
                         </div>
                         {Object.entries(promotionPreview.filiereBreakdown).map(([filiere, counts]) => (
                           <div key={filiere} style={{ display: 'grid', gridTemplateColumns: '2fr repeat(4, 1fr)', padding: '8px 12px', borderTop: '1px solid var(--border-light)', fontSize: '12px', fontWeight: '600' }}>
@@ -2570,9 +2572,7 @@ const AdminDashboard = () => {
                     Une sauvegarde compl&egrave;te et v&eacute;rifi&eacute;e sera cr&eacute;&eacute;e avant toute modification. En cas d&apos;&eacute;chec, la cl&ocirc;ture sera bloqu&eacute;e.
                   </div>
 
-                  <div style={{ padding: '14px 16px', borderRadius: 'var(--radius-xl)', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.22)', color: '#92400e', fontSize: '12px', fontWeight: '700', lineHeight: 1.6, marginBottom: '24px' }}>
-                    Passage inscrit au niveau suivant ; Lauréat termine la formation. Les redoublants gardent leur niveau dans la nouvelle année. Les abandons restent consultables dans les archives, avec leurs notes, relevés et historique.
-                  </div>
+                  <div style={{ padding: '14px 16px', borderRadius: 'var(--radius-xl)', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.22)', color: '#92400e', fontSize: '12px', fontWeight: '700', lineHeight: 1.6, marginBottom: '24px' }}>{educationText("Passage inscrit au niveau suivant ; Lauréat termine la formation. Les redoublants gardent leur niveau dans la nouvelle année. Les abandons restent consultables dans les archives, avec leurs notes, relevés et historique.")}</div>
 
                   {/* Improvement #2: Disable button when invalid */}
                   <div style={{ display: 'flex', gap: '12px' }}>

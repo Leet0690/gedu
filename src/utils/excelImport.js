@@ -1,4 +1,6 @@
 import * as XLSX from 'xlsx';
+import { getEducationInstitution, educationText, isSchoolEducation } from './education.js';
+import { SCHOOL_CYCLES } from '../config/educationProfiles.js';
 
 const normalizeHeader = value => String(value ?? '')
   .normalize('NFD')
@@ -38,17 +40,17 @@ const HEADER_ALIASES = {
     firstName: ['prenom', 'first name', 'firstname'],
     lastName: ['nom', 'nom de famille', 'last name', 'lastname'],
     regNo: ['matricule', 'numero inscription', 'numero de matricule', 'code'],
-    diploma: ['niveau', 'diplome', 'niveau diplome', 'diploma'],
-    major: ['filiere', 'formation', 'major'],
-    year: ['annee detude', 'annee d etude', 'annee etude', 'niveau detude', 'niveau d etude', 'study year', 'year'],
+    diploma: ['cycle', 'cycle scolaire', 'niveau', 'diplome', 'niveau diplome', 'diploma'],
+    major: ['classe', 'classe section', 'section', 'filiere', 'formation', 'major'],
+    year: ['niveau scolaire', 'annee detude', 'annee d etude', 'annee etude', 'niveau detude', 'niveau d etude', 'study year', 'year'],
     academicYear: ['annee academique', 'annee scolaire', 'academic year', 'school year'],
     status: ['statut', 'status'],
   },
   teachers: {
-    name: ['nom complet', 'nom', 'formateur', 'name', 'full name'],
-    diplomas: ['diplomes', 'diplome', 'niveaux', 'niveau', 'diplomas'],
-    groups: ['filieres', 'filiere', 'groupes', 'groupe', 'formations', 'groups'],
-    years: ['annees detude', 'annees d etude', 'annee detude', 'annee d etude', 'annees', 'niveaux detude', 'niveaux d etude', 'years'],
+    name: ['nom complet', 'nom', 'enseignant', 'formateur', 'name', 'full name'],
+    diplomas: ['cycles', 'cycle', 'diplomes', 'diplome', 'niveaux', 'niveau', 'diplomas'],
+    groups: ['classes', 'classe', 'sections', 'filieres', 'filiere', 'groupes', 'groupe', 'formations', 'groups'],
+    years: ['niveaux scolaires', 'niveau scolaire', 'annees detude', 'annees d etude', 'annee detude', 'annee d etude', 'annees', 'niveaux detude', 'niveaux d etude', 'years'],
     subjects: ['modules', 'module', 'matieres', 'matiere', 'subjects', 'subject'],
     hourlyRate: ['taux horaire', 'tarif horaire', 'tarif', 'hourly rate', 'hourlyrate'],
   },
@@ -129,6 +131,7 @@ const buildRow = (row, headers, type, rowNumber) => {
 
 export const readExcelRows = async (file, type) => {
   if (!file) throw new Error('Sélectionnez un fichier Excel.');
+  if (file.size > 10 * 1024 * 1024) throw new Error('Le fichier ne doit pas dépasser 10 Mo.');
   if (!['students', 'teachers'].includes(type)) throw new Error('Type d’import inconnu.');
 
   const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: false, raw: false });
@@ -149,13 +152,13 @@ export const readExcelRows = async (file, type) => {
     throw new Error(`Colonnes obligatoires absentes : ${missingHeaders.join(', ')}.`);
   }
 
-  return rows
-    .slice(headerRowIndex + 1)
-    .filter(row => row.some(value => normalizeCell(value)))
-    .map((row, index) => buildRow(row, headers, type, headerRowIndex + index + 2));
+  return rows.slice(headerRowIndex + 1)
+    .map((row, index) => ({ row, rowNumber: headerRowIndex + index + 2 }))
+    .filter(({ row }) => row.some(value => normalizeCell(value)))
+    .map(({ row, rowNumber }) => buildRow(row, headers, type, rowNumber));
 };
 
-export const validateExcelRows = (rows, type, { existingStudents = [], existingTeachers = [] } = {}) => {
+export const validateExcelRows = (rows, type, { existingStudents = [], existingTeachers = [], institution = getEducationInstitution(), academicCatalog } = {}) => {
   const existingKeys = new Set((type === 'students' ? existingStudents : existingTeachers)
     .map(item => String(type === 'students' ? item.regNo : item.name).trim().toLowerCase())
     .filter(Boolean));
@@ -181,26 +184,53 @@ export const validateExcelRows = (rows, type, { existingStudents = [], existingT
       if (row.subjects.length === 0) errors.push('Module manquant');
       if (Number.isNaN(row.hourlyRate)) errors.push('Taux horaire invalide');
     }
+    if (isSchoolEducation(institution)) {
+      const cycles = type === 'students' ? [row.diploma] : row.diplomas;
+      if (cycles.some(cycle => !institution.schoolCycles.includes(cycle))) errors.push('Cycle non proposé par l’école');
+      if (type === 'students' && !SCHOOL_CYCLES[row.diploma]?.years.includes(row.year)) errors.push('Niveau incompatible avec le cycle');
+      if (type === 'students' && academicCatalog && !Array.from(academicCatalog.groups?.[row.diploma]?.[row.major] || []).includes(row.year)) errors.push('Classe non configurée pour ce niveau scolaire');
+      const classes = type === 'students' ? [row.major] : row.groups;
+      const configured = cycles.flatMap(cycle => Object.keys(academicCatalog?.groups?.[cycle] || {}));
+      if (academicCatalog && classes.some(value => !configured.includes(value))) errors.push('Classe absente du catalogue');
+    }
     if (key && existingKeys.has(key)) errors.push(type === 'students' ? 'Matricule déjà présent' : 'Formateur déjà présent');
     if (key && fileKeys.has(key)) errors.push('Doublon dans le fichier');
     if (key) fileKeys.add(key);
-    return { ...row, errors, valid: errors.length === 0 };
+    return { ...row, errors: errors.map(error => educationText(error, institution)), valid: errors.length === 0 };
   });
 };
 
-export const downloadExcelTemplate = type => {
+export const createExcelTemplate = (type, institution = getEducationInstitution()) => {
   const definition = TEMPLATE_DEFINITIONS[type];
   if (!definition) return;
-  const dataSheet = XLSX.utils.aoa_to_sheet([definition.headers]);
+  const school = isSchoolEducation(institution);
+  const headers = definition.headers.map(header => educationText(header, institution));
+  const instructions = definition.instructions.map(([field, required, description, example]) => [
+    educationText(field, institution), required, educationText(description, institution), example,
+  ]);
+  if (school) {
+    const examples = type === 'students'
+      ? ['ALAMI', 'Omar', 'ELV-001', 'Primaire', 'A', '3ème année primaire', '2025-2026', 'active']
+      : ['ALAMI Mohamed', 'Primaire; Collège', 'A; B', '3ème année primaire; 1ère année collège', 'Mathématiques; Français', '150'];
+    instructions.forEach((row, index) => { row[3] = examples[index]; });
+  }
+  const dataSheet = XLSX.utils.aoa_to_sheet([headers]);
   const instructionsSheet = XLSX.utils.aoa_to_sheet([
     ['Champ', 'Obligatoire', 'Description', 'Exemple'],
-    ...definition.instructions,
+    ...instructions,
   ]);
   dataSheet['!cols'] = definition.headers.map(header => ({ wch: Math.max(18, header.length + 4) }));
   instructionsSheet['!cols'] = [{ wch: 24 }, { wch: 14 }, { wch: 55 }, { wch: 42 }];
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, dataSheet, type === 'students' ? 'Stagiaires' : 'Formateurs');
+  XLSX.utils.book_append_sheet(workbook, dataSheet, educationText(type === 'students' ? 'Stagiaires' : 'Formateurs', institution));
   XLSX.utils.book_append_sheet(workbook, instructionsSheet, 'Instructions');
-  XLSX.writeFile(workbook, definition.filename);
+  return workbook;
+};
+
+export const downloadExcelTemplate = type => {
+  const workbook = createExcelTemplate(type);
+  if (workbook) XLSX.writeFile(workbook, isSchoolEducation()
+    ? `modele_import_${type === 'students' ? 'eleves' : 'enseignants'}.xlsx`
+    : TEMPLATE_DEFINITIONS[type].filename);
 };
 

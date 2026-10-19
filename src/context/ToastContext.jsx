@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react';
+import { educationText } from '../utils/education';
 
 const ToastContext = createContext();
 
@@ -25,7 +26,7 @@ export const ToastProvider = ({ children }) => {
     recentToastRef.current = { key, timestamp: now };
 
     const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, message, type, duration }]);
+    setToasts((prev) => [...prev, { id, message: educationText(message), type, duration }]);
 
     if (duration !== Infinity) {
       setTimeout(() => {

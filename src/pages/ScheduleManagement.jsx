@@ -1,3 +1,4 @@
+import { educationText } from '../utils/education';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import React, { useState, useMemo, useRef } from 'react';
 import './ScheduleManagement.css';
@@ -320,7 +321,7 @@ const ScheduleManagement = () => {
         <div className="schedule-premium-header-copy">
           <span className="schedule-premium-eyebrow">Organisation pédagogique</span>
           <h1>Emplois du Temps</h1>
-          <p>Plannings hebdomadaires par filière et groupe.</p>
+          <p>{educationText("Plannings hebdomadaires par filière et groupe.")}</p>
         </div>
 
         <div className="schedule-header-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -330,8 +331,8 @@ const ScheduleManagement = () => {
           <button disabled={Boolean(exportingFormat)} onClick={() => handleDownload('pdf')} className="btn-modern secondary" style={{ padding: '6px 12px', fontSize: '12px' }} title="Télécharger en PDF">
             <Download size={16} style={{ marginRight: '6px' }} /> {exportingFormat === 'pdf' ? 'Export…' : 'PDF'}
           </button>
-          <button disabled={sharing} onClick={copyStudentLink} className="btn-modern secondary" style={{ padding: '6px 12px', fontSize: '12px' }} title="Copier le lien pour stagiaire">
-            <LinkIcon size={16} style={{ marginRight: '6px' }} /> {sharing ? 'Création du lien…' : 'Lien Stagiaire'}
+          <button disabled={sharing} onClick={copyStudentLink} className="btn-modern secondary" style={{ padding: '6px 12px', fontSize: '12px' }} title={educationText("Copier le lien pour stagiaire")}>
+            <LinkIcon size={16} style={{ marginRight: '6px' }} /> {sharing ? 'Création du lien…' : educationText("Lien Stagiaire")}
           </button>
           <button disabled={!canEdit} onClick={openAdd} className="btn-modern primary schedule-premium-add">
             <Plus size={18} style={{ marginRight: '8px' }} /> Ajouter une séance
@@ -344,14 +345,14 @@ const ScheduleManagement = () => {
 
       {studentLink?.scope === shareScopeKey && (
         <div className="glass-card" style={{ padding: '14px 20px', marginBottom: '16px' }}>
-          <input id="student-schedule-link" aria-label="Lien stagiaire" readOnly value={studentLink.url} onFocus={event => event.target.select()} style={{ width: '100%' }} />
+          <input id="student-schedule-link" aria-label={educationText("Lien stagiaire")} readOnly value={studentLink.url} onFocus={event => event.target.select()} style={{ width: '100%' }} />
         </div>
       )}
 
       {/* Filter + Stats Bar */}
       <div className="glass-card schedule-premium-filter-card app-filter-grid app-filter-grid--4" style={{ padding: '16px 20px', marginBottom: 'var(--space-5)' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '0 1 220px' }}>
-          <label style={labelStyle}>Niveau</label>
+          <label style={labelStyle}>{educationText("Niveau")}</label>
           <FilterSelect
             value={diploma}
             onChange={val => {
@@ -363,15 +364,15 @@ const ScheduleManagement = () => {
           />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 260px' }}>
-          <label style={labelStyle}>Filière</label>
+          <label style={labelStyle}>{educationText("Filière")}</label>
           <FilterSelect
             value={filiere}
             onChange={val => { setFiliere(val); setAnnee(''); }}
-            options={[{ label: 'Toutes les filières', value: '' }, ...availableFilieres.map(f => ({ label: f, value: f }))]}
+            options={[{ label: educationText("Toutes les filières"), value: '' }, ...availableFilieres.map(f => ({ label: f, value: f }))]}
           />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '0 1 180px' }}>
-          <label style={labelStyle}>Année</label>
+          <label style={labelStyle}>{educationText("Année")}</label>
           <FilterSelect
             value={annee}
             onChange={val => setAnnee(val)}
@@ -414,7 +415,7 @@ const ScheduleManagement = () => {
         }}>
           <CalendarDays size={18} style={{ color: '#2563eb', flexShrink: 0 }} />
           <span>
-            Aucune séance enregistrée pour <strong>{groupLabel}</strong> ({semester}) pour l'année académique <strong>{currentAcademicYear}</strong>.
+            Aucune séance enregistrée pour <strong>{groupLabel}</strong> ({semester}{educationText(") pour l'année académique ")}<strong>{currentAcademicYear}</strong>.
           </span>
         </div>
       )}
@@ -600,7 +601,7 @@ const ScheduleManagement = () => {
 
                             {/* Module name */}
                             <div className="home-schedule-event-title">
-                              {displayedModule || 'Module non défini'}
+                              {displayedModule || educationText("Module non défini")}
                             </div>
 
                             {/* Meta */}
@@ -626,7 +627,7 @@ const ScheduleManagement = () => {
                             {/* Hover Tooltip */}
                             <div className={`schedule-tooltip ${['Vendredi', 'Samedi', 'Dimanche'].includes(day) ? 'tooltip-above' : ''}`}>
                               <div style={{ fontWeight: '800', fontSize: '10px', marginBottom: '4px', borderBottom: '1px solid var(--event-border)', paddingBottom: '3px', color: 'var(--event-color)' }}>
-                                {displayedModule || 'Module non défini'}
+                                {displayedModule || educationText("Module non défini")}
                               </div>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', color: 'var(--event-text)', opacity: 0.95, fontSize: '9px' }}>
                                 <div>🕒 {session.start} – {session.end} ({session.type || 'Cours'})</div>
@@ -736,7 +737,7 @@ const ScheduleManagement = () => {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '12px' }}>
                   <div>
-                    <label style={labelStyle}>Formateur</label>
+                    <label style={labelStyle}>{educationText("Formateur")}</label>
                     <div style={{ marginTop: '4px' }}>
                       {(() => {
                         const filtered = teachers.filter(t =>
@@ -767,7 +768,7 @@ const ScheduleManagement = () => {
                                 moduleS2: nextModuleS2
                               }));
                             }}
-                            options={filtered.length > 0 ? options : [{ label: "Aucun formateur", value: "" }]}
+                            options={filtered.length > 0 ? options : [{ label: educationText("Aucun formateur"), value: "" }]}
                           />
                         );
                       })()}
@@ -796,11 +797,11 @@ const ScheduleManagement = () => {
                     const options = [...new Set([...available, ...selected])];
                     return (
                       <fieldset key={moduleSemester} disabled={!teacher || isSaving} style={{ minWidth: 0, margin: 0, padding: 0, border: 0 }}>
-                        <legend style={labelStyle}>Modules {moduleSemester}</legend>
+                        <legend style={labelStyle}>{educationText("Modules ")}{moduleSemester}</legend>
                         <div className="input-premium" style={{ marginTop: '4px', padding: '8px', maxHeight: '180px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                           {options.length === 0 ? (
                             <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                              {teacher ? 'Aucun module pour ce semestre' : 'Choisir un formateur'}
+                              {teacher ? educationText("Aucun module pour ce semestre") : educationText("Choisir un formateur")}
                             </span>
                           ) : options.map(name => (
                             <label key={name} style={{ display: 'flex', alignItems: 'flex-start', gap: '7px', fontSize: '11px', cursor: 'pointer', lineHeight: 1.4 }}>
@@ -830,9 +831,7 @@ const ScheduleManagement = () => {
                   })}
                 </div>
 
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                  Cochez un ou plusieurs modules par semestre. Leurs noms seront séparés par / dans l’emploi du temps.
-                </p>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{educationText("Cochez un ou plusieurs modules par semestre. Leurs noms seront séparés par / dans l’emploi du temps.")}</p>
 
                 <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
                   <button type="submit" disabled={isSaving} className="btn-modern primary" style={{ flex: 1, justifyContent: 'center' }}>

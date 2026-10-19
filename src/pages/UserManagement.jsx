@@ -1,3 +1,4 @@
+import { educationText } from '../utils/education';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -433,7 +434,7 @@ export default function UserManagement() {
             <option value="admin">Administrateur</option>
             <option value="director">Direction</option>
             <option value="secretary">Secrétariat</option>
-            <option value="instructor">Formateur</option>
+            <option value="instructor">{educationText("Formateur")}</option>
             <option value="custom">Personnalisé</option>
           </select>
 
@@ -523,7 +524,7 @@ export default function UserManagement() {
                           }}
                         >
                           <ShieldCheck size={12} />
-                          {rolePreset.label}
+                          {educationText(rolePreset.label)}
                         </span>
                       </td>
 
@@ -560,10 +561,10 @@ export default function UserManagement() {
                           </span>
                         ) : (
                           <div className="flex items-center gap-2 text-xs">
-                            <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 font-semibold" title="Modules avec droit d'écriture">
+                            <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 font-semibold" title={educationText("Modules avec droit d'écriture")}>
                               {editCount} écriture
                             </span>
-                            <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 font-semibold" title="Modules en lecture seule">
+                            <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 font-semibold" title={educationText("Modules en lecture seule")}>
                               {viewCount} lecture
                             </span>
                           </div>
@@ -751,7 +752,7 @@ export default function UserManagement() {
                         }`}
                       >
                         <div className="font-bold text-xs" style={{ color: role.color }}>
-                          {role.label}
+                          {educationText(role.label)}
                         </div>
                         <div className="text-[10px] text-slate-400 line-clamp-1 mt-0.5">
                           {key === 'admin' ? 'Total' : key === 'secretary' ? 'Saisie & Suivi' : key === 'instructor' ? 'Notes & Présences' : 'Sur-mesure'}
@@ -817,7 +818,7 @@ export default function UserManagement() {
                                   className="flex items-center justify-between py-1.5 px-2.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 text-xs"
                                 >
                                   <span className="font-medium text-slate-700 dark:text-slate-200">
-                                    {mod.label}
+                                    {educationText(mod.label)}
                                   </span>
 
                                   {isUsersModule ? (
@@ -963,7 +964,7 @@ export default function UserManagement() {
                         }`}
                       >
                         <div className="font-bold text-xs" style={{ color: role.color }}>
-                          {role.label}
+                          {educationText(role.label)}
                         </div>
                       </button>
                     ))}
@@ -1026,7 +1027,7 @@ export default function UserManagement() {
                                   className="flex items-center justify-between py-1.5 px-2.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 text-xs"
                                 >
                                   <span className="font-medium text-slate-700 dark:text-slate-200">
-                                    {mod.label}
+                                    {educationText(mod.label)}
                                   </span>
 
                                   {isUsersModule ? (

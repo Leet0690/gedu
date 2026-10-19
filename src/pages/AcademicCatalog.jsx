@@ -1,8 +1,11 @@
+import { educationText } from '../utils/education';
 import React, { useMemo, useState } from 'react';
 import { BookOpen, GraduationCap, Plus, Save, Trash2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { useToast } from '../context/ToastContext';
+import { SCHOOL_CYCLES } from '../config/educationProfiles';
+import { isSchoolEducation } from '../utils/education';
 
 const emptyForm = { diploma: '', major: '', year: '' };
 
@@ -17,7 +20,8 @@ const toEditableGroups = groups => Object.fromEntries(
 );
 
 const AcademicCatalog = () => {
-  const { academicCatalog, updateAcademicCatalog } = useApp();
+  const { academicCatalog, updateAcademicCatalog, institution } = useApp();
+  const schoolMode = isSchoolEducation(institution);
   const { isAdmin } = useAdminAuth();
   const { showToast } = useToast();
   const [form, setForm] = useState(emptyForm);
@@ -52,6 +56,10 @@ const AcademicCatalog = () => {
     const year = form.year.trim();
     if (!diploma || !major || !year) {
       showToast('Le niveau, la filière et l’année sont obligatoires.', 'error');
+      return;
+    }
+    if (schoolMode && (!institution.schoolCycles.includes(diploma) || !SCHOOL_CYCLES[diploma]?.years.includes(year))) {
+      showToast('Choisissez un cycle proposé par l’école et un niveau scolaire de ce cycle.', 'error');
       return;
     }
 
@@ -89,7 +97,7 @@ const AcademicCatalog = () => {
       <header className="home-dashboard-heading" style={{ marginBottom: 24 }}>
         <div>
           <span className="gedu-settings-eyebrow"><BookOpen size={13} /> Paramètres académiques</span>
-          <h1>Niveaux, filières et années</h1>
+          <h1>{educationText("Niveaux, filières et années")}</h1>
           <p>Configurez les choix proposés dans les formulaires et les filtres de l’établissement.</p>
         </div>
         <div className="dashboard-stat-icon" aria-hidden="true"><GraduationCap size={22} /></div>
@@ -99,12 +107,16 @@ const AcademicCatalog = () => {
         <form onSubmit={handleAdd} className="glass-card academic-catalog-form">
           <div className="institution-settings-section-heading">
             <span className="dashboard-stat-icon"><Plus size={18} /></span>
-            <div><h2>Ajouter une configuration</h2><p>Un même niveau ou une même filière peut contenir plusieurs années.</p></div>
+            <div><h2>Ajouter une configuration</h2><p>{educationText("Un même niveau ou une même filière peut contenir plusieurs années.")}</p></div>
           </div>
           <div className="academic-catalog-form-grid">
-            <label>Niveau / diplôme<input name="diploma" value={form.diploma} onChange={handleChange} placeholder="Ex. Technicien spécialisé" /></label>
-            <label>Filière<input name="major" value={form.major} onChange={handleChange} placeholder="Ex. Développement digital" /></label>
-            <label>Année d’étude<input name="year" value={form.year} onChange={handleChange} placeholder="Ex. 1ère année" /></label>
+            <label>{schoolMode ? 'Cycle scolaire' : educationText("Niveau / diplôme")}{schoolMode
+              ? <select name="diploma" value={form.diploma} onChange={event => setForm(previous => ({ ...previous, diploma: event.target.value, year: '' }))}><option value="">Choisir un cycle</option>{institution.schoolCycles.map(cycle => <option key={cycle}>{cycle}</option>)}</select>
+              : <input name="diploma" value={form.diploma} onChange={handleChange} placeholder="Ex. Technicien spécialisé" />}</label>
+            <label>{schoolMode ? 'Classe / section' : educationText("Filière")}<input name="major" value={form.major} onChange={handleChange} placeholder={schoolMode ? 'Ex. A, B, Sciences physiques A' : 'Ex. Développement digital'} /></label>
+            <label>{schoolMode ? 'Niveau scolaire' : educationText("Année d’étude")}{schoolMode
+              ? <select name="year" value={form.year} onChange={handleChange}><option value="">Choisir un niveau</option>{(SCHOOL_CYCLES[form.diploma]?.years || []).map(year => <option key={year}>{year}</option>)}</select>
+              : <input name="year" value={form.year} onChange={handleChange} placeholder="Ex. 1ère année" />}</label>
           </div>
           <div className="academic-catalog-form-actions">
             <small>Les anciens choix de démonstration sont retirés dès le premier enregistrement du catalogue.</small>
@@ -115,17 +127,17 @@ const AcademicCatalog = () => {
         <section className="glass-card academic-catalog-list-card">
           <div className="institution-settings-section-heading">
             <span className="dashboard-stat-icon"><BookOpen size={18} /></span>
-            <div><h2>Catalogue configuré</h2><p>{entries.length} filière(s) configurée(s). Supprimez les choix inutiles pour laisser les filtres libres.</p></div>
+            <div><h2>Catalogue configuré</h2><p>{entries.length}{educationText(" filière(s) configurée(s). Supprimez les choix inutiles pour laisser les filtres libres.")}</p></div>
           </div>
           {entries.length === 0 ? (
-            <div className="academic-catalog-empty">Aucun niveau, filière ou année configuré. Ajoutez votre premier parcours ci-dessus.</div>
+            <div className="academic-catalog-empty">{educationText("Aucun niveau, filière ou année configuré. Ajoutez votre premier parcours ci-dessus.")}</div>
           ) : (
             <div className="academic-catalog-groups">
               {entries.map(entry => (
                 <article key={`${entry.diploma}:${entry.major}`} className="academic-catalog-group">
                   <div className="academic-catalog-group-heading">
                     <div><span>{entry.diploma}</span><strong>{entry.major}</strong></div>
-                    <button type="button" className="academic-catalog-delete-major" disabled={saving} onClick={() => handleRemoveMajor(entry.diploma, entry.major)} title="Supprimer la filière"><Trash2 size={15} /></button>
+                    <button type="button" className="academic-catalog-delete-major" disabled={saving} onClick={() => handleRemoveMajor(entry.diploma, entry.major)} title={educationText("Supprimer la filière")}><Trash2 size={15} /></button>
                   </div>
                   <div className="academic-catalog-years">
                     {entry.years.map(year => <span key={year} className="academic-catalog-year">{year}<button type="button" disabled={saving} onClick={() => handleRemoveYear(entry.diploma, entry.major, year)} aria-label={`Supprimer ${year}`}><Trash2 size={12} /></button></span>)}

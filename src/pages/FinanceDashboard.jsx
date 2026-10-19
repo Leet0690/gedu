@@ -1,3 +1,4 @@
+import { educationText } from '../utils/education';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import React, { useState, useMemo, useEffect } from 'react';
 import './FinanceDashboard.css';
@@ -1286,7 +1287,7 @@ const FinanceDashboard = () => {
                 <input
                   type="text"
                   className="input-premium"
-                  placeholder="Rechercher un stagiaire ou mois..."
+                  placeholder={educationText("Rechercher un stagiaire ou mois...")}
                   value={searchTerm}
                   onChange={(e) => {
                     setSearchTerm(e.target.value);
@@ -1297,9 +1298,9 @@ const FinanceDashboard = () => {
               <FilterSelect
                 id="finance-filter-academicYear"
                 value={paymentAcademicYearFilter}
-                placeholder="Année académique"
+                placeholder={educationText("Année académique")}
                 options={[
-                  { value: '', label: 'Toutes les années académiques' },
+                  { value: '', label: educationText("Toutes les années académiques") },
                   ...availableAcademicYears.map(y => ({ value: y, label: `Année ${y}` }))
                 ]}
                 onChange={(value) => {
@@ -1349,7 +1350,7 @@ const FinanceDashboard = () => {
               )}
             </div>
             <fieldset className="finance-fee-filters">
-              <legend>Frais par stagiaire (frais annuels)</legend>
+              <legend>{educationText("Frais par stagiaire (frais annuels)")}</legend>
               {PAYMENT_FEE_FIELDS.map(({ key, label }) => (
                 <div className="finance-fee-filter-field" key={key}>
                   <label htmlFor={`finance-filter-${key}`}>{label} (annuel)</label>
@@ -1372,14 +1373,14 @@ const FinanceDashboard = () => {
             </fieldset>
             {paymentSummaryActive && (
               <p className="finance-fee-filter-help">
-                Mensualité : mois sélectionné ({paymentMonthFilter || currentMonthName}). Examen, inscription et support : situation cumulée sur l'année académique {paymentAcademicYearFilter || '(toutes les années académiques)'}.
+                Mensualité : mois sélectionné ({paymentMonthFilter || currentMonthName}{educationText("). Examen, inscription et support : situation cumulée sur l'année académique ")}{paymentAcademicYearFilter || educationText("(toutes les années académiques)")}.
               </p>
             )}
           </div>
           <div className="finance-payment-actions-group">
             {paymentSummaryActive ? (
               <p className="finance-fee-result-count" role="status">
-                {paymentListStudentCount} stagiaire{paymentListStudentCount !== 1 ? 's' : ''} correspondant aux filtres de frais
+                {paymentListStudentCount}{educationText(" stagiaire")}{paymentListStudentCount !== 1 ? 's' : ''} correspondant aux filtres de frais
               </p>
             ) : (
             <div className="finance-payment-status-inline">
@@ -1408,7 +1409,7 @@ const FinanceDashboard = () => {
               aria-label="Télécharger la liste PDF"
               disabled={loading || exportingPaymentList || searchTerm !== debouncedSearch || !paymentListStudentCount}
               onClick={exportStudentPaymentsPdf}
-              title="Tous les stagiaires filtrés et les quatre frais du mois sélectionné"
+              title={educationText("Tous les stagiaires filtrés et les quatre frais du mois sélectionné")}
             >
               <FileDown size={16} /> {exportingPaymentList ? 'Génération…' : 'Télécharger la liste PDF'}
             </button>
@@ -1424,11 +1425,11 @@ const FinanceDashboard = () => {
           {paymentSummaryActive ? (
             <div className="glass-card" style={{ overflow: 'hidden' }}>
               {loading ? <TableSkeleton rows={6} /> : (
-                <div className="finance-fee-table-scroll" role="region" aria-label="Situation des frais par stagiaire" tabIndex={0}>
+                <div className="finance-fee-table-scroll" role="region" aria-label={educationText("Situation des frais par stagiaire")} tabIndex={0}>
                   <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr>
-                        <th style={thStyle}>Stagiaire</th>
+                        <th style={thStyle}>{educationText("Stagiaire")}</th>
                         <th style={thStyle}>Mensualité</th>
                         {PAYMENT_FEE_FIELDS.map(fee => <th key={fee.key} style={thStyle}>{fee.label} (annuel)</th>)}
                         <th style={{ ...thStyle, textAlign: 'right' }}>Actions</th>
@@ -1436,7 +1437,7 @@ const FinanceDashboard = () => {
                     </thead>
                     <tbody>
                       {filteredFinancialStudents.length === 0 ? (
-                        <tr><td colSpan="6"><EmptyState title="Aucun stagiaire" message="Aucun stagiaire ne correspond aux filtres de frais sélectionnés." icon="search" /></td></tr>
+                        <tr><td colSpan="6"><EmptyState title={educationText("Aucun stagiaire")} message={educationText("Aucun stagiaire ne correspond aux filtres de frais sélectionnés.")} icon="search" /></td></tr>
                       ) : paginatedFinancialStudents.map(student => (
                         <tr key={`${student.studentId}:${student.academicYear}`} style={{ borderBottom: '1px solid var(--border-light)' }}>
                           <td style={tdStyle}>
@@ -1476,7 +1477,7 @@ const FinanceDashboard = () => {
                 <thead>
                   <tr style={{ background: 'var(--bg-subtle)' }}>
                     <th style={thStyle}>N° Reçu</th>
-                    <th style={thStyle}>Stagiaire</th>
+                    <th style={thStyle}>{educationText("Stagiaire")}</th>
                     <th style={thStyle}>Période</th>
                     <th style={thStyle}>Montant</th>
                     <th style={thStyle}>Date</th>
@@ -1666,7 +1667,7 @@ const FinanceDashboard = () => {
               />
             <FilterSelect
               value={salaryFilter.year.toString()}
-              placeholder="Année"
+              placeholder={educationText("Année")}
               onChange={(val) => {
                 setSalaryFilter({...salaryFilter, year: parseInt(val)});
                 setTeachersPage(1);
@@ -1692,7 +1693,7 @@ const FinanceDashboard = () => {
               <input
                 type="text"
                 className="input-premium"
-                placeholder="Rechercher un formateur..."
+                placeholder={educationText("Rechercher un formateur...")}
                 value={teacherSearchTerm}
                 onChange={e => {
                   setTeacherSearchTerm(e.target.value);
@@ -1719,7 +1720,7 @@ const FinanceDashboard = () => {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-5)' }}>
             <StatusCountCard
-              title="Formateurs réglés"
+              title={educationText("Formateurs réglés")}
               value={salaryStatusCounts.paid}
               subtitle={`${months[salaryFilter.month]} ${salaryFilter.year}`}
               icon={Check}
@@ -1727,7 +1728,7 @@ const FinanceDashboard = () => {
               bgClass="bg-green-50 border-green-200"
             />
             <StatusCountCard
-              title="Formateurs non réglés"
+              title={educationText("Formateurs non réglés")}
               value={salaryStatusCounts.unpaid}
               subtitle={`${months[salaryFilter.month]} ${salaryFilter.year}`}
               icon={RotateCcw}
@@ -1772,7 +1773,7 @@ const FinanceDashboard = () => {
             <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: 'var(--bg-subtle)' }}>
-                  <th style={thStyle}>Formateur</th>
+                  <th style={thStyle}>{educationText("Formateur")}</th>
                   <th style={thStyle}>Volume H.</th>
                   <th style={thStyle}>Tarif (DH/h)</th>
                   <th style={thStyle}>Net à payer</th>
@@ -1922,7 +1923,7 @@ const FinanceDashboard = () => {
                             e.currentTarget.style.background = 'rgba(var(--primary-rgb), 0.08)';
                             e.currentTarget.style.color = 'var(--primary)';
                           }}
-                          aria-label="Reçu formateur PDF"
+                          aria-label={educationText("Reçu formateur PDF")}
                         >
                           <FileDown size={16} />
                         </motion.button>
@@ -1998,7 +1999,7 @@ const FinanceDashboard = () => {
             />
             <FilterSelect
               value={expenseFilter.year.toString()}
-              placeholder="Année"
+              placeholder={educationText("Année")}
               onChange={val => {
                 setExpenseFilter(f => ({ ...f, year: parseInt(val) }));
                 setExpensesPage(1);
@@ -2313,7 +2314,7 @@ const FinanceDashboard = () => {
               <div className="finance-filter-row finance-filter-row-compact">
                 <FilterSelect
                   value={annualYear.toString()}
-                  placeholder="Année"
+                  placeholder={educationText("Année")}
                   onChange={val => setAnnualYear(parseInt(val))}
                   options={availableYears.map(y => ({ value: y.toString(), label: y.toString() }))}
                 />
@@ -2420,9 +2421,9 @@ const FinanceDashboard = () => {
                 <AlertTriangle size={20} style={{ color: '#dc2626' }} />
                 <div>
                   <h3 style={{ fontSize: 'var(--text-base)', fontWeight: '900', color: '#dc2626' }}>
-                    Alertes — {overdueStudents.length} stagiaire{overdueStudents.length > 1 ? 's' : ''} en retard de paiement
+                    Alertes — {overdueStudents.length}{educationText(" stagiaire")}{overdueStudents.length > 1 ? 's' : ''} en retard de paiement
                   </h3>
-                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '700' }}>Stagiaires sans paiement enregistré depuis au moins 2 mois consécutifs</p>
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '700' }}>{educationText("Stagiaires sans paiement enregistré depuis au moins 2 mois consécutifs")}</p>
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -2515,11 +2516,11 @@ const FinanceDashboard = () => {
                     />
                   </div>
                   <div>
-                    <label style={lbl}>Année</label>
+                    <label style={lbl}>{educationText("Année")}</label>
                     <FilterSelect
                       style={{ width: '100%', marginTop: '6px' }}
                       value={expenseData.year.toString()}
-                      placeholder="Année"
+                      placeholder={educationText("Année")}
                       onChange={val => setExpenseData({...expenseData, year: parseInt(val)})}
                       options={availableYears.map(y => ({ value: y.toString(), label: y.toString() }))}
                     />
@@ -2567,11 +2568,11 @@ const FinanceDashboard = () => {
               </div>
               <div className="finance-payment-modal-stack">
                 <div className="finance-payment-modal-panel">
-                  <label style={lbl}>Année académique d'imputation</label>
+                  <label style={lbl}>{educationText("Année académique d'imputation")}</label>
                   <FilterSelect
                     style={{ width: '100%', marginTop: '6px' }}
                     value={paymentData.academicYear || ''}
-                    placeholder="Sélectionner l'année académique..."
+                    placeholder={educationText("Sélectionner l'année académique...")}
                     onChange={value => {
                       setPaymentData(current => ({
                         ...current,
@@ -2582,9 +2583,7 @@ const FinanceDashboard = () => {
                     }}
                     options={availableAcademicYears.map(year => ({ value: year, label: year }))}
                   />
-                  <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px', fontWeight: '600' }}>
-                    Pour un arriéré, choisissez l'année concernée avant de sélectionner le stagiaire.
-                  </p>
+                  <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px', fontWeight: '600' }}>{educationText("Pour un arriéré, choisissez l'année concernée avant de sélectionner le stagiaire.")}</p>
                   {paymentData.academicYear && paymentData.academicYear !== operationalAcademicYear && (
                     <div style={{ marginTop: '10px', padding: '8px 12px', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <AlertTriangle size={14} style={{ color: '#ca8a04', flexShrink: 0 }} />
@@ -2598,7 +2597,7 @@ const FinanceDashboard = () => {
                   
                   <div className="finance-payment-modal-grid finance-payment-modal-grid-three">
                     <div>
-                      <label style={{ ...lbl, fontSize: '9px' }}>Niveau</label>
+                      <label style={{ ...lbl, fontSize: '9px' }}>{educationText("Niveau")}</label>
                       <FilterSelect 
                         style={{ width: '100%', marginTop: '4px' }}
                         value={paymentModalFilter.diploma}
@@ -2611,7 +2610,7 @@ const FinanceDashboard = () => {
                       />
                     </div>
                     <div>
-                      <label style={{ ...lbl, fontSize: '9px' }}>Filière</label>
+                      <label style={{ ...lbl, fontSize: '9px' }}>{educationText("Filière")}</label>
                       <FilterSelect 
                         style={{ width: '100%', marginTop: '4px' }}
                         value={paymentModalFilter.major}
@@ -2621,7 +2620,7 @@ const FinanceDashboard = () => {
                       />
                     </div>
                     <div>
-                      <label style={{ ...lbl, fontSize: '9px' }}>Année</label>
+                      <label style={{ ...lbl, fontSize: '9px' }}>{educationText("Année")}</label>
                       <FilterSelect 
                         style={{ width: '100%', marginTop: '4px' }}
                         value={paymentModalFilter.year}
@@ -2630,7 +2629,7 @@ const FinanceDashboard = () => {
                         options={[
                           { value: '', label: 'Toutes' }, 
                           ...modalYears.map(y => ({ value: y, label: y })),
-                          ...(paymentData.academicYear && paymentData.academicYear !== operationalAcademicYear ? [{ label: "Lauréat (Diplômés)", value: "Lauréat" }] : [])
+                          ...(paymentData.academicYear && paymentData.academicYear !== operationalAcademicYear ? [{ label: educationText("Lauréat (Diplômés)"), value: "Lauréat" }] : [])
                         ]}
                       />
                     </div>
@@ -2638,10 +2637,8 @@ const FinanceDashboard = () => {
                 </div>}
 
                 <div>
-                  <label style={lbl}>
-                    Stagiaire Bénéficiaire
-                    {!editingPayment && <span style={{ marginLeft: '6px', fontWeight: '600', color: 'var(--primary)', textTransform: 'none', fontSize: '10px' }}>
-                      {modalStudents.length} stagiaire{modalStudents.length !== 1 ? 's' : ''}
+                  <label style={lbl}>{educationText("Stagiaire Bénéficiaire")}{!editingPayment && <span style={{ marginLeft: '6px', fontWeight: '600', color: 'var(--primary)', textTransform: 'none', fontSize: '10px' }}>
+                      {modalStudents.length}{educationText(" stagiaire")}{modalStudents.length !== 1 ? 's' : ''}
                     </span>}
                   </label>
                   {editingPayment ? (
@@ -2652,7 +2649,7 @@ const FinanceDashboard = () => {
                     <FilterSelect 
                       style={{ width: '100%', marginTop: '6px' }}
                       value={paymentData.studentId}
-                      placeholder="Sélectionner un stagiaire..."
+                      placeholder={educationText("Sélectionner un stagiaire...")}
                       onChange={val => {
                         const nextStudent = paymentAcademicStudents.find(student => student.id === val);
                         setPaymentData(current => ({
@@ -2661,7 +2658,7 @@ const FinanceDashboard = () => {
                           month: getDefaultPaymentMonth(nextStudent, current.month),
                         }));
                       }}
-                      options={[{ value: '', label: 'Sélectionner un stagiaire...' }, ...modalStudents.map(s => ({ value: s.id, label: `${s.lastName} ${s.firstName}` }))]}
+                      options={[{ value: '', label: educationText("Sélectionner un stagiaire...") }, ...modalStudents.map(s => ({ value: s.id, label: `${s.lastName} ${s.firstName}` }))]}
                     />
                   )}
                   {paymentData.studentId && previousYearArrearsMap[paymentData.studentId] && (
@@ -2677,8 +2674,7 @@ const FinanceDashboard = () => {
                         <AlertTriangle size={14} style={{ color: '#d97706' }} />
                         Attention : Arriérés de la 1ère année ({previousYearArrearsMap[paymentData.studentId].details.map(d => d.academicYear).join(', ')})
                       </div>
-                      <p style={{ fontSize: '11px', marginTop: '4px', lineHeight: '1.4', fontWeight: '600' }}>
-                        Ce stagiaire a {previousYearArrearsMap[paymentData.studentId].unpaidCount} mois non réglés pour la 1ère année :{' '}
+                      <p style={{ fontSize: '11px', marginTop: '4px', lineHeight: '1.4', fontWeight: '600' }}>{educationText("Ce stagiaire a ")}{previousYearArrearsMap[paymentData.studentId].unpaidCount} mois non réglés pour la 1ère année :{' '}
                         {previousYearArrearsMap[paymentData.studentId].details.map(d => d.unpaidMonths.join(', ')).join('; ')}.
                       </p>
                     </div>
@@ -2917,7 +2913,7 @@ const RecoveryCard = ({ value, paid, total, month }) => (
           transition={{ duration: 0.3, ease: 'easeOut' }}
         />
       </div>
-      <p className="finance-net-card-helper">{paid} / {total} stagiaires</p>
+      <p className="finance-net-card-helper">{paid} / {total}{educationText(" stagiaires")}</p>
     </div>
   </motion.div>
 );

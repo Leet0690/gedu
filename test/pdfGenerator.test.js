@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
-import { readFile } from 'node:fs/promises';
 
 import {
   generateBulletinGlobal,
@@ -56,7 +55,7 @@ test('normalizeBulletinModules does not add a duplicate Statistiques descriptive
 test('generateBulletinGlobal renders the largest configured bulletin on one page', async () => {
   const originalFetch = globalThis.fetch;
   const originalFileReader = globalThis.FileReader;
-  const logoBytes = await readFile(new URL('../public/logo.jpg', import.meta.url));
+  const logoBytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64');
 
   globalThis.fetch = async () => ({
     ok: true,

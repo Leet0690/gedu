@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Building2,
   Check,
@@ -12,6 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import { getInstitutionPalette, INSTITUTION_PALETTES } from '../config/institution';
+import { EDUCATION_TYPES, SCHOOL_CYCLES } from '../config/educationProfiles';
 import { useApp } from '../context/AppContext';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { useToast } from '../context/ToastContext';
@@ -26,6 +28,7 @@ const labelStyle = {
 };
 
 const emptyForm = {
+  educationType: 'vocational', schoolCycles: Object.keys(SCHOOL_CYCLES), schoolGradeScales: { Primaire: 10, Collège: 20, Lycée: 20 },
   name: '', shortName: '', appName: '', typeLabel: '', city: '', country: '',
   logoUrl: '', portalUrl: '', portalHostname: '', authEmailDomain: '', studentIdPrefix: '',
   paletteKey: 'campus', primaryColor: '', accentColor: '',
@@ -75,8 +78,9 @@ const readLogoFile = file => new Promise((resolve, reject) => {
   reader.readAsDataURL(file);
 });
 
-export default function InstitutionSettings() {
+export default function InstitutionSettings({ onboarding = false }) {
   const { institution, updateInstitution } = useApp();
+  const navigate = useNavigate();
   const { isAdmin } = useAdminAuth();
   const { showToast } = useToast();
   const fileInputRef = useRef(null);
@@ -93,7 +97,9 @@ export default function InstitutionSettings() {
 
   const handleChange = event => {
     const { name, value } = event.target;
-    setFormData(previous => ({ ...previous, [name]: value }));
+    setFormData(previous => ({ ...previous, [name]: value,
+      ...(name === 'educationType' ? { typeLabel: value === 'private_school' ? 'École privée — primaire, collège et lycée' : 'École / institut de formation professionnelle' } : {}),
+    }));
   };
 
   const handlePaletteChange = key => {
@@ -138,24 +144,60 @@ export default function InstitutionSettings() {
       showToast('Le nom et le sigle de l’établissement sont obligatoires.', 'error');
       return;
     }
+    if (formData.educationType === 'private_school' && !formData.schoolCycles.length) {
+      showToast('Sélectionnez au moins un cycle scolaire.', 'error'); return;
+    }
     setSaving(true);
-    await updateInstitution(formData);
-    setSaving(false);
+    try {
+      const saved = await updateInstitution(formData, { completeSetup: onboarding });
+      if (saved && onboarding) navigate('/', { replace: true });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <div className="section-padding institution-settings-page" style={{ maxWidth: '1180px', margin: '0 auto' }}>
       <header className="home-dashboard-heading" style={{ marginBottom: '24px' }}>
         <div>
-          <span className="gedu-settings-eyebrow"><Palette size={13} /> Personnalisation</span>
-          <h1>Identité de l’établissement</h1>
-          <p>Choisissez le nom, le logo et les couleurs de votre école ou institut.</p>
+          <span className="gedu-settings-eyebrow"><Palette size={13} /> {onboarding ? 'Configuration initiale' : 'Personnalisation'}</span>
+          <h1>{onboarding ? 'Configurez votre établissement' : 'Identité de l’établissement'}</h1>
+          <p>{onboarding ? 'Renseignez son identité et son organisation pédagogique pour accéder à l’accueil.' : 'Choisissez le nom, le logo et les couleurs de votre école ou institut.'}</p>
         </div>
         <div className="dashboard-stat-icon" aria-hidden="true"><Building2 size={22} /></div>
       </header>
 
       <div className="institution-settings-layout">
         <form onSubmit={handleSubmit} className="glass-card institution-settings-form">
+          <section className="education-profile-settings">
+            <div className="institution-settings-section-heading">
+              <span className="dashboard-stat-icon"><Building2 size={18} /></span>
+              <div><h2>Organisation pédagogique</h2><p>Le type d’établissement adapte le vocabulaire, les parcours et les évaluations.</p></div>
+            </div>
+            <label style={fieldStyle} htmlFor="education-type">
+              <span style={labelStyle}>Type d’enseignement</span>
+              <select id="education-type" name="educationType" className="input-premium" value={formData.educationType} onChange={handleChange}>
+                {Object.entries(EDUCATION_TYPES).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
+              </select>
+            </label>
+            <p className="education-profile-description">{EDUCATION_TYPES[formData.educationType]?.description}</p>
+            {formData.educationType === 'private_school' && <>
+              <fieldset className="education-cycle-choices"><legend>Cycles proposés par l’école</legend>
+                {Object.entries(SCHOOL_CYCLES).map(([cycle, item]) => <label key={cycle}>
+                  <input type="checkbox" checked={formData.schoolCycles.includes(cycle)} onChange={event => setFormData(previous => ({ ...previous,
+                    schoolCycles: event.target.checked ? [...previous.schoolCycles, cycle] : previous.schoolCycles.filter(value => value !== cycle),
+                  }))} />
+                  <span><strong>{cycle}</strong><small>{item.years.length} niveaux · 2 semestres par année scolaire</small></span>
+                </label>)}
+              </fieldset>
+              <div className="form-grid">{formData.schoolCycles.map(cycle => <label key={cycle} style={fieldStyle}>
+                <span style={labelStyle}>Barème — {cycle}</span><select className="input-premium" value={formData.schoolGradeScales[cycle]} onChange={event => setFormData(previous => ({ ...previous, schoolGradeScales: { ...previous.schoolGradeScales, [cycle]: Number(event.target.value) } }))}>
+                  <option value={10}>Notes sur 10</option><option value={20}>Notes sur 20</option>
+                </select>
+              </label>)}</div>
+              <p className="education-profile-description">Créez ensuite vos classes et sections dans « Cycles / Classes ». Au lycée, vous pouvez préciser le parcours dans le nom de classe, par exemple « Sciences physiques A ».</p>
+            </>}
+          </section>
           <div className="institution-settings-section-heading">
             <span className="dashboard-stat-icon"><Building2 size={18} /></span>
             <div><h2>Nom et identité</h2><p>Ces informations apparaissent dans l’interface et les documents.</p></div>
@@ -164,8 +206,10 @@ export default function InstitutionSettings() {
           <div className="form-grid">
             <div style={fieldStyle}><label style={labelStyle} htmlFor="institution-name">Nom complet</label><input id="institution-name" name="name" className="input-premium" value={formData.name} onChange={handleChange} placeholder="Ex. Institut de Formation aux Métiers" required /></div>
             <div style={fieldStyle}><label style={labelStyle} htmlFor="institution-short-name">Sigle</label><input id="institution-short-name" name="shortName" className="input-premium" value={formData.shortName} onChange={handleChange} placeholder="Ex. IFM" required /></div>
-            <div style={fieldStyle}><label style={labelStyle} htmlFor="institution-app-name">Nom de l’application</label><input id="institution-app-name" name="appName" className="input-premium" value={formData.appName} onChange={handleChange} placeholder="Ex. Gestion IFM" /></div>
-            <div style={fieldStyle}><label style={labelStyle} htmlFor="institution-type">Type d’établissement</label><input id="institution-type" name="typeLabel" className="input-premium" value={formData.typeLabel} onChange={handleChange} placeholder="École / institut de formation professionnelle" /></div>
+            {!onboarding && <>
+              <div style={fieldStyle}><label style={labelStyle} htmlFor="institution-app-name">Nom de l’application</label><input id="institution-app-name" name="appName" className="input-premium" value={formData.appName} onChange={handleChange} placeholder="Ex. Gestion IFM" /></div>
+              <div style={fieldStyle}><label style={labelStyle} htmlFor="institution-type">Type d’établissement</label><input id="institution-type" name="typeLabel" className="input-premium" value={formData.typeLabel} onChange={handleChange} placeholder="École / institut de formation professionnelle" /></div>
+            </>}
             <div style={fieldStyle}><label style={labelStyle} htmlFor="institution-city">Ville</label><input id="institution-city" name="city" className="input-premium" value={formData.city} onChange={handleChange} placeholder="Ex. Casablanca" /></div>
             <div style={fieldStyle}><label style={labelStyle} htmlFor="institution-country">Pays</label><input id="institution-country" name="country" className="input-premium" value={formData.country} onChange={handleChange} placeholder="Ex. Maroc" /></div>
           </div>
@@ -210,6 +254,7 @@ export default function InstitutionSettings() {
             <div style={fieldStyle}><label style={labelStyle} htmlFor="institution-accent-color">Couleur accent</label><div className="institution-color-input"><input id="institution-accent-color" type="color" value={activePalette.accent} onChange={event => handleCustomColorChange('accentColor', event.target.value)} /><code>{activePalette.accent}</code></div></div>
           </div>}
 
+          {!onboarding && <>
           <div className="institution-settings-section-heading institution-settings-section-heading-spaced">
             <span className="dashboard-stat-icon"><Globe2 size={18} /></span>
             <div><h2>Portails et identifiants</h2><p>Paramètres techniques utilisés par les portails publics et les matricules.</p></div>
@@ -221,9 +266,10 @@ export default function InstitutionSettings() {
             <div style={fieldStyle}><label style={labelStyle} htmlFor="institution-auth-domain"><Mail size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} /> Domaine email technique</label><input id="institution-auth-domain" name="authEmailDomain" className="input-premium" value={formData.authEmailDomain} onChange={handleChange} placeholder="ecole.example" /></div>
             <div style={fieldStyle}><label style={labelStyle} htmlFor="institution-student-prefix">Préfixe des matricules</label><input id="institution-student-prefix" name="studentIdPrefix" className="input-premium" value={formData.studentIdPrefix} onChange={handleChange} placeholder="EFP" maxLength={12} /></div>
           </div>
+          </>}
 
-          <div className="institution-settings-notice"><ShieldCheck size={16} /><span>Seuls les administrateurs peuvent enregistrer ces paramètres. Le logo importé est optimisé avant d’être enregistré dans le profil de l’établissement.</span></div>
-          <div className="institution-settings-actions"><button type="submit" className="btn-modern primary" disabled={!isAdmin || saving || logoLoading}><Save size={16} /> {saving ? 'Enregistrement…' : 'Enregistrer le profil'}</button></div>
+          <div className="institution-settings-notice"><ShieldCheck size={16} /><span>{onboarding ? 'Le nom et le sigle sont obligatoires. En mode école, choisissez au moins un cycle. Le logo et la palette peuvent être modifiés plus tard.' : 'Seuls les administrateurs peuvent enregistrer ces paramètres. Le logo importé est optimisé avant d’être enregistré dans le profil de l’établissement.'}</span></div>
+          <div className="institution-settings-actions"><button type="submit" className="btn-modern primary" disabled={!isAdmin || saving || logoLoading}><Save size={16} /> {saving ? 'Enregistrement…' : onboarding ? 'Enregistrer et accéder à l’accueil' : 'Enregistrer le profil'}</button></div>
         </form>
 
         <aside className="institution-brand-preview" style={{ '--preview-primary': activePalette.primary, '--preview-accent': activePalette.accent, '--preview-primary-dark': activePalette.primaryDark }}>

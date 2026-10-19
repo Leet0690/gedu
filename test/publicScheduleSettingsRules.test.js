@@ -35,6 +35,13 @@ test('public scheduling scope follows private settings and permits only administ
     await denied(setDoc(doc(admin, 'public_settings', 'schedule'), { ...scope, activeSemester: 'S3' }));
     await denied(setDoc(doc(admin, 'public_settings', 'schedule'), { ...scope, activeSemester: 'S1' }));
     await denied(deleteDoc(doc(admin, 'public_settings', 'schedule')));
+    const publicInstitution = { name: 'École de test', logoUrl: '', educationType: 'private_school', schoolCycles: ['Primaire'] };
+    await setDoc(doc(admin, 'public_settings', 'institution'), publicInstitution);
+    assert.deepEqual((await getDocFromServer(doc(visitor, 'public_settings', 'institution'))).data(), publicInstitution);
+    await denied(setDoc(doc(visitor, 'public_settings', 'institution'), publicInstitution));
+    await denied(setDoc(doc(reader, 'public_settings', 'institution'), publicInstitution));
+    await denied(setDoc(doc(admin, 'public_settings', 'institution'), { ...publicInstitution, authEmailDomain: 'private.example' }));
+    await denied(setDoc(doc(admin, 'public_settings', 'institution'), { ...publicInstitution, educationType: 'invalid' }));
     const next = { ...scope, activeSemester: 'S1' };
     const batch = writeBatch(admin);
     batch.set(doc(admin, 'settings', 'app'), next, { merge: true });

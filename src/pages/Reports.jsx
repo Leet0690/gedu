@@ -1,8 +1,10 @@
+import { educationText } from '../utils/education';
 import { loadLogoDataUrl } from '../utils/loadLogoDataUrl.js';
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { institutionConfig } from '../config/institution';
+import SchoolRecords from './SchoolRecords';
 import EmptyState from '../components/EmptyState';
 import { FilterSelect } from '../components/ui/FilterSelect';
 import {
@@ -1325,7 +1327,7 @@ const Reports = () => {
       {/* Filter bar */}
       <div className="glass-card reports-premium-filter-card app-filter-grid app-filter-grid--5" style={{ padding: 'var(--space-5)' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={labelStyle}>Année académique</label>
+          <label style={labelStyle}>{educationText("Année académique")}</label>
           <FilterSelect
             value={selectedAcademicYear}
             onChange={setSelectedAcademicYear}
@@ -1334,7 +1336,7 @@ const Reports = () => {
           />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={labelStyle}>Niveau</label>
+          <label style={labelStyle}>{educationText("Niveau")}</label>
           <FilterSelect 
             value={selectedDiploma} 
             onChange={val => { setSelectedDiploma(val); setSelectedMajor(''); setSelectedYear(''); }}
@@ -1343,21 +1345,21 @@ const Reports = () => {
           />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={labelStyle}>Année d'étude</label>
+          <label style={labelStyle}>{educationText("Année d'étude")}</label>
           <FilterSelect 
             value={selectedYear} 
             onChange={setSelectedYear} 
             options={[
               { label: 'Toutes les années', value: '' },
               ...availableStudyYears.map(y => ({ label: y, value: y })),
-              ...(selectedAcademicYear !== operationalAcademicYear ? [{ label: "Lauréat (Diplômés)", value: "Lauréat" }] : [])
+              ...(selectedAcademicYear !== operationalAcademicYear ? [{ label: educationText("Lauréat (Diplômés)"), value: "Lauréat" }] : [])
             ]} 
             style={{ minWidth: '150px' }} 
           />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={labelStyle}>Filière</label>
-          <FilterSelect value={selectedMajor} onChange={val => setSelectedMajor(val)} options={[{ label: 'Toutes les filières', value: '' }, ...availableMajors.map(m => ({ label: m, value: m }))]} style={{ minWidth: '200px' }} />
+          <label style={labelStyle}>{educationText("Filière")}</label>
+          <FilterSelect value={selectedMajor} onChange={val => setSelectedMajor(val)} options={[{ label: educationText("Toutes les filières"), value: '' }, ...availableMajors.map(m => ({ label: m, value: m }))]} style={{ minWidth: '200px' }} />
         </div>
         <button
           onClick={handleExportClassExcel}
@@ -1379,8 +1381,8 @@ const Reports = () => {
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }} className="glass-card reports-premium-ranking-card" style={{ overflow: 'hidden' }}>
         <div style={{ padding: '20px 20px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-light)' }}>
           <div>
-            <h3 style={{ fontSize: 'var(--text-base)', fontWeight: '800' }}>Classement des Stagiaires</h3>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Moyenne pondérée par coefficient · {analytics.filteredStudentsCount} stagiaire{analytics.filteredStudentsCount !== 1 ? 's' : ''}</p>
+            <h3 style={{ fontSize: 'var(--text-base)', fontWeight: '800' }}>{educationText("Classement des Stagiaires")}</h3>
+            <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Moyenne pondérée par coefficient · {analytics.filteredStudentsCount}{educationText(" stagiaire")}{analytics.filteredStudentsCount !== 1 ? 's' : ''}</p>
           </div>
           {!hasAttendanceData && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', color: 'var(--text-faint)', background: 'var(--bg-subtle)', padding: '4px 10px', borderRadius: '20px' }}>
@@ -1392,7 +1394,7 @@ const Reports = () => {
         {sortedRankings.length === 0 ? (
           <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-faint)', fontSize: '13px' }}>
             <Users size={28} style={{ opacity: 0.2, marginBottom: '8px' }} />
-            <p>Aucun stagiaire dans ce groupe</p>
+            <p>{educationText("Aucun stagiaire dans ce groupe")}</p>
           </div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
@@ -1494,7 +1496,7 @@ const Reports = () => {
       {/* KPI strip */}
       <div className="reports-premium-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '12px' }}>
         <KPICard
-          delay={0} label="Stagiaires" icon={Users}
+          delay={0} label={educationText("Stagiaires")} icon={Users}
           iconBg="rgba(var(--primary-rgb), 0.08)" color="var(--text-muted)"
           value={analytics.filteredStudentsCount}
           sub={`${selectedMajor} · ${selectedYear}`}
@@ -1507,13 +1509,13 @@ const Reports = () => {
           sub={analytics.classAvg !== null ? (analytics.classAvg >= 10 ? 'Classe admissible' : 'Classe en difficulté') : 'Aucune note saisie'}
         />
         <KPICard
-          delay={0.1} label="Meilleur module" icon={TrendingUp}
+          delay={0.1} label={educationText("Meilleur module")} icon={TrendingUp}
           iconBg="rgba(22,163,74,0.08)" color="#16a34a"
           value={analytics.bestModule ? analytics.bestModule.moyenne + '/20' : '—'}
           sub={analytics.bestModule?.fullName || ''}
         />
         <KPICard
-          delay={0.15} label="Module à risque" icon={TrendingDown}
+          delay={0.15} label={educationText("Module à risque")} icon={TrendingDown}
           iconBg="rgba(220,38,38,0.07)" color="#dc2626"
           value={analytics.worstModule ? analytics.worstModule.moyenne + '/20' : '—'}
           sub={analytics.worstModule?.fullName || ''}
@@ -1576,7 +1578,7 @@ const Reports = () => {
         {/* Bar: Inter-module comparison */}
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }} className="glass-card reports-premium-chart-card" style={{ padding: 'var(--space-6)', minHeight: '360px' }}>
           <div style={{ marginBottom: 'var(--space-5)' }}>
-            <h3 style={{ fontSize: 'var(--text-base)', fontWeight: '800' }}>Comparatif Inter-Modules</h3>
+            <h3 style={{ fontSize: 'var(--text-base)', fontWeight: '800' }}>{educationText("Comparatif Inter-Modules")}</h3>
             <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Classement par moyenne finale (pondérée)</p>
           </div>
           <div style={{ height: '270px' }}>
@@ -1601,4 +1603,9 @@ const Reports = () => {
   );
 };
 
-export default Reports;
+function EducationReports() {
+  const { institution } = useApp();
+  return institution.educationType === 'private_school' ? <SchoolRecords reportsOnly /> : <Reports />;
+}
+
+export default EducationReports;

@@ -1,3 +1,4 @@
+import { educationText } from '../utils/education';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import React, { useState, useMemo, useEffect } from 'react';
 import './AttendanceColors.css';
@@ -310,7 +311,7 @@ const TeacherAttendance = () => {
         <div className="attendance-premium-header-icon"><UserCheck size={24} /></div>
         <div className="attendance-premium-header-copy">
           <span className="attendance-premium-eyebrow">Suivi des vacations</span>
-          <h1>Présences Formateurs</h1>
+          <h1>{educationText("Présences Formateurs")}</h1>
           <p>Suivi des vacations et pointage des séances de cours.</p>
         </div>
         <div className="attendance-premium-header-orb" aria-hidden="true"><GraduationCap size={112} /></div>
@@ -352,7 +353,7 @@ const TeacherAttendance = () => {
                 <div className="input-premium" style={{ background: 'var(--bg-subtle)', fontWeight: '800', color: 'var(--primary)', textAlign: 'center' }}>{dayOfWeek}</div>
               </div>
               <div style={fGroup}>
-                <label style={labelStyle}>Recherche Formateur</label>
+                <label style={labelStyle}>{educationText("Recherche Formateur")}</label>
                 <div style={{ position: 'relative' }}>
                   <Search size={14} style={fIcon} />
                   <input type="text" className="input-premium" style={{ width: '100%', paddingLeft: '34px' }} placeholder="Nom..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
@@ -380,8 +381,8 @@ const TeacherAttendance = () => {
                     <thead>
                       <tr style={{ background: 'var(--bg-subtle)' }}>
                         <th style={{ ...thStyle, width: '50px', textAlign: 'center' }}>#</th>
-                        <th style={thStyle}>Formateur</th>
-                        <th style={thStyle}>Module & Horaire</th>
+                        <th style={thStyle}>{educationText("Formateur")}</th>
+                        <th style={thStyle}>{educationText("Module & Horaire")}</th>
                         <th style={thStyle}>Groupes</th>
                         <th style={{ ...thStyle, textAlign: 'center', width: '100px' }}>Heures</th>
                         <th style={{ ...thStyle, textAlign: 'center', width: '220px' }}>Statut</th>
@@ -477,7 +478,7 @@ const TeacherAttendance = () => {
                 </div>
               </div>
               <div>
-                <label style={labelStyle}>Année</label>
+                <label style={labelStyle}>{educationText("Année")}</label>
                 <FilterSelect
                   value={mYear}
                   onChange={(val) => setMYear(Number(val))}
@@ -489,7 +490,7 @@ const TeacherAttendance = () => {
                 <label style={labelStyle}>Rechercher</label>
                 <div style={{ position: 'relative' }}>
                   <Search size={13} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)' }} />
-                  <input type="text" className="input-premium" style={{ width: '100%', paddingLeft: '34px' }} placeholder="Nom du formateur..." value={mSearch} onChange={e => setMSearch(e.target.value)} />
+                  <input type="text" className="input-premium" style={{ width: '100%', paddingLeft: '34px' }} placeholder={educationText("Nom du formateur...")} value={mSearch} onChange={e => setMSearch(e.target.value)} />
                 </div>
               </div>
 
@@ -499,7 +500,7 @@ const TeacherAttendance = () => {
           {/* Monthly stats */}
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', gap: '12px', marginBottom: 'var(--space-5)', flexWrap: 'wrap' }}>
             {[
-              { label: 'Formateurs', value: mFilteredTeachers.length, color: 'var(--primary)', bg: 'var(--primary-ultra-light)' },
+              { label: educationText("Formateurs"), value: mFilteredTeachers.length, color: 'var(--primary)', bg: 'var(--primary-ultra-light)' },
               { label: 'Jours Présents', value: mGlobalStats.present, color: '#15803d', bg: 'rgba(22,163,74,0.08)' },
               { label: 'Jours Absents', value: mGlobalStats.absent, color: '#dc2626', bg: 'rgba(220,38,38,0.08)' },
               { label: 'Total Heures', value: `${mGlobalStats.totalHours}h`, color: '#0ea5e9', bg: 'rgba(14,165,233,0.08)' },
@@ -530,7 +531,7 @@ const TeacherAttendance = () => {
             {mFilteredTeachers.length === 0 ? (
               <div style={{ padding: '64px', textAlign: 'center' }}>
                 <GraduationCap size={40} style={{ color: 'var(--text-faint)', margin: '0 auto 16px', display: 'block' }} />
-                <p style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-muted)' }}>Aucun formateur trouvé.</p>
+                <p style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-muted)' }}>{educationText("Aucun formateur trouvé.")}</p>
               </div>
             ) : (
               <div style={{ overflowX: 'auto' }}>
@@ -544,7 +545,7 @@ const TeacherAttendance = () => {
                   <thead>
                     <tr style={{ background: 'var(--bg-subtle)' }}>
                       <th style={mThStyle}>#</th>
-                      <th style={{ ...mThStyle, textAlign: 'left', position: 'sticky', left: 0, background: 'var(--bg-subtle)', zIndex: 10 }}>Formateur</th>
+                      <th style={{ ...mThStyle, textAlign: 'left', position: 'sticky', left: 0, background: 'var(--bg-subtle)', zIndex: 10 }}>{educationText("Formateur")}</th>
                       {mDays.map(d => {
                         const isWeekend = new Date(mYear, mMonth, d).getDay() % 6 === 0;
                         return <th key={d} style={{ ...mThStyle, color: isWeekend ? 'var(--primary)' : 'var(--text-muted)', background: isWeekend ? 'rgba(var(--primary-rgb), 0.05)' : 'var(--bg-subtle)' }}>{d}</th>;

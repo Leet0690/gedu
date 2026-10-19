@@ -1,13 +1,18 @@
 import { useState } from 'react';
 import { getClosureDecisionOptions, getRecordedClosureDecision } from '../utils/academicYearClosure';
+import { useApp } from '../context/AppContext';
+import { isSchoolStudent } from '../config/educationProfiles';
+import { getSchoolPlacementOptions } from '../utils/schoolPlacement';
 
 export default function ClosureDecisionEditor({ student, onSave }) {
+  const { academicCatalog } = useApp();
   const entry = student.classHistory?.at(-1);
   const [decision, setDecision] = useState('');
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [targetPlacement, setTargetPlacement] = useState(null);
   if (!entry?.operationId) return null;
   const options = getClosureDecisionOptions({ ...student, diploma: entry.diploma || student.diploma, year: entry.year });
   const recorded = getRecordedClosureDecision(student, entry);
@@ -18,6 +23,7 @@ export default function ClosureDecisionEditor({ student, onSave }) {
       await onSave({
         studentId: student.id, academicYear: entry.academicYear, decision,
         expectedRevision: entry.revision || 0, reason: reason.trim(),
+        ...(targetPlacement ? { targetPlacement } : {}),
       });
       setDecision(''); setReason(''); setSuccess(true);
     } catch (err) {
@@ -37,6 +43,12 @@ export default function ClosureDecisionEditor({ student, onSave }) {
         <option value="">Choisir une décision…</option>
         {options.map(option => <option key={option.value} value={option.value} disabled={option.disabled || option.value === recorded}>{option.label}</option>)}
       </select>
+      {isSchoolStudent(student) && decision === 'pass' && <label>Classe d’accueil
+        <select className="input-premium" required value={targetPlacement ? JSON.stringify(targetPlacement) : ''} onChange={event => setTargetPlacement(event.target.value ? JSON.parse(event.target.value) : null)}>
+          <option value="">Choisir une classe</option>
+          {getSchoolPlacementOptions({ ...student, diploma: entry.diploma, year: entry.year }, academicCatalog).map(placement => <option key={placement.major} value={JSON.stringify(placement)}>{placement.diploma} · {placement.year} · {placement.major}</option>)}
+        </select>
+      </label>}
       <label htmlFor="correct-closure-reason">Motif de la correction (facultatif)</label>
       <input id="correct-closure-reason" className="input-premium" value={reason} disabled={saving} maxLength={500}
         onChange={event => setReason(event.target.value)} style={{ width: '100%', margin: '8px 0' }} />

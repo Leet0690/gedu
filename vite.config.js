@@ -23,6 +23,7 @@ export default defineConfig(({ mode }) => {
           start_url: '/',
           scope: '/',
           lang: 'fr',
+          icons: [{ src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }],
         },
         workbox: {
           clientsClaim: true,

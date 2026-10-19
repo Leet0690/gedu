@@ -1,3 +1,4 @@
+import { educationText } from '../utils/education';
 import React, { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAdminAuth } from '../context/AdminAuthContext';
@@ -367,9 +368,7 @@ const ScheduleGeneration = () => {
         <h2 style={{ fontSize: '24px', fontWeight: '900', color: 'var(--text-primary)', marginBottom: '12px' }}>
           Génération Automatique
         </h2>
-        <p style={{ color: 'var(--text-muted)', maxWidth: '400px', lineHeight: '1.6' }}>
-          Ce module est en cours de développement. Il permettra bientôt de générer et répartir les emplois du temps automatiquement en détectant les cours communs et les conflits.
-        </p>
+        <p style={{ color: 'var(--text-muted)', maxWidth: '400px', lineHeight: '1.6' }}>{educationText("Ce module est en cours de développement. Il permettra bientôt de générer et répartir les emplois du temps automatiquement en détectant les cours communs et les conflits.")}</p>
       </div>
     );
   }
@@ -382,7 +381,7 @@ const ScheduleGeneration = () => {
           <Wand2 size={24} />
         </div>
         <div className="schedule-premium-header-copy">
-          <span className="schedule-premium-eyebrow">Module automatisé</span>
+          <span className="schedule-premium-eyebrow">{educationText("Module automatisé")}</span>
           <h1>Génération des Emplois du Temps</h1>
           <p>Créez et répartissez les emplois du temps automatiquement.</p>
         </div>
@@ -520,8 +519,7 @@ const ScheduleGeneration = () => {
                           <div className="group-code">{group.code}</div>
                           <div className="group-filiere">{group.filiere}</div>
                           <div style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-faint)', marginTop: '4px' }}>
-                            {group.annee} · {group.moduleCount} modules
-                          </div>
+                            {group.annee} · {group.moduleCount}{educationText(" modules")}</div>
                         </div>
                       ))}
                     </div>
@@ -607,9 +605,9 @@ const ScheduleGeneration = () => {
                 <table className="sched-gen-assign-table">
                   <thead>
                     <tr>
-                      <th>Module</th>
+                      <th>{educationText("Module")}</th>
                       <th>Groupe(s)</th>
-                      <th>Formateur</th>
+                      <th>{educationText("Formateur")}</th>
                       <th>Durée</th>
                     </tr>
                   </thead>
@@ -744,7 +742,7 @@ const ScheduleGeneration = () => {
                       <div className="sched-gen-stat-value">
                         {Object.keys(generatedResult.stats?.hoursByTeacher || {}).length}
                       </div>
-                      <div className="sched-gen-stat-label">Formateurs</div>
+                      <div className="sched-gen-stat-label">{educationText("Formateurs")}</div>
                     </div>
                   </div>
 
@@ -760,8 +758,7 @@ const ScheduleGeneration = () => {
                           <div className="alert-title"><XCircle size={16} /> Conflits détectés</div>
                           <div className="alert-items">
                             {validationResult.teacherConflicts.map((c, i) => (
-                              <div key={`t${i}`} className="alert-item">
-                                ⚠️ Formateur «{c.teacher}» double-booké le {c.day} ({c.time1} & {c.time2})
+                              <div key={`t${i}`} className="alert-item">{educationText("⚠️ Formateur «")}{c.teacher}» double-booké le {c.day} ({c.time1} & {c.time2})
                               </div>
                             ))}
                             {validationResult.groupConflicts.map((c, i) => (
@@ -888,7 +885,7 @@ const ScheduleGeneration = () => {
                   <div className="sched-gen-stat-value">
                     {Object.keys(generatedResult.stats?.hoursByTeacher || {}).length}
                   </div>
-                  <div className="sched-gen-stat-label">Formateurs</div>
+                  <div className="sched-gen-stat-label">{educationText("Formateurs")}</div>
                 </div>
                 <div className="sched-gen-stat-card">
                   <div className="sched-gen-stat-value">{semester}</div>

@@ -1,3 +1,4 @@
+import { educationText } from '../utils/education';
 import PortalBrand from '../components/PortalBrand';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './ScheduleManagement.css';
@@ -123,7 +124,7 @@ const StudentScheduleView = () => {
         <div className="schedule-premium-header">
           <div className="schedule-premium-header-icon"><CalendarDays size={24} /></div>
           <div className="schedule-premium-header-copy">
-            <span className="schedule-premium-eyebrow">Consultation Stagiaire</span>
+            <span className="schedule-premium-eyebrow">{educationText("Consultation Stagiaire")}</span>
             <h1>Consultation de l’emploi du temps</h1>
             <p>Votre planning hebdomadaire et vos séances de cours.</p>
           </div>
@@ -146,7 +147,7 @@ const StudentScheduleView = () => {
           <CalendarDays size={24} />
         </div>
         <div className="schedule-premium-header-copy">
-          <span className="schedule-premium-eyebrow">Consultation Stagiaire</span>
+          <span className="schedule-premium-eyebrow">{educationText("Consultation Stagiaire")}</span>
           <h1>Emploi du Temps - {groupLabel}</h1>
           <p>{filiere} ({annee}) · Consultation en lecture seule</p>
         </div>
@@ -246,7 +247,7 @@ const StudentScheduleView = () => {
                             <div className="home-schedule-event-time">
                               <Clock size={8} /><span>{session.start}–{session.end}</span>
                             </div>
-                            <div className="home-schedule-event-title">{displayedModule || 'Module non défini'}</div>
+                            <div className="home-schedule-event-title">{displayedModule || educationText("Module non défini")}</div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '4px', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
                               {session.room && (
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', width: '100%' }}>

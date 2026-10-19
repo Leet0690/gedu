@@ -1,3 +1,4 @@
+import { educationText } from '../utils/education';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -59,7 +60,7 @@ const NAV_CATEGORIES = [
     icon: Library,
     color: "text-brand-500",
     items: [
-      { to: "/admin/modules", icon: Boxes, label: "Modules", color: "text-brand-500", pageKey: 'modules' },
+      { to: "/admin/modules", icon: Boxes, label: 'Modules', color: "text-brand-500", pageKey: 'modules' },
       { to: "/admin/grades", icon: PenTool, label: "Notes", color: "text-amber-500", pageKey: 'grades' },
       { to: "/admin/reports", icon: LineChart, label: "Rapports", color: "text-emerald-500", pageKey: 'reports' },
       { to: "/admin/schedules", icon: CalendarDays, label: "Emplois du Temps", color: "text-orange-500", pageKey: 'schedules' },
@@ -71,8 +72,8 @@ const NAV_CATEGORIES = [
     icon: ClipboardList,
     color: "text-rose-500",
     items: [
-      { to: "/admin/attendance-students", icon: UserX, label: "Absences Stagiaires", color: "text-rose-500", pageKey: 'attendance_students' },
-      { to: "/admin/attendance-teachers", icon: UserCheck, label: "Présences Formateurs", color: "text-teal-500", pageKey: 'attendance_teachers' },
+      { to: "/admin/attendance-students", icon: UserX, label: 'Absences Stagiaires', color: "text-rose-500", pageKey: 'attendance_students' },
+      { to: "/admin/attendance-teachers", icon: UserCheck, label: 'Présences Formateurs', color: "text-teal-500", pageKey: 'attendance_teachers' },
     ]
   },
   {
@@ -80,13 +81,13 @@ const NAV_CATEGORIES = [
     icon: Settings,
     color: "text-brand-500",
     items: [
-      { to: "/admin/students", icon: Users, label: "Stagiaires", color: "text-sky-500", pageKey: 'students' },
-      { to: "/admin/teachers", icon: Presentation, label: "Formateurs", color: "text-brand-500", pageKey: 'teachers' },
+      { to: "/admin/students", icon: Users, label: 'Stagiaires', color: "text-sky-500", pageKey: 'students' },
+      { to: "/admin/teachers", icon: Presentation, label: 'Formateurs', color: "text-brand-500", pageKey: 'teachers' },
       { to: "/admin/continuous", icon: GraduationCap, label: "Formations Continues", color: "text-brand-500", pageKey: 'continuous' },
       { to: "/admin/finance", icon: Wallet, label: "Finance", color: "text-green-600", pageKey: 'finance' },
       { to: "/admin/users", icon: ShieldCheck, label: "Utilisateurs & Droits", color: "text-blue-600", pageKey: 'users' },
       { to: "/admin/institution", icon: School, label: "Établissement", color: "text-indigo-600", pageKey: 'users' },
-      { to: "/admin/catalog", icon: ListTree, label: "Niveaux / Filières", color: "text-emerald-600", pageKey: 'catalog' },
+      { to: "/admin/catalog", icon: ListTree, label: 'Niveaux / Filières', color: "text-emerald-600", pageKey: 'catalog' },
       { to: "/admin/import", icon: FileSpreadsheet, label: "Import Excel", color: "text-amber-600", pageKey: 'catalog' },
     ]
   }
@@ -169,6 +170,7 @@ export default function DashboardLayout({ children }) {
   const visibleNavCategories = useMemo(() => {
     return NAV_CATEGORIES.map(cat => {
       const visibleItems = cat.items.filter(item => {
+        if (institution.educationType === 'private_school' && item.pageKey === 'continuous') return false;
         if (!item.pageKey) return true;
         return hasPermission(item.pageKey, 'view');
       });
@@ -177,7 +179,7 @@ export default function DashboardLayout({ children }) {
         items: visibleItems
       };
     }).filter(cat => cat.items.length > 0);
-  }, [hasPermission]);
+  }, [hasPermission, institution.educationType]);
 
   // Click outside to close sidebar (Desktop)
   useEffect(() => {
@@ -249,14 +251,14 @@ export default function DashboardLayout({ children }) {
         
         {((!isMobile && isSidebarOpen) || isMobile) && (
           <span className="relative z-10 whitespace-nowrap transition-transform duration-200 group-hover:translate-x-1">
-            {item.label}
+            {educationText(item.label)}
           </span>
         )}
 
         {/* Tooltip for reduced menu */}
         {!isMobile && !isSidebarOpen && (
           <div className="premium-nav-tooltip absolute left-full top-1/2 ml-2 -translate-y-1/2 rounded-lg backdrop-blur-md border border-white/20 px-3 py-1.5 text-[11px] font-bold tracking-wide text-white opacity-0 scale-90 shadow-elevated transition-all duration-300 ease-out group-hover:ml-4 group-hover:scale-100 group-hover:opacity-100 z-[100] pointer-events-none whitespace-nowrap">
-            {item.label}
+            {educationText(item.label)}
           </div>
         )}
       </Link>
@@ -297,7 +299,7 @@ export default function DashboardLayout({ children }) {
       <div className="premium-layout-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
         
         <AdminTopbar
-          pageTitle={visibleNavCategories.flatMap(category => category.items).find(item => item.to === location.pathname)?.label}
+          pageTitle={educationText(visibleNavCategories.flatMap(category => category.items).find(item => item.to === location.pathname)?.label)}
           isSidebarOpen={isSidebarOpen}
           onToggleSidebar={() => setIsSidebarOpen(previous => !previous)}
           onOpenMobileMenu={() => setIsMobileMenuOpen(true)}

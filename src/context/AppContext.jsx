@@ -53,6 +53,10 @@ import { getPublicScheduleSettings } from '../utils/publicScheduleSettings';
 import { loadTeacherPortalGrades, loadStudentPortalGrades, closeTeacherGradePortalConnection } from '../services/teacherGradePortalService';
 import { recordClassAttendanceActivity } from '../services/classAttendanceActivity';
 import { applyInstitutionTheme, getInstitutionConfig } from '../config/institution';
+import { setEducationInstitution, educationText } from '../utils/education';
+import { getPublicInstitution } from '../utils/publicInstitution';
+import { isSchoolStudent } from '../config/educationProfiles';
+import { validateSchoolPlacement } from '../utils/schoolPlacement';
 
 const AppContext = createContext();
 const ACCESS_LOG_LIMIT = 5;
@@ -544,6 +548,8 @@ export const AppProvider = ({ children }) => {
   // The active year is only the local year currently being viewed.
   const [activeAcademicYear, setActiveAcademicYearState] = useState(readCachedOperationalAcademicYear);
   const [institution, setInstitutionState] = useState(getInstitutionConfig);
+  const [institutionSetupLoaded, setInstitutionSetupLoaded] = useState(false);
+  const [institutionSetupCompleted, setInstitutionSetupCompleted] = useState(false);
   const [academicCatalogDefinition, setAcademicCatalogDefinition] = useState({});
   useEffect(() => {
     applyInstitutionTheme(institution);
@@ -554,7 +560,8 @@ export const AppProvider = ({ children }) => {
     schedules,
     includeStarterCatalog: false,
     configuredGroups: academicCatalogDefinition,
-  }), [academicCatalogDefinition, modules, schedules, students]);
+    educationType: institution.educationType, schoolCycles: institution.schoolCycles,
+  }), [academicCatalogDefinition, institution.educationType, institution.schoolCycles, modules, schedules, students]);
   const operationalAcademicYearRef = useRef(operationalAcademicYear);
   const [loading, setLoading] = useState(true);
   const [teacherPortalSettingsError, setTeacherPortalSettingsError] = useState('');
@@ -604,11 +611,11 @@ export const AppProvider = ({ children }) => {
     return new Promise((resolve) => {
       setConfirmState({
         isOpen: true,
-        title: options.title || 'Confirmation',
-        message: options.message || 'ÃŠtes-vous sûr de vouloir continuer ?',
+        title: educationText(options.title || 'Confirmation'),
+        message: educationText(options.message || 'Voulez-vous continuer ?'),
         type: options.type || 'danger',
-        confirmText: options.confirmText || '',
-        cancelText: options.cancelText || '',
+        confirmText: educationText(options.confirmText || ''),
+        cancelText: educationText(options.cancelText || ''),
         resolve
       });
     });
@@ -625,14 +632,35 @@ export const AppProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (isAuthenticated) return;
+    return onSnapshot(doc(db, 'public_settings', 'institution'), snapshot => {
+      if (!snapshot.exists()) return;
+      const nextInstitution = getInstitutionConfig(snapshot.data());
+      setEducationInstitution(nextInstitution);
+      setInstitutionState(nextInstitution);
+    }, error => console.warn('Profil public indisponible :', error.code));
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setInstitutionSetupLoaded(false);
+      setInstitutionSetupCompleted(false);
+      return;
+    }
+    setInstitutionSetupLoaded(false);
     const settingsRef = doc(db, 'settings', 'app');
     let bootstrapInProgress = false;
     let publishedScopeKey = '';
 
     const unsubscribe = onSnapshot(settingsRef, { includeMetadataChanges: true }, snapshot => {
       const settings = snapshot.exists() ? snapshot.data() : {};
-      setInstitutionState({ ...getInstitutionConfig(settings.institution || {}), useStarterCatalog: false });
+      if (!snapshot.metadata.fromCache && !snapshot.metadata.hasPendingWrites) {
+        setInstitutionSetupCompleted(settings.institutionSetupCompleted === true);
+        setInstitutionSetupLoaded(true);
+      }
+      const nextInstitution = { ...getInstitutionConfig(settings.institution || {}), useStarterCatalog: false };
+      setEducationInstitution(nextInstitution);
+      setInstitutionState(nextInstitution);
       setAcademicCatalogDefinition(normalizeAcademicCatalogGroups(settings.academicCatalog?.groups || {}));
       const hasOperationalAcademicYear = validateAcademicYear(settings?.operationalAcademicYear);
       const nextOperationalAcademicYear = hasOperationalAcademicYear
@@ -694,12 +722,14 @@ export const AppProvider = ({ children }) => {
       }
     }, error => {
       console.warn('Impossible de charger les paramètres actifs:', error);
+      setInstitutionSetupLoaded(true);
+      setInstitutionSetupCompleted(false);
     });
 
     return unsubscribe;
   }, [isAuthenticated, isDirectorAuth, isAdmin]);
 
-  const updateInstitution = useCallback(async (updates = {}) => {
+  const updateInstitution = useCallback(async (updates = {}, { completeSetup = false } = {}) => {
     if (!isAdmin) {
       originalShowToast('Seul un administrateur peut modifier le profil de l’établissement.', 'error');
       return false;
@@ -707,11 +737,20 @@ export const AppProvider = ({ children }) => {
 
     const nextInstitution = getInstitutionConfig({ ...institution, ...updates });
     try {
-      await setDoc(doc(db, 'settings', 'app'), {
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'settings', 'app'), {
         institution: nextInstitution,
+        ...(completeSetup ? { institutionSetupCompleted: true } : {}),
         updatedAt: serverTimestamp(),
       }, { merge: true });
+      batch.set(doc(db, 'public_settings', 'institution'), getPublicInstitution(nextInstitution));
+      await batch.commit();
+      setEducationInstitution(nextInstitution);
       setInstitutionState(nextInstitution);
+      if (completeSetup) {
+        setInstitutionSetupCompleted(true);
+        setInstitutionSetupLoaded(true);
+      }
       showToast('Profil de l’établissement mis à jour.', 'success');
       return true;
     } catch (error) {
@@ -727,7 +766,9 @@ export const AppProvider = ({ children }) => {
       return false;
     }
 
-    const normalizedGroups = normalizeAcademicCatalogGroups(groups);
+    const otherProfileGroups = Object.fromEntries(Object.entries(academicCatalogDefinition).filter(([diploma]) =>
+      (institution.educationType === 'private_school') !== ['Primaire', 'Collège', 'Lycée'].includes(diploma)));
+    const normalizedGroups = { ...otherProfileGroups, ...normalizeAcademicCatalogGroups(groups) };
     const nextInstitution = getInstitutionConfig({ ...institution, useStarterCatalog: false });
     try {
       await setDoc(doc(db, 'settings', 'app'), {
@@ -738,7 +779,7 @@ export const AppProvider = ({ children }) => {
         },
         institution: nextInstitution,
         updatedAt: serverTimestamp(),
-      }, { merge: true });
+      }, { mergeFields: ['academicCatalog', 'institution', 'updatedAt'] });
       setAcademicCatalogDefinition(normalizedGroups);
       setInstitutionState(nextInstitution);
       showToast('Catalogue académique mis à jour.', 'success');
@@ -748,7 +789,7 @@ export const AppProvider = ({ children }) => {
       originalShowToast('Le catalogue académique n’a pas pu être enregistré.', 'error');
       return false;
     }
-  }, [hasPermission, institution, originalShowToast, showToast]);
+  }, [academicCatalogDefinition, hasPermission, institution, originalShowToast, showToast]);
 
   const setActiveSemester = useCallback(async (semester) => {
     if (!isAdmin) { originalShowToast('Seul un administrateur peut modifier le semestre actif.', 'error'); return false; }
@@ -903,6 +944,8 @@ export const AppProvider = ({ children }) => {
                 allStudents = allStudents.concat(stuSnap.docs.map(d => ({ id: d.id, ...d.data() })));
               }
             }
+            allStudents = allStudents.filter(student => !isSchoolStudent(student) ||
+              ((teacherData.diplomas || []).includes(student.diploma) && (teacherData.years || []).includes(student.year)));
             setStudents(allStudents);
 
             // Grades: only for the loaded students
@@ -1014,7 +1057,7 @@ export const AppProvider = ({ children }) => {
     const academicYear = validateAcademicYear(studentData.academicYear)
       ? studentData.academicYear
       : operationalAcademicYear;
-    const newStudent = { ...studentData, academicYear, token, createdAt: serverTimestamp() };
+    const newStudent = { ...studentData, educationType: institution.educationType, academicYear, token, createdAt: serverTimestamp() };
     const docRef = await addDoc(collection(db, 'students'), newStudent);
     setStudents(prev => [{ id: docRef.id, ...newStudent }, ...prev]);
     showToast(`Nouveau stagiaire ajouté : ${studentData.lastName}.`, 'success');
@@ -1036,6 +1079,7 @@ export const AppProvider = ({ children }) => {
           : operationalAcademicYear;
         const newStudent = {
           ...studentData,
+          educationType: institution.educationType,
           academicYear,
           token,
           createdAt: serverTimestamp(),
@@ -1060,7 +1104,7 @@ export const AppProvider = ({ children }) => {
     showToast(`Profil stagiaire mis à jour.`, 'success');
   };
 
-  const promoteAcademicYear = async ({ fromAcademicYear = '', toAcademicYear = '', decisions = {} } = {}) => {
+  const promoteAcademicYear = async ({ fromAcademicYear = '', toAcademicYear = '', decisions = {}, placements = {} } = {}) => {
     requireEdit('administration');
     // Improvement #1: Validate academic year format
     if (!validateAcademicYearTransition(fromAcademicYear, toAcademicYear)) {
@@ -1074,6 +1118,7 @@ export const AppProvider = ({ children }) => {
 
     const closedAt = new Date().toISOString();
     const candidates = (students || [])
+      .filter(student => isSchoolStudent(student) === (institution.educationType === 'private_school'))
       .filter(isActiveStudent)
       .filter(student => isStudentCurrentlyInAcademicYear(
         student,
@@ -1090,6 +1135,10 @@ export const AppProvider = ({ children }) => {
     if (candidates.some(student => !getClosureDecisionOptions(student).some(option => option.value === decisions[student.id] && !option.disabled))) {
       showToast('Choisissez une décision pour chaque stagiaire avant la clôture.', 'error');
       return { error: 'MISSING_DECISIONS' };
+    }
+    if (candidates.some(student => isSchoolStudent(student) && decisions[student.id] === 'pass' && !validateSchoolPlacement(student, placements[student.id], academicCatalog))) {
+      showToast('Choisissez la classe d’accueil de chaque élève admis au niveau suivant.', 'error');
+      return { error: 'MISSING_PLACEMENTS' };
     }
 
     // Improvement #3: Detect double closure
@@ -1223,6 +1272,7 @@ export const AppProvider = ({ children }) => {
       const { data, type, gradeYears } = buildStudentClosure({
         student, decision: decisions[student.id], fromAcademicYear, toAcademicYear,
         operationId, closedAt, grades: grades[student.id] || {},
+        targetPlacement: placements[student.id], catalog: academicCatalog,
       });
       const localData = { ...data, token: student.token || makeToken(32) };
       const firestoreData = { ...localData, updatedAt: serverTimestamp() };
@@ -1443,7 +1493,7 @@ export const AppProvider = ({ children }) => {
     return { restoredCount: affected.length };
   };
 
-  const updateStudentClosureDecision = async ({ studentId, academicYear, decision, reason = '', expectedRevision }) => {
+  const updateStudentClosureDecision = async ({ studentId, academicYear, decision, reason = '', expectedRevision, targetPlacement }) => {
     requireEdit('administration');
     const studentRef = doc(db, 'students', studentId);
     const gradeRef = doc(db, 'grades', studentId);
@@ -1466,6 +1516,7 @@ export const AppProvider = ({ children }) => {
       const correction = buildStudentClosureCorrection({
         student, academicYear, decision, grades: gradeDocument,
         correctedAt, expectedRevision, reason: String(reason).trim().slice(0, 500),
+        targetPlacement, catalog: academicCatalog,
       });
       transaction.update(studentRef, { ...correction.data, updatedAt: serverTimestamp() });
       transaction.set(gradeRef, { [GRADE_ACADEMIC_YEARS_FIELD]: correction.gradeYears }, { merge: true });
@@ -1500,7 +1551,7 @@ export const AppProvider = ({ children }) => {
     requireEdit('teachers');
     const tokenGrades = makeToken(32);
     const tokenAttendance = makeToken(32);
-    const newTeacher = { ...teacherData, tokenGrades, tokenAttendance, createdAt: serverTimestamp() };
+    const newTeacher = { ...teacherData, educationType: institution.educationType, tokenGrades, tokenAttendance, createdAt: serverTimestamp() };
     const docRef = await addDoc(collection(db, 'teachers'), newTeacher);
     setTeachers(prev => [{ id: docRef.id, ...newTeacher }, ...prev]);
     showToast(`Nouveau formateur ajouté : ${teacherData.name}.`, 'success');
@@ -1520,6 +1571,7 @@ export const AppProvider = ({ children }) => {
         const tokenAttendance = makeToken(32);
         const newTeacher = {
           ...teacherData,
+          educationType: institution.educationType,
           tokenGrades,
           tokenAttendance,
           createdAt: serverTimestamp(),
@@ -2197,6 +2249,7 @@ export const AppProvider = ({ children }) => {
       activeSemester, setActiveSemester, getActiveScheduleModule, teacherPortalSettingsError, teacherPortalGradesError, studentPortalGradesError,
       activeAcademicYear, setActiveAcademicYear, operationalAcademicYear, availableAcademicYearsList,
       institution, updateInstitution, updateAcademicCatalog,
+      institutionSetupLoaded, institutionSetupCompleted,
       confirmAction, notifications: visibleNotifications, activityError, markNotificationAsRead, clearNotifications,
       logActivity
     }}>

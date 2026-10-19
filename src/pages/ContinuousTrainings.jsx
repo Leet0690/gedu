@@ -1,3 +1,4 @@
+import { educationText } from '../utils/education';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -209,14 +210,14 @@ const getTrainingPropertyRows = training => {
       { label: 'Langue', value: training.language },
       { label: 'Public', value: training.languageAudience },
       ...(training.languageAudience === 'ADULTES'
-        ? [{ label: 'Niveau', value: training.languageAdultLevel }]
+        ? [{ label: educationText("Niveau"), value: training.languageAdultLevel }]
         : []),
     ].filter(item => item.value);
   }
   if (training?.type === 'soutien') {
     return [
       { label: 'Cycle', value: training.cycle },
-      { label: 'Niveau', value: training.level },
+      { label: educationText("Niveau"), value: training.level },
       ...(training.subject ? [{ label: 'Matière', value: training.subject }] : []),
     ].filter(item => item.value);
   }
@@ -656,7 +657,7 @@ function FormationsTab({ trainings, trainingTypes = [], ctStudents, onAdd, onEdi
                     </div>
                     <div className="flex items-center gap-1.5 text-slate-500">
                       <Percent size={11} className="text-amber-400 shrink-0" />
-                      <span className="font-semibold">{getTeacherCompensationLabel(tr)} formateur</span>
+                      <span className="font-semibold">{getTeacherCompensationLabel(tr)}{educationText(" formateur")}</span>
                     </div>
                   </div>
 
@@ -1113,7 +1114,7 @@ function PlanningTab({ sessions, trainings, trainingTypes = [], onAddSession, on
         {levelOptions.length > 0 && typeFilter !== 'all' && (
           <Select value={effectiveLevelFilter} onValueChange={value => { setLevelFilter(value); setSubjectFilter('all'); setTrainingFilter('all'); }}>
             <SelectTrigger className="continuous-filter-field w-52 border-slate-200 bg-white">
-              <SelectValue placeholder="Niveau" />
+              <SelectValue placeholder={educationText("Niveau")} />
             </SelectTrigger>
             <SelectContent className="bg-white">
               <SelectItem value="all">Tous les niveaux</SelectItem>
@@ -1446,7 +1447,7 @@ function SalairesTab({ trainings, ctStudents }) {
         <EmptyPlaceholder icon={Wallet} text="Aucune formation" iconClass="text-green-300" />
       ) : (
         <div className="continuous-table-shell rounded-2xl overflow-hidden">
-          <div className="continuous-table-scroll continuous-salaries-table" role="region" aria-label="Salaires des formateurs en formation continue" tabIndex={0}>
+          <div className="continuous-table-scroll continuous-salaries-table" role="region" aria-label={educationText("Salaires des formateurs en formation continue")} tabIndex={0}>
           <table className="w-full text-sm">
             <TableHead cols={['Formation', 'Formateur', 'Étudiants', 'Total encaissé', 'Part formateur', 'Salaire', 'Marge']} />
             <tbody className="divide-y divide-slate-50">
@@ -2010,7 +2011,7 @@ export default function ContinuousTrainings() {
                   </NativeSelect>
                 </Field>
                 {tForm.languageAudience === 'ADULTES' && (
-                  <Field label="Niveau">
+                  <Field label={educationText("Niveau")}>
                     <NativeSelect value={tForm.languageAdultLevel} onChange={e => setTForm(p => ({ ...p, languageAdultLevel: e.target.value }))}>
                       <option value="">— Choisir —</option>
                       {LANGUAGE_ADULT_LEVELS.map(level => <option key={level} value={level}>{level}</option>)}
@@ -2038,7 +2039,7 @@ export default function ContinuousTrainings() {
                     {SUPPORT_CYCLES.map(cycle => <option key={cycle} value={cycle}>{cycle}</option>)}
                   </NativeSelect>
                 </Field>
-                <Field label="Niveau">
+                <Field label={educationText("Niveau")}>
                   <NativeSelect value={tForm.level} onChange={e => setTForm(p => ({ ...p, level: e.target.value }))}>
                     {(SUPPORT_LEVELS_BY_CYCLE[tForm.cycle] || []).map(level => <option key={level} value={level}>{level}</option>)}
                   </NativeSelect>
@@ -2059,7 +2060,7 @@ export default function ContinuousTrainings() {
                 className="flex w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 resize-y transition-colors"
               />
             </Field>
-            <Field label="Formateur">
+            <Field label={educationText("Formateur")}>
               <NativeSelect
                 value={tForm.teacherId}
                 onChange={e => {
@@ -2067,8 +2068,8 @@ export default function ContinuousTrainings() {
                   else setTForm(p => ({ ...p, teacherId: e.target.value }));
                 }}
               >
-                <option value="">— Choisir un formateur —</option>
-                <option value="add_new">+ Ajouter un formateur</option>
+                <option value="">{educationText("— Choisir un formateur —")}</option>
+                <option value="add_new">{educationText("+ Ajouter un formateur")}</option>
                 {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </NativeSelect>
             </Field>
@@ -2078,7 +2079,7 @@ export default function ContinuousTrainings() {
               </Field>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_112px] gap-2">
-              <Field label="Part formateur">
+              <Field label={educationText("Part formateur")}>
                 <Input
                   type="number"
                   value={tForm.teacherPct}

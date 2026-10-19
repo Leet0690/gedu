@@ -1,4 +1,6 @@
+import { educationText } from '../utils/education';
 import { useAdminAuth } from '../context/AdminAuthContext';
+import SchoolRecords from './SchoolRecords';
 import React, { useState, useMemo, useEffect } from 'react';
 import './GradeManagement.css';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -569,7 +571,7 @@ const GradeManagement = () => {
             </span>
           )}
           </h1>
-          <p>Saisie centralisée des résultats académiques par stagiaire ou par module.</p>
+          <p>{educationText("Saisie centralisée des résultats académiques par stagiaire ou par module.")}</p>
         </div>
         <div className="grade-premium-header-orb" aria-hidden="true">
           <GraduationCap size={112} />
@@ -579,15 +581,15 @@ const GradeManagement = () => {
       <div className="grade-overview-grid" aria-label="Contexte de saisie des notes">
         <div className="grade-overview-card grade-overview-year">
           <GraduationCap size={23} aria-hidden="true" />
-          <div><span>Année académique</span><strong>{filterAcademicYear || 'Toutes les années'}</strong><p>Référentiel des résultats</p></div>
+          <div><span>{educationText("Année académique")}</span><strong>{filterAcademicYear || 'Toutes les années'}</strong><p>Référentiel des résultats</p></div>
         </div>
         <div className="grade-overview-card grade-overview-mode">
           <PenTool size={23} aria-hidden="true" />
-          <div><span>Mode de saisie</span><strong>{entryMode === 'student' ? 'Par stagiaire' : 'Par module'}</strong><p>{entryMode === 'student' ? 'Toutes les notes d’un stagiaire' : 'Les notes d’un module pour toute la classe'}</p></div>
+          <div><span>Mode de saisie</span><strong>{entryMode === 'student' ? educationText("Par stagiaire") : educationText("Par module")}</strong><p>{entryMode === 'student' ? educationText("Toutes les notes d’un stagiaire") : educationText("Les notes d’un module pour toute la classe")}</p></div>
         </div>
         <div className="grade-overview-card grade-overview-draft">
           <CloudUpload size={23} aria-hidden="true" />
-          <div><span>Modifications en attente</span><strong>{entryMode === 'student' ? studentDirtyModules.size : moduleDirtyStudentIds.size}</strong><p>{entryMode === 'student' ? 'Modules à enregistrer' : 'Stagiaires à enregistrer'}</p></div>
+          <div><span>Modifications en attente</span><strong>{entryMode === 'student' ? studentDirtyModules.size : moduleDirtyStudentIds.size}</strong><p>{entryMode === 'student' ? educationText("Modules à enregistrer") : educationText("Stagiaires à enregistrer")}</p></div>
         </div>
       </div>
 
@@ -608,8 +610,8 @@ const GradeManagement = () => {
           }}
         >
           {[
-            { value: 'student', label: 'Par stagiaire' },
-            { value: 'module', label: 'Par module' },
+            { value: 'student', label: educationText("Par stagiaire") },
+            { value: 'module', label: educationText("Par module") },
           ].map(mode => {
             const isActive = entryMode === mode.value;
             return (
@@ -646,14 +648,14 @@ const GradeManagement = () => {
             <h2>Filtres de saisie</h2>
             <p>
               {entryMode === 'student'
-                ? 'Sélectionnez une classe puis un stagiaire pour saisir ses résultats.'
-                : 'Sélectionnez une classe puis un module pour saisir les notes de tous les stagiaires.'}
+                ? educationText("Sélectionnez une classe puis un stagiaire pour saisir ses résultats.")
+                : educationText("Sélectionnez une classe puis un module pour saisir les notes de tous les stagiaires.")}
             </p>
           </div>
         </div>
         <div className="grade-premium-filter-grid">
           <div className="grade-premium-filter-field">
-            <label style={lbl}>{entryMode === 'student' ? 'Recherche par nom (Stagiaire)' : 'Recherche par nom (Module)'}</label>
+            <label style={lbl}>{entryMode === 'student' ? educationText("Recherche par nom (Stagiaire)") : educationText("Recherche par nom (Module)")}</label>
             {entryMode === 'student' ? (
               <div style={{ position: 'relative' }}>
                 <input
@@ -695,14 +697,14 @@ const GradeManagement = () => {
                 value={selectedGradeModule}
                 onChange={handleGradeModuleSelection}
                 options={[
-                  { label: 'Sélectionner un module', value: '' },
+                  { label: educationText("Sélectionner un module"), value: '' },
                   ...pdfModules.map(module => ({ label: module, value: module })),
                 ]}
               />
             )}
           </div>
           <div className="grade-premium-filter-field">
-            <label style={lbl}>Année académique</label>
+            <label style={lbl}>{educationText("Année académique")}</label>
             <FilterSelect
               value={filterAcademicYear}
               onChange={handleAcademicYearFilterChange}
@@ -710,7 +712,7 @@ const GradeManagement = () => {
             />
           </div>
           <div className="grade-premium-filter-field">
-            <label style={lbl}>Niveau</label>
+            <label style={lbl}>{educationText("Niveau")}</label>
             <FilterSelect
               value={filterDiploma}
               onChange={handleDiplomaFilterChange}
@@ -721,7 +723,7 @@ const GradeManagement = () => {
             />
           </div>
           <div className="grade-premium-filter-field">
-            <label style={lbl}>Année d'étude</label>
+            <label style={lbl}>{educationText("Année d'étude")}</label>
             <FilterSelect
               value={filterYear}
               onChange={handleYearFilterChange}
@@ -729,17 +731,17 @@ const GradeManagement = () => {
                 { label: "-- Choisir l'année --", value: "" },
                 ...availableStudyYears.map(year => ({ label: year, value: year })),
                 ...(filterAcademicYear !== operationalAcademicYear
-                  ? [{ label: "Lauréat (Diplômés)", value: "Lauréat" }] : [])
+                  ? [{ label: educationText("Lauréat (Diplômés)"), value: "Lauréat" }] : [])
               ]}
             />
           </div>
           <div className="grade-premium-filter-field">
-            <label style={lbl}>Filière</label>
+            <label style={lbl}>{educationText("Filière")}</label>
             <FilterSelect
               value={filterMajor}
               onChange={handleMajorFilterChange}
               options={[
-                { label: "-- Choisir la filière --", value: "" },
+                { label: educationText("-- Choisir la filière --"), value: "" },
                 ...availableMajors.map(m => ({ label: m, value: m }))
               ]}
             />
@@ -773,13 +775,13 @@ const GradeManagement = () => {
                 
                 {filterDiploma && filterMajor && filterYear && pdfModules.length > 0 && (
                   <div style={{ marginTop: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
-                    <label style={lbl}>Module Cible</label>
+                    <label style={lbl}>{educationText("Module Cible")}</label>
                     <div style={{ marginTop: '8px' }}>
                       <FilterSelect
                         value={pdfModule}
                         onChange={(val) => setPdfModule(val)}
                         options={[
-                          { label: "Sélectionner un module", value: "" },
+                          { label: educationText("Sélectionner un module"), value: "" },
                           ...pdfModules.map(m => ({ label: m, value: m }))
                         ]}
                       />
@@ -818,7 +820,7 @@ const GradeManagement = () => {
                       <FileText size={16} style={{ color: '#d97706' }} />
                       <h4 style={{ fontSize: 'var(--text-sm)', fontWeight: '800' }}>Fiche de Notes (EFC)</h4>
                     </div>
-                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '22px' }}>Modèle pour les examens de fin de module.</p>
+                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '22px' }}>{educationText("Modèle pour les examens de fin de module.")}</p>
                     <button onClick={handleFicheNotes} disabled={!pdfModule} className="btn-modern primary" style={{ width: '100%', background: '#d97706', borderColor: '#d97706', opacity: !pdfModule ? 0.5 : 1 }}>
                       <Download size={14} style={{ marginRight: '8px' }} /> Télécharger
                     </button>
@@ -829,7 +831,7 @@ const GradeManagement = () => {
                       <GraduationCap size={16} style={{ color: '#16a34a' }} />
                       <h4 style={{ fontSize: 'var(--text-sm)', fontWeight: '800' }}>Bulletin Global</h4>
                     </div>
-                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '22px' }}>Relevé complet du stagiaire sélectionné.</p>
+                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '22px' }}>{educationText("Relevé complet du stagiaire sélectionné.")}</p>
                     <button onClick={handleBulletinGlobal} disabled={!selectedStudent} className="btn-modern primary" style={{ width: '100%', background: '#16a34a', borderColor: '#16a34a', opacity: !selectedStudent ? 0.5 : 1 }}>
                       <Download size={14} style={{ marginRight: '8px' }} /> Bulletin
                     </button>
@@ -874,12 +876,11 @@ const GradeManagement = () => {
                       {selectedGradeModule}
                     </h3>
                     <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600', marginTop: '4px' }}>
-                      {filterMajor} · {filterYear} · {filterAcademicYear} · saisie par module
-                    </p>
+                      {filterMajor} · {filterYear} · {filterAcademicYear}{educationText(" · saisie par module")}</p>
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                  <MiniStat label="Stagiaires" value={moduleStudents.length} />
+                  <MiniStat label={educationText("Stagiaires")} value={moduleStudents.length} />
                   <MiniStat label="Complets" value={`${completedModuleStudents}/${moduleStudents.length}`} />
                   <button
                     onClick={canEdit ? handleSaveByModule : undefined} aria-disabled={!canEdit}
@@ -898,14 +899,14 @@ const GradeManagement = () => {
                   <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
                     style={{ background: 'var(--success-ultra-light)', border: '1px solid var(--success-light)', borderRadius: 'var(--radius-lg)', padding: '12px 20px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <CheckCircle2 size={16} style={{ color: 'var(--success)' }} />
-                    <span style={{ fontSize: 'var(--text-sm)', fontWeight: '700', color: 'var(--success)' }}>Notes du module synchronisées avec succès.</span>
+                    <span style={{ fontSize: 'var(--text-sm)', fontWeight: '700', color: 'var(--success)' }}>{educationText("Notes du module synchronisées avec succès.")}</span>
                   </motion.div>
                 )}
               </AnimatePresence>
 
               {moduleStudents.length === 0 ? (
                 <div className="grade-premium-empty-shell">
-                  <EmptyState title="Aucun stagiaire" message={`Aucun stagiaire ne correspond à cette classe pour ${filterAcademicYear}.`} icon="search" />
+                  <EmptyState title={educationText("Aucun stagiaire")} message={`Aucun stagiaire ne correspond à cette classe pour ${filterAcademicYear}.`} icon="search" />
                 </div>
               ) : (
                 <div className="glass-card grade-premium-table-shell">
@@ -915,7 +916,7 @@ const GradeManagement = () => {
                         <tr>
                           <th style={thStyle}>#</th>
                           <th style={thStyle}>N° inscription</th>
-                          <th style={thStyle}>Stagiaire</th>
+                          <th style={thStyle}>{educationText("Stagiaire")}</th>
                           <th style={{ ...thStyle, textAlign: 'center' }}>CC1</th>
                           <th style={{ ...thStyle, textAlign: 'center' }}>CC2</th>
                           <th style={{ ...thStyle, textAlign: 'center' }}>CC3</th>
@@ -983,8 +984,8 @@ const GradeManagement = () => {
           ) : (
             <div className="grade-premium-empty-shell">
               <EmptyState
-                title="Aucun module sélectionné"
-                message="Sélectionnez une classe et un module pour saisir les notes de tous les stagiaires."
+                title={educationText("Aucun module sélectionné")}
+                message={educationText("Sélectionnez une classe et un module pour saisir les notes de tous les stagiaires.")}
                 icon="book"
               />
             </div>
@@ -1067,7 +1068,7 @@ const GradeManagement = () => {
             {/* Main Grade Table */}
             {modules.length === 0 ? (
               <div className="grade-premium-empty-shell">
-                <EmptyState title="Aucun module" message="Configurez les modules pour cette filière dans la gestion des modules." icon="book" />
+                <EmptyState title={educationText("Aucun module")} message={educationText("Configurez les modules pour cette filière dans la gestion des modules.")} icon="book" />
               </div>
             ) : (
               <div className="glass-card grade-premium-table-shell">
@@ -1076,7 +1077,7 @@ const GradeManagement = () => {
                     <thead>
                       <tr>
                         <th style={thStyle}>#</th>
-                        <th style={thStyle}>Désignation Module</th>
+                        <th style={thStyle}>{educationText("Désignation Module")}</th>
                         <th style={{ ...thStyle, textAlign: 'center' }}>CC1</th>
                         <th style={{ ...thStyle, textAlign: 'center' }}>CC2</th>
                         <th style={{ ...thStyle, textAlign: 'center' }}>CC3</th>
@@ -1143,8 +1144,8 @@ const GradeManagement = () => {
         ) : (
           <div className="grade-premium-empty-shell">
             <EmptyState
-              title="Aucun stagiaire sélectionné"
-              message="Utilisez les filtres ci-dessus pour rechercher un stagiaire et gérer ses notes académiques."
+              title={educationText("Aucun stagiaire sélectionné")}
+              message={educationText("Utilisez les filtres ci-dessus pour rechercher un stagiaire et gérer ses notes académiques.")}
               icon="search"
             />
           </div>
@@ -1154,4 +1155,9 @@ const GradeManagement = () => {
   );
 };
 
-export default GradeManagement;
+function EducationGradeManagement() {
+  const { institution } = useApp();
+  return institution.educationType === 'private_school' ? <SchoolRecords /> : <GradeManagement />;
+}
+
+export default EducationGradeManagement;

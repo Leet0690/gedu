@@ -1,4 +1,7 @@
 import { jsPDF } from 'jspdf';
+import { getEducationInstitution } from './education.js';
+import { isSchoolStudent, getSchoolGradeScale } from '../config/educationProfiles.js';
+import { calcSchoolReport } from './schoolGrades.js';
 import { loadLogoDataUrl } from './loadLogoDataUrl.js';
 import {
   getGradeByModuleName,
@@ -22,11 +25,10 @@ import {
 } from './bulletinUtils.js';
 
 /* ── Constants ── */
-const ACCREDITATION_TEXT = [
-  'Institut de formation professionnelle « établissement privé »',
-  'agréé par le ministère de l’Inclusion économique, de la Petite entreprise,',
-  'de l’Emploi et des Compétences, sous le numéro 4/01/6/2022'
-];
+const getDocumentIdentity = () => {
+  const institution = getEducationInstitution();
+  return [institution.name, institution.typeLabel, [institution.city, institution.country].filter(Boolean).join(', ')].filter(Boolean);
+};
 
 /**
  * Common header for all official documents
@@ -55,8 +57,8 @@ const drawHeader = (doc, title, logoDataUrl, withLine = true) => {
   doc.setFontSize(7);
   doc.setTextColor(80, 80, 80);
   let textY = 12;
-  ACCREDITATION_TEXT.forEach(line => {
-    doc.text(line, w - margin, textY, { align: 'right' });
+  getDocumentIdentity().forEach(line => {
+    doc.text(line, w - margin, textY, { align: 'right', maxWidth: 135 });
     textY += 4;
   });
 
@@ -365,6 +367,14 @@ export const generateFicheNotes = async ({ students, filiere, classe, anneeForma
  *  3. RELEVÉ DES NOTES — Par stagiaire, toutes les notes
  * ════════════════════════════════════════════════════════════════════ */
 export const generateBulletinGlobal = async (student, allGrades, modules, { save = true, academicYear = '' } = {}) => {
+  if (isSchoolStudent(student)) {
+    const { generateSchoolBulletin } = await import('./schoolBulletin.js');
+    const institution = getEducationInstitution();
+    const year = academicYear || student.academicYear;
+    return generateSchoolBulletin({ student, academicYear: year, institution, save,
+      report: calcSchoolReport(allGrades[student.id] || {}, modules, year, getSchoolGradeScale(student, institution)),
+    });
+  }
   const logoDataUrl = await loadLogoDataUrl();
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const w = doc.internal.pageSize.getWidth();

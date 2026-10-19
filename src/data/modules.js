@@ -1,6 +1,8 @@
 // ── Modules par Filière et Année ──
 // Structure: MODULES_DATA[diploma][filière][année] = [modules]
 
+import { SCHOOL_CYCLES, isSchoolCycle } from '../config/educationProfiles.js';
+
 export const FIRST_YEAR = '1ère année';
 export const SECOND_YEAR = '2ème année';
 
@@ -215,11 +217,13 @@ export const normalizeAcademicCatalogGroups = (groups = {}) => {
   return normalized;
 };
 
-export const buildAcademicCatalog = ({ modules = [], students = [], schedules = [], includeStarterCatalog = false, configuredGroups = {} } = {}) => {
+export const buildAcademicCatalog = ({ modules = [], students = [], schedules = [], includeStarterCatalog = false, configuredGroups = {}, educationType, schoolCycles = Object.keys(SCHOOL_CYCLES) } = {}) => {
   const catalog = {};
 
   const addGroup = (diploma, major, year) => {
     if (!diploma || !major || !year) return;
+    if (educationType === 'private_school' && !schoolCycles.includes(diploma)) return;
+    if (educationType === 'vocational' && isSchoolCycle(diploma)) return;
     catalog[diploma] ||= {};
     catalog[diploma][major] ||= new Set();
     catalog[diploma][major].add(year);
@@ -247,7 +251,9 @@ export const buildAcademicCatalog = ({ modules = [], students = [], schedules = 
   const years = Object.fromEntries(Object.entries(catalog).map(([diploma, majors]) => [
     diploma,
     Array.from(new Set(Object.values(majors).flatMap(values => Array.from(values))))
-      .sort((a, b) => String(a).localeCompare(String(b), 'fr', { numeric: true }))
+      .sort((a, b) => isSchoolCycle(diploma)
+        ? SCHOOL_CYCLES[diploma].years.indexOf(a) - SCHOOL_CYCLES[diploma].years.indexOf(b)
+        : String(a).localeCompare(String(b), 'fr', { numeric: true }))
   ]));
 
   return { diplomas: Object.keys(catalog), filieres, years, groups: catalog };
@@ -256,7 +262,7 @@ export const buildAcademicCatalog = ({ modules = [], students = [], schedules = 
 export const getCatalogStudyYears = (catalog, diploma) => catalog?.years?.[diploma] || [];
 
 export const getStudyYearsForDiploma = (diploma) =>
-  DIPLOMA_CONFIG[diploma]?.years || ALL_STUDY_YEARS;
+  SCHOOL_CYCLES[diploma]?.years || DIPLOMA_CONFIG[diploma]?.years || ALL_STUDY_YEARS;
 
 export const getStudyYearsForDiplomas = (diplomas = []) =>
   Array.from(new Set(diplomas.flatMap(getStudyYearsForDiploma)));
@@ -277,10 +283,11 @@ export const isKnownStudyYear = (diploma, year) =>
   getStudyYearsForDiploma(diploma).includes(year);
 
 export const getDiplomaAbbreviation = (diploma) =>
-  DIPLOMA_CONFIG[diploma]?.abbreviation || diploma?.split(' ').map(word => word[0]).join('').toUpperCase() || '';
+  SCHOOL_CYCLES[diploma]?.abbreviation || DIPLOMA_CONFIG[diploma]?.abbreviation || diploma?.split(' ').map(word => word[0]).join('').toUpperCase() || '';
 
 export const getClassCode = (diploma, major = '', year = '') => {
   const resolvedDiploma = diploma || getDiplomaForMajor(major);
+  if (isSchoolCycle(resolvedDiploma) || /primaire|collège|baccalauréat|tronc commun/i.test(year)) return [year, major].filter(Boolean).join(' · ');
   const normalizedMajor = major.toLowerCase();
   let majorCode = MAJOR_ABBREVIATIONS[major] || '';
   if (!majorCode) {

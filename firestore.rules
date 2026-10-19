@@ -14,14 +14,14 @@ service cloud.firestore {
       return admin() || (userManager() && u.role in ['director', 'secretary', 'instructor', 'custom'] && u.permissions.get('finance', 'none') == 'none');
     }
     function validPermissions(p) {
-      return p is map && p.keys().hasOnly(['dashboard', 'students', 'teachers', 'continuous', 'finance', 'modules', 'grades', 'reports', 'schedules', 'schedule_generation', 'attendance_students', 'attendance_teachers', 'logs', 'users']) &&
+      return p is map && p.keys().hasOnly(['dashboard', 'students', 'teachers', 'continuous', 'finance', 'modules', 'grades', 'reports', 'schedules', 'schedule_generation', 'attendance_students', 'attendance_teachers', 'logs', 'users', 'catalog']) &&
         p.dashboard in ['none', 'view', 'edit'] && p.students in ['none', 'view', 'edit'] &&
         p.teachers in ['none', 'view', 'edit'] && p.continuous in ['none', 'view', 'edit'] &&
         p.finance in ['none', 'view', 'edit'] && p.modules in ['none', 'view', 'edit'] &&
         p.grades in ['none', 'view', 'edit'] && p.reports in ['none', 'view', 'edit'] &&
         p.schedules in ['none', 'view', 'edit'] && p.schedule_generation in ['none', 'view', 'edit'] &&
         p.attendance_students in ['none', 'view', 'edit'] && p.attendance_teachers in ['none', 'view', 'edit'] &&
-        p.logs in ['none', 'view', 'edit'] && p.users in ['none', 'view', 'edit'];
+        p.logs in ['none', 'view', 'edit'] && p.users in ['none', 'view', 'edit'] && p.get('catalog', 'none') in ['none', 'view', 'edit'];
     }
     function validUser(uid) {
       let u = request.resource.data;
@@ -92,6 +92,16 @@ service cloud.firestore {
       allow update, delete: if false;
     }
     match /settings/{id} { allow read: if active(); allow write: if admin(); }
+    match /public_settings/institution {
+      allow get: if true;
+      allow create, update: if admin() &&
+        request.resource.data.keys().hasOnly(['name', 'shortName', 'appName', 'typeLabel', 'city', 'country', 'logoUrl', 'paletteKey', 'primaryColor', 'accentColor', 'educationType', 'schoolCycles', 'schoolGradeScales']) &&
+        request.resource.data.educationType in ['vocational', 'private_school'] &&
+        request.resource.data.schoolCycles is list &&
+        request.resource.data.schoolCycles.hasOnly(['Primaire', 'Collège', 'Lycée']) &&
+        request.resource.data.name is string && request.resource.data.logoUrl is string;
+      allow list, delete: if false;
+    }
     // Only the semester and operational year are public, never settings/app.
     match /public_settings/schedule {
       function matchesActiveSettings() {
@@ -125,7 +135,9 @@ service cloud.firestore {
       let teacher = get(/databases/$(database)/documents/teachers/$(teacherId)).data;
       let student = get(/databases/$(database)/documents/students/$(studentId)).data;
       return teacherId is string && token is string && token.size() > 0 &&
-        teacher.tokenGrades == token && student.major in teacher.groups;
+        teacher.tokenGrades == token && student.major in teacher.groups &&
+        (!(student.get('diploma', '') in ['Primaire', 'Collège', 'Lycée']) ||
+          (student.diploma in teacher.get('diplomas', []) && student.year in teacher.get('years', [])));
     }
     match /attendance_formateurs/{id} {
       allow create, update: if validPortalTeacherToken(request.resource.data.teacherId, request.resource.data.tokenAttendance);

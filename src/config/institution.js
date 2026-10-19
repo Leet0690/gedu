@@ -1,3 +1,5 @@
+import { normalizeEducationType, normalizeSchoolCycles, normalizeSchoolGradeScales } from './educationProfiles.js';
+
 const env = (typeof import.meta !== 'undefined' && import.meta.env) || {};
 
 const stringValue = (value, fallback = '') => {
@@ -171,6 +173,9 @@ const getOrigin = () => {
 };
 
 export const DEFAULT_INSTITUTION = Object.freeze({
+  educationType: 'vocational',
+  schoolCycles: ['Primaire', 'Collège', 'Lycée'],
+  schoolGradeScales: { Primaire: 10, Collège: 20, Lycée: 20 },
   name: 'Établissement de Formation Professionnelle',
   shortName: 'IPFP',
   appName: 'Gestion EFP',
@@ -192,6 +197,7 @@ export const DEFAULT_INSTITUTION = Object.freeze({
 export const getInstitutionConfig = (overrides = {}) => {
   const base = {
     ...DEFAULT_INSTITUTION,
+    educationType: normalizeEducationType(env.VITE_EDUCATION_TYPE),
     name: stringValue(env.VITE_INSTITUTION_NAME, DEFAULT_INSTITUTION.name),
     shortName: stringValue(env.VITE_INSTITUTION_SHORT_NAME, DEFAULT_INSTITUTION.shortName),
     appName: stringValue(env.VITE_INSTITUTION_APP_NAME, DEFAULT_INSTITUTION.appName),
@@ -213,6 +219,9 @@ export const getInstitutionConfig = (overrides = {}) => {
 
   return {
     ...base,
+    educationType: normalizeEducationType(base.educationType),
+    schoolCycles: normalizeSchoolCycles(base.schoolCycles),
+    schoolGradeScales: normalizeSchoolGradeScales(base.schoolGradeScales),
     name: stringValue(base.name, DEFAULT_INSTITUTION.name),
     shortName: stringValue(base.shortName, DEFAULT_INSTITUTION.shortName),
     appName: stringValue(base.appName, DEFAULT_INSTITUTION.appName),

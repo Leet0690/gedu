@@ -1,3 +1,4 @@
+import { educationText } from '../utils/education';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import React, { useState, useMemo, useEffect } from 'react';
 import './ModuleManagement.css';
@@ -360,7 +361,7 @@ const ModuleManagement = () => {
   const handleDelete = async (group) => {
     const yearLabel = filterAcademicYear || group.academicYear || DEFAULT_ACADEMIC_YEAR;
     if (await confirmAction({
-      title: 'Supprimer le module ?',
+      title: educationText("Supprimer le module ?"),
       message: `Voulez-vous supprimer "${group.name}" pour l'année académique ${yearLabel} ? Cette action est irréversible et ne modifiera pas les autres années académiques.`,
       type: 'danger'
     })) {
@@ -528,13 +529,12 @@ const ModuleManagement = () => {
         </div>
         <div className="module-premium-header-copy">
           <span className="module-premium-eyebrow">Référentiel académique</span>
-          <h1>Gestion des Modules</h1>
-          <p>Configurez les matières et leurs coefficients pour chaque filière.</p>
+          <h1>{educationText("Gestion des Modules")}</h1>
+          <p>{educationText("Configurez les matières et leurs coefficients pour chaque filière.")}</p>
         </div>
         <div className="module-premium-header-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button disabled={!canEdit} onClick={() => { resetForm(); setIsModalOpen(true); }} className="btn-modern primary">
-            <Plus size={16} style={{ marginRight: 'var(--space-2)' }} /> Ajouter Module
-          </button>
+            <Plus size={16} style={{ marginRight: 'var(--space-2)' }} />{educationText(" Ajouter Module")}</button>
         </div>
         <div className="module-premium-header-orb" aria-hidden="true">
           <BookOpen size={112} />
@@ -548,11 +548,11 @@ const ModuleManagement = () => {
         </div>
         <div className="module-overview-card module-overview-count">
           <BookOpen size={23} aria-hidden="true" />
-          <div><span>Modules de la sélection</span><strong>{isFiltersSelected ? groupedModules.length : '—'}</strong><p>{isFiltersSelected ? 'Modules regroupés par classe' : 'Choisissez un niveau, une année et une filière'}</p></div>
+          <div><span>{educationText("Modules de la sélection")}</span><strong>{isFiltersSelected ? groupedModules.length : '—'}</strong><p>{isFiltersSelected ? educationText("Modules regroupés par classe") : educationText("Choisissez un niveau, une année et une filière")}</p></div>
         </div>
         <div className="module-overview-card module-overview-class">
           <SlidersHorizontal size={23} aria-hidden="true" />
-          <div><span>Classe sélectionnée</span><strong>{filterMajor || 'À sélectionner'}</strong><p>{[filterDiploma && getDiplomaLabel(filterDiploma), filterYear, filterSemester].filter(Boolean).join(' · ') || 'Affinez les filtres pour consulter les modules'}</p></div>
+          <div><span>Classe sélectionnée</span><strong>{filterMajor || 'À sélectionner'}</strong><p>{[filterDiploma && getDiplomaLabel(filterDiploma), filterYear, filterSemester].filter(Boolean).join(' · ') || educationText("Affinez les filtres pour consulter les modules")}</p></div>
         </div>
       </div>
 
@@ -562,21 +562,21 @@ const ModuleManagement = () => {
           <span className="module-premium-section-icon"><SlidersHorizontal size={15} /></span>
           <div>
             <h2>Filtres d'affichage</h2>
-            <p>Sélectionnez l'année académique et une classe pour afficher ses modules.</p>
+            <p>{educationText("Sélectionnez l'année académique et une classe pour afficher ses modules.")}</p>
           </div>
         </div>
         <div className="module-premium-filter-grid app-filter-grid">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={labelStyle}>Année Académique</label>
+            <label style={labelStyle}>{educationText("Année Académique")}</label>
             <FilterSelect
               value={filterAcademicYear}
               onChange={val => { setFilterAcademicYear(val); setPage(1); }}
               options={academicYearOptions}
-              placeholder="Année académique"
+              placeholder={educationText("Année académique")}
             />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={labelStyle}>Niveau</label>
+            <label style={labelStyle}>{educationText("Niveau")}</label>
             <FilterSelect
               value={filterDiploma}
               onChange={val => { setFilterDiploma(val); setFilterMajor(''); setFilterYear(''); setFilterSemester(''); setPage(1); }}
@@ -588,7 +588,7 @@ const ModuleManagement = () => {
             />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={labelStyle}>Année</label>
+            <label style={labelStyle}>{educationText("Année")}</label>
             <FilterSelect
               value={filterYear}
               onChange={val => { setFilterYear(val); setPage(1); }}
@@ -600,15 +600,15 @@ const ModuleManagement = () => {
             />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={labelStyle}>Filière</label>
+            <label style={labelStyle}>{educationText("Filière")}</label>
             <FilterSelect
               value={filterMajor}
               onChange={val => { setFilterMajor(val); setPage(1); }}
               options={[
-                { label: "Choisir la filière", value: "" },
+                { label: educationText("Choisir la filière"), value: "" },
                 ...majors.map(m => ({ label: m, value: m }))
               ]}
-              placeholder="Choisir la filière"
+              placeholder={educationText("Choisir la filière")}
             />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -628,7 +628,7 @@ const ModuleManagement = () => {
         <div className="glass-card module-premium-table-shell" style={{ padding: 'var(--space-4)' }}><TableSkeleton rows={10} /></div>
       ) : !isFiltersSelected ? (
         <div className="module-premium-empty-shell">
-          <EmptyState title="Filtres requis" message="Veuillez sélectionner l'année, le niveau et la filière pour afficher les modules." icon="filter" />
+          <EmptyState title="Filtres requis" message={educationText("Veuillez sélectionner l'année, le niveau et la filière pour afficher les modules.")} icon="filter" />
         </div>
       ) : (
         <div className="glass-card module-premium-table-shell">
@@ -636,8 +636,8 @@ const ModuleManagement = () => {
             <thead>
               <tr style={{ background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-light)' }}>
                 <th style={{ padding: '16px', fontSize: 'var(--text-xs)', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', textAlign: 'center' }}>Ordre</th>
-                <th style={{ padding: '16px', fontSize: 'var(--text-xs)', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Module</th>
-                <th style={{ padding: '16px', fontSize: 'var(--text-xs)', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Niveau</th>
+                <th style={{ padding: '16px', fontSize: 'var(--text-xs)', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{educationText("Module")}</th>
+                <th style={{ padding: '16px', fontSize: 'var(--text-xs)', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{educationText("Niveau")}</th>
                 <th style={{ padding: '16px', fontSize: 'var(--text-xs)', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', textAlign: 'center' }}>Sem.</th>
                 <th style={{ padding: '16px', fontSize: 'var(--text-xs)', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Classes</th>
                 <th style={{ padding: '16px', fontSize: 'var(--text-xs)', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', textAlign: 'center' }}>Coeff.</th>
@@ -650,7 +650,7 @@ const ModuleManagement = () => {
                   <td colSpan="7" style={{ padding: 0 }}>
                     <div style={{ textAlign: 'center', padding: '32px 16px' }}>
                       <EmptyState
-                        title="Aucun module"
+                        title={educationText("Aucun module")}
                         message={`Aucun module n'est configuré pour cette sélection en ${filterAcademicYear}.`}
                         icon="book"
                       />
@@ -710,9 +710,7 @@ const ModuleManagement = () => {
                                 <p style={{ fontWeight: '900', fontSize: '13px', color: 'var(--primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                   {m.name}
                                 </p>
-                                <p style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                  Module en deplacement
-                                </p>
+                                <p style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{educationText("Module en deplacement")}</p>
                               </div>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
@@ -827,13 +825,13 @@ const ModuleManagement = () => {
             <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="glass-premium module-premium-dialog app-modal-surface"
               style={{ position: 'relative', width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto', padding: '32px', borderRadius: 'var(--radius-3xl)', boxShadow: 'var(--shadow-xl)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900' }}>{isEditing ? 'Modifier Module' : 'Nouveau Module'}</h2>
+                <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: '900' }}>{isEditing ? educationText("Modifier Module") : educationText("Nouveau Module")}</h2>
                 <button onClick={() => setIsModalOpen(false)} className="close-button" aria-label="Fermer la fenêtre" title="Fermer"><X size={20} /></button>
               </div>
               <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(120px, 1fr)', gap: '12px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={labelStyle}>Nom du Module</label>
+                    <label style={labelStyle}>{educationText("Nom du Module")}</label>
                     <input className="input-premium" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required placeholder="Ex: Algorithmique" />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -843,7 +841,7 @@ const ModuleManagement = () => {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={labelStyle}>Niveau</label>
+                    <label style={labelStyle}>{educationText("Niveau")}</label>
                     <>
                       <input list="institution-diplomas" className="input-premium" value={formData.diploma} onChange={e => setFormData({
                         ...formData,
@@ -859,7 +857,7 @@ const ModuleManagement = () => {
                   </div>
                   {!hideYearChoice ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <label style={labelStyle}>Année</label>
+                      <label style={labelStyle}>{educationText("Année")}</label>
                       <input list="institution-years" className="input-premium" value={formData.year} onChange={e => setFormData({ ...formData, year: e.target.value })} required />
                       <datalist id="institution-years">{formYears.map(year => <option key={year} value={year} />)}</datalist>
                     </div>
@@ -886,7 +884,7 @@ const ModuleManagement = () => {
                     </div>
                   )}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', gridColumn: hideYearChoice ? '1 / -1' : undefined }}>
-                    <label style={labelStyle}>Filière</label>
+                    <label style={labelStyle}>{educationText("Filière")}</label>
                     <input list="institution-majors" className="input-premium" value={formData.major} onChange={e => setFormData({ ...formData, major: e.target.value })} required />
                      <datalist id="institution-majors">{(academicCatalog?.filieres?.[formData.diploma] || []).map(major => <option key={major} value={major} />)}</datalist>
                   </div>
@@ -913,7 +911,7 @@ const ModuleManagement = () => {
               </div>
 
               <div style={{ marginBottom: '20px', padding: '12px 14px', background: 'var(--primary-ultra-light)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--primary-light)' }}>
-                <p style={{ fontSize: '11px', fontWeight: '700', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '3px' }}>Module à copier</p>
+                <p style={{ fontSize: '11px', fontWeight: '700', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '3px' }}>{educationText("Module à copier")}</p>
                 <p style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)' }}>{copySource.name}</p>
                 <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Ordre {getModuleOrder(copySource) ?? '—'} · Coeff. {copySource.coefficient} · {copySource.semester || 'S1'}</p>
               </div>

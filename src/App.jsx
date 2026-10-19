@@ -73,8 +73,8 @@ const ScrollToTop = () => {
 };
 
 const AppContent = () => {
-  const { loading, logAppAccess, institution } = useApp();
-  const { isAuthenticated: adminAuthIsAuthenticated, loading: authLoading } = useAdminAuth();
+  const { loading, logAppAccess, institution, institutionSetupLoaded, institutionSetupCompleted } = useApp();
+  const { isAuthenticated: adminAuthIsAuthenticated, loading: authLoading, isAdmin, logout } = useAdminAuth();
   const location = useLocation();
   const isPublicRoute = location.pathname.startsWith('/portal/') || location.pathname.startsWith('/results/') || location.pathname.startsWith('/teacher/') || location.pathname.startsWith('/schedule-view/');
   const isAuthed = adminAuthIsAuthenticated;
@@ -116,6 +116,25 @@ const AppContent = () => {
 
   if (authLoading && !isPublicRoute) return <PageLoader />;
   if (!isAuthed && !isPublicRoute && location.pathname !== '/login') return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+
+  if (isAuthed && !isPublicRoute) {
+    if (!institutionSetupLoaded) return <PageLoader />;
+    if (!institutionSetupCompleted) {
+      if (location.pathname !== '/setup' && !isAdmin) {
+        return <div className="flex-center" style={{ minHeight: '100vh', padding: 24 }}>
+          <div className="glass-card" style={{ maxWidth: 480, padding: 32, textAlign: 'center' }}>
+            <School size={36} color="var(--primary)" />
+            <h1>Configuration de l’établissement</h1>
+            <p>Un administrateur doit renseigner les informations de base avant d’ouvrir l’accueil.</p>
+            <button type="button" className="btn-modern secondary" onClick={logout}>Se déconnecter</button>
+          </div>
+        </div>;
+      }
+      if (!isAdmin) return <Navigate to="/login" replace />;
+      return <Suspense fallback={<PageLoader />}><InstitutionSettings onboarding /></Suspense>;
+    }
+    if (location.pathname === '/setup') return <Navigate to="/" replace />;
+  }
 
   const appRoutes = (
     <Suspense fallback={<PageLoader />}>

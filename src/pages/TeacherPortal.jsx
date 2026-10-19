@@ -1,3 +1,4 @@
+import { educationText } from '../utils/education';
 import PortalBrand from '../components/PortalBrand';
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -7,6 +8,7 @@ import { useApp } from '../context/AppContext';
 import { filterSchedulesForAcademicYear, INITIAL_OPERATIONAL_ACADEMIC_YEAR } from '../utils/studentStatus';
 import { useToast } from '../context/ToastContext';
 import { ALL_STUDY_YEARS, getClassCode, getModulesForStudent, MODULES_DATA } from '../data/modules';
+import SchoolGradeTable from '../components/SchoolGradeTable';
 import { TableSkeleton } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import { calcCcAverage, isValidScore } from '../utils/gradeCalculations';
@@ -102,6 +104,9 @@ const getRecordTimestamp = (record) => {
 };
 
 const TeacherPortal = () => {
+  const { institution: schoolInstitution } = useApp();
+  const schoolMode = schoolInstitution.educationType === 'private_school';
+  const [schoolSemester, setSchoolSemester] = useState('S1');
   const { teacherId } = useParams();
   const navigate = useNavigate();
   const { teachers, students, updateGrades, batchUpdateGrades, grades, loading, studentAttendance, updateStudentAttendance, schedules, updateTeacherAttendance, notifyTeacherClassAttendance, loadAttendanceForSession, teacherAttendance, loadTeacherAttendanceForDate, confirmAction, modules: allModules = [], activeSemester, getActiveScheduleModule, activeAcademicYear, operationalAcademicYear, teacherPortalSettingsError, teacherPortalGradesError } = useApp();
@@ -869,7 +874,7 @@ const TeacherPortal = () => {
               <SessionStat label="Séance" value={dayOfWeek} icon={CalendarDays} />
               <SessionStat label="Horaire" value={currentSession.time} icon={Clock} />
               <SessionStat label="Groupe" value={getGroupAbbreviation(currentSession.filiere, currentSession.annee)} icon={Users} />
-              <SessionStat label="Module" value={currentAttendanceModule || getSessionModule(currentSession)} icon={BookOpen} />
+              <SessionStat label={educationText("Module")} value={currentAttendanceModule || getSessionModule(currentSession)} icon={BookOpen} />
             </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--primary)' }}>
@@ -906,8 +911,7 @@ const TeacherPortal = () => {
           className="glass-card" style={{ padding: '16px 24px', marginBottom: 'var(--space-6)', border: '1px solid rgba(var(--primary-rgb), 0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', background: 'rgba(255,255,255,0.8)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ padding: '6px 14px', fontSize: '12px', fontWeight: '800', color: 'var(--primary)', background: 'rgba(var(--primary-rgb), 0.08)', borderRadius: 'var(--radius-pill)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              <Users size={13} /> {relevantStudents.length} Stagiaires
-            </span>
+              <Users size={13} /> {relevantStudents.length}{educationText(" Stagiaires")}</span>
             <span style={{ padding: '6px 14px', fontSize: '12px', fontWeight: '800', color: canValidateSession ? 'var(--success)' : 'var(--warning)', background: canValidateSession ? 'rgba(22, 163, 74, 0.08)' : 'rgba(217, 119, 6, 0.08)', borderRadius: 'var(--radius-pill)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
               {canValidateSession ? <CheckCircle2 size={13} /> : <AlertTriangle size={13} />}
               {markedPresentStudents.length > 0
@@ -947,7 +951,7 @@ const TeacherPortal = () => {
       )}
 
       {/* Header controls for Grades */}
-      {activeTab === 'grades' && relevantStudents.length > 0 && (
+      {!schoolMode && activeTab === 'grades' && relevantStudents.length > 0 && (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
           className="glass-card" style={{ padding: '16px 24px', marginBottom: 'var(--space-6)', border: '1px solid rgba(var(--primary-rgb), 0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', background: 'rgba(255,255,255,0.8)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -978,33 +982,36 @@ const TeacherPortal = () => {
             </div>
             <div>
               <h2 style={{ fontSize: '13px', fontWeight: '850', color: 'var(--text-primary)', margin: 0 }}>Filtres d'évaluation</h2>
-              <p style={{ fontSize: '10px', color: 'var(--text-muted)', margin: '2px 0 0' }}>Ciblez un groupe et un module pour saisir les notes.</p>
+              <p style={{ fontSize: '10px', color: 'var(--text-muted)', margin: '2px 0 0' }}>{educationText("Ciblez un groupe et un module pour saisir les notes.")}</p>
             </div>
           </div>
           <div className="app-filter-grid app-filter-grid--4" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-4)' }}>
-            <div style={fGroup}><label style={lbl}>Niveau</label><FilterSelect value={selectedDiploma} onChange={setSelectedDiploma} options={availableDiplomas.map(d => ({ label: d, value: d }))} /></div>
-            <div style={fGroup}><label style={lbl}>Année</label><FilterSelect value={filterYear} onChange={setFilterYear} options={availableYears.map(y => ({ label: y, value: y }))} /></div>
-            <div style={fGroup}><label style={lbl}>Filière</label><FilterSelect value={selectedGroup} onChange={setSelectedGroup} options={filteredGroups.map(g => ({ label: g, value: g }))} /></div>
-            <div style={fGroup}><label style={lbl}>Module</label><FilterSelect value={selectedSubject} onChange={setSelectedSubject} options={filteredSubjects.map(sub => ({ label: sub, value: sub }))} /></div>
+            <div style={fGroup}><label style={lbl}>{educationText("Niveau")}</label><FilterSelect value={selectedDiploma} onChange={setSelectedDiploma} options={availableDiplomas.map(d => ({ label: d, value: d }))} /></div>
+            <div style={fGroup}><label style={lbl}>{educationText("Année")}</label><FilterSelect value={filterYear} onChange={setFilterYear} options={availableYears.map(y => ({ label: y, value: y }))} /></div>
+            <div style={fGroup}><label style={lbl}>{educationText("Filière")}</label><FilterSelect value={selectedGroup} onChange={setSelectedGroup} options={filteredGroups.map(g => ({ label: g, value: g }))} /></div>
+            <div style={fGroup}><label style={lbl}>{educationText("Module")}</label><FilterSelect value={selectedSubject} onChange={setSelectedSubject} options={filteredSubjects.map(sub => ({ label: sub, value: sub }))} /></div>
           </div>
         </motion.div>
       )}
 
-      {/* Main Table */}
-      <div className="glass-card grade-premium-table-shell" style={{ border: '1px solid rgba(var(--primary-rgb), 0.15)', background: 'rgba(255,255,255,0.9)', overflow: 'hidden' }}>
+      {schoolMode && activeTab === 'grades' ? <>
+        <label className="school-portal-year">Semestre<select value={schoolSemester} onChange={event => setSchoolSemester(event.target.value)}><option value="S1">Semestre 1</option><option value="S2">Semestre 2</option></select></label>
+        <SchoolGradeTable semester={schoolSemester} academicYear={operationalAcademicYear} portalToken={teacherId} teacherId={teacher.id}
+          rows={selectedSubject ? relevantStudents.map(student => ({ student, module: { name: selectedSubject } })) : []} />
+      </> : <div className="glass-card grade-premium-table-shell" style={{ border: '1px solid rgba(var(--primary-rgb), 0.15)', background: 'rgba(255,255,255,0.9)', overflow: 'hidden' }}>
         {activeTab === 'attendance' && !currentSession ? (
           <EmptyState title="Séance non sélectionnée" message={todaysSessions.length > 0 ? "Choisissez une séance dans la barre supérieure pour commencer l'appel." : `Aucune séance n'est planifiée pour vous ce ${dayOfWeek}.`} icon="calendar" />
         ) : relevantStudents.length === 0 ? (
-          <EmptyState title="Liste vide" message="Aucun stagiaire trouvé pour ce groupe." icon="users" />
+          <EmptyState title="Liste vide" message={educationText("Aucun stagiaire trouvé pour ce groupe.")} icon="users" />
         ) : !currentAttendanceModule ? (
-          <EmptyState title="Module manquant" message="Sélectionnez un module pour afficher la liste." icon="book-open" />
+          <EmptyState title={educationText("Module manquant")} message={educationText("Sélectionnez un module pour afficher la liste.")} icon="book-open" />
         ) : activeTab === 'grades' ? (
           <div style={{ overflowX: 'auto' }}>
             <table className="grade-premium-table" style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', minWidth: '900px' }}>
               <thead>
                 <tr>
                   <th style={{ ...thStyle, width: '40px', textAlign: 'center' }}>#</th>
-                  <th style={thStyle}>Stagiaire</th>
+                  <th style={thStyle}>{educationText("Stagiaire")}</th>
                   <th style={{ ...thStyle, textAlign: 'center' }}>C1</th>
                   <th style={{ ...thStyle, textAlign: 'center' }}>C2</th>
                   <th style={{ ...thStyle, textAlign: 'center' }}>C3</th>
@@ -1044,7 +1051,7 @@ const TeacherPortal = () => {
               <thead>
                 <tr>
                   <th style={{ ...thStyle, width: '40px', textAlign: 'center' }}>#</th>
-                  <th style={thStyle}>Stagiaire</th>
+                  <th style={thStyle}>{educationText("Stagiaire")}</th>
                   <th style={{ ...thStyle, textAlign: 'center', width: '260px' }}>Appel</th>
                   <th style={thStyle}>Commentaire / Note d'observation</th>
                 </tr>
@@ -1088,7 +1095,7 @@ const TeacherPortal = () => {
             </table>
           </div>
         )}
-      </div>
+      </div>}
     </div>
   );
 };

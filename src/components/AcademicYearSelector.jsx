@@ -1,3 +1,4 @@
+import { educationText } from '../utils/education';
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Check, CalendarDays } from 'lucide-react';
 import { cn } from '../lib/cn';
@@ -53,10 +54,10 @@ export const AcademicYearSelector = ({ activeYear, operationalYear, availableYea
         <div
           className="academic-year-selector__menu absolute right-0 mt-2 w-52 rounded-xl bg-white p-1.5 shadow-xl border border-slate-100 z-50 overflow-hidden origin-top-right animate-in fade-in zoom-in-95 duration-100"
           role="listbox"
-          aria-label="Années académiques"
+          aria-label={educationText("Années académiques")}
         >
           <div className="px-3 py-2 mb-1 text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-50 flex items-center justify-between">
-            <span>Années Académiques</span>
+            <span>{educationText("Années Académiques")}</span>
             <span className="bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">{availableYears.length}</span>
           </div>
           <div className="academic-year-selector__list flex flex-col gap-1 max-h-64 overflow-y-auto no-scrollbar">

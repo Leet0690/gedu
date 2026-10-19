@@ -1,3 +1,4 @@
+import { educationText } from '../utils/education';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import './AttendanceColors.css';
@@ -666,7 +667,7 @@ const StudentAttendance = () => {
         <div className="attendance-premium-header-icon"><UserCheck size={24} /></div>
         <div className="attendance-premium-header-copy">
           <span className="attendance-premium-eyebrow">Suivi de l'assiduité</span>
-          <h1>Absences Stagiaires</h1>
+          <h1>{educationText("Absences Stagiaires")}</h1>
           <p>Feuilles d'appel et suivi de l'assiduité.</p>
         </div>
         <div className="attendance-premium-header-orb" aria-hidden="true"><Users size={112} /></div>
@@ -733,7 +734,7 @@ const StudentAttendance = () => {
                 />
               </div>
               <div style={{ ...filterGroupStyle, flex: '1 1 160px', maxWidth: '240px' }}>
-                <label style={labelStyle}>Niveau</label>
+                <label style={labelStyle}>{educationText("Niveau")}</label>
                 <FilterSelect
                   value={filterDiploma}
                   onChange={(val) => { setFilterDiploma(val); setFilterMajor(''); setFilterYear(''); setFilterModule(''); setFilterTime(''); }}
@@ -745,36 +746,36 @@ const StudentAttendance = () => {
                 />
               </div>
               <div style={{ ...filterGroupStyle, flex: '1 1 160px', maxWidth: '240px' }}>
-                <label style={labelStyle}>Filière</label>
+                <label style={labelStyle}>{educationText("Filière")}</label>
                 <FilterSelect
                   value={filterMajor}
                   onChange={(val) => { setFilterMajor(val); setFilterModule(''); setFilterTime(''); }}
                   options={[
-                    { label: "Choisir filière", value: "" },
+                    { label: educationText("Choisir filière"), value: "" },
                     ...availableMajors.map(m => ({ label: m, value: m }))
                   ]}
                   style={{ width: '100%' }}
                 />
               </div>
               <div style={{ ...filterGroupStyle, flex: '1 1 100px', maxWidth: '150px' }}>
-                <label style={labelStyle}>Année</label>
+                <label style={labelStyle}>{educationText("Année")}</label>
                 <FilterSelect
                   value={filterYear}
                   onChange={(val) => { setFilterYear(val); setFilterModule(''); setFilterTime(''); }}
                   options={[
-                    { label: "Année", value: "" },
+                    { label: educationText("Année"), value: "" },
                     ...(filterDiploma ? academicCatalog?.years?.[filterDiploma] || [] : Array.from(new Set(Object.values(academicCatalog?.years || {}).flat()))).map(year => ({ label: year, value: year }))
                   ]}
                   style={{ width: '100%' }}
                 />
               </div>
               <div style={{ ...filterGroupStyle, flex: '1 1 160px', maxWidth: '240px' }}>
-                <label style={labelStyle}>Module</label>
+                <label style={labelStyle}>{educationText("Module")}</label>
                 <FilterSelect
                   value={filterModule}
                   onChange={(val) => { setFilterModule(val); setFilterTime(''); }}
                   options={[
-                    { label: "Module requis", value: "" },
+                    { label: educationText("Module requis"), value: "" },
                     ...availableModules.map(m => ({ label: m, value: m })),
                     ...(availableModules.length === 0 ? [{ label: "Général", value: "global" }] : [])
                   ]}
@@ -861,9 +862,7 @@ const StudentAttendance = () => {
                 ))}
               </div>
               {multiGroupProgress.completedCount === multiGroupProgress.totalGroups && (
-                <span style={{ fontSize: '11px', fontWeight: '800', color: '#15803d', background: 'rgba(22,163,74,0.10)', border: '1px solid rgba(22,163,74,0.25)', padding: '3px 10px', borderRadius: 'var(--radius-pill)', marginLeft: 'auto' }}>
-                  ✓ Présence formateur enregistrée
-                </span>
+                <span style={{ fontSize: '11px', fontWeight: '800', color: '#15803d', background: 'rgba(22,163,74,0.10)', border: '1px solid rgba(22,163,74,0.25)', padding: '3px 10px', borderRadius: 'var(--radius-pill)', marginLeft: 'auto' }}>{educationText("✓ Présence formateur enregistrée")}</span>
               )}
             </motion.div>
           )}
@@ -871,9 +870,9 @@ const StudentAttendance = () => {
           <div className="glass-card attendance-premium-table-shell" style={{ overflow: 'hidden' }}>
             {loading ? <TableSkeleton rows={10} /> : (
               !filterDiploma || !filterMajor || !filterYear ? (
-                <EmptyState title="Filtres requis" message="Sélectionnez le niveau, la filière et l'année pour voir les stagiaires." icon="filter" />
+                <EmptyState title="Filtres requis" message={educationText("Sélectionnez le niveau, la filière et l'année pour voir les stagiaires.")} icon="filter" />
               ) : !filterModule ? (
-                <EmptyState title="Module manquant" message="Veuillez sélectionner un module pour lancer l'appel." icon="mouse-pointer" />
+                <EmptyState title={educationText("Module manquant")} message={educationText("Veuillez sélectionner un module pour lancer l'appel.")} icon="mouse-pointer" />
               ) : filteredStudents.length === 0 ? (
                 <EmptyState title="Aucun cours aujourd'hui" message={`Aucun cours n'est programmé le ${dayOfWeek} pour ce groupe.`} icon="calendar" />
               ) : (
@@ -882,7 +881,7 @@ const StudentAttendance = () => {
                     <thead>
                       <tr style={{ background: 'var(--bg-subtle)' }}>
                         <th style={{ ...thStyle, textAlign: 'center', width: '60px' }}>#</th>
-                        <th style={thStyle}>Stagiaire</th>
+                        <th style={thStyle}>{educationText("Stagiaire")}</th>
                         <th style={{ ...thStyle, textAlign: 'center', width: '260px' }}>Pointage</th>
                         <th style={thStyle}>Commentaire / Motif</th>
                       </tr>
@@ -937,7 +936,7 @@ const StudentAttendance = () => {
                 <label style={labelStyle}>Recherche par nom</label>
                 <div style={{ position: 'relative' }}>
                   <Search size={13} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)' }} />
-                  <input type="text" className="input-premium" style={{ width: '100%', paddingLeft: '34px' }} placeholder="Nom du stagiaire..." value={mSearch} onChange={e => setMSearch(e.target.value)} />
+                  <input type="text" className="input-premium" style={{ width: '100%', paddingLeft: '34px' }} placeholder={educationText("Nom du stagiaire...")} value={mSearch} onChange={e => setMSearch(e.target.value)} />
                 </div>
               </div>
               <div style={{ flex: '1.2', minWidth: '160px' }}>
@@ -962,7 +961,7 @@ const StudentAttendance = () => {
                 />
               </div>
               <div style={{ flex: '0.8', minWidth: '110px' }}>
-                <label style={labelStyle}>Année d'étude</label>
+                <label style={labelStyle}>{educationText("Année d'étude")}</label>
                 <FilterSelect
                   value={mFilterAnnee}
                   onChange={(val) => setMFilterAnnee(val)}
@@ -978,12 +977,12 @@ const StudentAttendance = () => {
                 />
               </div>
               <div style={{ flex: '1.2', minWidth: '160px' }}>
-                <label style={labelStyle}>Filière</label>
+                <label style={labelStyle}>{educationText("Filière")}</label>
                 <FilterSelect
                   value={mFilterFiliere}
                   onChange={(val) => setMFilterFiliere(val)}
                   options={[
-                    { label: "Toutes les filières", value: "" },
+                    { label: educationText("Toutes les filières"), value: "" },
                     ...allFilieres.map(f => ({ label: f, value: f }))
                   ]}
                   style={{ width: '100%' }}
@@ -995,7 +994,7 @@ const StudentAttendance = () => {
           {/* Monthly stats */}
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', gap: '12px', marginBottom: 'var(--space-5)', flexWrap: 'wrap' }}>
             {[
-              { label: 'Stagiaires', value: mFilteredStudents.length, color: 'var(--primary)', bg: 'var(--primary-ultra-light)' },
+              { label: educationText("Stagiaires"), value: mFilteredStudents.length, color: 'var(--primary)', bg: 'var(--primary-ultra-light)' },
               { label: 'Séances Présentes', value: mGlobalStats.present, color: '#15803d', bg: 'rgba(22,163,74,0.08)' },
               { label: 'Séances Absentes', value: mGlobalStats.absent, color: '#dc2626', bg: 'rgba(220,38,38,0.08)' },
             ].map(({ label, value, color, bg }) => (
@@ -1025,16 +1024,12 @@ const StudentAttendance = () => {
             {!mFilterFiliere || !mFilterAnnee ? (
               <div style={{ padding: '64px', textAlign: 'center' }}>
                 <Filter size={40} style={{ color: 'var(--text-faint)', margin: '0 auto 16px', display: 'block' }} />
-                <p style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-muted)' }}>
-                  Veuillez sélectionner une Filière et une Année d'étude pour afficher la grille de pointage.
-                </p>
+                <p style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-muted)' }}>{educationText("Veuillez sélectionner une Filière et une Année d'étude pour afficher la grille de pointage.")}</p>
               </div>
             ) : mFilteredStudents.length === 0 ? (
               <div style={{ padding: '64px', textAlign: 'center' }}>
                 <Users size={40} style={{ color: 'var(--text-faint)', margin: '0 auto 16px', display: 'block' }} />
-                <p style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-muted)' }}>
-                  Aucun stagiaire trouvé pour cette filière.
-                </p>
+                <p style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-muted)' }}>{educationText("Aucun stagiaire trouvé pour cette filière.")}</p>
               </div>
             ) : monthColumns.length === 0 ? (
               <div style={{ padding: '64px', textAlign: 'center' }}>
@@ -1055,7 +1050,7 @@ const StudentAttendance = () => {
                   <thead>
                     <tr style={{ background: 'var(--bg-subtle)' }}>
                       <th rowSpan={2} style={mThStyle}>#</th>
-                      <th rowSpan={2} style={{ ...mThStyle, textAlign: 'left', position: 'sticky', left: 0, background: 'var(--bg-subtle)', zIndex: 10 }}>Stagiaire</th>
+                      <th rowSpan={2} style={{ ...mThStyle, textAlign: 'left', position: 'sticky', left: 0, background: 'var(--bg-subtle)', zIndex: 10 }}>{educationText("Stagiaire")}</th>
                       {monthColumns.map(col => {
                         const isWeekend = col.weekday === 'Samedi' || col.weekday === 'Dimanche';
                         return (
@@ -1124,9 +1119,7 @@ const StudentAttendance = () => {
               </div>
               <div>
                 <h3 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', lineHeight: 1 }}>Alertes Absentéisme</h3>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', fontWeight: '600' }}>
-                  Stagiaires dont le taux d'absence dépasse le seuil défini
-                </p>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', fontWeight: '600' }}>{educationText("Stagiaires dont le taux d'absence dépasse le seuil défini")}</p>
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -1154,7 +1147,7 @@ const StudentAttendance = () => {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
                 <span style={{ fontSize: '11px', fontWeight: '900', color: '#dc2626', background: 'rgba(220,38,38,0.10)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 'var(--radius-pill)', padding: '3px 12px' }}>
-                  {flaggedStudents.length} stagiaire{flaggedStudents.length > 1 ? 's' : ''} en alerte
+                  {flaggedStudents.length}{educationText(" stagiaire")}{flaggedStudents.length > 1 ? 's' : ''} en alerte
                 </span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

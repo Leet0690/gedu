@@ -1,3 +1,4 @@
+import { educationText } from '../utils/education';
 import React, { useState, useEffect } from 'react';
 import { 
   Clock, 
@@ -162,9 +163,7 @@ const MaintenancePage = () => {
           maxWidth: '620px',
           margin: '0 auto 36px auto'
         }}>
-          {institutionConfig.name} effectue une mise à niveau complète de son infrastructure serveur.
-          L'accès à l'ensemble des services (espace formateurs, consultation des bulletins et administration) sera rétabli automatiquement dès la fin du compte à rebours.
-        </p>
+          {institutionConfig.name}{educationText(" effectue une mise à niveau complète de son infrastructure serveur. L'accès à l'ensemble des services (espace formateurs, consultation des bulletins et administration) sera rétabli automatiquement dès la fin du compte à rebours.")}</p>
 
         {/* SECTION COMPTE À REBOURS (5 HEURES) */}
         <div style={{

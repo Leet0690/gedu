@@ -56,6 +56,14 @@ test('teacher grade sessions load only assigned students, expire and honor link 
     await setDoc(doc(portal, 'grades', 'student-without-grades'), update, { merge: true });
     await denied(setDoc(doc(portal, 'grades', 'other-group'), update));
     await denied(deleteDoc(doc(portal, 'grades', 'student-a')));
+    await setDoc(doc(owner, 'teachers', 'school-teacher'), { tokenGrades: 'school-link', groups: ['A'], diplomas: ['Primaire'], years: ['3ème année primaire'] });
+    await setDoc(doc(owner, 'students', 'school-assigned'), { major: 'A', diploma: 'Primaire', year: '3ème année primaire' });
+    await setDoc(doc(owner, 'students', 'school-other-cycle'), { major: 'A', diploma: 'Collège', year: '1ère année collège' });
+    await setDoc(doc(owner, 'students', 'school-other-level'), { major: 'A', diploma: 'Primaire', year: '4ème année primaire' });
+    const schoolUpdate = { teacherId: 'school-teacher', tokenGrades: 'school-link', academicYears: { '2026-2027': { Français: { school: { S1: { c1: 7, scale: 10 } } } } } };
+    await setDoc(doc(portal, 'grades', 'school-assigned'), schoolUpdate);
+    await denied(setDoc(doc(portal, 'grades', 'school-other-cycle'), schoolUpdate));
+    await denied(setDoc(doc(portal, 'grades', 'school-other-level'), schoolUpdate));
     const refreshed = await readTeacherPortalGrades(portal, 'portal-user', 'teacher-a', 'grade-link', ['student-a', 'student-b', 'student-without-grades']);
     assert.equal(Object.keys(refreshed).length, 3);
     assert.equal(refreshed['student-a'].academicYears['2026-2027'].Module.cc1, 15);

@@ -1,4 +1,5 @@
 import { getStudyYearsForDiploma } from '../data/modules.js';
+import { isSchoolStudent } from '../config/educationProfiles.js';
 
 export const STUDENT_STATUS = {
   ACTIVE: 'active',
@@ -22,16 +23,18 @@ export const isWithdrawnStudent = (student = {}) =>
 export const isActiveStudent = (student = {}) => normalizeStudentStatus(student) === STUDENT_STATUS.ACTIVE;
 
 export const getStudentStatusLabel = (student = {}) =>
-  isWithdrawnStudent(student) ? 'ABANDON' : isLaureatStudent(student) ? 'LAUR\u00c9AT' : 'ACTIF';
+  isWithdrawnStudent(student) ? 'ABANDON' : isLaureatStudent(student) ? (isSchoolStudent(student) ? 'FIN DE CYCLE' : 'LAUR\u00c9AT') : 'ACTIF';
 
 const normalizeStudyYear = (year) => {
   const value = String(year || '');
+  if (/primaire|collège|baccalauréat|tronc commun/i.test(value)) return value;
   if (value.includes('1')) return FIRST_YEAR;
   if (value.includes('2')) return SECOND_YEAR;
   return '';
 };
 
 const getStudentCurrentStudyYear = (student = {}) => {
+  if (isSchoolStudent(student)) return student.year || getStudyYearsForDiploma(student.diploma)[0] || '';
   const storedYear = normalizeStudyYear(student.year);
   if (storedYear) return storedYear;
   if (isLaureatStudent(student)) {
@@ -214,6 +217,7 @@ const normalizeFrenchValue = (value = '') => String(value || '')
 
 /** Vacation months are not payable and must never generate arrears. */
 export const getStudentVacationMonths = (student = {}) => {
+  if (isSchoolStudent(student)) return ['Juillet', 'Août'];
   const studyYear = normalizeFrenchValue(student.year);
   if (studyYear.includes('1')) return ['Août', 'Septembre'];
   if (studyYear.includes('2')) return ['Juillet', 'Août'];
@@ -256,7 +260,7 @@ export const getStudentPreviousYearBalance = (student, payments = []) => {
   historyEntries.forEach(entry => {
     const acYear = entry.academicYear;
     const yearLevel = entry.year || FIRST_YEAR;
-    const expectedMonths = getStudentPayableMonths({ year: yearLevel });
+    const expectedMonths = getStudentPayableMonths({ ...student, year: yearLevel, diploma: entry.diploma || student.diploma });
 
     // Find all paid payments for this student in this past academic year
     const pastPayments = (payments || []).filter(p =>
@@ -318,6 +322,7 @@ export const getStudentStudyCycleRange = (
   operationalAcademicYear = INITIAL_OPERATIONAL_ACADEMIC_YEAR
 ) => {
   if (!student) return '';
+  if (isSchoolStudent(student)) return getStudentCurrentAcademicYear(student, operationalAcademicYear);
 
   let startYear = null;
 
@@ -492,7 +497,7 @@ export const getStudentAcademicSnapshot = (
   // Infer only the missing first year before the earliest known second year.
   // Explicit history takes precedence, including repeated years and gaps.
   // A first-year student must never gain a fictitious second-year snapshot.
-  if (currentStudyYear === SECOND_YEAR && targetAcademicYear < currentAcademicYear) {
+  if (!isSchoolStudent(student) && currentStudyYear === SECOND_YEAR && targetAcademicYear < currentAcademicYear) {
     const history = (Array.isArray(student.classHistory) ? student.classHistory : [])
       .filter(entry => validateAcademicYear(entry?.academicYear) && entry.academicYear < currentAcademicYear);
     const hasFirstYearHistory = history.some(entry => normalizeStudyYear(entry.year) === FIRST_YEAR) ||
@@ -600,6 +605,16 @@ const getLatestStudentStudyYears = (
 
 /** Every recorded attempt stays consultable, including years repeated before departure. */
 export const getStudentAvailableStudyYears = (student = {}, operationalAcademicYear = INITIAL_OPERATIONAL_ACADEMIC_YEAR) => {
+  if (isSchoolStudent(student)) {
+    const current = getStudentCurrentAcademicYear(student, operationalAcademicYear);
+    const years = [...new Set([current, student.previousAcademicYear, ...(student.classHistory || []).map(entry => entry.academicYear)])]
+      .filter(validateAcademicYear).sort();
+    return years.flatMap(academicYear => {
+      const snapshot = getStudentAcademicSnapshot(student, academicYear, operationalAcademicYear);
+      return snapshot ? [{ key: `school:${academicYear}`, yearLevel: snapshot.year, academicYear,
+        label: `${snapshot.year} · ${academicYear}`, isCurrent: academicYear === current }] : [];
+    });
+  }
   const latest = getLatestStudentStudyYears(student, operationalAcademicYear);
   if (!latest.length) return [];
   const options = new Map(latest.map(option => [option.academicYear, option]));

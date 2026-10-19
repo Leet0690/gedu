@@ -1,3 +1,4 @@
+import { educationText } from '../utils/education';
 import React, { useMemo, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Download, FileSpreadsheet, Presentation, RefreshCw, Upload, Users } from 'lucide-react';
 import { useApp } from '../context/AppContext';
@@ -21,7 +22,7 @@ const TYPE_CONFIG = {
 };
 
 const BulkImport = () => {
-  const { students = [], teachers = [], importStudents, importTeachers, operationalAcademicYear } = useApp();
+  const { students = [], teachers = [], importStudents, importTeachers, operationalAcademicYear, institution, academicCatalog } = useApp();
   const { isAdmin } = useAdminAuth();
   const { showToast } = useToast();
   const [type, setType] = useState('students');
@@ -31,7 +32,7 @@ const BulkImport = () => {
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef(null);
 
-  const config = TYPE_CONFIG[type];
+  const config = { ...TYPE_CONFIG[type], label: educationText(TYPE_CONFIG[type].label), singular: educationText(TYPE_CONFIG[type].singular) };
   const Icon = config.icon;
   const validRows = useMemo(() => rows.filter(row => row.valid), [rows]);
   const invalidRows = useMemo(() => rows.filter(row => !row.valid), [rows]);
@@ -54,7 +55,7 @@ const BulkImport = () => {
     setFileName(file.name);
     try {
       const parsedRows = await readExcelRows(file, type);
-      const checkedRows = validateExcelRows(parsedRows, type, { existingStudents: students, existingTeachers: teachers });
+      const checkedRows = validateExcelRows(parsedRows, type, { existingStudents: students, existingTeachers: teachers, institution, academicCatalog });
       setRows(checkedRows);
       showToast(`${checkedRows.length} ligne(s) analysée(s).`, checkedRows.some(row => !row.valid) ? 'warning' : 'success');
     } catch (error) {
@@ -105,7 +106,7 @@ const BulkImport = () => {
         <div>
           <span className="gedu-settings-eyebrow"><FileSpreadsheet size={13} /> Import en masse</span>
           <h1>Importer des listes Excel</h1>
-          <p>Ajoutez plusieurs stagiaires ou formateurs en une seule opération, avec un aperçu avant l’enregistrement.</p>
+          <p>{educationText("Ajoutez plusieurs stagiaires ou formateurs en une seule opération, avec un aperçu avant l’enregistrement.")}</p>
         </div>
         <div className="dashboard-stat-icon" aria-hidden="true"><Upload size={22} /></div>
       </header>
@@ -115,7 +116,7 @@ const BulkImport = () => {
           const TabIcon = item.icon;
           return (
             <button key={key} type="button" role="tab" aria-selected={type === key} className={type === key ? 'is-active' : ''} onClick={() => handleTypeChange(key)}>
-              <TabIcon size={17} /> {item.label}
+              <TabIcon size={17} /> {educationText(item.label)}
             </button>
           );
         })}
@@ -148,7 +149,7 @@ const BulkImport = () => {
             <strong>Avant l’import</strong>
             <ul>
               <li>Gardez les intitulés du modèle et une ligne par personne.</li>
-              <li>Pour plusieurs diplômes, filières, années ou modules, séparez les valeurs par <code>;</code>.</li>
+              <li>{educationText("Pour plusieurs diplômes, filières, années ou modules, séparez les valeurs par ")}<code>;</code>.</li>
               <li>Les doublons de matricule ou de nom seront bloqués automatiquement.</li>
             </ul>
           </div>

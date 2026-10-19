@@ -1,3 +1,4 @@
+import { educationText } from '../utils/education';
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
@@ -146,9 +147,7 @@ const MonthlyAttendance = () => {
           <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: '900', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
             <CalendarRange size={28} style={{ color: 'var(--primary)' }} /> Présences Mensuelles
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', marginTop: '4px' }}>
-            Suivi mensuel de l'assiduité des stagiaires.
-          </p>
+          <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', marginTop: '4px' }}>{educationText("Suivi mensuel de l'assiduité des stagiaires.")}</p>
         </div>
       </div>
 
@@ -171,7 +170,7 @@ const MonthlyAttendance = () => {
           </div>
 
           <div>
-            <label style={labelStyle}>Année</label>
+            <label style={labelStyle}>{educationText("Année")}</label>
             <FilterSelect
               value={year}
               onChange={() => {}}
@@ -182,12 +181,12 @@ const MonthlyAttendance = () => {
           </div>
 
           <div>
-            <label style={labelStyle}>Filière</label>
+            <label style={labelStyle}>{educationText("Filière")}</label>
             <FilterSelect
               value={filterFiliere}
               onChange={(val) => { setFilterFiliere(val); setFilterAnnee(''); }}
               options={[
-                { label: "Toutes les filières", value: "" },
+                { label: educationText("Toutes les filières"), value: "" },
                 ...allFilieres.map(f => ({ label: f, value: f }))
               ]}
               style={{ width: '100%' }}
@@ -195,7 +194,7 @@ const MonthlyAttendance = () => {
           </div>
 
           <div>
-            <label style={labelStyle}>Année d'étude</label>
+            <label style={labelStyle}>{educationText("Année d'étude")}</label>
             <FilterSelect
               value={filterAnnee}
               onChange={(val) => setFilterAnnee(val)}
@@ -214,7 +213,7 @@ const MonthlyAttendance = () => {
               <input
                 type="text" className="input-premium"
                 style={{ width: '100%', paddingLeft: '34px' }}
-                placeholder="Nom du stagiaire..."
+                placeholder={educationText("Nom du stagiaire...")}
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
@@ -229,7 +228,7 @@ const MonthlyAttendance = () => {
         style={{ display: 'flex', gap: '12px', marginBottom: 'var(--space-5)', flexWrap: 'wrap' }}
       >
         {[
-          { label: 'Stagiaires', value: filteredStudents.length, icon: Users, color: 'var(--primary)', bg: 'var(--primary-ultra-light)' },
+          { label: educationText("Stagiaires"), value: filteredStudents.length, icon: Users, color: 'var(--primary)', bg: 'var(--primary-ultra-light)' },
           { label: 'Total Présences', value: globalStats.present, icon: CheckCircle2, color: '#15803d', bg: 'rgba(22,163,74,0.08)' },
           { label: 'Total Absences', value: globalStats.absent, icon: XCircle, color: '#dc2626', bg: 'rgba(220,38,38,0.08)' },
           { label: 'Total Retards', value: globalStats.retard, icon: Clock, color: '#ca8a04', bg: 'rgba(234,179,8,0.08)' },
@@ -269,7 +268,7 @@ const MonthlyAttendance = () => {
           <div style={{ padding: '64px', textAlign: 'center' }}>
             <CalendarRange size={40} style={{ color: 'var(--text-faint)', margin: '0 auto 16px', display: 'block' }} />
             <p style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-muted)' }}>
-              {!filterFiliere ? 'Sélectionnez une filière pour afficher les stagiaires.' : 'Aucun stagiaire trouvé.'}
+              {!filterFiliere ? educationText("Sélectionnez une filière pour afficher les stagiaires.") : educationText("Aucun stagiaire trouvé.")}
             </p>
           </div>
         ) : (
@@ -286,9 +285,7 @@ const MonthlyAttendance = () => {
               <thead>
                 <tr style={{ background: 'var(--bg-subtle)' }}>
                   <th style={thStyle}>#</th>
-                  <th style={{ ...thStyle, textAlign: 'left', position: 'sticky', left: 0, background: 'var(--bg-subtle)', zIndex: 10 }}>
-                    Stagiaire
-                  </th>
+                  <th style={{ ...thStyle, textAlign: 'left', position: 'sticky', left: 0, background: 'var(--bg-subtle)', zIndex: 10 }}>{educationText("Stagiaire")}</th>
                   {days.map(d => {
                     const date = new Date(year, month, d);
                     const isWeekend = date.getDay() === 0 || date.getDay() === 6;

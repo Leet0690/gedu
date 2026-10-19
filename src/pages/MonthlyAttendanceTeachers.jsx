@@ -1,3 +1,4 @@
+import { educationText } from '../utils/education';
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
@@ -201,11 +202,8 @@ const MonthlyAttendanceTeachers = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-4)', marginBottom: 'var(--space-8)' }}>
         <div>
           <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: '900', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-            <GraduationCap size={28} style={{ color: 'var(--primary)' }} /> Présences Mensuelles — Formateurs
-          </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', marginTop: '4px' }}>
-            Suivi mensuel des vacations et de l'assiduité des formateurs.
-          </p>
+            <GraduationCap size={28} style={{ color: 'var(--primary)' }} />{educationText(" Présences Mensuelles — Formateurs")}</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', marginTop: '4px' }}>{educationText("Suivi mensuel des vacations et de l'assiduité des formateurs.")}</p>
         </div>
       </div>
 
@@ -227,7 +225,7 @@ const MonthlyAttendanceTeachers = () => {
           </div>
 
           <div>
-            <label style={labelStyle}>Année</label>
+            <label style={labelStyle}>{educationText("Année")}</label>
             <FilterSelect
               value={year}
               onChange={(val) => setYear(Number(val))}
@@ -243,7 +241,7 @@ const MonthlyAttendanceTeachers = () => {
               <input
                 type="text" className="input-premium"
                 style={{ width: '100%', paddingLeft: '34px' }}
-                placeholder="Nom du formateur..."
+                placeholder={educationText("Nom du formateur...")}
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
@@ -258,7 +256,7 @@ const MonthlyAttendanceTeachers = () => {
         style={{ display: 'flex', gap: '12px', marginBottom: 'var(--space-5)', flexWrap: 'wrap' }}
       >
         {[
-          { label: 'Formateurs', value: filteredTeachers.length, icon: Users, color: 'var(--primary)', bg: 'var(--primary-ultra-light)' },
+          { label: educationText("Formateurs"), value: filteredTeachers.length, icon: Users, color: 'var(--primary)', bg: 'var(--primary-ultra-light)' },
           { label: 'Jours Présents', value: globalStats.present, icon: CheckCircle2, color: '#15803d', bg: 'rgba(22,163,74,0.08)' },
           { label: 'Jours Absents', value: globalStats.absent, icon: XCircle, color: '#dc2626', bg: 'rgba(220,38,38,0.08)' },
           { label: 'Retards', value: globalStats.retard, icon: Clock, color: '#ca8a04', bg: 'rgba(234,179,8,0.08)' },
@@ -298,7 +296,7 @@ const MonthlyAttendanceTeachers = () => {
         ) : filteredTeachers.length === 0 ? (
           <div style={{ padding: '64px', textAlign: 'center' }}>
             <GraduationCap size={40} style={{ color: 'var(--text-faint)', margin: '0 auto 16px', display: 'block' }} />
-            <p style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-muted)' }}>Aucun formateur trouvé.</p>
+            <p style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-muted)' }}>{educationText("Aucun formateur trouvé.")}</p>
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -315,9 +313,7 @@ const MonthlyAttendanceTeachers = () => {
               <thead>
                 <tr style={{ background: 'var(--bg-subtle)' }}>
                   <th style={thStyle}>#</th>
-                  <th style={{ ...thStyle, textAlign: 'left', position: 'sticky', left: 0, background: 'var(--bg-subtle)', zIndex: 10 }}>
-                    Formateur
-                  </th>
+                  <th style={{ ...thStyle, textAlign: 'left', position: 'sticky', left: 0, background: 'var(--bg-subtle)', zIndex: 10 }}>{educationText("Formateur")}</th>
                   {days.map(d => {
                     const date = new Date(year, month, d);
                     const isWeekend = date.getDay() === 0 || date.getDay() === 6;
