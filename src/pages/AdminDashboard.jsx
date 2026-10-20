@@ -1078,6 +1078,111 @@ const ScheduleCalendar = ({ realSchedules, teachers, activeSemester, setActiveSe
   );
 };
 
+const DashboardCommandCenter = ({ students, schedules, teachers, studentAttendanceRate, teacherAttendanceRate, getScheduleModule }) => {
+  const summary = useMemo(() => {
+    const studentList = students || [];
+    const scheduleList = schedules || [];
+    const today = getTodayFrench();
+    const completeProfiles = studentList.filter(student => student.diploma && student.major && student.year).length;
+    const profileCompletion = studentList.length > 0 ? Math.round((completeProfiles / studentList.length) * 100) : 0;
+    const todaySessions = scheduleList.filter(session => {
+      if (session.day !== today) return false;
+      return typeof getScheduleModule === 'function' ? Boolean(getScheduleModule(session)) : Boolean(session.module);
+    }).length;
+    const attendanceValues = [studentAttendanceRate, teacherAttendanceRate].filter(value => typeof value === 'number');
+    const attendanceAverage = attendanceValues.length > 0
+      ? Math.round(attendanceValues.reduce((sum, value) => sum + value, 0) / attendanceValues.length)
+      : null;
+
+    const focusItems = [];
+    const incompleteProfiles = studentList.length - completeProfiles;
+
+    if (incompleteProfiles > 0) {
+      focusItems.push({
+        tone: 'warning',
+        icon: AlertTriangle,
+        title: `${incompleteProfiles} profil${incompleteProfiles > 1 ? 's' : ''} a completer`,
+        detail: 'Niveau, filiere ou annee manquant',
+        to: '/admin/students',
+      });
+    } else {
+      focusItems.push({
+        tone: 'success',
+        icon: CheckCircle2,
+        title: 'Profils stagiaires a jour',
+        detail: `${completeProfiles} dossier${completeProfiles > 1 ? 's' : ''} complet${completeProfiles > 1 ? 's' : ''}`,
+        to: '/admin/students',
+      });
+    }
+
+    focusItems.push({
+      tone: todaySessions > 0 ? 'info' : 'muted',
+      icon: CalendarCheck,
+      title: todaySessions > 0 ? `${todaySessions} seance${todaySessions > 1 ? 's' : ''} aujourd'hui` : 'Aucune seance aujourd’hui',
+      detail: todaySessions > 0 ? 'Consulter le planning du jour' : 'Verifier les emplois du temps',
+      to: '/admin/schedules',
+    });
+
+    focusItems.push({
+      tone: attendanceAverage !== null && attendanceAverage < 90 ? 'danger' : 'success',
+      icon: attendanceAverage !== null && attendanceAverage < 90 ? AlertCircle : UserCheck,
+      title: attendanceAverage === null ? 'Presence a renseigner' : `Presence moyenne ${attendanceAverage}%`,
+      detail: attendanceAverage !== null && attendanceAverage < 90 ? 'Une verification est recommandee' : 'Suivi du mois en cours',
+      to: '/admin/attendance-students',
+    });
+
+    return { profileCompletion, todaySessions, attendanceAverage, focusItems, teacherCount: (teachers || []).length };
+  }, [getScheduleModule, schedules, studentAttendanceRate, students, teacherAttendanceRate, teachers]);
+
+  return (
+    <section className="dashboard-command-grid" aria-label="Priorites de pilotage">
+      <div className="dashboard-focus-card">
+        <div className="dashboard-command-heading">
+          <div>
+            <span className="dashboard-command-kicker">Lecture rapide</span>
+            <h2>Ce qui merite votre attention</h2>
+          </div>
+          <span className="dashboard-command-date">{getTodayFrench()}</span>
+        </div>
+        <div className="dashboard-focus-list">
+          {summary.focusItems.map(({ tone, icon: Icon, title, detail, to }) => (
+            <Link key={title} to={to} className={`dashboard-focus-item dashboard-focus-item--${tone}`}>
+              <span className="dashboard-focus-icon" aria-hidden="true"><Icon size={16} /></span>
+              <span className="dashboard-focus-copy"><strong>{title}</strong><small>{detail}</small></span>
+              <ArrowRight size={16} aria-hidden="true" />
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      <div className="dashboard-pulse-card">
+        <div className="dashboard-command-heading">
+          <div>
+            <span className="dashboard-command-kicker">Etat de l’etablissement</span>
+            <h2>Le pouls du jour</h2>
+          </div>
+          <Activity size={18} aria-hidden="true" />
+        </div>
+        <div className="dashboard-pulse-list">
+          <div className="dashboard-pulse-row">
+            <div><span>Profils complets</span><strong>{summary.profileCompletion}%</strong></div>
+            <div className="dashboard-pulse-track"><span style={{ width: `${summary.profileCompletion}%` }} /></div>
+          </div>
+          <div className="dashboard-pulse-row">
+            <div><span>Presence moyenne</span><strong>{summary.attendanceAverage === null ? '—' : `${summary.attendanceAverage}%`}</strong></div>
+            <div className="dashboard-pulse-track"><span className="is-teal" style={{ width: `${summary.attendanceAverage || 0}%` }} /></div>
+          </div>
+          <div className="dashboard-pulse-meta">
+            <span><Calendar size={14} aria-hidden="true" /> {summary.todaySessions} seances aujourd'hui</span>
+            <span><UsersIcon size={14} aria-hidden="true" /> {summary.teacherCount} formateurs</span>
+          </div>
+        </div>
+        <Link className="dashboard-pulse-link" to="/admin/reports">Voir les rapports <ArrowRight size={15} aria-hidden="true" /></Link>
+      </div>
+    </section>
+  );
+};
+
 const AdminDashboard = () => {
   const { hasPermission, isAdmin } = useAdminAuth();
   const { students, teachers, payments, grades, schedules, modules: allModules, academicCatalog, addStudent, addTeacher, deleteStudent, deleteTeacher, updateStudent, promoteAcademicYear, undoLastPromotion, updateStudentClosureDecision, updateTeacher, studentAttendance, teacherAttendance, loadStudentAttendanceForMonth, loadTeacherAttendanceForMonth, migrateTeacherTokens, loading, confirmAction, notifications, activeSemester, setActiveSemester, getActiveScheduleModule, activeAcademicYear, operationalAcademicYear, availableAcademicYearsList, institution } = useApp();
@@ -1775,6 +1880,15 @@ const AdminDashboard = () => {
               <ArrowUpRight size={15} aria-hidden="true" />
             </Link>
           </nav>
+
+          <DashboardCommandCenter
+            students={activeYearStudents}
+            schedules={activeYearSchedules}
+            teachers={teachers || []}
+            studentAttendanceRate={studentAttendanceRate}
+            teacherAttendanceRate={teacherAttendanceRate}
+            getScheduleModule={getActiveScheduleModule}
+          />
 
           <div className="home-stats-grid">
             <StatCard delay={0.05} icon={UsersIcon} tone="primary" value={activeYearStudents.length} label={educationText("Stagiaires")} detail="Effectif inscrit" />
